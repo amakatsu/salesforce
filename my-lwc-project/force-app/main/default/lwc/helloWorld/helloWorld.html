@@ -280,48 +280,54 @@
       label="一般与信"
       icon-name="standard:choice"
     >
-      <lightning-tabset variant="scoped">
+      <lightning-tabset variant="scoped" spacing="between-xxlarge">
         <!-- 一般与信1 -->
         <lightning-tab label="一般与信1">
-          <!-- ★ 高さ固定 450px + 子要素スクロールをインラインで指定 -->
+          <!-- ★ 全体高さ固定 -->
           <lightning-layout style="height: 450px">
             <!-- 与信状況（左）-->
             <lightning-layout-item
-              size="7"
-              class="slds-scrollable_y slds-p-right_small"
-              style="min-width: 0; min-height: 0; flex: 1 1 0"
-            >
-              <h3 class="slds-text-title_bold">与信状況</h3>
-              <lightning-tree-grid
-                key-field="id"
-                data={treeGridData1}
-                columns={treeGridColumns1}
-                hide-checkbox-column
-                onrowaction={handleRowAction}
-              ></lightning-tree-grid>
-            </lightning-layout-item>
-
-            <!-- 本件保全状況＋保証人（右）-->
-            <lightning-layout-item
-              size="5"
-              class="slds-scrollable_y"
+              size="8"
               style="
                 min-width: 0;
                 min-height: 0;
                 display: flex;
                 flex-direction: column;
-                flex: 1 1 0;
               "
             >
+              <!-- 見出しは固定 -->
+              <h3 class="slds-text-title_bold">与信状況</h3>
+
+              <!-- ツリーだけスクロールさせる -->
+              <div class="slds-scrollable_y" style="flex: 1 1 0; min-height: 0">
+                <lightning-tree-grid
+                  key-field="id"
+                  data={treeGridData1}
+                  columns={treeGridColumns1}
+                  hide-checkbox-column
+                  onrowaction={handleRowAction}
+                ></lightning-tree-grid>
+              </div>
+            </lightning-layout-item>
+
+            <!-- 本件保全状況＋保証人（右）-->
+            <lightning-layout-item
+              size="4"
+              style="
+                min-width: 0;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+              "
+            >
+              <!-- 見出しは固定 -->
+              <h3 class="slds-text-title_bold">本件保全状況</h3>
+
+              <!-- 保全ツリー -->
               <div
-                style="
-                  flex: 1 1 0;
-                  min-height: 0;
-                  overflow: auto;
-                  margin-bottom: 0.5rem;
-                "
+                class="slds-scrollable_y"
+                style="flex: 1 1 0; min-height: 0; margin-bottom: 0.5rem"
               >
-                <h3 class="slds-text-title_bold">本件保全状況</h3>
                 <lightning-tree-grid
                   key-field="id"
                   data={treeGridData2}
@@ -330,7 +336,8 @@
                 ></lightning-tree-grid>
               </div>
 
-              <div style="flex: 1 1 0; min-height: 0; overflow: auto">
+              <!-- 保証人テーブル -->
+              <div class="slds-scrollable_y" style="flex: 1 1 0; min-height: 0">
                 <lightning-datatable
                   key-field="id"
                   data={guarantorData}
