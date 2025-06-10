@@ -155,7 +155,118 @@
       label="補正理由等"
       icon-name="standard:choice"
     >
-      <!-- …（中身は省略：ご提示のまま）… -->
+      <div
+        class="slds-grid slds-wrap slds-p-horizontal_x-large slds-p-vertical_xxx-small slds-grid_align-spread"
+      >
+        <!-- 補正理由（ラベル＋出力を横並び）-->
+        <div class="slds-col slds-size_6-of-12">
+          <div
+            class="slds-grid slds-wrap slds-align-center slds-p-around_x-small"
+          >
+            <!-- ラベル（左）-->
+            <div class="slds-col slds-size_1-of-12 slds-align-middle">
+              <span class="slds-form-element__label slds-text-title_bold"
+                >補正理由</span
+              >
+            </div>
+            <!-- 出力欄（右）-->
+            <div class="slds-col slds-size_11-of-12">
+              <div
+                class="slds-box slds-theme_default"
+                style="
+                  height: 100px;
+                  overflow-y: auto;
+                  overflow-x: hidden;
+                  white-space: normal;
+                  word-break: break-word;
+                "
+              >
+                <lightning-formatted-text
+                  value={correctionReason}
+                  class="slds-text-body_regular"
+                  style="font-size: 0.875rem"
+                ></lightning-formatted-text>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 補正値関連項目（右側）-->
+        <div class="slds-col slds-size_6-of-12">
+          <!-- 横幅調整、中央寄せのためslds-grid_align-centerでもよい -->
+          <div
+            class="slds-grid slds-wrap slds-gutters slds-align-spread slds-p-left_xx-large slds-grid_align-center"
+          >
+            <!-- 以下6項目を均等に2列配置 -->
+            <div
+              class="slds-col slds-size_1-of-2 slds-p-vertical_xxx-small slds-truncate"
+              title={poolCategory}
+            >
+              <span class="slds-form-element__label slds-text-title_bold"
+                >プール区分</span
+              >
+              <lightning-formatted-text
+                value={poolCategory}
+              ></lightning-formatted-text>
+            </div>
+            <div
+              class="slds-col slds-size_1-of-2 slds-p-vertical_xxx-small slds-truncate"
+              title={amountUnit}
+            >
+              <span class="slds-form-element__label slds-text-title_bold"
+                >金額単位</span
+              >
+              <lightning-formatted-text
+                value={amountUnit}
+              ></lightning-formatted-text>
+            </div>
+            <div
+              class="slds-col slds-size_1-of-2 slds-p-vertical_xxx-small slds-truncate"
+              title={limitGeneral}
+            >
+              <span class="slds-form-element__label slds-text-title_bold"
+                >限度一般</span
+              >
+              <lightning-formatted-text
+                value={limitGeneral}
+              ></lightning-formatted-text>
+            </div>
+            <div
+              class="slds-col slds-size_1-of-2 slds-p-vertical_xxx-small slds-truncate"
+              title={marketInclusion}
+            >
+              <span class="slds-form-element__label slds-text-title_bold"
+                >算入市場性</span
+              >
+              <lightning-formatted-text
+                value={marketInclusion}
+              ></lightning-formatted-text>
+            </div>
+            <div
+              class="slds-col slds-size_1-of-2 slds-p-vertical_xxx-small slds-truncate"
+              title={regulatoryCollateral}
+            >
+              <span class="slds-form-element__label slds-text-title_bold"
+                >規定担保</span
+              >
+              <lightning-formatted-text
+                value={regulatoryCollateral}
+              ></lightning-formatted-text>
+            </div>
+            <div
+              class="slds-col slds-size_1-of-2 slds-p-vertical_xxx-small slds-truncate"
+              title={protectionRate}
+            >
+              <span class="slds-form-element__label slds-text-title_bold"
+                >保全率</span
+              >
+              <lightning-formatted-text
+                value={protectionRate}
+              ></lightning-formatted-text>
+            </div>
+          </div>
+        </div>
+      </div>
     </lightning-accordion-section>
 
     <!-- 一般与信 -->
@@ -200,7 +311,21 @@
             </div>
           </div>
         </lightning-tab>
-        <!-- そのほかのタブは省略 -->
+        <lightning-tab label="一般与信2"
+          ><div class="slds-p-around_small">
+            一般与信2（仮表示）
+          </div></lightning-tab
+        >
+        <lightning-tab label="市場性与信1"
+          ><div class="slds-p-around_small">
+            市場性与信1（仮表示）
+          </div></lightning-tab
+        >
+        <lightning-tab label="市場性与信2"
+          ><div class="slds-p-around_small">
+            市場性与信2（仮表示）
+          </div></lightning-tab
+        >
       </lightning-tabset>
     </lightning-accordion-section>
   </lightning-accordion>
