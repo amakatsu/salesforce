@@ -1,0 +1,239 @@
+<template>
+  <!-- ★ 背景を白にしたアコーディオン全体 -->
+  <lightning-accordion
+    allow-multiple-sections-open
+    class="slds-box slds-theme_default"
+  >
+    <!-- 操作ボタン群 -->
+    <div class="slds-var-p-around_small">
+      <div class="slds-grid slds-wrap">
+        <div class="slds-col slds-size_1-of-3">
+          <lightning-button
+            label="計数再取得"
+            onclick={handleFetchCalculation}
+          ></lightning-button>
+          <lightning-button
+            label="計算"
+            onclick={handleCalculate}
+          ></lightning-button>
+          <lightning-button
+            label="補正値登録"
+            onclick={handleRegisterCorrection}
+          ></lightning-button>
+          <lightning-button
+            label="登録"
+            onclick={handleRegister}
+          ></lightning-button>
+        </div>
+        <div class="slds-col slds-size_2-of-3 slds-text-align_right">
+          <lightning-button
+            label="ファイル出力"
+            onclick={handleFileExport}
+          ></lightning-button>
+          <lightning-button
+            label="Excel出力"
+            onclick={handleExcelExport}
+          ></lightning-button>
+          <lightning-button
+            label="直近計数照会"
+            onclick={handleRecentInquiry}
+          ></lightning-button>
+          <lightning-button
+            label="過去審査"
+            onclick={handlePastReview}
+          ></lightning-button>
+          <lightning-button
+            label="預金担保明細"
+            onclick={handleDepositDetail}
+          ></lightning-button>
+          <lightning-button
+            label="手形電債残高"
+            onclick={handleBillBalance}
+          ></lightning-button>
+          <lightning-button
+            label="有価証券明細"
+            onclick={handleSecuritiesDetail}
+          ></lightning-button>
+          <lightning-button
+            label="協会保証明細"
+            onclick={handleAssociationGuarantee}
+          ></lightning-button>
+          <lightning-button
+            label="不動産担保明細"
+            onclick={handleRealEstateDetail}
+          ></lightning-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 取引先情報 -->
+    <lightning-accordion-section
+      name="accountInfo"
+      label="取引先情報"
+      icon-name="standard:choice"
+    >
+      <div class="slds-grid slds-wrap slds-var-p-around_x-small">
+        <div
+          class="slds-col slds-size_1-of-3 slds-truncate"
+          title={branchNumber}
+        >
+          <span
+            class="slds-form-element__label slds-text-title_caps slds-text-title_bold"
+            >店番</span
+          >
+          <lightning-formatted-text
+            value={branchNumber}
+          ></lightning-formatted-text>
+        </div>
+        <div
+          class="slds-col slds-size_1-of-3 slds-text-align_center slds-truncate"
+          title={branchName}
+        >
+          <span
+            class="slds-form-element__label slds-text-title_caps slds-text-title_bold"
+            >店名</span
+          >
+          <lightning-formatted-text
+            value={branchName}
+          ></lightning-formatted-text>
+        </div>
+        <div
+          class="slds-col slds-size_1-of-3 slds-text-align_right slds-truncate"
+          title={customerName}
+        >
+          <span
+            class="slds-form-element__label slds-text-title_caps slds-text-title_bold"
+            >取引先名</span
+          >
+          <lightning-formatted-text
+            value={customerName}
+          ></lightning-formatted-text>
+        </div>
+      </div>
+    </lightning-accordion-section>
+
+    <!-- 審査番号・金額単位・括り -->
+    <lightning-accordion-section
+      name="reviewDetails"
+      label="審査番号・金額単位・括り"
+      icon-name="standard:choice"
+    >
+      <div class="slds-grid slds-wrap slds-var-p-around_x-small">
+        <div class="slds-col slds-size_1-of-3">
+          <span
+            class="slds-form-element__label slds-text-title_caps slds-text-title_bold"
+            >審査番号</span
+          >
+          <lightning-formatted-text
+            value={reviewNumber}
+          ></lightning-formatted-text>
+        </div>
+        <div class="slds-col slds-size_1-of-3 slds-text-align_center">
+          <span
+            class="slds-form-element__label slds-text-title_caps slds-text-title_bold"
+            >金額単位</span
+          >
+          <lightning-formatted-text
+            value={amountUnit}
+          ></lightning-formatted-text>
+        </div>
+        <div class="slds-col slds-size_1-of-3 slds-text-align_right">
+          <span
+            class="slds-form-element__label slds-text-title_caps slds-text-title_bold"
+            >括り</span
+          >
+          <lightning-formatted-text
+            value={groupNumber}
+          ></lightning-formatted-text>
+        </div>
+      </div>
+    </lightning-accordion-section>
+
+    <!-- 補正理由等 -->
+    <lightning-accordion-section
+      name="correctionReasons"
+      label="補正理由等"
+      icon-name="standard:choice"
+    >
+      <!-- …（中身は省略：ご提示のまま）… -->
+    </lightning-accordion-section>
+
+    <!-- 一般与信 -->
+    <lightning-accordion-section
+      name="creditOverview"
+      label="一般与信"
+      icon-name="standard:choice"
+    >
+      <lightning-tabset variant="scoped">
+        <lightning-tab label="一般与信1">
+          <div class="credit-split">
+            <!-- 与信状況 -->
+            <div class="credit-left">
+              <h3 class="slds-text-title_bold">与信状況</h3>
+              <lightning-tree-grid
+                key-field="id"
+                data={treeGridData1}
+                columns={treeGridColumns1}
+                hide-checkbox-column
+                onrowaction={handleRowAction}
+              ></lightning-tree-grid>
+            </div>
+            <!-- 本件保全状況＋保証人 -->
+            <div class="credit-right">
+              <div class="credit-sub">
+                <h3 class="slds-text-title_bold">本件保全状況</h3>
+                <lightning-tree-grid
+                  key-field="id"
+                  data={treeGridData2}
+                  columns={treeGridColumns2}
+                  hide-checkbox-column
+                ></lightning-tree-grid>
+              </div>
+              <div class="credit-sub">
+                <lightning-datatable
+                  key-field="id"
+                  data={guarantorData}
+                  columns={guarantorColumns}
+                  hide-checkbox-column
+                ></lightning-datatable>
+              </div>
+            </div>
+          </div>
+        </lightning-tab>
+        <!-- そのほかのタブは省略 -->
+      </lightning-tabset>
+    </lightning-accordion-section>
+  </lightning-accordion>
+
+  <!-- ★ 補正値編集モーダル -->
+  <template if:true={isModalOpen}>
+    <section role="dialog" class="slds-modal slds-fade-in-open">
+      <div class="slds-modal__container">
+        <header class="slds-modal__header">
+          <h2 class="slds-text-heading_medium">補正値を編集</h2>
+        </header>
+        <div class="slds-modal__content slds-p-around_medium">
+          <lightning-input
+            type="number"
+            label="補正値"
+            value={editRow.correction}
+            onchange={handleCorrectionInput}
+          ></lightning-input>
+        </div>
+        <footer class="slds-modal__footer">
+          <lightning-button
+            variant="neutral"
+            label="キャンセル"
+            onclick={closeModal}
+          ></lightning-button>
+          <lightning-button
+            variant="brand"
+            label="保存"
+            onclick={saveCorrection}
+          ></lightning-button>
+        </footer>
+      </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+  </template>
+</template>
