@@ -88,6 +88,34 @@ export default class customTableWithTh extends LightningElement {
   // 稟議データ
   @track accounts = generateMockData(100);
 
+  get processedAccounts() {
+    return this.accounts.map((account) => {
+      const badge = {};
+      switch (account.ReviewResult) {
+        case "合格":
+        case "一時承認":
+        case "条件付き合格":
+          badge.class = "slds-badge slds-badge_success";
+          badge.label = account.ReviewResult;
+          break;
+        case "否認":
+        case "一部否認":
+          badge.class = "slds-badge slds-badge_error";
+          badge.label = account.ReviewResult;
+          break;
+        case "保留":
+        case "再審査":
+          badge.class = "slds-badge slds-badge_warning";
+          badge.label = account.ReviewResult;
+          break;
+        default:
+          badge.class = "slds-badge";
+          badge.label = account.ReviewResult;
+      }
+      return { ...account, badge };
+    });
+  }
+
   // テンプレートで利用する選択肢
   reviewResultOptions = REVIEW_RESULT_OPTIONS;
   creditTypeOptions = CREDIT_TYPE_OPTIONS;

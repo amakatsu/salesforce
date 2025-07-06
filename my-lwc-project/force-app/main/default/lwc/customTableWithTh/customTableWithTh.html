@@ -1,12 +1,12 @@
 <template>
   <lightning-card title="Custom Table with TH">
-    <div class="slds-p-around_medium">
+    <div class="slds-p-around_medium slds-scrollable_x">
       <table
-        class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_edit"
+        class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_edit slds-table_fixed-layout"
       >
         <thead>
           <tr class="slds-line-height_reset">
-            <th class="slds-text-align_right" style="width: 3.25rem">
+            <th class="slds-text-align_center" style="width: 3.25rem">
               <div class="slds-th__action slds-th__action_form">
                 <lightning-input
                   type="checkbox"
@@ -17,74 +17,113 @@
                 ></lightning-input>
               </div>
             </th>
-            <th class="" scope="col" style="width: 3rem">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="No.">No.</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
+              <div class="slds-truncate" title="Badge">Badge</div>
+            </th>
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="支店">支店</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="職場">職場</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="審査結果">審査結果</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="与信番号">与信番号</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="与信区分">与信区分</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="科目">科目</div>
             </th>
-            <th scope="col">
-              <div class="slds-truncate" title="実査権限">実査権限</div>
+            <th
+              scope="col"
+              class="slds-text-align_center"
+              style="white-space: normal; width: 60px"
+            >
+              <div title="実査権限">実査権限</div>
             </th>
-            <th scope="col">
-              <div class="slds-truncate" title="月末与信決済">月末与信決済</div>
+            <th
+              scope="col"
+              class="slds-text-align_center"
+              style="white-space: normal; width: 40px"
+            >
+              <div title="月末与信決済">月末与信決済</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="使用区分">使用区分</div>
             </th>
-            <th scope="col">
+            <th
+              class="slds-text-align_center"
+              scope="col"
+              style="white-space: normal; width: 100px"
+            >
               <div class="slds-truncate" title="包括申請">包括申請</div>
             </th>
-            <th scope="col"><div class="slds-truncate" title="A">A</div></th>
-            <th scope="col"><div class="slds-truncate" title="B">B</div></th>
-            <th scope="col">
+            <th
+              class="slds-text-align_center"
+              scope="col"
+              style="white-space: normal; width: 40px"
+            >
+              <div class="slds-truncate" title="A">A</div>
+            </th>
+            <th
+              class="slds-text-align_center"
+              scope="col"
+              style="white-space: normal; width: 40px"
+            >
+              <div class="slds-truncate" title="B">B</div>
+            </th>
+            <th
+              class="slds-text-align_center"
+              scope="col"
+              style="white-space: normal; width: 40px"
+            >
               <div class="slds-truncate" title="一括推移">一括推移</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="取引先別期限">取引先別期限</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="審査承認日">審査承認日</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="備考">備考</div>
             </th>
-            <th scope="col">
+            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="確認">確認</div>
             </th>
           </tr>
         </thead>
         <tbody>
-          <template for:each={accounts} for:item="account">
+          <template for:each={processedAccounts} for:item="account">
             <tr key={account.Id} class="slds-hint-parent">
               <td class="slds-text-align_right">
-                <lightning-input
-                  type="checkbox"
-                  label="Select Row"
-                  variant="label-hidden"
-                  data-id={account.Id}
-                  checked={account.isSelected}
-                  onchange={handleRowSelection}
-                ></lightning-input>
+                <div class="slds-th__action slds-th__action_form">
+                  <lightning-input
+                    type="checkbox"
+                    label="Select Row"
+                    variant="label-hidden"
+                    data-id={account.Id}
+                    checked={account.isSelected}
+                    onchange={handleRowSelection}
+                  ></lightning-input>
+                </div>
               </td>
               <th scope="row">
                 <div class="slds-truncate" title={account.Id}>{account.Id}</div>
               </th>
+              <td data-label="Badge">
+                <lightning-badge
+                  label={account.badge.label}
+                  class={account.badge.class}
+                ></lightning-badge>
+              </td>
               <td data-label="支店">
                 <lightning-input
                   value={account.Branch}
