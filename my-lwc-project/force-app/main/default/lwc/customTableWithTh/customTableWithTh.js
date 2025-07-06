@@ -67,7 +67,7 @@ function generateMockData(count = 100) {
     Branch: "本店",
     Workplace: `部署 ${i + 1}`,
     ReviewResult: REVIEW_RESULT_OPTIONS[i % REVIEW_RESULT_OPTIONS.length].value,
-    CreditNo: `CR-${1000 + i}`,
+    CreditNo: `${1000 + i}`,
     CreditType: CREDIT_TYPE_OPTIONS[i % CREDIT_TYPE_OPTIONS.length].value,
     Subject: SUBJECT_OPTIONS[i % SUBJECT_OPTIONS.length].value,
     Authorization: i % 2 === 0,
