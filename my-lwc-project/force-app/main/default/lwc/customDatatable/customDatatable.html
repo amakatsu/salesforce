@@ -1,0 +1,14 @@
+<template>
+  <!-- lightning-cardコンポーネント：タイトル付きのカードを表示 -->
+  <lightning-card title="Custom Editable Data Table (Mock 100 Records)">
+    <!-- c-editable-data-table-datatableコンポーネント：編集可能なデータテーブルを表示 -->
+    <c-editable-data-table-datatable
+      key-field="Id"
+      data={accounts}
+      columns={columns}
+      draft-values={draftValues}
+      onsave={handleSave}
+    >
+    </c-editable-data-table-datatable>
+  </lightning-card>
+</template>
