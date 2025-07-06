@@ -17,7 +17,7 @@
                 ></lightning-input>
               </div>
             </th>
-            <th class="slds-text-align_center" scope="col">
+            <th class="slds-text-align_center" scope="col" style="width: 60px">
               <div class="slds-truncate" title="No.">No.</div>
             </th>
             <th class="slds-text-align_center" scope="col">
@@ -41,11 +41,7 @@
             <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="科目">科目</div>
             </th>
-            <th
-              scope="col"
-              class="slds-text-align_center"
-              style="white-space: normal; width: 60px"
-            >
+            <th scope="col" class="slds-text-align_center" style="width: 60px">
               <div title="実査権限">実査権限</div>
             </th>
             <th
@@ -285,14 +281,14 @@
                 ></lightning-input>
               </td>
               <td data-label="確認">
-                <lightning-input
-                  type="checkbox"
-                  checked={account.Confirmed}
+                <lightning-button-icon-stateful
+                  icon-name="utility:like"
                   data-id={account.Id}
-                  data-field="Confirmed"
-                  onchange={handleInputChange}
-                  variant="label-hidden"
-                ></lightning-input>
+                  selected={account.liked}
+                  alternative-text="Like"
+                  onclick={handleLikeButtonClick}
+                >
+                </lightning-button-icon-stateful>
               </td>
             </tr>
           </template>

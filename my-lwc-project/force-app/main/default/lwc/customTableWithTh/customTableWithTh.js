@@ -1,9 +1,7 @@
 import { LightningElement, track } from "lwc";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 
-// ---------------------------
-// ピックリスト選択肢
-// ---------------------------
+/* ────────────── ピックリスト選択肢 ────────────── */
 const REVIEW_RESULT_OPTIONS = [
   { label: "合格", value: "合格" },
   { label: "否認", value: "否認" },
@@ -59,7 +57,7 @@ const USAGE_TYPE_OPTIONS = [
   { label: "調査中", value: "調査中" }
 ];
 
-// 稟議データを生成する関数
+/* ────────────── モックデータ生成 ────────────── */
 function generateMockData(count = 100) {
   return Array.from({ length: count }, (_, i) => ({
     Id: `${i + 1}`.padStart(3, "0"),
@@ -80,90 +78,101 @@ function generateMockData(count = 100) {
     PartnerDeadline: new Date(2025, 6, 1 + i).toISOString().split("T")[0],
     ApprovalDate: new Date(2025, 6, 10 + i).toISOString().split("T")[0],
     Description: `備考内容 ${i + 1}`,
-    Confirmed: i % 2 === 1
+    liked: i % 2 === 1 // 👍 初期状態
   }));
 }
 
-export default class customTableWithTh extends LightningElement {
-  // 稟議データ
+/* ────────────── LWC クラス ────────────── */
+export default class CustomTableWithTh extends LightningElement {
+  /* 行データ */
   @track accounts = generateMockData(100);
 
+  /* ---------- テンプレート描画用 ---------- */
   get processedAccounts() {
-    return this.accounts.map((account) => {
-      const badge = {};
-      switch (account.ReviewResult) {
-        case "合格":
-        case "一時承認":
-        case "条件付き合格":
-          badge.class = "slds-badge slds-badge_success";
-          badge.label = account.ReviewResult;
-          break;
-        case "否認":
-        case "一部否認":
-          badge.class = "slds-badge slds-badge_error";
-          badge.label = account.ReviewResult;
-          break;
-        case "保留":
-        case "再審査":
-          badge.class = "slds-badge slds-badge_warning";
-          badge.label = account.ReviewResult;
-          break;
-        default:
-          badge.class = "slds-badge";
-          badge.label = account.ReviewResult;
+    return this.accounts.map((acc) => {
+      /* バッジ色設定 */
+      let badgeClass = "slds-badge";
+      if (["合格", "一時承認", "条件付き合格"].includes(acc.ReviewResult)) {
+        badgeClass = "slds-badge slds-badge_success";
+      } else if (["否認", "一部否認"].includes(acc.ReviewResult)) {
+        badgeClass = "slds-badge slds-badge_error";
+      } else if (["保留", "再審査"].includes(acc.ReviewResult)) {
+        badgeClass = "slds-badge slds-badge_warning";
       }
-      return { ...account, badge };
+
+      return {
+        ...acc,
+        badge: { class: badgeClass, label: acc.ReviewResult }
+        // icon-class は使わずアイコン形状だけ切替
+      };
     });
   }
 
-  // テンプレートで利用する選択肢
-  reviewResultOptions = REVIEW_RESULT_OPTIONS;
-  creditTypeOptions = CREDIT_TYPE_OPTIONS;
-  subjectOptions = SUBJECT_OPTIONS;
-  usageTypeOptions = USAGE_TYPE_OPTIONS;
+  /* ---------- Like トグル ---------- */
+  @track likeState = false;
+  @track answerState = false;
+  @track likeStateSize01 = false;
+  @track likeStateSize02 = false;
+  @track likeStateSize03 = false;
+  @track likeStateSize04 = false;
+  @track likeStateDisabled = false;
+  @track answerStateDisabled = false;
 
+  handleLikeButtonClick(event) {
+    const { id } = event.currentTarget.dataset; // 行 ID 取得
+    this.accounts = this.accounts.map(
+      (a) => (a.Id === id ? { ...a, liked: !a.liked } : a) // その行だけ反転
+    );
+  }
+
+  handleAnswerButtonClick() {
+    this.answerState = !this.answerState;
+  }
+
+  handleLikeButtonSizeClick(event) {
+    const buttonNumber = event.target.dataset.buttonNumber;
+
+    this[`likeStateSize${buttonNumber}`] =
+      !this[`likeStateSize${buttonNumber}`];
+  }
+
+  handleLikeButtonDisabledClick() {
+    this.likeStateDisabled = !this.likeStateDisabled;
+  }
+
+  handleAnswerButtonDisabledClick() {
+    this.answerStateDisabled = !this.answerStateDisabled;
+  }
+  /* ---------- 行一括チェック ---------- */
   get allRowsSelected() {
-    return this.accounts.every((acc) => acc.isSelected);
+    return this.accounts.every((a) => a.isSelected);
   }
 
-  handleSelectAll(event) {
-    const isChecked = event.target.checked;
-    this.accounts = this.accounts.map((acc) => ({
-      ...acc,
-      isSelected: isChecked
-    }));
+  handleSelectAll(e) {
+    const chk = e.target.checked;
+    this.accounts = this.accounts.map((a) => ({ ...a, isSelected: chk }));
   }
 
-  handleRowSelection(event) {
-    const { id } = event.currentTarget.dataset;
-    const isChecked = event.target.checked;
-
-    const account = this.accounts.find((acc) => acc.Id === id);
-    if (account) {
-      account.isSelected = isChecked;
-      this.accounts = [...this.accounts];
-    }
+  handleRowSelection(e) {
+    const { id } = e.currentTarget.dataset;
+    const chk = e.target.checked;
+    this.accounts = this.accounts.map((a) =>
+      a.Id === id ? { ...a, isSelected: chk } : a
+    );
   }
 
-  // 入力変更時の処理
-  handleInputChange(event) {
-    const { id, field } = event.currentTarget.dataset;
-    const value =
-      event.target.type === "checkbox"
-        ? event.detail.checked
-        : event.detail.value;
-
-    const account = this.accounts.find((acc) => acc.Id === id);
-    if (account) {
-      account[field] = value;
-      this.accounts = [...this.accounts];
-    }
+  /* ---------- 入力変更 ---------- */
+  handleInputChange(e) {
+    const { id, field } = e.currentTarget.dataset;
+    const val =
+      e.target.type === "checkbox" ? e.detail.checked : e.detail.value;
+    this.accounts = this.accounts.map((a) =>
+      a.Id === id ? { ...a, [field]: val } : a
+    );
   }
 
-  // 保存処理
+  /* ---------- 保存（モック） ---------- */
   handleSave() {
-    // ここでApexを呼び出してサーバーにデータを保存するロジックを実装できます。
-    // 今回はモックなので、Toastメッセージのみ表示します。
     this.dispatchEvent(
       new ShowToastEvent({
         title: "Success",
@@ -172,4 +181,10 @@ export default class customTableWithTh extends LightningElement {
       })
     );
   }
+
+  /* ---------- ピックリスト ---------- */
+  reviewResultOptions = REVIEW_RESULT_OPTIONS;
+  creditTypeOptions = CREDIT_TYPE_OPTIONS;
+  subjectOptions = SUBJECT_OPTIONS;
+  usageTypeOptions = USAGE_TYPE_OPTIONS;
 }
