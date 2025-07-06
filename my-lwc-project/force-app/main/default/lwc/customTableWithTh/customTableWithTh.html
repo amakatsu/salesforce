@@ -1,0 +1,271 @@
+<template>
+  <lightning-card title="Custom Table with TH">
+    <div class="slds-p-around_medium">
+      <table
+        class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_edit"
+      >
+        <thead>
+          <tr class="slds-line-height_reset">
+            <th class="slds-text-align_right" style="width: 3.25rem">
+              <div class="slds-th__action slds-th__action_form">
+                <lightning-input
+                  type="checkbox"
+                  label="Select All"
+                  variant="label-hidden"
+                  checked={allRowsSelected}
+                  onchange={handleSelectAll}
+                ></lightning-input>
+              </div>
+            </th>
+            <th class="" scope="col" style="width: 3rem">
+              <div class="slds-truncate" title="No.">No.</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="支店">支店</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="職場">職場</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="審査結果">審査結果</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="与信番号">与信番号</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="与信区分">与信区分</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="科目">科目</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="実査権限">実査権限</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="月末与信決済">月末与信決済</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="使用区分">使用区分</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="包括申請">包括申請</div>
+            </th>
+            <th scope="col"><div class="slds-truncate" title="A">A</div></th>
+            <th scope="col"><div class="slds-truncate" title="B">B</div></th>
+            <th scope="col">
+              <div class="slds-truncate" title="一括推移">一括推移</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="取引先別期限">取引先別期限</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="審査承認日">審査承認日</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="備考">備考</div>
+            </th>
+            <th scope="col">
+              <div class="slds-truncate" title="確認">確認</div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <template for:each={accounts} for:item="account">
+            <tr key={account.Id} class="slds-hint-parent">
+              <td class="slds-text-align_right">
+                <lightning-input
+                  type="checkbox"
+                  label="Select Row"
+                  variant="label-hidden"
+                  data-id={account.Id}
+                  checked={account.isSelected}
+                  onchange={handleRowSelection}
+                ></lightning-input>
+              </td>
+              <th scope="row">
+                <div class="slds-truncate" title={account.Id}>{account.Id}</div>
+              </th>
+              <td data-label="支店">
+                <lightning-input
+                  value={account.Branch}
+                  data-id={account.Id}
+                  data-field="Branch"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="職場">
+                <lightning-input
+                  value={account.Workplace}
+                  data-id={account.Id}
+                  data-field="Workplace"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="審査結果">
+                <lightning-combobox
+                  value={account.ReviewResult}
+                  options={reviewResultOptions}
+                  data-id={account.Id}
+                  data-field="ReviewResult"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td data-label="与信番号">
+                <lightning-input
+                  value={account.CreditNo}
+                  data-id={account.Id}
+                  data-field="CreditNo"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="与信区分">
+                <lightning-combobox
+                  value={account.CreditType}
+                  options={creditTypeOptions}
+                  data-id={account.Id}
+                  data-field="CreditType"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td data-label="科目">
+                <lightning-combobox
+                  value={account.Subject}
+                  options={subjectOptions}
+                  data-id={account.Id}
+                  data-field="Subject"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td data-label="実査権限">
+                <lightning-input
+                  type="checkbox"
+                  checked={account.Authorization}
+                  data-id={account.Id}
+                  data-field="Authorization"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="月末与信決済">
+                <lightning-input
+                  type="checkbox"
+                  checked={account.MonthEndSettlement}
+                  data-id={account.Id}
+                  data-field="MonthEndSettlement"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="使用区分">
+                <lightning-combobox
+                  value={account.UsageType}
+                  options={usageTypeOptions}
+                  data-id={account.Id}
+                  data-field="UsageType"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td data-label="包括申請">
+                <lightning-input
+                  type="checkbox"
+                  checked={account.Inclusive}
+                  data-id={account.Id}
+                  data-field="Inclusive"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="A">
+                <lightning-input
+                  type="checkbox"
+                  checked={account.AssessmentA}
+                  data-id={account.Id}
+                  data-field="AssessmentA"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="B">
+                <lightning-input
+                  type="checkbox"
+                  checked={account.AssessmentB}
+                  data-id={account.Id}
+                  data-field="AssessmentB"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="一括推移">
+                <lightning-input
+                  type="checkbox"
+                  checked={account.BulkTransition}
+                  data-id={account.Id}
+                  data-field="BulkTransition"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="取引先別期限">
+                <lightning-input
+                  type="date"
+                  value={account.PartnerDeadline}
+                  data-id={account.Id}
+                  data-field="PartnerDeadline"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="審査承認日">
+                <lightning-input
+                  type="date"
+                  value={account.ApprovalDate}
+                  data-id={account.Id}
+                  data-field="ApprovalDate"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="備考">
+                <lightning-input
+                  value={account.Description}
+                  data-id={account.Id}
+                  data-field="Description"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+              <td data-label="確認">
+                <lightning-input
+                  type="checkbox"
+                  checked={account.Confirmed}
+                  data-id={account.Id}
+                  data-field="Confirmed"
+                  onchange={handleInputChange}
+                  variant="label-hidden"
+                ></lightning-input>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="slds-m-top_medium">
+        <lightning-button
+          label="Save"
+          onclick={handleSave}
+          variant="brand"
+        ></lightning-button>
+      </div>
+    </div>
+  </lightning-card>
+</template>
