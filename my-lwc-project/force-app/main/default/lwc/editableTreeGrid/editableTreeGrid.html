@@ -1,6 +1,5 @@
 <template>
   <lightning-card title="Editable Tree Table">
-    <!-- アクションボタン -->
     <lightning-button
       label="保存"
       slot="actions"
@@ -12,7 +11,6 @@
       onclick={handleReset}
     ></lightning-button>
 
-    <!-- テーブル -->
     <div class="slds-scrollable_x">
       <table class="slds-table slds-table_cell-buffer slds-table_bordered">
         <thead>
@@ -29,7 +27,7 @@
         <tbody>
           <template for:each={rows} for:item="row">
             <tr key={row.id}>
-              <!-- トグル -->
+              <!-- 展開トグル -->
               <td>
                 <lightning-button-icon
                   if:true={row.hasChildren}
@@ -52,7 +50,9 @@
                     data-id={row.id}
                     data-field="name"
                     onchange={handleEdit}
-                  ></lightning-input>
+                    disabled={row.nameDisabled}
+                  >
+                  </lightning-input>
                 </div>
               </td>
 
@@ -66,7 +66,9 @@
                     data-id={row.id}
                     data-field="status"
                     onchange={handleEdit}
-                  ></lightning-input>
+                    disabled={row.statusDisabled}
+                  >
+                  </lightning-input>
                 </div>
               </td>
 
@@ -80,7 +82,9 @@
                     data-id={row.id}
                     data-field="joinDate"
                     onchange={handleEdit}
-                  ></lightning-input>
+                    disabled={row.joinDateDisabled}
+                  >
+                  </lightning-input>
                 </div>
               </td>
 
@@ -94,7 +98,9 @@
                     data-id={row.id}
                     data-field="active"
                     onchange={handleEdit}
-                  ></lightning-input>
+                    disabled={row.activeDisabled}
+                  >
+                  </lightning-input>
                 </div>
               </td>
 
@@ -108,7 +114,9 @@
                     data-id={row.id}
                     data-field="role"
                     onchange={handleEdit}
-                  ></lightning-input>
+                    disabled={row.roleDisabled}
+                  >
+                  </lightning-input>
                 </div>
               </td>
             </tr>
@@ -117,14 +125,15 @@
       </table>
     </div>
 
-    <!-- Draft JSON 表示 -->
+    <!-- draft JSON 表示 -->
     <template if:true={hasDraft}>
       <lightning-textarea
         value={draftJson}
         readonly
         class="slds-m-top_small"
         rows="6"
-      ></lightning-textarea>
+      >
+      </lightning-textarea>
     </template>
   </lightning-card>
 </template>

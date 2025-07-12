@@ -8,8 +8,8 @@ let originalSource = [];
 let expanded = new Set();
 let draft = new Map();
 
-/* ---------- サンプル初期データ ---------- */
-const componentSource = [
+/* ---------- 生データ（editable なし） ---------- */
+const rawComponentSource = [
   {
     id: "100",
     name: "開発部",
@@ -95,59 +95,48 @@ const componentSource = [
         role: "Accountant"
       }
     ]
-  },
-  {
-    id: "400",
-    name: "サポート部",
-    status: "Active",
-    joinDate: "2019-01-01",
-    active: true,
-    role: "Dept Head",
-    children: [
-      {
-        id: "410",
-        name: "石井 智",
-        status: "Active",
-        joinDate: "2019-05-01",
-        active: true,
-        role: "Support L1"
-      }
-    ]
-  },
-  {
-    id: "500",
-    name: "研究部",
-    status: "Active",
-    joinDate: "2022-04-01",
-    active: true,
-    role: "Dept Head"
-  },
-  {
-    id: "600",
-    name: "マーケティング部",
-    status: "Inactive",
-    joinDate: "2021-07-01",
-    active: false,
-    role: "Dept Head"
   }
 ];
 
-/* ---------- public functions ---------- */
+/* ---------- editable フラグを付与 ---------- */
+function attachEditableFlags(tree) {
+  return tree.map((n) => {
+    const isDept = n.children?.length;
+
+    // ルール例（自由に変更可）
+    const editable = {
+      name: !isDept, // 部門行は名前編集不可
+      status: n.role !== "Dept Head", // Dept Head 行はステータス不可
+      joinDate: n.active, // inactive 行は日付編集不可
+      active: true, // いつでも可
+      role: !n.id.startsWith("200") // 営業部 (id 200xx) はロール不可
+    };
+
+    return {
+      ...n,
+      editable,
+      children: n.children ? attachEditableFlags(n.children) : undefined
+    };
+  });
+}
+
+/* ---------- public ---------- */
 const initializeState = () => {
   if (!isInitialized) {
-    source = deepCopy(componentSource);
-    initialSource = deepCopy(componentSource);
-    originalSource = deepCopy(componentSource);
+    const withFlags = attachEditableFlags(rawComponentSource);
+    source = deepCopy(withFlags);
+    initialSource = deepCopy(withFlags);
+    originalSource = deepCopy(withFlags);
     isInitialized = true;
   }
 };
+/* resetState, getState, setState は変更なし */
 
 const resetState = () => {
   source = deepCopy(initialSource);
   originalSource = deepCopy(initialSource);
   draft.clear();
 };
-
 const getState = () => ({
   isInitialized,
   source,
@@ -156,19 +145,10 @@ const getState = () => ({
   expanded,
   draft
 });
-
-const setState = (newState) => {
-  if (newState.source) source = newState.source;
-  if (newState.originalSource) originalSource = newState.originalSource;
+const setState = (s) => {
+  if (s.source) source = s.source;
+  if (s.originalSource) originalSource = s.originalSource;
 };
-
-/* ---------- util ---------- */
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
-/* ---------- export ---------- */
-export const stateService = {
-  initializeState,
-  resetState,
-  getState,
-  setState
-};
+export const stateService = { initializeState, resetState, getState, setState };

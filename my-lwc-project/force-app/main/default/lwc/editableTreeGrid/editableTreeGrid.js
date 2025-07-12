@@ -1,17 +1,10 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from "./editableTreeGridState";
 
-/* =========================================
- * EditableTreeGrid
- * ========================================= */
 export default class EditableTreeGrid extends LightningElement {
-  /* ---------- reactive rows ---------- */
   @track rows = [];
+  highlightOn = false;
 
-  /* ---------- local flag ---------- */
-  highlightOn = false; // 保存直後のみ true
-
-  /* ---------- getters ---------- */
   get draft() {
     return stateService.getState().draft;
   }
@@ -22,32 +15,27 @@ export default class EditableTreeGrid extends LightningElement {
     return JSON.stringify(Object.fromEntries(this.draft), null, 2);
   }
 
-  /* ---------- lifecycle ---------- */
   connectedCallback() {
     stateService.initializeState();
     this.rows = this.flatten(stateService.getState().source, false);
   }
 
-  /* ---------- button handlers ---------- */
+  /* ---------- SAVE / RESET ---------- */
   handleSave() {
-    /* ★ Apex で一括保存する処理をここで呼ぶ */
-
-    stateService.getState().draft.clear(); // draft クリア
-    this.highlightOn = true; // ハイライト許可
+    stateService.getState().draft.clear();
+    this.highlightOn = true;
     this.rows = this.flatten(stateService.getState().source, true);
   }
-
   handleReset() {
     stateService.resetState();
-    this.highlightOn = false; // ハイライト解除
+    this.highlightOn = false;
     this.rows = this.flatten(stateService.getState().source, false);
   }
 
-  /* ---------- table interaction ---------- */
+  /* ---------- TOGGLE / EDIT ---------- */
   handleToggle(e) {
     const { source, expanded } = stateService.getState();
     const id = e.currentTarget.dataset.id;
-
     expanded.has(id) ? expanded.delete(id) : expanded.add(id);
     this.rows = this.flatten(source, this.highlightOn);
   }
@@ -57,34 +45,33 @@ export default class EditableTreeGrid extends LightningElement {
     const field = e.target.dataset.field;
     const value = field === "active" ? e.target.checked : e.target.value;
 
+    const row = this.rows.find((r) => r.id === id);
+    if (row && row[`${field}Disabled`]) return; // 編集不可なら無視
+
     const { source, draft } = stateService.getState();
+    this.updateNode(source, id, field, value); // ソース更新
 
-    /* 1) ソース更新 */
-    this.updateNode(source, id, field, value);
-
-    /* 2) draft へ保持 */
     const prev = draft.get(id) || {};
-    draft.set(id, { ...prev, [field]: value });
+    draft.set(id, { ...prev, [field]: value }); // draft へ
 
-    /* 3) 旧ハイライトは残したまま再描画 */
     this.rows = this.flatten(source, this.highlightOn);
   }
 
-  /* ---------- util: tree -> flat ---------- */
+  /* ---------- tree -> flat ---------- */
   flatten(tree, highlight, level = 0, out = []) {
     const { expanded, originalSource, draft } = stateService.getState();
 
     tree.forEach((node) => {
       const open = expanded.has(node.id);
-      const base = this.findNode(originalSource, node.id); // 前回保存時点
+      const base = this.findNode(originalSource, node.id);
 
-      /* draft に含まれる（編集中）行はハイライトしない */
-      const diff = (key) =>
-        highlight && !draft.has(node.id) && base && base[key] !== node[key]
+      const diff = (k) =>
+        highlight && !draft.has(node.id) && base && base[k] !== node[k]
           ? "changed-cell"
           : "";
 
       const indent = `indent-${level}`;
+      const ed = node.editable; // shorthand
 
       out.push({
         ...node,
@@ -95,11 +82,19 @@ export default class EditableTreeGrid extends LightningElement {
             ? "utility:chevrondown"
             : "utility:chevronright"
           : "",
+
         nameClass: `${indent} ${diff("name")}`.trim(),
         statusClass: `${indent} ${diff("status")}`.trim(),
         joinDateClass: `${indent} ${diff("joinDate")}`.trim(),
         activeClass: `${indent} ${diff("active")}`.trim(),
-        roleClass: `${indent} ${diff("role")}`.trim()
+        roleClass: `${indent} ${diff("role")}`.trim(),
+
+        /* disabled フラグを生成 */
+        nameDisabled: !ed.name,
+        statusDisabled: !ed.status,
+        joinDateDisabled: !ed.joinDate,
+        activeDisabled: !ed.active,
+        roleDisabled: !ed.role
       });
 
       if (open && node.children)
@@ -108,7 +103,7 @@ export default class EditableTreeGrid extends LightningElement {
     return out;
   }
 
-  /* ---------- util: update node ---------- */
+  /* ---------- helpers ---------- */
   updateNode(tree, id, field, value) {
     for (const n of tree) {
       if (n.id === id) {
@@ -118,8 +113,6 @@ export default class EditableTreeGrid extends LightningElement {
       if (n.children) this.updateNode(n.children, id, field, value);
     }
   }
-
-  /* ---------- util: find node ---------- */
   findNode(tree, id) {
     for (const n of tree) {
       if (n.id === id) return n;
