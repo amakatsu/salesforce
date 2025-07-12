@@ -1,0 +1,26 @@
+/* =========================================
+ * ハイライト: lightning-input の背景色を上書き
+ * ========================================= */
+.changed-cell lightning-input {
+  --slds-c-input-color-background: #fff9c4; /* 薄い黄色 */
+  --slds-c-input-shadow-focus: 0 0 0 1px #ffd54f inset, 0 0 0 1px #ffd54f; /* フォーカス枠も黄 */
+}
+
+/* チェックボックス列の行全体を色付けしたい場合（任意） */
+.changed-cell[data-field="active"] {
+  background-color: #fff9c4;
+}
+
+/* インデント */
+.indent-0 {
+  padding-left: 0;
+}
+.indent-1 {
+  padding-left: 1rem;
+}
+.indent-2 {
+  padding-left: 2rem;
+}
+.indent-3 {
+  padding-left: 3rem;
+}

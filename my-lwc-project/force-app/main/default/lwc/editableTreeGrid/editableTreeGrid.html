@@ -1,0 +1,130 @@
+<template>
+  <lightning-card title="Editable Tree Table">
+    <!-- アクションボタン -->
+    <lightning-button
+      label="保存"
+      slot="actions"
+      onclick={handleSave}
+    ></lightning-button>
+    <lightning-button
+      label="再取得"
+      slot="actions"
+      onclick={handleReset}
+    ></lightning-button>
+
+    <!-- テーブル -->
+    <div class="slds-scrollable_x">
+      <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+        <thead>
+          <tr>
+            <th style="width: 34px"></th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Join Date</th>
+            <th class="slds-text-align_center">Active</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <template for:each={rows} for:item="row">
+            <tr key={row.id}>
+              <!-- トグル -->
+              <td>
+                <lightning-button-icon
+                  if:true={row.hasChildren}
+                  icon-name={row.icon}
+                  variant="bare"
+                  size="small"
+                  alternative-text="toggle"
+                  onclick={handleToggle}
+                  data-id={row.id}
+                ></lightning-button-icon>
+              </td>
+
+              <!-- Name -->
+              <td>
+                <div class={row.nameClass}>
+                  <lightning-input
+                    type="text"
+                    variant="label-hidden"
+                    value={row.name}
+                    data-id={row.id}
+                    data-field="name"
+                    onchange={handleEdit}
+                  ></lightning-input>
+                </div>
+              </td>
+
+              <!-- Status -->
+              <td>
+                <div class={row.statusClass}>
+                  <lightning-input
+                    type="text"
+                    variant="label-hidden"
+                    value={row.status}
+                    data-id={row.id}
+                    data-field="status"
+                    onchange={handleEdit}
+                  ></lightning-input>
+                </div>
+              </td>
+
+              <!-- Join Date -->
+              <td>
+                <div class={row.joinDateClass}>
+                  <lightning-input
+                    type="date"
+                    variant="label-hidden"
+                    value={row.joinDate}
+                    data-id={row.id}
+                    data-field="joinDate"
+                    onchange={handleEdit}
+                  ></lightning-input>
+                </div>
+              </td>
+
+              <!-- Active -->
+              <td style="text-align: center">
+                <div class={row.activeClass}>
+                  <lightning-input
+                    type="checkbox"
+                    variant="label-hidden"
+                    checked={row.active}
+                    data-id={row.id}
+                    data-field="active"
+                    onchange={handleEdit}
+                  ></lightning-input>
+                </div>
+              </td>
+
+              <!-- Role -->
+              <td>
+                <div class={row.roleClass}>
+                  <lightning-input
+                    type="text"
+                    variant="label-hidden"
+                    value={row.role}
+                    data-id={row.id}
+                    data-field="role"
+                    onchange={handleEdit}
+                  ></lightning-input>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Draft JSON 表示 -->
+    <template if:true={hasDraft}>
+      <lightning-textarea
+        value={draftJson}
+        readonly
+        class="slds-m-top_small"
+        rows="6"
+      ></lightning-textarea>
+    </template>
+  </lightning-card>
+</template>
