@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.openapitools.mapper.UserMapper"> <!-- ★ 完全修飾名 -->
+
+    <resultMap id="UserResult" type="org.openapitools.model.User">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+    </resultMap>
+
+    <!-- ★ id は メソッド名 と同じ -->
+    <select id="findAll" resultMap="UserResult"> SELECT id, name FROM users </select>
+
+    <select id="findById" parameterType="long" resultMap="UserResult"> SELECT id, name FROM users
+        WHERE id = #{id} </select>
+
+    <insert id="insert"
+        parameterType="org.openapitools.model.User"
+        useGeneratedKeys="true" keyProperty="id"> INSERT INTO users (name) VALUES (#{name}) </insert>
+
+</mapper>

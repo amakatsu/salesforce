@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: Todo API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /todos:
+    get:
+      summary: 一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoList'
+  /users:
+    get:
+      summary: ユーザー一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+
+components:
+  schemas:
+    Todo:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        text: { type: string, example: '牛乳を買う' }
+        done: { type: boolean, example: false }
+    TodoList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Todo'
+    User:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: 'John Doe' }
+    UserList:
+      type: array
+      items:
+        $ref: '#/components/schemas/User'
