@@ -1,0 +1,15 @@
+.table-number-input {
+    width: 100%;
+}
+
+.table-number-input .slds-input {
+    text-align: right;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    background: transparent;
+}
+
+.table-number-input .slds-input:focus {
+    border: 1px solid #1589ee;
+    background: white;
+}

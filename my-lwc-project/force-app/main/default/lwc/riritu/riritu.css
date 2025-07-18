@@ -1,0 +1,74 @@
+/* =========================================
+ * ハイライト: lightning-input の背景色を上書き
+ * ========================================= */
+.changed-cell lightning-input {
+  --slds-c-input-color-background: #fff9c4; /* 薄い黄色 */
+  --slds-c-input-shadow-focus: 0 0 0 1px #ffd54f inset, 0 0 0 1px #ffd54f; /* フォーカス枠も黄 */
+}
+
+/* チェックボックス列の行全体を色付けしたい場合（任意） */
+.changed-cell[data-field="active"] {
+  background-color: #fff9c4;
+}
+
+/* インデント */
+.indent-0 {
+  padding-left: 0;
+}
+.indent-1 {
+  padding-left: 1rem;
+}
+.indent-2 {
+  padding-left: 2rem;
+}
+.indent-3 {
+  padding-left: 3rem;
+}
+
+.common-table {
+  width: 100%;
+  border: 1px solid #999;
+  border-collapse: collapse;
+  table-layout: fixed;
+  overflow: visible;
+}
+
+.common-table th {
+  border: 1px solid #999;
+  background: #f2f2f2;
+  top: 0;
+  left: 0;
+  text-align: left; /* 左寄せ */
+}
+
+.common-table td {
+  border: 1px solid #999;
+  background: #fff;
+  padding: 5px;
+  text-align: left; /* 左寄せ */
+}
+
+.table-container {
+  overflow-y: auto;
+}
+
+.table-container-credit {
+  max-height: 700px; /* Adjust the height as needed */
+}
+
+.table-container-collateral {
+  max-height: 400px; /* Adjust the height as needed */
+}
+
+.table-container-guarantor {
+  max-height: 160px; /* Adjust the height as needed */
+}
+
+.table-container thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #d8dde6;
+}
