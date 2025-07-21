@@ -1,0 +1,160 @@
+<template>
+  <lightning-card title="テーブルコンポーネント検証ハーネス" icon-name="utility:table">
+    
+    <!-- 検証タイプ選択 -->
+    <div class="slds-p-around_medium">
+      <lightning-radio-group
+        name="testType"
+        label="検証タイプを選択"
+        options={testTypeOptions}
+        value={selectedTestType}
+        onchange={handleTestTypeChange}
+        type="radio"
+      ></lightning-radio-group>
+    </div>
+
+    <!-- Test Case 1: 単純なカード内配置 -->
+    <template if:true={showSimpleCard}>
+      <div class="slds-m-around_medium">
+        <h3 class="slds-text-heading_medium slds-m-bottom_small">Test Case 1: 単純なカード内配置</h3>
+        <lightning-card title="カード内のテーブル" icon-name="utility:list">
+          <c-custom-table-with-th></c-custom-table-with-th>
+        </lightning-card>
+      </div>
+    </template>
+
+    <!-- Test Case 2: タブ内配置 -->
+    <template if:true={showTabTest}>
+      <div class="slds-m-around_medium">
+        <h3 class="slds-text-heading_medium slds-m-bottom_small">Test Case 2: タブ内配置</h3>
+        <lightning-tabset active-tab-value="table-tab">
+          <lightning-tab label="テーブル" value="table-tab">
+            <div class="slds-p-around_medium">
+              <c-custom-table-with-th></c-custom-table-with-th>
+            </div>
+          </lightning-tab>
+          <lightning-tab label="その他" value="other-tab">
+            <div class="slds-p-around_medium">
+              <p>他のコンテンツです</p>
+            </div>
+          </lightning-tab>
+        </lightning-tabset>
+      </div>
+    </template>
+
+    <!-- Test Case 3: 複数コンポーネント共存 -->
+    <template if:true={showMultiComponent}>
+      <div class="slds-m-around_medium">
+        <h3 class="slds-text-heading_medium slds-m-bottom_small">Test Case 3: 複数コンポーネント共存</h3>
+        
+        <!-- 上部コンポーネント -->
+        <lightning-card title="上部コンポーネント" class="slds-m-bottom_medium">
+          <div class="slds-p-around_medium">
+            <lightning-input 
+              label="サンプル入力フィールド" 
+              value={sampleInput}
+              onchange={handleSampleInputChange}
+            ></lightning-input>
+            <lightning-button 
+              label="サンプルボタン" 
+              onclick={handleSampleButtonClick}
+              class="slds-m-top_small"
+            ></lightning-button>
+          </div>
+        </lightning-card>
+
+        <!-- メインテーブル -->
+        <lightning-card title="メインテーブル" class="slds-m-bottom_medium">
+          <c-custom-table-with-th></c-custom-table-with-th>
+        </lightning-card>
+
+        <!-- 下部コンポーネント -->
+        <lightning-card title="下部コンポーネント">
+          <div class="slds-p-around_medium">
+            <lightning-textarea 
+              label="備考欄" 
+              value={notes}
+              onchange={handleNotesChange}
+              rows="4"
+            ></lightning-textarea>
+            <div class="slds-m-top_medium">
+              <lightning-button label="保存" variant="brand"></lightning-button>
+              <lightning-button label="キャンセル" class="slds-m-left_small"></lightning-button>
+            </div>
+          </div>
+        </lightning-card>
+      </div>
+    </template>
+
+    <!-- Test Case 4: ネストしたレイアウト -->
+    <template if:true={showNestedLayout}>
+      <div class="slds-m-around_medium">
+        <h3 class="slds-text-heading_medium slds-m-bottom_small">Test Case 4: ネストしたレイアウト</h3>
+        
+        <lightning-layout multiple-rows>
+          <lightning-layout-item size="12" class="slds-m-bottom_medium">
+            <lightning-card title="グリッド内のカード1">
+              <div class="slds-p-around_medium">
+                <p>ヘッダー情報</p>
+              </div>
+            </lightning-card>
+          </lightning-layout-item>
+          
+          <lightning-layout-item size="12">
+            <lightning-card title="グリッド内のテーブル">
+              <div class="nested-table-container">
+                <c-custom-table-with-th></c-custom-table-with-th>
+              </div>
+            </lightning-card>
+          </lightning-layout-item>
+          
+          <lightning-layout-item size="6" class="slds-m-top_medium">
+            <lightning-card title="左側コンポーネント">
+              <div class="slds-p-around_medium">
+                <lightning-input label="左側入力"></lightning-input>
+              </div>
+            </lightning-card>
+          </lightning-layout-item>
+          
+          <lightning-layout-item size="6" class="slds-m-top_medium">
+            <lightning-card title="右側コンポーネント">
+              <div class="slds-p-around_medium">
+                <lightning-input label="右側入力"></lightning-input>
+              </div>
+            </lightning-card>
+          </lightning-layout-item>
+        </lightning-layout>
+      </div>
+    </template>
+
+    <!-- Test Case 5: スクロール競合テスト -->
+    <template if:true={showScrollTest}>
+      <div class="slds-m-around_medium">
+        <h3 class="slds-text-heading_medium slds-m-bottom_small">Test Case 5: スクロール競合テスト</h3>
+        
+        <div class="scroll-test-container">
+          <lightning-card title="制限高さでのテーブル表示">
+            <div class="limited-height-wrapper">
+              <c-custom-table-with-th></c-custom-table-with-th>
+            </div>
+          </lightning-card>
+        </div>
+        
+        <div class="slds-m-top_large">
+          <lightning-card title="ページ下部コンテンツ">
+            <div class="slds-p-around_medium">
+              <p>テーブルのスクロールが下部コンテンツに影響しないかを確認</p>
+              <div class="additional-content">
+                <template for:each={dummyContent} for:item="item">
+                  <p key={item.id} class="slds-m-bottom_small">{item.text}</p>
+                </template>
+              </div>
+            </div>
+          </lightning-card>
+        </div>
+      </div>
+    </template>
+
+
+  </lightning-card>
+</template>

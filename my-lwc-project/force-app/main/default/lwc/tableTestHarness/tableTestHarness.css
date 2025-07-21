@@ -1,0 +1,68 @@
+/* テストハーネス専用スタイル */
+
+.nested-table-container {
+  /* ネストしたレイアウトでのテーブル表示テスト */
+  min-height: 400px;
+}
+
+/* スクロール競合テスト用の追加スタイル */
+.limited-height-wrapper .table-container {
+  max-height: 500px;
+  min-height: 500px;
+}
+
+.scroll-test-container {
+  /* スクロール競合テスト用 */
+  margin-bottom: 2rem;
+}
+
+.limited-height-wrapper {
+  /* 制限高さでのテーブル表示テスト */
+  max-height: 600px;
+  overflow: visible; /* テーブル内部のスクロールを優先 */
+}
+
+.additional-content {
+  /* 下部コンテンツ用 */
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-left: 4px solid #0070d2;
+  margin-top: 1rem;
+}
+
+.verification-checklist {
+  /* 検証チェックリスト用 */
+  background-color: #fafbfc;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #e5e5e5;
+}
+
+.verification-checklist .slds-form-element {
+  margin-bottom: 0.75rem;
+}
+
+/* テーブルとの競合を確認するためのテスト用スタイル */
+.test-card-override {
+  /* カード内でのz-index競合テスト */
+  position: relative;
+  z-index: 1;
+}
+
+.test-scroll-container {
+  /* スクロール競合テスト */
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #dddbda;
+}
+
+/* レスポンシブテスト用 */
+@media (max-width: 768px) {
+  .nested-table-container {
+    min-height: 300px;
+  }
+  
+  .limited-height-wrapper {
+    max-height: 400px;
+  }
+}
