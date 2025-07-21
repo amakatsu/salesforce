@@ -17,20 +17,6 @@ const REVIEW_RESULT_OPTIONS = [
   { label: "未審査", value: "未審査" }
 ];
 
-const CREDIT_TYPE_OPTIONS = [
-  { label: "新規", value: "新規" },
-  { label: "更新", value: "更新" },
-  { label: "延長", value: "延長" },
-  { label: "追加", value: "追加" },
-  { label: "削除", value: "削除" },
-  { label: "変更", value: "変更" },
-  { label: "見直し", value: "見直し" },
-  { label: "臨時", value: "臨時" },
-  { label: "定例", value: "定例" },
-  { label: "緊急", value: "緊急" },
-  { label: "その他", value: "その他" }
-];
-
 const SUBJECT_OPTIONS = [
   { label: "貸付金", value: "貸付金" },
   { label: "手形", value: "手形" },
@@ -57,6 +43,13 @@ const USAGE_TYPE_OPTIONS = [
   { label: "調査中", value: "調査中" }
 ];
 
+/* ────────────── 選択候補データ ────────────── */
+const SELECTION_OPTIONS = [
+  { label: "優先度A", value: "priority_a", description: "最高優先で処理" },
+  { label: "優先度B", value: "priority_b", description: "通常優先で処理" },
+  { label: "優先度C", value: "priority_c", description: "低優先で処理" }
+];
+
 /* ────────────── モックデータ生成 ────────────── */
 function generateMockData(count = 100) {
   return Array.from({ length: count }, (_, i) => ({
@@ -65,11 +58,8 @@ function generateMockData(count = 100) {
     Branch: "本店",
     Workplace: `部署 ${i + 1}`,
     ReviewResult: REVIEW_RESULT_OPTIONS[i % REVIEW_RESULT_OPTIONS.length].value,
-    CreditNo: `${1000 + i}`,
-    CreditType: CREDIT_TYPE_OPTIONS[i % CREDIT_TYPE_OPTIONS.length].value,
     Subject: SUBJECT_OPTIONS[i % SUBJECT_OPTIONS.length].value,
     Authorization: i % 2 === 0,
-    MonthEndSettlement: i % 3 === 0,
     UsageType: USAGE_TYPE_OPTIONS[i % USAGE_TYPE_OPTIONS.length].value,
     Inclusive: i % 4 === 0,
     AssessmentA: i % 2 === 0,
@@ -78,7 +68,9 @@ function generateMockData(count = 100) {
     PartnerDeadline: new Date(2025, 6, 1 + i).toISOString().split("T")[0],
     ApprovalDate: new Date(2025, 6, 10 + i).toISOString().split("T")[0],
     Description: `備考内容 ${i + 1}`,
-    liked: i % 2 === 1 // 👍 初期状態
+    liked: i % 2 === 1,
+    radioGroupName: `selection_${i + 1}`, // 行ごとに独立したラジオグループ
+    selectedOption: null // 初期状態は未選択
   }));
 }
 
@@ -108,16 +100,6 @@ export default class CustomTableWithTh extends LightningElement {
     });
   }
 
-  /* ---------- Like トグル ---------- */
-  @track likeState = false;
-  @track answerState = false;
-  @track likeStateSize01 = false;
-  @track likeStateSize02 = false;
-  @track likeStateSize03 = false;
-  @track likeStateSize04 = false;
-  @track likeStateDisabled = false;
-  @track answerStateDisabled = false;
-
   handleLikeButtonClick(event) {
     const { id } = event.currentTarget.dataset; // 行 ID 取得
     this.accounts = this.accounts.map(
@@ -125,24 +107,6 @@ export default class CustomTableWithTh extends LightningElement {
     );
   }
 
-  handleAnswerButtonClick() {
-    this.answerState = !this.answerState;
-  }
-
-  handleLikeButtonSizeClick(event) {
-    const buttonNumber = event.target.dataset.buttonNumber;
-
-    this[`likeStateSize${buttonNumber}`] =
-      !this[`likeStateSize${buttonNumber}`];
-  }
-
-  handleLikeButtonDisabledClick() {
-    this.likeStateDisabled = !this.likeStateDisabled;
-  }
-
-  handleAnswerButtonDisabledClick() {
-    this.answerStateDisabled = !this.answerStateDisabled;
-  }
   /* ---------- 行一括チェック ---------- */
   get allRowsSelected() {
     return this.accounts.every((a) => a.isSelected);
@@ -171,6 +135,16 @@ export default class CustomTableWithTh extends LightningElement {
     );
   }
 
+  /* ---------- ラジオボタン選択 ---------- */
+  handleRadioSelection(e) {
+    const { id, option } = e.currentTarget.dataset;
+    const selectedValue = e.detail.value;
+
+    this.accounts = this.accounts.map((a) =>
+      a.Id === id ? { ...a, selectedOption: selectedValue } : a
+    );
+  }
+
   /* ---------- 保存（モック） ---------- */
   handleSave() {
     this.dispatchEvent(
@@ -184,7 +158,7 @@ export default class CustomTableWithTh extends LightningElement {
 
   /* ---------- ピックリスト ---------- */
   reviewResultOptions = REVIEW_RESULT_OPTIONS;
-  creditTypeOptions = CREDIT_TYPE_OPTIONS;
   subjectOptions = SUBJECT_OPTIONS;
   usageTypeOptions = USAGE_TYPE_OPTIONS;
+  selectionOptions = SELECTION_OPTIONS;
 }

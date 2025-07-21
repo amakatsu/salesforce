@@ -1,0 +1,97 @@
+.table-container {
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 【コンボボックス見切れ問題に直接関係するCSS】
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  max-height: 700px;
+  /* ↑ 【関係あり】最大高さのみ制限、最小高さは自動 = ドロップダウン展開時に高さが伸縮する */
+
+  overflow-y: auto;
+  /* ↑ 【関係あり】700px超過時のみスクロール表示、それ以下は高さが自動拡張される */
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 【コンボボックス見切れ問題に関係しないCSS】
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  overflow-x: auto; /* 【関係なし】横スクロール用 */
+  min-width: 100%; /* 【関係なし】最小幅設定 */
+  white-space: nowrap; /* 【関係なし】テキスト折り返し防止 */
+
+  /* 
+   * 【重要】なぜ審査結果のドロップダウンが見切れずに表示されるのか？
+   * 
+   * 問題: 審査結果は12個の選択肢があり、ドロップダウンが長い
+   * 解決: このテーブルコンテナが自動で高さを調整してくれる
+   * 
+   * 仕組み:
+   * 1. height固定なし + max-height設定 = 必要に応じて高さが伸びる
+   * 2. ドロップダウン開いた時:
+   *    → テーブルコンテナの高さが自動で拡張される
+   *    → 700px未満なら普通に表示、700px超えたらスクロールバー表示
+   * 3. ドロップダウン閉じた時:
+   *    → テーブルコンテナの高さが元に戻る
+   * 
+   * つまり: max-height + overflow-y の組み合わせで
+   * 「必要な時だけ伸びる、伸びすぎたらスクロール」を実現
+   */
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 【コンボボックス見切れ問題に関係しないCSS】
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.table-container .slds-table {
+  min-width: 1500px; /* 【関係なし】横スクロール発生のため十分な幅を確保 */
+  table-layout: fixed; /* 【関係なし】列幅固定用 */
+}
+
+.table-container .slds-table thead {
+  position: sticky; /* 【関係なし】ヘッダー固定用 */
+  top: 0;
+  background-color: #f3f3f3; /* 【関係なし】ヘッダー背景色 */
+  z-index: 10; /* 【関係なし】ヘッダーの重ね順 */
+}
+
+.table-container .slds-table thead th {
+  background-color: #f3f3f3; /* 【関係なし】ヘッダー背景色 */
+  border-bottom: 2px solid #dddbda; /* 【関係なし】列の区切り線 */
+  border-right: 1px solid #dddbda; /* 【関係なし】列の区切り線 */
+}
+
+.table-container .slds-table tbody td {
+  border-right: 1px solid #dddbda; /* 【関係なし】列の区切り線 */
+}
+
+/* 最左列（チェックボックス列）を横スクロール時に固定 */
+.table-container .slds-table th:first-child,
+.table-container .slds-table td:first-child {
+  position: sticky;
+  left: 0;
+  background-color: #f3f3f3;
+  z-index: 5;
+  width: 3.25rem; /* 固定幅 */
+}
+
+.table-container .slds-table thead th:first-child {
+  z-index: 15;
+}
+
+/* 第2列（No.列）も横スクロール時に固定 */
+.table-container .slds-table th:nth-child(2),
+.table-container .slds-table td:nth-child(2) {
+  position: sticky;
+  left: 3.25rem; /* 第1列の幅分だけ右にオフセット */
+  background-color: #f3f3f3;
+  z-index: 5;
+  width: 60px; /* 固定幅 */
+  border-right: 2px solid #dddbda; /* 固定列との境界を明確化 */
+}
+
+.table-container .slds-table thead th:nth-child(2) {
+  z-index: 15;
+}
+
+/* ラジオボタンを縦並びに表示 */
+.selection-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}

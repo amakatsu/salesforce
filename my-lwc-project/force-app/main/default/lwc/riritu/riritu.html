@@ -316,28 +316,16 @@
           <lightning-card>
             <div class="slds-scrollable_x">
               <div class="table-container table-container-guarantor">
-                <table
-                  class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-                >
+                <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table slds-table_compact">
                   <thead>
-                    <tr class="slds-line-height_reset">
-                      <template for:each={guarantorColumns} for:item="column">
-                        <th
-                          key={column.fieldName}
-                          class="slds-text-align_center"
-                          scope="col"
-                        >
-                          <div class="slds-truncate" title={column.label}>
-                            {column.label}
-                          </div>
-                        </th>
-                      </template>
+                    <tr>
+                      <th scope="col" class="slds-text-align_center">保証人</th>
                     </tr>
                   </thead>
                   <tbody>
                     <template for:each={guarantorData} for:item="row">
-                      <tr key={row.id} class="slds-hint-parent">
-                        <td class="slds-text-align_center slds-truncate">
+                      <tr key={row.id}>
+                        <td class="slds-text-align_center">
                           <lightning-input
                             type="text"
                             variant="label-hidden"

@@ -1,8 +1,8 @@
 <template>
   <lightning-card title="Custom Table with TH">
-    <div class="slds-p-around_medium slds-scrollable_x">
+    <div class="table-container">
       <table
-        class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_edit slds-table_fixed-layout"
+        class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped slds-table_fixed-layout"
       >
         <thead>
           <tr class="slds-line-height_reset">
@@ -33,23 +33,10 @@
               <div class="slds-truncate" title="審査結果">審査結果</div>
             </th>
             <th class="slds-text-align_center" scope="col">
-              <div class="slds-truncate" title="与信番号">与信番号</div>
-            </th>
-            <th class="slds-text-align_center" scope="col">
-              <div class="slds-truncate" title="与信区分">与信区分</div>
-            </th>
-            <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="科目">科目</div>
             </th>
             <th scope="col" class="slds-text-align_center" style="width: 60px">
               <div title="実査権限">実査権限</div>
-            </th>
-            <th
-              scope="col"
-              class="slds-text-align_center"
-              style="white-space: normal; width: 40px"
-            >
-              <div title="月末与信決済">月末与信決済</div>
             </th>
             <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="使用区分">使用区分</div>
@@ -93,6 +80,9 @@
             </th>
             <th class="slds-text-align_center" scope="col">
               <div class="slds-truncate" title="確認">確認</div>
+            </th>
+            <th class="slds-text-align_center" scope="col">
+              <div class="slds-truncate" title="選択">選択</div>
             </th>
           </tr>
         </thead>
@@ -139,31 +129,14 @@
                 ></lightning-input>
               </td>
               <td data-label="審査結果">
+                <!-- 【重要】見切れ防止の設定: dropdown-alignment="auto" -->
+                <!-- 上にスペースがあれば上向き、なければ下向きで自動調整 -->
+                <!-- + CSSの max-height + overflow-y でコンテナが自動拡張 -->
                 <lightning-combobox
                   value={account.ReviewResult}
                   options={reviewResultOptions}
                   data-id={account.Id}
                   data-field="ReviewResult"
-                  onchange={handleInputChange}
-                  variant="label-hidden"
-                  dropdown-alignment="auto"
-                ></lightning-combobox>
-              </td>
-              <td data-label="与信番号">
-                <lightning-input
-                  value={account.CreditNo}
-                  data-id={account.Id}
-                  data-field="CreditNo"
-                  onchange={handleInputChange}
-                  variant="label-hidden"
-                ></lightning-input>
-              </td>
-              <td data-label="与信区分">
-                <lightning-combobox
-                  value={account.CreditType}
-                  options={creditTypeOptions}
-                  data-id={account.Id}
-                  data-field="CreditType"
                   onchange={handleInputChange}
                   variant="label-hidden"
                   dropdown-alignment="auto"
@@ -186,16 +159,6 @@
                   checked={account.Authorization}
                   data-id={account.Id}
                   data-field="Authorization"
-                  onchange={handleInputChange}
-                  variant="label-hidden"
-                ></lightning-input>
-              </td>
-              <td data-label="月末与信決済">
-                <lightning-input
-                  type="checkbox"
-                  checked={account.MonthEndSettlement}
-                  data-id={account.Id}
-                  data-field="MonthEndSettlement"
                   onchange={handleInputChange}
                   variant="label-hidden"
                 ></lightning-input>
@@ -290,17 +253,34 @@
                 >
                 </lightning-button-icon-stateful>
               </td>
+              <td data-label="選択" class="selection-column">
+                <template for:each={selectionOptions} for:item="option">
+                  <lightning-input
+                    key={option.value}
+                    type="radio"
+                    name={account.radioGroupName}
+                    value={option.value}
+                    label={option.label}
+                    data-id={account.Id}
+                    data-option={option.value}
+                    checked={account.selectedOption}
+                    onchange={handleRadioSelection}
+                    title={option.description}
+                  ></lightning-input>
+                </template>
+              </td>
             </tr>
           </template>
         </tbody>
       </table>
-      <div class="slds-m-top_medium">
-        <lightning-button
-          label="Save"
-          onclick={handleSave}
-          variant="brand"
-        ></lightning-button>
-      </div>
+    </div>
+    <!-- Save ボタンをスクロールラッパーの外側へ移動 -->
+    <div class="slds-p-around_medium slds-m-top_medium">
+      <lightning-button
+        label="Save"
+        onclick={handleSave}
+        variant="brand"
+      ></lightning-button>
     </div>
   </lightning-card>
 </template>

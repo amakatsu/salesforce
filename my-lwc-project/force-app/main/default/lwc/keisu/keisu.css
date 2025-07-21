@@ -48,21 +48,11 @@
   text-align: left; /* 左寄せ */
 }
 
-.table-container {
-  overflow-y: auto;
-}
-
 .table-container-credit {
-  max-height: 700px; /* Adjust the height as needed */
+  max-height: 700px;
 }
 
-.table-container-collateral {
-  max-height: 400px; /* Adjust the height as needed */
-}
-
-.table-container-guarantor {
-  max-height: 160px;
-}
+/* .table-container-other-bank は削除 - スクロール不要 */
 
 .table-container thead {
   position: sticky;

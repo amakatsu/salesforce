@@ -4,14 +4,10 @@
     active-section-name={activeSections}
   >
     <lightning-layout style="height: 800px; column-gap: 7px">
+      <!-- 与信状況テーブル -->
       <lightning-layout-item
         size="7"
-        style="
-          min-width: 0;
-          min-height: 0;
-          display: flex;
-          flex-direction: column;
-        "
+        style="display: flex; flex-direction: column"
       >
         <lightning-accordion-section
           name="d"
@@ -26,13 +22,14 @@
           </div>
           <lightning-card>
             <div class="slds-scrollable_x">
-              <div class="table-container table-container-credit">
+              <div class="slds-scrollable_y table-container-credit">
                 <table
                   class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
                 >
+                  <!-- テーブルヘッダー -->
                   <thead>
                     <tr>
-                      <th style="width: 20px" scope="col"></th>
+                      <th scope="col" style="width: 20px"></th>
                       <th scope="col" style="width: 160px">科目・概要</th>
                       <th scope="col">現状残高</th>
                       <th scope="col">極度額</th>
@@ -42,26 +39,27 @@
                       <th scope="col">適用日区分</th>
                     </tr>
                   </thead>
+                  <!-- テーブルボディ -->
                   <tbody>
                     <template for:each={creditRows} for:item="row">
                       <tr key={row.id}>
-                        <!-- 展開トグル -->
+                        <!-- 展開ボタン列 -->
                         <td>
                           <lightning-button-icon
                             if:true={row.hasChildren}
                             icon-name={row.icon}
                             variant="bare"
                             size="small"
-                            alternative-text="toggle"
-                            onclick={handleToggle}
+                            onclick={handleTreeToggle}
                             data-id={row.id}
-                          ></lightning-button-icon>
+                          >
+                          </lightning-button-icon>
                         </td>
-                        <!-- 科目・概要 -->
+                        <!-- ラベル列 -->
                         <th scope="col">
                           <div class={row.labelClass}>{row.label}</div>
                         </th>
-                        <!-- 現状残高 -->
+                        <!-- 現状残高列 -->
                         <td>
                           <div class={row.currentBalanceClass}>
                             <c-f003-gs-v0000-number
@@ -73,11 +71,12 @@
                               disabled={row.currentBalanceDisabled}
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
+                              onchange={handleFieldEdit}
+                            >
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
-                        <!-- 極度額 -->
+                        <!-- 極度額列 -->
                         <td>
                           <div class={row.principalClass}>
                             <c-f003-gs-v0000-number
@@ -89,11 +88,12 @@
                               disabled={row.principalDisabled}
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
+                              onchange={handleFieldEdit}
+                            >
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
-                        <!-- 現状利率 -->
+                        <!-- 現状利率列 -->
                         <td>
                           <div class={row.currentRateClass}>
                             <c-f003-gs-v0000-number
@@ -105,11 +105,12 @@
                               disabled={row.currentRateDisabled}
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
+                              onchange={handleFieldEdit}
+                            >
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
-                        <!-- 本件後利率 -->
+                        <!-- 本件後利率列 -->
                         <td>
                           <div class={row.postRateClass}>
                             <c-f003-gs-v0000-number
@@ -121,11 +122,12 @@
                               disabled={row.postRateDisabled}
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
+                              onchange={handleFieldEdit}
+                            >
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
-                        <!-- 適用日 -->
+                        <!-- 適用日列 -->
                         <td>
                           <div class={row.applyDateClass}>
                             <lightning-input
@@ -134,13 +136,12 @@
                               value={row.applyDate}
                               data-id={row.id}
                               data-field="applyDate"
-                              onchange={handleEdit}
-                              disabled="false"
+                              onchange={handleFieldEdit}
                             >
                             </lightning-input>
                           </div>
                         </td>
-                        <!-- 適用日区分 -->
+                        <!-- 適用日区分列 -->
                         <td>
                           <div class={row.applyDateTypeClass}>
                             <lightning-input
@@ -149,8 +150,7 @@
                               value={row.applyDateType}
                               data-id={row.id}
                               data-field="applyDateType"
-                              onchange={handleEdit}
-                              disabled="false"
+                              onchange={handleFieldEdit}
                             >
                             </lightning-input>
                           </div>
@@ -164,14 +164,11 @@
           </lightning-card>
         </lightning-accordion-section>
       </lightning-layout-item>
+
+      <!-- 他行動向テーブル -->
       <lightning-layout-item
         size="5"
-        style="
-          min-width: 0;
-          min-height: 0;
-          display: flex;
-          flex-direction: column;
-        "
+        style="display: flex; flex-direction: column"
       >
         <lightning-accordion-section
           name="e"
@@ -179,237 +176,125 @@
           icon-name="standard:choice"
         >
           <lightning-card>
-            <div class="slds-var-p-top_xx-large">
-              <div class="table-container table-container-other-bank">
-                <table
-                  class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-                >
-                  <thead>
-                    <tr>
-                      <th scope="col" style="width: 250px">銀行名</th>
-                      <th scope="col">引上下月(月)</th>
-                      <th scope="col">長期比率(%)</th>
-                      <th scope="col">科目</th>
-                      <th scope="col" style="width: 100px">現状(%)</th>
-                      <th scope="col" style="width: 100px">本件後(%)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template for:each={otherBankRows} for:item="row">
-                      <tr key={row.id}>
-                        <!-- 銀行名 -->
-                        <td scope="row" rowspan="3">
+            <div class="table-container-other-bank">
+              <table
+                class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
+              >
+                <!-- テーブルヘッダー -->
+                <thead>
+                  <tr>
+                    <th scope="col" style="width: 250px">銀行名</th>
+                    <th scope="col">引上下月(月)</th>
+                    <th scope="col">長期比率(%)</th>
+                    <th scope="col">科目</th>
+                    <th scope="col" style="width: 100px">現状(%)</th>
+                    <th scope="col" style="width: 100px">本件後(%)</th>
+                  </tr>
+                </thead>
+                <!-- テーブルボディ -->
+                <tbody>
+                  <template for:each={otherBankRows} for:item="bank">
+                    <template
+                      for:each={bank.subRows}
+                      for:item="subRow"
+                      for:index="subIndex"
+                    >
+                      <tr key={subRow.id}>
+                        <!-- 銀行名列（最初の行のみ、3行結合） -->
+                        <td if:true={subRow.isFirst} scope="row" rowspan="3">
                           <lightning-input
                             type="text"
                             variant="label-hidden"
-                            value={row.label}
-                            data-id={row.id}
+                            value={bank.label}
+                            data-id={bank.id}
                             data-field="label"
                             onchange={handleEdit}
-                            >{row.label}
+                          >
                           </lightning-input>
                         </td>
-                        <!-- 引上下月 -->
-                        <td rowspan="3">
-                          <div class={row.currentBalanceClass}>
+                        <!-- 引上下月列（最初の行のみ、3行結合） -->
+                        <td if:true={subRow.isFirst} rowspan="3">
+                          <div class={bank.currentBalanceClass}>
                             <c-f003-gs-v0000-number
-                              num-value={row.currentBalance}
-                              num-label="長期比率(%)"
+                              num-value={bank.currentBalance}
+                              num-label="引上下月"
                               is-table="true"
-                              data-id={row.id}
+                              data-id={bank.id}
                               set-id="currentBalance"
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
+                              onchange={handleFieldEdit}
+                            >
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
-                        <!-- 長期比率(%) -->
+                        <!-- 長期比率列 -->
                         <td>
-                          <div class={row.principalClass}>
+                          <div class={subRow.principalClass}>
                             <c-f003-gs-v0000-number
-                              num-value={row.principal}
+                              num-value={subRow.principal}
                               num-label="長期比率(%)"
                               is-table="true"
-                              data-id={row.id}
+                              data-id={subRow.id}
                               set-id="principal"
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
+                              onchange={handleFieldEdit}
+                            >
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
-                        <!-- 科目 -->
+                        <!-- 科目列 -->
                         <td>
-                          <div class={row.currentRateClass}>
+                          <div class={subRow.currentRateClass}>
                             <lightning-input
                               type="text"
                               variant="label-hidden"
-                              value={row.currentRate}
-                              data-id={row.id}
+                              value={subRow.currentRate}
+                              data-id={subRow.id}
                               data-field="currentRate"
-                              onchange={handleEdit}
+                              onchange={handleFieldEdit}
                             >
                             </lightning-input>
                           </div>
                         </td>
-                        <!-- 現状(%) -->
+                        <!-- 現状%列 -->
                         <td>
-                          <div class={row.postRateClass}>
+                          <div class={subRow.postRateClass}>
                             <c-f003-gs-v0000-number
-                              num-value={row.postRate}
+                              num-value={subRow.postRate}
                               num-label="現状(%)"
                               is-table="true"
-                              data-id={row.id}
+                              data-id={subRow.id}
                               set-id="postRate"
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
-                        </td>
-                        <!-- 本件後(%) -->
-                        <td>
-                          <div class={row.applyDateClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.applyDate}
-                              num-label="本件後(%)"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="applyDate"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr key={row.id}>
-                        <!-- 長期比率(%) -->
-                        <td>
-                          <div class={row.principalClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.principal}
-                              num-label="長期比率(%)"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="principal"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
-                        </td>
-                        <!-- 科目 -->
-                        <td>
-                          <div class={row.currentRateClass}>
-                            <lightning-input
-                              type="text"
-                              variant="label-hidden"
-                              value={row.currentRate}
-                              data-id={row.id}
-                              data-field="currentRate"
-                              onchange={handleEdit}
+                              onchange={handleFieldEdit}
                             >
-                            </lightning-input>
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
-                        <!-- 現状(%) -->
+                        <!-- 本件後%列 -->
                         <td>
-                          <div class={row.postRateClass}>
+                          <div class={subRow.applyDateClass}>
                             <c-f003-gs-v0000-number
-                              num-value={row.postRate}
-                              num-label="現状(%)"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="postRate"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
-                        </td>
-                        <!-- 本件後(%) -->
-                        <td>
-                          <div class={row.applyDateClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.applyDate}
+                              num-value={subRow.applyDate}
                               num-label="本件後(%)"
                               is-table="true"
-                              data-id={row.id}
+                              data-id={subRow.id}
                               set-id="applyDate"
                               step="0.01"
                               onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr key={row.id}>
-                        <!-- 長期比率(%) -->
-                        <td>
-                          <div class={row.principalClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.principal}
-                              num-label="長期比率(%)"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="principal"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
-                        </td>
-                        <!-- 科目 -->
-                        <td>
-                          <div class={row.currentRateClass}>
-                            <lightning-input
-                              type="text"
-                              variant="label-hidden"
-                              value={row.currentRate}
-                              data-id={row.id}
-                              data-field="currentRate"
-                              onchange={handleEdit}
+                              onchange={handleFieldEdit}
                             >
-                            </lightning-input>
-                          </div>
-                        </td>
-                        <!-- 現状(%) -->
-                        <td>
-                          <div class={row.postRateClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.postRate}
-                              num-label="現状(%)"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="postRate"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
-                        </td>
-                        <!-- 本件後(%) -->
-                        <td>
-                          <div class={row.applyDateClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.applyDate}
-                              num-label="本件後(%)"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="applyDate"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
+                            </c-f003-gs-v0000-number>
                           </div>
                         </td>
                       </tr>
                     </template>
-                  </tbody>
-                </table>
-              </div>
+                  </template>
+                </tbody>
+              </table>
             </div>
           </lightning-card>
         </lightning-accordion-section>
