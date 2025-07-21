@@ -1,37 +1,66 @@
-/* テストハーネス専用スタイル */
+/* ================================================
+ * テストハーネス専用スタイル - 各テストケース対応
+ * ================================================ */
 
+/* Test Case 4: ネストしたレイアウトテスト用
+ * 検証観点: lightning-layout内でのテーブル表示崩れ確認
+ * - グリッドシステム内でのテーブル幅調整
+ * - 複数カードとの併存時のレイアウト保持
+ * - 列固定機能が正常動作するか */
 .nested-table-container {
-  /* ネストしたレイアウトでのテーブル表示テスト */
   min-height: 400px;
 }
 
-/* スクロール競合テスト用の追加スタイル */
+/* Test Case 5: スクロール競合テスト用 - テーブル内部の高さ制限
+ * 【注意】実用性の低いテストケース - 削除検討対象
+ * 理由: テーブル自体が既にmax-height:700pxで制限済みのため、
+ *       さらに300pxに制限する現実的な業務要件は存在しない
+ * 検証観点: テーブル内スクロールの動作確認
+ * - 縦スクロール時のヘッダー固定維持
+ * - 横スクロール時の列固定維持 */
 .limited-height-wrapper .table-container {
   max-height: 500px;
   min-height: 500px;
 }
 
+/* Test Case 5: スクロール競合テスト用 - コンテナ配置
+ * 検証観点: ページ全体スクロールとの競合確認
+ * - テーブルスクロールが外部要素に影響しないか
+ * - スクロール方向の判定が正常か */
 .scroll-test-container {
-  /* スクロール競合テスト用 */
   margin-bottom: 2rem;
 }
 
+/* Test Case 5: スクロール競合テスト用 - プルダウン見切れ対策
+ * 【注意】実用性の低いテストケース - 削除検討対象
+ * 理由: 400px制限は現実的でない。二重の高さ制限でUX悪化
+ * 検証観点: 制限高さ環境でのプルダウン表示
+ * - 審査結果など選択肢多数のプルダウンが見切れないか
+ * - dropdown-alignment="auto"との連携確認
+ * - z-index競合による表示不具合なし */
 .limited-height-wrapper {
-  /* 制限高さでのテーブル表示テスト */
   max-height: 600px;
   overflow: visible; /* テーブル内部のスクロールを優先 */
+  position: relative; /* プルダウンの基準位置 */
+  z-index: 1; /* プルダウンが他要素の下に隠れないように */
 }
 
+/* Test Case 5: スクロール競合テスト用 - 下部コンテンツ
+ * 検証観点: テーブルスクロールの外部影響確認
+ * - テーブル操作時に下部コンテンツがずれないか
+ * - ページ全体のスクロール位置が正常保持されるか */
 .additional-content {
-  /* 下部コンテンツ用 */
   background-color: #f8f9fa;
   padding: 1rem;
   border-left: 4px solid #0070d2;
   margin-top: 1rem;
 }
 
+/* 共通: 検証チェックリスト用（全テストケース共通）
+ * 検証観点: 各テストでの確認項目表示
+ * - 統一されたチェックリスト表示
+ * - 視認性の高いUI提供 */
 .verification-checklist {
-  /* 検証チェックリスト用 */
   background-color: #fafbfc;
   padding: 1rem;
   border-radius: 4px;
@@ -42,26 +71,33 @@
   margin-bottom: 0.75rem;
 }
 
-/* テーブルとの競合を確認するためのテスト用スタイル */
+/* Test Case 2,3: カード・タブ内配置テスト用
+ * 検証観点: コンテナ内でのz-index競合確認
+ * - カード境界での表示不具合なし
+ * - タブ切り替え時の表示継続 */
 .test-card-override {
-  /* カード内でのz-index競合テスト */
   position: relative;
   z-index: 1;
 }
 
+/* Test Case 5: スクロール競合テスト用 - 追加スクロール要素
+ * 検証観点: 複数スクロール要素共存時の動作
+ * - 複数のスクロールエリアが干渉しないか
+ * - スクロール操作の意図通りの反応 */
 .test-scroll-container {
-  /* スクロール競合テスト */
   max-height: 300px;
   overflow-y: auto;
   border: 1px solid #dddbda;
 }
 
-/* レスポンシブテスト用 */
+/* 全テストケース共通: レスポンシブ対応 */
 @media (max-width: 768px) {
+  /* Test Case 4: ネストしたレイアウト - モバイル対応 */
   .nested-table-container {
     min-height: 300px;
   }
-  
+
+  /* Test Case 5: スクロール競合テスト - モバイル対応 */
   .limited-height-wrapper {
     max-height: 400px;
   }
