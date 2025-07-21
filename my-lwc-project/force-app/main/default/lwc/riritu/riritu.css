@@ -1,6 +1,7 @@
 /* =========================================
- * ハイライト: lightning-input の背景色を上書き
+ * ハイライト関連スタイル
  * ========================================= */
+/* lightning-input の背景色を上書き */
 .changed-cell lightning-input {
   --slds-c-input-color-background: #fff9c4; /* 薄い黄色 */
   --slds-c-input-shadow-focus: 0 0 0 1px #ffd54f inset, 0 0 0 1px #ffd54f; /* フォーカス枠も黄 */
@@ -11,7 +12,9 @@
   background-color: #fff9c4;
 }
 
-/* インデント */
+/* =========================================
+ * インデント関連スタイル
+ * ========================================= */
 .indent-0 {
   padding-left: 0;
 }
@@ -25,6 +28,9 @@
   padding-left: 1rem;
 }
 
+/* =========================================
+ * 共通テーブルスタイル
+ * ========================================= */
 .common-table {
   width: 100%;
   border: 1px solid #999;
@@ -48,27 +54,65 @@
   text-align: left; /* 左寄せ */
 }
 
-.table-container {
-  overflow-y: auto;
-}
-
+/* =========================================
+ * テーブルコンテナスタイル (SLDSクラスで代替済み)
+ * ========================================= */
 .table-container-credit {
-  max-height: 700px; /* Adjust the height as needed */
+  max-height: 700px;
 }
 
 .table-container-collateral {
-  max-height: 400px; /* Adjust the height as needed */
+  max-height: 400px;
 }
 
 .table-container-guarantor {
   max-height: 160px;
 }
 
-.table-container thead {
+/* Sticky header用 */
+.table-container-credit thead,
+.table-container-collateral thead,
+.table-container-guarantor thead {
   position: sticky;
   top: 0;
-  z-index: 2;
-  box-sizing: border-box;
-  background: #fff;
-  border: 1px solid #d8dde6;
+  background-color: #f3f3f3;
+  z-index: 10;
+}
+
+.table-container-credit thead th,
+.table-container-collateral thead th,
+.table-container-guarantor thead th {
+  background-color: #f3f3f3;
+  position: sticky;
+  top: 0;
+  z-index: 11;
+}
+
+/* =========================================
+ * カラム幅設定
+ * ========================================= */
+
+/* サイズ別カラム幅 */
+.column-xs {
+  width: 20px;
+}
+
+.column-small {
+  width: 100px;
+}
+
+.column-medium {
+  width: 120px;
+}
+
+.column-large {
+  width: 150px;
+}
+
+.column-xl {
+  width: 160px;
+}
+
+.column-xxl {
+  width: 250px;
 }

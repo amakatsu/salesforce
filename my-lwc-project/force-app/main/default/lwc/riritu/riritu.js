@@ -1,6 +1,7 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from './rirituState';
 
+/** @type {Array} 保証人テーブルのカラム定義 */
 const GUARANTOR_COLUMNS = [
   { label: "保証人", fieldName: "name", type: "text" }
 ];
@@ -68,7 +69,9 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     );
   }
 
-  /* ---------- SAVE / RESET ---------- */
+  /* ========================================
+   * 保存/リセット処理
+   * ======================================== */
   handleSave() {
     stateService.getState().draft.clear();
     this.highlightOn = true;
@@ -88,7 +91,9 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     );
   }
 
-  /* ---------- TOGGLE / EDIT ---------- */
+  /* ========================================
+   * トグル/編集処理
+   * ======================================== */
   handleToggle(e) {
     const { creditSource, collateralSource, expanded } =
       stateService.getState();
@@ -119,7 +124,9 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     this.collateralRows = this.flatten(collateralSource, this.highlightOn);
   }
 
-  /* ---------- tree -> flat ---------- */
+  /* ========================================
+   * ツリー構造からフラット構造への変換
+   * ======================================== */
   flatten(tree, highlight, level = 0, out = []) {
     const { expanded, originalCreditSource, originalCollateralSource, draft } =
       stateService.getState();
@@ -186,7 +193,9 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     return out;
   }
 
-  /* ---------- helpers ---------- */
+  /* ========================================
+   * ヘルパーメソッド
+   * ======================================== */
   updateNode(tree, id, field, value) {
     for (const n of tree) {
       if (n.id === id) {
@@ -209,6 +218,10 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
   }
 }
 
+/**
+ * 保証人データを生成するユーティリティ関数
+ * @returns {Array} 保証人データの配列
+ */
 function generateGuarantorData() {
   return Array.from({ length: 5 }, (_, i) => ({
     id: `g${i + 1}`,

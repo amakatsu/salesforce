@@ -34,31 +34,35 @@
    */
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 【コンボボックス見切れ問題に関係しないCSS】
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* テーブル基本設定 */
 .table-container .slds-table {
-  min-width: 1500px; /* 【関係なし】横スクロール発生のため十分な幅を確保 */
-  table-layout: fixed; /* 【関係なし】列幅固定用 */
+  min-width: 1500px; /* 横スクロール発生のため十分な幅を確保 */
+  table-layout: fixed; /* 列幅固定用 */
 }
 
+/* =========================================
+ * ヘッダー固定関連スタイル
+ * ========================================= */
 .table-container .slds-table thead {
-  position: sticky; /* 【関係なし】ヘッダー固定用 */
+  position: sticky;
   top: 0;
-  background-color: #f3f3f3; /* 【関係なし】ヘッダー背景色 */
-  z-index: 10; /* 【関係なし】ヘッダーの重ね順 */
+  background-color: #f3f3f3;
+  z-index: 10;
 }
 
 .table-container .slds-table thead th {
-  background-color: #f3f3f3; /* 【関係なし】ヘッダー背景色 */
-  border-bottom: 2px solid #dddbda; /* 【関係なし】列の区切り線 */
-  border-right: 1px solid #dddbda; /* 【関係なし】列の区切り線 */
+  background-color: #f3f3f3;
+  border-bottom: 2px solid #dddbda;
+  border-right: 1px solid #dddbda;
 }
 
 .table-container .slds-table tbody td {
-  border-right: 1px solid #dddbda; /* 【関係なし】列の区切り線 */
+  border-right: 1px solid #dddbda;
 }
 
+/* =========================================
+ * 列固定関連スタイル
+ * ========================================= */
 /* 最左列（チェックボックス列）を横スクロール時に固定 */
 .table-container .slds-table th:first-child,
 .table-container .slds-table td:first-child {
@@ -66,7 +70,7 @@
   left: 0;
   background-color: #f3f3f3;
   z-index: 5;
-  width: 3.25rem; /* 固定幅 */
+  width: 3.25rem;
 }
 
 .table-container .slds-table thead th:first-child {
@@ -77,21 +81,45 @@
 .table-container .slds-table th:nth-child(2),
 .table-container .slds-table td:nth-child(2) {
   position: sticky;
-  left: 3.25rem; /* 第1列の幅分だけ右にオフセット */
+  left: 3.25rem;
   background-color: #f3f3f3;
   z-index: 5;
-  width: 60px; /* 固定幅 */
-  border-right: 2px solid #dddbda; /* 固定列との境界を明確化 */
+  width: 60px;
+  border-right: 2px solid #dddbda;
 }
 
 .table-container .slds-table thead th:nth-child(2) {
   z-index: 15;
 }
 
+/* =========================================
+ * 特定コンテンツ用スタイル
+ * ========================================= */
 /* ラジオボタンを縦並びに表示 */
 .selection-column {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 120px;
+}
+
+/* =========================================
+ * カラム幅設定
+ * ========================================= */
+.checkbox-column {
+  width: 3.25rem;
+}
+
+.no-column {
+  width: 60px;
+}
+
+.medium-column {
+  width: 100px;
+  white-space: normal;
+}
+
+.small-column {
+  width: 40px;
+  white-space: normal;
 }

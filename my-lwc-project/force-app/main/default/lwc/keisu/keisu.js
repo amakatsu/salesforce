@@ -37,6 +37,7 @@ export default class KeisuComponent extends LightningElement {
   /**
    * 保存処理
    * 下書きデータをクリアし、変更ハイライトを有効化
+   * @public
    */
   handleSave() {
     stateService.getState().draft.clear();
@@ -47,6 +48,7 @@ export default class KeisuComponent extends LightningElement {
   /**
    * リセット処理
    * 状態を初期化し、変更ハイライトを無効化
+   * @public
    */
   handleReset() {
     stateService.resetState();
@@ -67,6 +69,7 @@ export default class KeisuComponent extends LightningElement {
   /**
    * ツリーノードの展開/折りたたみ処理
    * @param {Event} event - クリックイベント
+   * @public
    */
   handleTreeToggle(event) {
     const { creditSource, otherBankSource, expanded } = stateService.getState();
@@ -87,6 +90,7 @@ export default class KeisuComponent extends LightningElement {
   /**
    * フィールド編集処理
    * @param {Event} event - 入力イベント
+   * @public
    */
   handleFieldEdit(event) {
     const nodeId = event.target.dataset.id;
@@ -129,6 +133,7 @@ export default class KeisuComponent extends LightningElement {
    * @param {number} level - ネストレベル
    * @param {Array} output - 出力配列
    * @returns {Array} フラット化されたデータ
+   * @private
    */
   flattenTreeData(tree, shouldHighlight, level = 0, output = []) {
     const { expanded, originalCreditSource, draft } = stateService.getState();
@@ -307,6 +312,7 @@ export default class KeisuComponent extends LightningElement {
   /**
    * 数値入力エラーハンドラー
    * @param {Event} event - エラーイベント
+   * @public
    */
   numberErrorHandler(event) {
     const errorMessage = event.detail.message;

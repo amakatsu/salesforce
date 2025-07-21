@@ -1,7 +1,9 @@
 import { LightningElement, track } from "lwc";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 
-/* ────────────── ピックリスト選択肢 ────────────── */
+/* =========================================
+ * ピックリスト選択肢定義
+ * ========================================= */
 const REVIEW_RESULT_OPTIONS = [
   { label: "合格", value: "合格" },
   { label: "否認", value: "否認" },
@@ -43,14 +45,18 @@ const USAGE_TYPE_OPTIONS = [
   { label: "調査中", value: "調査中" }
 ];
 
-/* ────────────── 選択候補データ ────────────── */
+/* =========================================
+ * 選択候補データ定義
+ * ========================================= */
 const SELECTION_OPTIONS = [
   { label: "優先度A", value: "priority_a", description: "最高優先で処理" },
   { label: "優先度B", value: "priority_b", description: "通常優先で処理" },
   { label: "優先度C", value: "priority_c", description: "低優先で処理" }
 ];
 
-/* ────────────── モックデータ生成 ────────────── */
+/* =========================================
+ * モックデータ生成関数
+ * ========================================= */
 function generateMockData(count = 100) {
   return Array.from({ length: count }, (_, i) => ({
     Id: `${i + 1}`.padStart(3, "0"),
@@ -74,7 +80,9 @@ function generateMockData(count = 100) {
   }));
 }
 
-/* ────────────── LWC クラス ────────────── */
+/* =========================================
+ * LWCコンポーネントクラス
+ * ========================================= */
 export default class CustomTableWithTh extends LightningElement {
   /* 行データ */
   @track accounts = generateMockData(100);

@@ -5,22 +5,18 @@
   >
     <lightning-layout style="height: 800px; column-gap: 7px">
       <!-- 与信状況テーブル -->
-      <lightning-layout-item
-        size="7"
-        style="display: flex; flex-direction: column"
-      >
+      <lightning-layout-item size="7" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="d"
           label="与信状況"
           icon-name="standard:choice"
-          style="flex: 1 1 0; min-height: 0"
         >
-          <div class="slds-grid slds-gutters">
-            <div class="slds-col slds-text-align_right">
-              <p class="slds-var-p-top_small">金額単位〇〇〇</p>
-            </div>
-          </div>
           <lightning-card>
+            <div class="slds-grid slds-gutters">
+              <div class="slds-col slds-text-align_right">
+                <p>金額単位〇〇〇</p>
+              </div>
+            </div>
             <div class="slds-scrollable_x">
               <div class="slds-scrollable_y table-container-credit">
                 <table
@@ -29,14 +25,14 @@
                   <!-- テーブルヘッダー -->
                   <thead>
                     <tr>
-                      <th scope="col" style="width: 20px"></th>
-                      <th scope="col" style="width: 160px">科目・概要</th>
-                      <th scope="col">現状残高</th>
-                      <th scope="col">極度額</th>
-                      <th scope="col" style="width: 100px">現状利率（%）</th>
-                      <th scope="col" style="width: 110px">本件後利率（%）</th>
-                      <th scope="col">適用日</th>
-                      <th scope="col">適用日区分</th>
+                      <th scope="col" class="column-xs"></th>
+                      <th scope="col" class="column-xl">科目・概要</th>
+                      <th scope="col" class="column-large">現状残高</th>
+                      <th scope="col" class="column-large">極度額</th>
+                      <th scope="col" class="column-small">現状利率（%）</th>
+                      <th scope="col" class="column-small">本件後利率（%）</th>
+                      <th scope="col" class="column-medium">適用日</th>
+                      <th scope="col" class="column-medium">適用日区分</th>
                     </tr>
                   </thead>
                   <!-- テーブルボディ -->
@@ -56,9 +52,7 @@
                           </lightning-button-icon>
                         </td>
                         <!-- ラベル列 -->
-                        <th scope="col">
-                          <div class={row.labelClass}>{row.label}</div>
-                        </th>
+                        <th scope="col" class={row.labelClass}>{row.label}</th>
                         <!-- 現状残高列 -->
                         <td>
                           <div class={row.currentBalanceClass}>
@@ -166,29 +160,26 @@
       </lightning-layout-item>
 
       <!-- 他行動向テーブル -->
-      <lightning-layout-item
-        size="5"
-        style="display: flex; flex-direction: column"
-      >
+      <lightning-layout-item size="5" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="e"
           label="他行動向"
           icon-name="standard:choice"
         >
           <lightning-card>
-            <div class="table-container-other-bank">
+            <div class="slds-scrollable_x">
               <table
                 class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
               >
                 <!-- テーブルヘッダー -->
                 <thead>
                   <tr>
-                    <th scope="col" style="width: 250px">銀行名</th>
-                    <th scope="col">引上下月(月)</th>
-                    <th scope="col">長期比率(%)</th>
-                    <th scope="col">科目</th>
-                    <th scope="col" style="width: 100px">現状(%)</th>
-                    <th scope="col" style="width: 100px">本件後(%)</th>
+                    <th scope="col" class="column-xxl">銀行名</th>
+                    <th scope="col" class="column-medium">引上下月(月)</th>
+                    <th scope="col" class="column-small">長期比率(%)</th>
+                    <th scope="col" class="column-large">科目</th>
+                    <th scope="col" class="column-small">現状(%)</th>
+                    <th scope="col" class="column-small">本件後(%)</th>
                   </tr>
                 </thead>
                 <!-- テーブルボディ -->
@@ -215,17 +206,15 @@
                         <!-- 引上下月列（最初の行のみ、3行結合） -->
                         <td if:true={subRow.isFirst} rowspan="3">
                           <div class={bank.currentBalanceClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={bank.currentBalance}
-                              num-label="引上下月"
-                              is-table="true"
+                            <lightning-input
+                              type="month"
+                              variant="label-hidden"
+                              value={bank.currentBalance}
                               data-id={bank.id}
-                              set-id="currentBalance"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleFieldEdit}
+                              data-field="currentBalance"
+                              onchange={handleEdit}
                             >
-                            </c-f003-gs-v0000-number>
+                            </lightning-input>
                           </div>
                         </td>
                         <!-- 長期比率列 -->

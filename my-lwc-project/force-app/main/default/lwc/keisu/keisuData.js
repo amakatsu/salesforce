@@ -223,7 +223,7 @@ const rawOtherBankSource = [
   {
     id: "bank1",
     label: "銀行A",
-    currentBalance: "11",
+    currentBalance: "2024-11",
     // 銀行ごとに3つのサブローを持つ構造
     subRows: [
       {
@@ -252,7 +252,7 @@ const rawOtherBankSource = [
   {
     id: "bank2",
     label: "銀行B",
-    currentBalance: "12",
+    currentBalance: "2024-12",
     subRows: [
       {
         id: "bank2-1",
@@ -280,7 +280,7 @@ const rawOtherBankSource = [
   {
     id: "bank3",
     label: "銀行C",
-    currentBalance: "13",
+    currentBalance: "2025-01",
     subRows: [
       {
         id: "bank3-1",
@@ -308,7 +308,7 @@ const rawOtherBankSource = [
   {
     id: "bank4",
     label: "銀行D",
-    currentBalance: "14",
+    currentBalance: "2025-02",
     subRows: [
       {
         id: "bank4-1",
@@ -336,7 +336,7 @@ const rawOtherBankSource = [
   {
     id: "bank5",
     label: "銀行E",
-    currentBalance: "15",
+    currentBalance: "2025-03",
     subRows: [
       {
         id: "bank5-1",
