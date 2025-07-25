@@ -11,34 +11,141 @@
           icon-name="standard:choice"
         >
           <lightning-card>
-            <div class="slds-scrollable_x">
-              <div class="slds-scrollable_y table-container-credit">
-                <table
-                  class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-                >
+            <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+              <div
+                class="table-sticky slds-col slds-size_12-of-12 slds-var-p-right_small slds-var-m-left_small table-container-credit"
+              >
+                <table roles="grid" class="slds-table table-sticky__title">
                   <thead>
-                    <tr>
-                      <th style="width: 20px" scope="col"></th>
-                      <th scope="col" style="width: 160px">
-                        科目・摘要・禀査番号
+                    <tr class="slds-line-height_reset">
+                      <th
+                        class="table-sticky__title table-sticky3__title01"
+                        style="width: 20px"
+                        scope="col"
+                      ></th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        style="width: 160px"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="科目・摘要・禀査番号"
+                        >
+                          科目・摘要・禀査番号
+                        </div>
                       </th>
-                      <th scope="col">期日</th>
-                      <th scope="col" style="width: 100px">利率（%）</th>
-                      <th scope="col">99月末残高</th>
-                      <th scope="col" style="width: 20px"></th>
-                      <th scope="col">極度額</th>
-                      <th scope="col">当月増減</th>
-                      <th scope="col">本件後残高</th>
-                      <th scope="col">実勢現在残</th>
-                      <th scope="col">補正値</th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="期日"
+                        >
+                          期日
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        style="width: 100px"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="利率（%）"
+                        >
+                          利率（%）
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="99月末残高"
+                        >
+                          99月末残高
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        style="width: 45px"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="合算"
+                        >
+                          合算
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="極度額"
+                        >
+                          極度額
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="当月増減"
+                        >
+                          当月増減
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="本件後残高"
+                        >
+                          本件後残高
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="実勢現在残"
+                        >
+                          実勢現在残
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="補正値"
+                        >
+                          補正値
+                        </div>
+                      </th>
                     </tr>
                   </thead>
-
                   <tbody>
                     <template for:each={creditRows} for:item="row">
-                      <tr key={row.id}>
+                      <tr
+                        key={row.id}
+                        class="slds-hint-parent slds-line-height_reset"
+                      >
                         <!-- 展開トグル -->
-                        <td>
+                        <th scope="col">
                           <lightning-button-icon
                             if:true={row.hasChildren}
                             icon-name={row.icon}
@@ -48,151 +155,130 @@
                             onclick={handleToggle}
                             data-id={row.id}
                           ></lightning-button-icon>
-                        </td>
-
-                        <!-- 科目・摘要・票番号 -->
-                        <th scope="col">
-                          <div class={row.labelClass}>{row.label}</div>
                         </th>
-
+                        <!-- 科目・摘要・票番号 -->
+                        <th class={row.labelClass} scope="col">
+                          <div class="slds-truncate">{row.label}</div>
+                        </th>
                         <!-- 期日 -->
-                        <td>
-                          <div class={row.dueDateClass}>
-                            <lightning-input
-                              type="text"
-                              variant="label-hidden"
-                              value={row.dueDate}
-                              data-id={row.id}
-                              data-field="dueDate"
-                              onchange={handleEdit}
-                              disabled="false"
-                            >
-                            </lightning-input>
-                          </div>
+                        <td data-label="dueDate" class={row.dueDateClass}>
+                          <lightning-input
+                            type="text"
+                            variant="label-hidden"
+                            value={row.dueDate}
+                            data-id={row.id}
+                            data-field="dueDate"
+                            onchange={handleEdit}
+                            disabled="false"
+                          ></lightning-input>
                         </td>
-
                         <!-- 利率 -->
-                        <td>
-                          <div class={row.rateClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.rate}
-                              num-label="利率"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="rate"
-                              disabled="false"
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td data-label="rate" class={row.rateClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.rate}
+                            num-label="利率"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="rate"
+                            disabled="false"
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
-
                         <!-- 99月末残高 -->
-                        <td>
-                          <div class={row.balance99Class}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.balance99}
-                              num-label="99月末残高"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="balance99"
-                              disabled={row.balance99Disabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td data-label="balance99" class={row.balance99Class}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.balance99}
+                            num-label="99月末残高"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="balance99"
+                            disabled={row.balance99Disabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
-
-                        <!-- 空白 -->
-                        <td>
-                          <div class={row.markClass}>*</div>
+                        <!-- 合算表示 -->
+                        <td data-label="mark" class={row.markClass}>
+                          <div class="slds-text-align_center">*</div>
                         </td>
-
                         <!-- 極度額 -->
-                        <td>
-                          <div class={row.principalClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.principal}
-                              num-label="極度額"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="principal"
-                              disabled={row.principalDisabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td data-label="principal" class={row.principalClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.principal}
+                            num-label="極度額"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="principal"
+                            disabled={row.principalDisabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
-
                         <!-- 当月増減 -->
-                        <td>
-                          <div class={row.changeClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.change}
-                              num-label="当月増減"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="change"
-                              disabled={row.changeDisabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td data-label="change" class={row.changeClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.change}
+                            num-label="当月増減"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="change"
+                            disabled={row.changeDisabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
-
                         <!-- 本件後残高 -->
-                        <td>
-                          <div class={row.postBalanceClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.postBalance}
-                              num-label="本件後残高"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="postBalance"
-                              disabled={row.postBalanceDisabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td
+                          data-label="postBalance"
+                          class={row.postBalanceClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.postBalance}
+                            num-label="本件後残高"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="postBalance"
+                            disabled={row.postBalanceDisabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
-
                         <!-- 実勢現在残 -->
-                        <td>
-                          <div class={row.actualBalanceClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.actualBalance}
-                              num-label="実勢現在残"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="actualBalance"
-                              disabled={row.actualBalanceDisabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td
+                          data-label="actualBalance"
+                          class={row.actualBalanceClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.actualBalance}
+                            num-label="実勢現在残"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="actualBalance"
+                            disabled={row.actualBalanceDisabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
-
                         <!-- 補正値 -->
-                        <td>
-                          <div class={row.correctionClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.correction}
-                              num-label="補正値"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="correction"
-                              disabled={row.correctionDisabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td data-label="correction" class={row.correctionClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.correction}
+                            num-label="補正値"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="correction"
+                            disabled={row.correctionDisabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
                       </tr>
                     </template>
@@ -210,25 +296,62 @@
           icon-name="standard:choice"
         >
           <lightning-card>
-            <div class="slds-scrollable_x">
-              <div class="slds-scrollable_y table-container-collateral">
-                <table
-                  class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-                >
+            <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+              <div
+                class="table-sticky slds-col slds-size_12-of-12 slds-var-p-right_small slds-var-m-left_small table-container-collateral"
+              >
+                <table roles="grid" class="slds-table table-sticky__title">
                   <thead>
-                    <tr>
-                      <th scope="col" style="width: 20px"></th>
-                      <th scope="col" style="width: 160px">担保種類</th>
-                      <th scope="col">規定値</th>
-                      <th scope="col">時価ベース</th>
+                    <tr class="slds-line-height_reset">
+                      <th
+                        class="table-sticky__title table-sticky3__title01"
+                        style="width: 20px"
+                        scope="col"
+                      ></th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        style="width: 160px"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="担保種類"
+                        >
+                          担保種類
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="規定値"
+                        >
+                          規定値
+                        </div>
+                      </th>
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-var-p-right_x-small"
+                          title="時価ベース"
+                        >
+                          時価ベース
+                        </div>
+                      </th>
                     </tr>
                   </thead>
-
                   <tbody>
                     <template for:each={collateralRows} for:item="row">
-                      <tr key={row.id}>
+                      <tr
+                        key={row.id}
+                        class="slds-hint-parent slds-line-height_reset"
+                      >
                         <!-- 展開トグル -->
-                        <td>
+                        <th scope="col">
                           <lightning-button-icon
                             if:true={row.hasChildren}
                             icon-name={row.icon}
@@ -238,47 +361,41 @@
                             onclick={handleToggle}
                             data-id={row.id}
                           ></lightning-button-icon>
-                        </td>
-
+                        </th>
                         <!-- 担保種類 -->
                         <th scope="col">
-                          <div class={row.collateralTypeClass}>
-                            {row.collateralType}
-                          </div>
+                          <div class="slds-truncate">{row.collateralType}</div>
                         </th>
-
                         <!-- 規定値 -->
-                        <td>
-                          <div class={row.regValueClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.regValue}
-                              num-label="規定値"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="regValue"
-                              disabled={row.regValueDisabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td data-label="regValue" class={row.regValueClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.regValue}
+                            num-label="規定値"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="regValue"
+                            disabled={row.regValueDisabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
-
                         <!-- 時価ベース -->
-                        <td>
-                          <div class={row.marketValueClass}>
-                            <c-f003-gs-v0000-number
-                              num-value={row.marketValue}
-                              num-label="時価ベース"
-                              is-table="true"
-                              data-id={row.id}
-                              set-id="marketValue"
-                              disabled={row.marketValueDisabled}
-                              step="0.01"
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </div>
+                        <td
+                          data-label="marketValue"
+                          class={row.marketValueClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.marketValue}
+                            num-label="時価ベース"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="marketValue"
+                            disabled={row.marketValueDisabled}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
+                          ></c-f003-gs-v0000-number>
                         </td>
                       </tr>
                     </template>
@@ -297,19 +414,32 @@
           icon-name="standard:choice"
         >
           <lightning-card>
-            <div class="slds-scrollable_x">
-              <div class="slds-scrollable_y table-container-guarantor">
-                <table
-                  class="slds-table slds-table_cell-buffer slds-table_bordered common-table slds-table_compact"
-                >
+            <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+              <div
+                class="table-sticky slds-col slds-size_12-of-12 slds-var-p-right_small slds-var-m-left_small table-container-guarantor"
+              >
+                <table roles="grid" class="slds-table table-sticky__title">
                   <thead>
-                    <tr>
-                      <th scope="col" class="slds-text-align_center">保証人</th>
+                    <tr class="slds-line-height_reset">
+                      <th
+                        class="table-sticky__title table-sticky3__title02"
+                        scope="col"
+                      >
+                        <div
+                          class="slds-truncate slds-text-align_center"
+                          title="保証人"
+                        >
+                          保証人
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     <template for:each={guarantorData} for:item="row">
-                      <tr key={row.id}>
+                      <tr
+                        key={row.id}
+                        class="slds-hint-parent slds-line-height_reset"
+                      >
                         <td class="slds-text-align_center">
                           <lightning-input
                             type="text"

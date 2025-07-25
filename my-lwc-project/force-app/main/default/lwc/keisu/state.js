@@ -1,5 +1,10 @@
 // 係数コンポーネント用の状態管理サービス
-import { rawCreditSource, rawOtherBankSource, attachEditableFlags, deepCopy } from './keisuData';
+import {
+  rawCreditSource,
+  rawOtherBankSource,
+  attachEditableFlags,
+  deepCopy
+} from "./data";
 
 class KeisuStateService {
   constructor() {
@@ -19,7 +24,7 @@ class KeisuStateService {
     if (!this.isInitialized) {
       const withCreditFlags = attachEditableFlags(rawCreditSource);
       const withOtherBankFlags = attachEditableFlags(rawOtherBankSource);
-      
+
       this.creditSource = deepCopy(withCreditFlags);
       this.initialCreditSource = deepCopy(withCreditFlags);
       this.originalCreditSource = deepCopy(withCreditFlags);
@@ -57,9 +62,12 @@ class KeisuStateService {
   // 状態の設定
   setState(newState) {
     if (newState.creditSource) this.creditSource = newState.creditSource;
-    if (newState.originalCreditSource) this.originalCreditSource = newState.originalCreditSource;
-    if (newState.otherBankSource) this.otherBankSource = newState.otherBankSource;
-    if (newState.originalOtherBankSource) this.originalOtherBankSource = newState.originalOtherBankSource;
+    if (newState.originalCreditSource)
+      this.originalCreditSource = newState.originalCreditSource;
+    if (newState.otherBankSource)
+      this.otherBankSource = newState.otherBankSource;
+    if (newState.originalOtherBankSource)
+      this.originalOtherBankSource = newState.originalOtherBankSource;
   }
 }
 

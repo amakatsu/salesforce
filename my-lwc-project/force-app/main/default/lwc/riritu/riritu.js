@@ -1,5 +1,5 @@
 import { LightningElement, track } from "lwc";
-import { stateService } from './rirituState';
+import { stateService } from "./state";
 
 /** @type {Array} 保証人テーブルのカラム定義 */
 const GUARANTOR_COLUMNS = [
@@ -142,9 +142,14 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
           ? "changed-cell"
           : "";
 
-      const indent = level === 0 ? 'indent-0' : 
-                    level === 1 ? 'indent-1' :
-                    level === 2 ? 'indent-2' : 'indent-3';
+      const indent =
+        level === 0
+          ? "indent-0"
+          : level === 1
+          ? "indent-1"
+          : level === 2
+          ? "indent-2"
+          : "indent-3";
       const ed = node.editable; // shorthand
 
       out.push({

@@ -1,6 +1,6 @@
 /* =========================================
- * ハイライト関連スタイル
- * ========================================= */
+* ハイライト関連スタイル
+* ========================================= */
 /* lightning-input の背景色を上書き */
 .changed-cell lightning-input {
   --slds-c-input-color-background: #fff9c4; /* 薄い黄色 */
@@ -13,24 +13,17 @@
 }
 
 /* =========================================
- * インデント関連スタイル
- * ========================================= */
+* インデント関連スタイル
+* ========================================= */
 .indent-0 {
-  padding-left: 0;
+  padding-left: 0.2rem;
 }
 .indent-1 {
-  padding-left: 0.35rem;
+  padding-left: 0.5rem;
 }
-.indent-2 {
-  padding-left: 0.7rem;
-}
-.indent-3 {
-  padding-left: 1rem;
-}
-
 /* =========================================
- * 共通テーブルスタイル
- * ========================================= */
+* 共通テーブルスタイル
+* ========================================= */
 
 .common-table {
   width: 100%;
@@ -55,30 +48,132 @@
   text-align: left; /* 左寄せ */
 }
 
+.changed-cell {
+  --slds-c-input-color-background: #fff9c4;
+}
+
+.table-sticky {
+  /* 
+        slds-gridによるレイアウト制御と<table>タグはどうやら相性が悪いようで、横幅などの調整をしない場合、
+        lightning-cardの範囲を飛び越えて表示されてしまうことがある。
+    */
+  max-width: 1800px;
+
+  /* 
+        テーブルに対して、設定した縦幅を超える場合にスクロールを発生させる。
+        スクロールが発生しない範囲の場合は、スクロールバーは表示しない。
+    */
+  max-height: 1200px;
+  overflow: auto;
+
+  /* 
+        margin-right, left:autoの設定をすると、利用可能な横幅の中でスペースを均等に配分しようとするため、
+        結果として要素が中央に配置されるようになる。
+        これはwindowのサイズを変更しても維持されるので、テーブルの中央揃えに用いている。
+    */
+  /*
+    margin-right: auto;
+    margin-left: auto;
+    */
+
+  position: relative; /* テーブル固定の基準点として設定（ここで設定したタグ以下に対して固定が動作するようにする） */
+  padding-left: 0; /* 横スクロール時、スクロールしたデータがpadding領域に表示されないようにするため余白を0にする */
+}
+
+.table-sticky__title {
+  /* このクラスを設定された要素の位置が、画面上のスクロールなどで、高さ0になったとき、もしくは左辺が0になったとき、
+       このクラスを設定された要素は、高さ0もしくは、左辺0の位置に固定される。 */
+  position: sticky;
+  top: 0;
+  left: 0;
+}
+
+.table-sticky3__title01 {
+  z-index: 2; /* 重複時の順序設定、テーブル左上のブランクエリアを最優先している */
+}
+
+.table-sticky3__title02 {
+  z-index: 1; /* 重複時の順序設定、テーブル左上のブランクエリアの次点で設定 */
+}
+
+table {
+  border-spacing: 0;
+
+  /* テーブル要素にのみ利用可能。テーブルのセル間の境界線を1つにまとめる設定 */
+  border-collapse: separate;
+}
+
+th,
+td {
+  /* <td, th>タグ全体に対してボーダーを引く */
+  border-top: 1px solid #999;
+  border-left: 1px solid #999;
+}
+
+td {
+  background: #ffffff;
+}
+
+th {
+  text-align: center;
+  vertical-align: middle;
+  background: #f2f2f2;
+  top: 0;
+}
+
+/* 縦ヘッダーの右側の罫線を設定する */
+th[scope="row"] {
+  border-right: 1px solid #999;
+}
+
+/* 横ヘッダーの下側の罫線を設定する */
+th[scope="col"] {
+  border-bottom: 1px solid #999;
+}
+
+/* 一番左上のヘッダーの罫線の設定 */
+tr:nth-child(1) th:nth-child(1) {
+  border-right: 1px solid #999;
+}
+
+/* ヘッダーの一番右側のセルの右罫線を設定する。 */
+tr:nth-child(1) th:last-child {
+  border-right: 1px solid #999;
+}
+
+/* 1行目（ヘッダー行）以降のtdの一番右側のセルの右罫線を設定する。 */
+tr:nth-child(n + 1) td:last-child {
+  border-right: 1px solid #999;
+}
+
+/* 繰り返しでデータ行が複数存在する場合、個別に指定が必要。 */
+
+/* 最終行の下の罫線を作成する(最後から1番目なので、2行目) */
+tr:nth-last-child(1) td {
+  border-bottom: 1px solid #999;
+  border-top: none; /* 1行目のbottomと被るため削除 */
+}
+
+/* 最終行の下の罫線を作成する(最後から1番目なので、2行目) 縦ヘッダー分 */
+tr:nth-last-child(1) th {
+  border-bottom: 1px solid #999;
+}
+
+/* 最終行の下の罫線を作成する（最後から2番目なので、1行目） */
+tr:nth-last-child(2) td {
+  border-bottom: 1px solid #999;
+}
+
 /* =========================================
- * テーブルコンテナスタイル
- * ========================================= */
+* テーブルコンテナスタイル
+* ========================================= */
 .table-container-credit {
   max-height: 685px;
 }
 
-.table-container-credit thead {
-  position: sticky;
-  top: 0;
-  background-color: #f3f3f3;
-  z-index: 10;
-}
-
-.table-container-credit thead th {
-  background-color: #f3f3f3;
-  border-bottom: 2px solid #dddbda;
-  border-right: 1px solid #dddbda;
-  z-index: 11;
-}
-
 /* =========================================
- * カラム幅設定
- * ========================================= */
+* カラム幅設定
+* ========================================= */
 
 /* サイズ別カラム幅 */
 .column-xs {
