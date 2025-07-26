@@ -90,11 +90,11 @@
 }
 
 .table-sticky3__title01 {
-  z-index: 2; /* 重複時の順序設定、テーブル左上のブランクエリアを最優先している */
+  z-index: 12; /* 重複時の順序設定、日付アイコン(z-index:2)より前面に表示 */
 }
 
 .table-sticky3__title02 {
-  z-index: 1; /* 重複時の順序設定、テーブル左上のブランクエリアの次点で設定 */
+  z-index: 11; /* 重複時の順序設定、日付アイコン(z-index:2)より前面に表示 */
 }
 
 table {
@@ -116,7 +116,7 @@ td {
 }
 
 th {
-  text-align: center;
+  text-align: left;
   vertical-align: middle;
   background: #f2f2f2;
   top: 0;
@@ -165,49 +165,56 @@ tr:nth-last-child(2) td {
   border-bottom: 1px solid #999;
 }
 
-/*
+/* =========================================
+ * 行固定システム - LWC対応版
+ * ========================================= */
+
+/* 与信状況テーブル: 1行目固定 - 下部見切れ防止 */
 .table-container-credit tbody tr:nth-child(1) {
   position: sticky;
-  top: 28px;
-  background-color: #fff;
+  top: 1.853rem; /* ヘッダー直下に配置 */
+  background-color: #ffffff;
   z-index: 9;
 }
- 
+
+/* 本件保全テーブル: 1-3行目の階層固定 */
 .table-container-collateral tbody tr:nth-child(1) {
   position: sticky;
-  top: 28px;
-  background-color: #fff;
+  top: 1.853rem; /* ヘッダー直下に配置 */
+  background-color: #ffffff;
   z-index: 9;
 }
- 
+
 .table-container-collateral tbody tr:nth-child(2) {
   position: sticky;
-  top: 70px;
-  background-color: #fff;
+  top: 4.525rem; /* 1行目直下に配置 */
+  background-color: #ffffff;
   z-index: 8;
 }
- 
+
 .table-container-collateral tbody tr:nth-child(3) {
   position: sticky;
-  top: 112px;
-  background-color: #fff;
+  top: 7.26rem; /* 2行目直下に配置 */
+  background-color: #ffffff;
   z-index: 7;
 }
-*/
 
 /* =========================================
  * テーブルコンテナスタイル (SLDSクラスで代替済み)
  * ========================================= */
 .table-container-credit {
   max-height: 700px;
+  overflow-y: auto; /* 必要な時だけスクロール、カレンダー展開時は高さが自動拡張 */
 }
 
 .table-container-collateral {
   max-height: 470px;
+  overflow-y: auto; /* 必要な時だけスクロール、カレンダー展開時は高さが自動拡張 */
 }
 
 .table-container-guarantor {
   max-height: 110px;
+  overflow-y: auto; /* 必要な時だけスクロール、カレンダー展開時は高さが自動拡張 */
 }
 
 /* =========================================
