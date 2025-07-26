@@ -172,7 +172,7 @@ tr:nth-last-child(2) td {
 /* 与信状況テーブル: 1行目固定 - 下部見切れ防止 */
 .table-container-credit tbody tr:nth-child(1) {
   position: sticky;
-  top: 1.853rem; /* ヘッダー直下に配置 */
+  top: 1.8rem; /* ヘッダー直下に配置 */
   background-color: #ffffff;
   z-index: 9;
 }
@@ -180,21 +180,21 @@ tr:nth-last-child(2) td {
 /* 本件保全テーブル: 1-3行目の階層固定 */
 .table-container-collateral tbody tr:nth-child(1) {
   position: sticky;
-  top: 1.853rem; /* ヘッダー直下に配置 */
+  top: 1.8rem; /* ヘッダー直下に配置 */
   background-color: #ffffff;
   z-index: 9;
 }
 
 .table-container-collateral tbody tr:nth-child(2) {
   position: sticky;
-  top: 4.525rem; /* 1行目直下に配置 */
+  top: 4.48rem; /* 1行目直下に配置 */
   background-color: #ffffff;
   z-index: 8;
 }
 
 .table-container-collateral tbody tr:nth-child(3) {
   position: sticky;
-  top: 7.26rem; /* 2行目直下に配置 */
+  top: 7.17rem; /* 2行目直下に配置 */
   background-color: #ffffff;
   z-index: 7;
 }
