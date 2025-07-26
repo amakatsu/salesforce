@@ -154,7 +154,7 @@
                         </th>
                         <!-- 科目・摘要・票番号 -->
                         <th class={row.labelClass} scope="col">
-                          <template if:true={row.labelEditable}>
+                          <template if:true={row.isSpecificCredit}>
                             <lightning-input
                               type="text"
                               variant="label-hidden"
@@ -164,7 +164,7 @@
                               onchange={handleEdit}
                             ></lightning-input>
                           </template>
-                          <template if:false={row.labelEditable}>
+                          <template if:false={row.isSpecificCredit}>
                             <div class="slds-truncate">{row.label}</div>
                           </template>
                         </th>
@@ -177,7 +177,7 @@
                             data-id={row.id}
                             data-field="dueDate"
                             onchange={handleEdit}
-                            disabled="false"
+                            disabled={row.dueDateDisabled}
                           ></lightning-input>
                         </td>
                         <!-- 利率 -->
@@ -188,7 +188,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="rate"
-                            disabled="false"
+                            disabled={row.rateDisabled}
                             step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}

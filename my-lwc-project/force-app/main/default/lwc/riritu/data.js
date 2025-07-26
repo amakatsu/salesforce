@@ -12,7 +12,19 @@ const rawCreditSource = [
     postBalance: 1100000,
     actualBalance: 1050000,
     correction: 50000,
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      dueDate: false,
+      rate: false,
+      balance99: false,
+      mark: false,
+      principal: false,
+      change: false,
+      postBalance: false,
+      actualBalance: false,
+      correction: false
+    }
   },
   {
     id: "root2",
@@ -25,6 +37,18 @@ const rawCreditSource = [
     postBalance: 250000,
     actualBalance: 240000,
     correction: 10000,
+    editableFields: {
+      label: false,
+      dueDate: false,
+      rate: false,
+      balance99: true,
+      mark: true,
+      principal: true,
+      change: true,
+      postBalance: true,
+      actualBalance: true,
+      correction: true
+    },
     children: [
       {
         id: "l21",
@@ -36,7 +60,19 @@ const rawCreditSource = [
         change: -50000,
         postBalance: 250000,
         actualBalance: 240000,
-        correction: 10000
+        correction: 10000,
+        editableFields: {
+          label: true,
+          dueDate: true,
+          rate: true,
+          balance99: true,
+          mark: true,
+          principal: false,
+          change: true,
+          postBalance: true,
+          actualBalance: true,
+          correction: true
+        }
       },
       {
         id: "l22",
@@ -48,7 +84,19 @@ const rawCreditSource = [
         change: 100000,
         postBalance: 500000,
         actualBalance: 480000,
-        correction: 20000
+        correction: 20000,
+        editableFields: {
+          label: true,
+          dueDate: true,
+          rate: true,
+          balance99: true,
+          mark: true,
+          principal: true,
+          change: true,
+          postBalance: true,
+          actualBalance: true,
+          correction: false
+        }
       }
     ]
   },
@@ -63,7 +111,19 @@ const rawCreditSource = [
     postBalance: 600000,
     actualBalance: 580000,
     correction: 20000,
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      dueDate: false,
+      rate: false,
+      balance99: false,
+      mark: false,
+      principal: false,
+      change: false,
+      postBalance: false,
+      actualBalance: false,
+      correction: false
+    }
   },
   {
     id: "root4",
@@ -76,6 +136,18 @@ const rawCreditSource = [
     postBalance: 750000,
     actualBalance: 720000,
     correction: 30000,
+    editableFields: {
+      label: false,
+      dueDate: false,
+      rate: false,
+      balance99: false,
+      mark: false,
+      principal: false,
+      change: false,
+      postBalance: false,
+      actualBalance: false,
+      correction: false
+    },
     children: [
       {
         id: "e41",
@@ -87,7 +159,19 @@ const rawCreditSource = [
         change: -100000,
         postBalance: 650000,
         actualBalance: 630000,
-        correction: 20000
+        correction: 20000,
+        editableFields: {
+          label: true,
+          dueDate: false,
+          rate: true,
+          balance99: true,
+          mark: true,
+          principal: false,
+          change: true,
+          postBalance: false,
+          actualBalance: true,
+          correction: true
+        }
       },
       {
         id: "e42",
@@ -99,7 +183,19 @@ const rawCreditSource = [
         change: 100000,
         postBalance: 900000,
         actualBalance: 880000,
-        correction: 30000
+        correction: 30000,
+        editableFields: {
+          label: false,
+          dueDate: true,
+          rate: false,
+          balance99: true,
+          mark: true,
+          principal: true,
+          change: false,
+          postBalance: true,
+          actualBalance: false,
+          correction: true
+        }
       }
     ]
   },
@@ -114,6 +210,18 @@ const rawCreditSource = [
     postBalance: 1000000,
     actualBalance: 950000,
     correction: 50000,
+    editableFields: {
+      label: false,
+      dueDate: false,
+      rate: false,
+      balance99: false,
+      mark: false,
+      principal: false,
+      change: false,
+      postBalance: false,
+      actualBalance: false,
+      correction: false
+    },
     children: [
       {
         id: "s51",
@@ -125,7 +233,19 @@ const rawCreditSource = [
         change: -50000,
         postBalance: 950000,
         actualBalance: 920000,
-        correction: 30000
+        correction: 30000,
+        editableFields: {
+          label: true,
+          dueDate: true,
+          rate: false,
+          balance99: false,
+          mark: true,
+          principal: true,
+          change: true,
+          postBalance: true,
+          actualBalance: false,
+          correction: false
+        }
       },
       {
         id: "s52",
@@ -137,7 +257,19 @@ const rawCreditSource = [
         change: 100000,
         postBalance: 1200000,
         actualBalance: 1150000,
-        correction: 50000
+        correction: 50000,
+        editableFields: {
+          label: false,
+          dueDate: false,
+          rate: true,
+          balance99: true,
+          mark: true,
+          principal: false,
+          change: false,
+          postBalance: false,
+          actualBalance: true,
+          correction: true
+        }
       }
     ]
   },
@@ -317,7 +449,19 @@ const rawCreditSource = [
         change: "",
         postBalance: "",
         actualBalance: "",
-        correction: ""
+        correction: "",
+        editableFields: {
+          label: true,
+          dueDate: true,
+          rate: true,
+          balance99: true,
+          mark: true,
+          principal: true,
+          change: true,
+          postBalance: true,
+          actualBalance: true,
+          correction: true
+        }
       }
     ]
   }
@@ -330,16 +474,31 @@ function generateCollateral(id, collateralType, regValue, prefix, count, hasChil
         id: `${prefix}${i + 1}`,
         collateralType: `${collateralType} 子${i + 1}`,
         regValue: regValue / count,
-        marketValue: (regValue / count) * 1.2
+        marketValue: (regValue / count) * 1.2,
+        editableFields: {
+          regValue: true,
+          marketValue: true
+        }
       }))
     : [];
+
+  // 担保種類別の編集制御設定
+  const getCollateralEditableFields = (id) => {
+    switch (id) {
+      case "collGeneral2":
+        return { regValue: false, marketValue: false };
+      default:
+        return { regValue: true, marketValue: true };
+    }
+  };
 
   return {
     id,
     collateralType,
     regValue,
     marketValue: regValue * 1.2,
-    children
+    children,
+    editableFields: getCollateralEditableFields(id)
   };
 }
 
@@ -361,8 +520,19 @@ const rawCollateralSource = [
 
 // 編集可能フラグの設定
 function getEditableFlags(node) {
-  const isDept = node.children?.length;
+  // データに編集可能フラグが定義されている場合はそれを使用
+  if (node.editableFields) {
+    return node.editableFields;
+  }
 
+  // デフォルトの編集可能フラグ（既存データとの互換性のため）
+  return getDefaultEditableFlags(node);
+}
+
+// デフォルトの編集可能フラグ
+function getDefaultEditableFlags(node) {
+  const isDept = node.children?.length;
+  
   return {
     label: !isDept,
     dueDate: node.rate !== "Dept Head",
@@ -374,7 +544,6 @@ function getEditableFlags(node) {
     postBalance: true,
     actualBalance: true,
     correction: true,
-    collateralType: true,
     regValue: true,
     marketValue: true
   };
