@@ -154,7 +154,19 @@
                         </th>
                         <!-- 科目・摘要・票番号 -->
                         <th class={row.labelClass} scope="col">
-                          <div class="slds-truncate">{row.label}</div>
+                          <template if:true={row.labelEditable}>
+                            <lightning-input
+                              type="text"
+                              variant="label-hidden"
+                              value={row.label}
+                              data-id={row.id}
+                              data-field="label"
+                              onchange={handleEdit}
+                            ></lightning-input>
+                          </template>
+                          <template if:false={row.labelEditable}>
+                            <div class="slds-truncate">{row.label}</div>
+                          </template>
                         </th>
                         <!-- 期日 -->
                         <td data-label="dueDate" class={row.dueDateClass}>

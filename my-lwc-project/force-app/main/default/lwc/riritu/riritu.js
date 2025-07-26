@@ -1,78 +1,83 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from "./state";
 
-// ラベル定義（共通化）  
+// ラベル定義（共通化）
 const TABLE_HEADERS = {
   CREDIT: {
-    SUBJECT_SUMMARY_NUMBER: '科目・摘要・稟査番号',
-    DUE_DATE: '期日',
-    RATE: '利率（%）',
-    BALANCE_99: '99月末残高',
-    MARK: '合算',
-    PRINCIPAL: '極度額',
-    CHANGE: '当月増減',
-    POST_BALANCE: '本件後残高',
-    ACTUAL_BALANCE: '実勢現在残',
-    CORRECTION: '補正値'
+    SUBJECT_SUMMARY_NUMBER: "科目・摘要・稟査番号",
+    DUE_DATE: "期日",
+    RATE: "利率（%）",
+    BALANCE_99: "99月末残高",
+    MARK: "合算",
+    PRINCIPAL: "極度額",
+    CHANGE: "当月増減",
+    POST_BALANCE: "本件後残高",
+    ACTUAL_BALANCE: "実勢現在残",
+    CORRECTION: "補正値"
   },
   COLLATERAL: {
-    COLLATERAL_TYPE: '担保種類',
-    REG_VALUE: '規定値',
-    MARKET_VALUE: '時価ベース'
+    COLLATERAL_TYPE: "担保種類",
+    REG_VALUE: "規定値",
+    MARKET_VALUE: "時価ベース"
   },
   GUARANTOR: {
-    GUARANTOR: '保証人'
+    GUARANTOR: "保証人"
   }
 };
 
 const ACCORDION_LABELS = {
-  CREDIT_STATUS: '与信状況',
-  COLLATERAL: '本件保全状況',
-  GUARANTOR: '保証人'
+  CREDIT_STATUS: "与信状況",
+  COLLATERAL: "本件保全状況",
+  GUARANTOR: "保証人"
 };
 
 const BUTTON_LABELS = {
-  SAVE: '保存',
-  RESET: 'リセット'
+  SAVE: "保存",
+  RESET: "リセット"
 };
 
 const MESSAGE_LABELS = {
-  SAVE_SUCCESS: '保存が完了しました',
-  RESET_SUCCESS: 'リセットが完了しました',
-  NAKED_CREDIT_INFO: '裸与信は信用限度不参集与信を考慮した権限判定上の裸与信を表示'
+  SAVE_SUCCESS: "保存が完了しました",
+  RESET_SUCCESS: "リセットが完了しました",
+  NAKED_CREDIT_INFO:
+    "裸与信は信用限度不参集与信を考慮した権限判定上の裸与信を表示"
 };
 
 const ARIA_LABELS = {
-  EXPAND_COLLAPSE: '展開/折りたたみ',
-  EDIT_FIELD: 'フィールドを編集'
+  EXPAND_COLLAPSE: "展開/折りたたみ",
+  EDIT_FIELD: "フィールドを編集"
 };
 
 // 入力フィールドラベル
 const FIELD_LABELS = {
-  RATE: '利率',
-  BALANCE_99: '99月末残高',
-  PRINCIPAL: '極度額',
-  CHANGE: '当月増減',
-  POST_BALANCE: '本件後残高',
-  ACTUAL_BALANCE: '実勢現在残',
-  CORRECTION: '補正値',
-  REG_VALUE: '規定値',
-  MARKET_VALUE: '時価ベース'
+  RATE: "利率",
+  BALANCE_99: "99月末残高",
+  PRINCIPAL: "極度額",
+  CHANGE: "当月増減",
+  POST_BALANCE: "本件後残高",
+  ACTUAL_BALANCE: "実勢現在残",
+  CORRECTION: "補正値",
+  REG_VALUE: "規定値",
+  MARKET_VALUE: "時価ベース"
 };
 
 // 入力フィールド設定
 const FIELD_CONFIG = {
-  DECIMAL_STEP: '0.01'
+  DECIMAL_STEP: "0.01"
 };
 
 // フィールド定義
 const FIELD_DEFINITIONS = {
-  CREDIT: [
-    "label", "dueDate", "rate", "balance99", "mark"
-  ],
+  CREDIT: ["label", "dueDate", "rate", "balance99", "mark"],
   COLLATERAL: [
-    "collateralType", "principal", "change", "postBalance", 
-    "actualBalance", "regValue", "marketValue", "correction"
+    "collateralType",
+    "principal",
+    "change",
+    "postBalance",
+    "actualBalance",
+    "regValue",
+    "marketValue",
+    "correction"
   ]
 };
 
@@ -84,13 +89,28 @@ export default class RirituComponent extends LightningElement {
   @track creditRows = [];
   @track collateralRows = [];
   @track guarantorData = generateGuarantorData();
-  
+
   highlightOn = false;
   activeSections = [
-    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", 
-    "k", "l", "m", "n", "o", "p", "q", "r"
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r"
   ];
-
 
   /* =========================================
    * PUBLIC METHODS - HTMLから呼び出される
@@ -154,7 +174,7 @@ export default class RirituComponent extends LightningElement {
   handleToggle(event) {
     const { expanded } = stateService.getState();
     const nodeId = event.currentTarget.dataset.id;
-    
+
     expanded.has(nodeId) ? expanded.delete(nodeId) : expanded.add(nodeId);
     this._refreshData();
   }
@@ -167,7 +187,8 @@ export default class RirituComponent extends LightningElement {
   handleEdit(event) {
     const nodeId = event.target.dataset.id;
     const fieldName = event.target.dataset.field;
-    const newValue = fieldName === "active" ? event.target.checked : event.target.value;
+    const newValue =
+      fieldName === "active" ? event.target.checked : event.target.value;
 
     // 編集可能性チェック
     if (this._isFieldDisabled(nodeId, fieldName)) return;
@@ -210,11 +231,13 @@ export default class RirituComponent extends LightningElement {
    * @private
    */
   _isFieldDisabled(nodeId, fieldName) {
-    const creditRow = this.creditRows.find(row => row.id === nodeId);
-    const collateralRow = this.collateralRows.find(row => row.id === nodeId);
-    
-    return (creditRow && creditRow[`${fieldName}Disabled`]) ||
-           (collateralRow && collateralRow[`${fieldName}Disabled`]);
+    const creditRow = this.creditRows.find((row) => row.id === nodeId);
+    const collateralRow = this.collateralRows.find((row) => row.id === nodeId);
+
+    return (
+      (creditRow && creditRow[`${fieldName}Disabled`]) ||
+      (collateralRow && collateralRow[`${fieldName}Disabled`])
+    );
   }
 
   /**
@@ -252,9 +275,9 @@ export default class RirituComponent extends LightningElement {
    * @private
    */
   _flattenTree(tree, shouldHighlight, level = 0) {
-    return tree.flatMap(node => {
+    return tree.flatMap((node) => {
       const flatNode = this._createFlatNode(node, level, shouldHighlight);
-      const children = this._shouldShowChildren(node) 
+      const children = this._shouldShowChildren(node)
         ? this._flattenTree(node.children, shouldHighlight, level + 1)
         : [];
       return [flatNode, ...children];
@@ -274,11 +297,13 @@ export default class RirituComponent extends LightningElement {
     const hasChildren = Boolean(node.children?.length);
     const isExpanded = state.expanded.has(node.id);
     const originalNode = this._findOriginalNode(node.id);
+    const isSpecificCredit = node.id === "l142";
 
     return {
       ...node,
       level,
       hasChildren,
+      isSpecificCredit,
       icon: this._getNodeIcon(hasChildren, isExpanded),
       ...this._generateFieldStyles(node, originalNode, shouldHighlight, level)
     };
@@ -314,9 +339,12 @@ export default class RirituComponent extends LightningElement {
    * @private
    */
   _findOriginalNode(nodeId) {
-    const { originalCreditSource, originalCollateralSource } = stateService.getState();
-    return this._findNodeInTree(originalCreditSource, nodeId) ||
-           this._findNodeInTree(originalCollateralSource, nodeId);
+    const { originalCreditSource, originalCollateralSource } =
+      stateService.getState();
+    return (
+      this._findNodeInTree(originalCreditSource, nodeId) ||
+      this._findNodeInTree(originalCollateralSource, nodeId)
+    );
   }
 
   /**
@@ -332,12 +360,23 @@ export default class RirituComponent extends LightningElement {
     const { draft } = stateService.getState();
     const indentClass = `indent-${Math.min(level, 3)}`;
     const editable = node.editable || {};
-    const allFields = [...FIELD_DEFINITIONS.CREDIT, ...FIELD_DEFINITIONS.COLLATERAL];
+    const allFields = [
+      ...FIELD_DEFINITIONS.CREDIT,
+      ...FIELD_DEFINITIONS.COLLATERAL
+    ];
     const result = {};
 
-    allFields.forEach(field => {
-      const hasChanged = this._hasFieldChanged(node, originalNode, field, shouldHighlight, draft);
-      result[`${field}Class`] = `${indentClass} ${hasChanged ? 'changed-cell' : ''}`.trim();
+    allFields.forEach((field) => {
+      const hasChanged = this._hasFieldChanged(
+        node,
+        originalNode,
+        field,
+        shouldHighlight,
+        draft
+      );
+      result[`${field}Class`] = `${indentClass} ${
+        hasChanged ? "changed-cell" : ""
+      }`.trim();
       result[`${field}Disabled`] = !editable[field];
     });
 
@@ -355,10 +394,12 @@ export default class RirituComponent extends LightningElement {
    * @private
    */
   _hasFieldChanged(node, originalNode, field, shouldHighlight, draft) {
-    return shouldHighlight && 
-           !draft.has(node.id) && 
-           originalNode && 
-           originalNode[field] !== node[field];
+    return (
+      shouldHighlight &&
+      !draft.has(node.id) &&
+      originalNode &&
+      originalNode[field] !== node[field]
+    );
   }
 
   /**
@@ -376,7 +417,10 @@ export default class RirituComponent extends LightningElement {
         node[fieldName] = newValue;
         return true;
       }
-      if (node.children && this._updateNodeInTree(node.children, nodeId, fieldName, newValue)) {
+      if (
+        node.children &&
+        this._updateNodeInTree(node.children, nodeId, fieldName, newValue)
+      ) {
         return true;
       }
     }
