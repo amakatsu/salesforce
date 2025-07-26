@@ -248,122 +248,117 @@ export default class RirituComponent extends LightningElement {
    * @param {Array} tree - ツリーデータ
    * @param {boolean} shouldHighlight - ハイライト表示するか
    * @param {number} level - ネストレベル
-   * @param {Array} result - 結果配列
    * @returns {Array} フラット化された配列
    * @private
    */
-  _flattenTree(tree, shouldHighlight, level = 0, result = []) {
-    const { expanded, originalCreditSource, originalCollateralSource, draft } = 
-      stateService.getState();
+  _flattenTree(tree, shouldHighlight, level = 0) {
+    return tree.flatMap(node => {
+      const flatNode = this._createFlatNode(node, level, shouldHighlight);
+      const children = this._shouldShowChildren(node) 
+        ? this._flattenTree(node.children, shouldHighlight, level + 1)
+        : [];
+      return [flatNode, ...children];
+    });
+  }
 
-    tree.forEach(node => {
-      const originalNode = 
-        this._findNodeInTree(originalCreditSource, node.id) ||
-        this._findNodeInTree(originalCollateralSource, node.id);
+  /**
+   * フラット表示用ノード作成
+   * @param {Object} node - ノードデータ
+   * @param {number} level - ネストレベル
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @returns {Object} フラット表示用ノード
+   * @private
+   */
+  _createFlatNode(node, level, shouldHighlight) {
+    const state = stateService.getState();
+    const hasChildren = Boolean(node.children?.length);
+    const isExpanded = state.expanded.has(node.id);
+    const originalNode = this._findOriginalNode(node.id);
 
-      const flatNode = this._createFlatNode(
-        node, originalNode, shouldHighlight, level, expanded, draft
-      );
-      result.push(flatNode);
+    return {
+      ...node,
+      level,
+      hasChildren,
+      icon: this._getNodeIcon(hasChildren, isExpanded),
+      ...this._generateFieldStyles(node, originalNode, shouldHighlight, level)
+    };
+  }
 
-      // 子ノードの処理
-      if (expanded.has(node.id) && node.children?.length) {
-        this._flattenTree(node.children, shouldHighlight, level + 1, result);
-      }
+  /**
+   * 子ノードを表示すべきかチェック
+   * @param {Object} node - ノードデータ
+   * @returns {boolean} 子ノードを表示するか
+   * @private
+   */
+  _shouldShowChildren(node) {
+    const { expanded } = stateService.getState();
+    return expanded.has(node.id) && node.children?.length > 0;
+  }
+
+  /**
+   * ノードアイコン取得
+   * @param {boolean} hasChildren - 子ノードを持つか
+   * @param {boolean} isExpanded - 展開されているか
+   * @returns {string} アイコン名
+   * @private
+   */
+  _getNodeIcon(hasChildren, isExpanded) {
+    if (!hasChildren) return "";
+    return isExpanded ? "utility:chevrondown" : "utility:chevronright";
+  }
+
+  /**
+   * 元のノードを検索
+   * @param {string} nodeId - ノードID
+   * @returns {Object|null} 元のノード
+   * @private
+   */
+  _findOriginalNode(nodeId) {
+    const { originalCreditSource, originalCollateralSource } = stateService.getState();
+    return this._findNodeInTree(originalCreditSource, nodeId) ||
+           this._findNodeInTree(originalCollateralSource, nodeId);
+  }
+
+  /**
+   * フィールドスタイル生成
+   * @param {Object} node - ノードデータ
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {number} level - ネストレベル
+   * @returns {Object} スタイルとフラグのオブジェクト
+   * @private
+   */
+  _generateFieldStyles(node, originalNode, shouldHighlight, level) {
+    const { draft } = stateService.getState();
+    const indentClass = `indent-${Math.min(level, 3)}`;
+    const editable = node.editable || {};
+    const allFields = [...FIELD_DEFINITIONS.CREDIT, ...FIELD_DEFINITIONS.COLLATERAL];
+    const result = {};
+
+    allFields.forEach(field => {
+      const hasChanged = this._hasFieldChanged(node, originalNode, field, shouldHighlight, draft);
+      result[`${field}Class`] = `${indentClass} ${hasChanged ? 'changed-cell' : ''}`.trim();
+      result[`${field}Disabled`] = !editable[field];
     });
 
     return result;
   }
 
   /**
-   * フラット表示用ノード作成
+   * フィールドが変更されているかチェック
    * @param {Object} node - ノードデータ
    * @param {Object} originalNode - 元のノードデータ
-   * @param {boolean} shouldHighlight - ハイライト表示するか
-   * @param {number} level - ネストレベル
-   * @param {Set} expanded - 展開状態
-   * @param {Map} draft - 下書きデータ
-   * @returns {Object} フラット表示用ノード
-   * @private
-   */
-  _createFlatNode(node, originalNode, shouldHighlight, level, expanded, draft) {
-    const indentClass = `indent-${Math.min(level, 3)}`;
-    const hasChildren = node.children?.length > 0;
-    const isExpanded = expanded.has(node.id);
-
-    return {
-      ...node,
-      level,
-      hasChildren,
-      icon: hasChildren ? 
-        (isExpanded ? "utility:chevrondown" : "utility:chevronright") : "",
-
-      // 全フィールドのクラス生成を統一
-      ...this._generateFieldClasses(node, originalNode, shouldHighlight, draft, indentClass),
-      
-      // 無効化フラグ生成を統一
-      ...this._generateDisabledFlags(node)
-    };
-  }
-
-  /**
-   * フィールドクラス生成（統一化）
-   * @param {Object} node - ノードデータ
-   * @param {Object} originalNode - 元のノードデータ
+   * @param {string} field - フィールド名
    * @param {boolean} shouldHighlight - ハイライト表示するか
    * @param {Map} draft - 下書きデータ
-   * @param {string} indentClass - インデントクラス
-   * @returns {Object} CSSクラス名のオブジェクト
+   * @returns {boolean} 変更されているか
    * @private
    */
-  _generateFieldClasses(node, originalNode, shouldHighlight, draft, indentClass) {
-    const allFields = [...FIELD_DEFINITIONS.CREDIT, ...FIELD_DEFINITIONS.COLLATERAL];
-    const classes = {};
-
-    allFields.forEach(field => {
-      const changeClass = this._getChangeClass(
-        field, node, originalNode, shouldHighlight, draft
-      );
-      classes[`${field}Class`] = `${indentClass} ${changeClass}`.trim();
-    });
-
-    return classes;
-  }
-
-  /**
-   * 無効化フラグ生成（統一化）
-   * @param {Object} node - ノードデータ
-   * @returns {Object} 無効化フラグのオブジェクト
-   * @private
-   */
-  _generateDisabledFlags(node) {
-    const allFields = [...FIELD_DEFINITIONS.CREDIT, ...FIELD_DEFINITIONS.COLLATERAL];
-    const flags = {};
-    const editable = node.editable || {};
-
-    allFields.forEach(field => {
-      flags[`${field}Disabled`] = !editable[field];
-    });
-
-    return flags;
-  }
-
-  /**
-   * 変更クラス取得
-   * @param {string} fieldName - フィールド名
-   * @param {Object} node - ノードデータ
-   * @param {Object} originalNode - 元のノードデータ
-   * @param {boolean} shouldHighlight - ハイライト表示するか
-   * @param {Map} draft - 下書きデータ
-   * @returns {string} CSSクラス名
-   * @private
-   */
-  _getChangeClass(fieldName, node, originalNode, shouldHighlight, draft) {
-    const hasChanged = shouldHighlight && 
-                      !draft.has(node.id) && 
-                      originalNode && 
-                      originalNode[fieldName] !== node[fieldName];
-    return hasChanged ? "changed-cell" : "";
+  _hasFieldChanged(node, originalNode, field, shouldHighlight, draft) {
+    return shouldHighlight && 
+           !draft.has(node.id) && 
+           originalNode && 
+           originalNode[field] !== node[field];
   }
 
   /**
