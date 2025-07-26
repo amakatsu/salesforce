@@ -2,7 +2,6 @@
 import {
   rawCreditSource,
   rawCollateralSource,
-  generateCollateral,
   attachEditableFlags,
   deepCopy
 } from "./data";

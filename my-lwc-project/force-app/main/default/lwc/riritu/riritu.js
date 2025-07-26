@@ -88,7 +88,13 @@ const FIELD_DEFINITIONS = {
 export default class RirituComponent extends LightningElement {
   @track creditRows = [];
   @track collateralRows = [];
-  @track guarantorData = generateGuarantorData();
+  @track guarantorData = [
+    { id: "guarantor_1", name: "保証人1" },
+    { id: "guarantor_2", name: "保証人2" },
+    { id: "guarantor_3", name: "保証人3" },
+    { id: "guarantor_4", name: "保証人4" },
+    { id: "guarantor_5", name: "保証人5" }
+  ];
 
   highlightOn = false;
   activeSections = [
@@ -446,13 +452,3 @@ export default class RirituComponent extends LightningElement {
   }
 }
 
-/**
- * 保証人データ生成
- * @returns {Array} 保証人データ配列
- */
-function generateGuarantorData() {
-  return Array.from({ length: 5 }, (_, index) => ({
-    id: `guarantor_${index + 1}`,
-    name: `保証人${index + 1}`
-  }));
-}
