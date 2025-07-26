@@ -22,7 +22,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     }
   },
   {
@@ -40,11 +40,11 @@ const rawCreditSource = [
       label: false,
       dueDate: false,
       rate: false,
-      balance99: true,
-      principal: true,
-      change: true,
-      postBalance: true,
-      actualBalance: true,
+      balance99: false,
+      principal: false,
+      change: false,
+      postBalance: false,
+      actualBalance: false,
       correction: true
     },
     children: [
@@ -61,10 +61,10 @@ const rawCreditSource = [
         correction: 10000,
         editableFields: {
           label: true,
-          dueDate: true,
+          dueDate: false,
           rate: true,
           balance99: true,
-          principal: false,
+          principal: true,
           change: true,
           postBalance: true,
           actualBalance: true,
@@ -84,7 +84,7 @@ const rawCreditSource = [
         correction: 20000,
         editableFields: {
           label: true,
-          dueDate: true,
+          dueDate: false,
           rate: true,
           balance99: true,
           mark: true,
@@ -92,7 +92,7 @@ const rawCreditSource = [
           change: true,
           postBalance: true,
           actualBalance: true,
-          correction: false
+          correction: true
         }
       }
     ]
@@ -118,7 +118,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     }
   },
   {
@@ -141,7 +141,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     },
     children: [
       {
@@ -181,7 +181,7 @@ const rawCreditSource = [
         correction: 30000,
         editableFields: {
           label: false,
-          dueDate: true,
+          dueDate: false,
           rate: false,
           balance99: true,
           mark: true,
@@ -214,7 +214,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     },
     children: [
       {
@@ -230,7 +230,7 @@ const rawCreditSource = [
         correction: 30000,
         editableFields: {
           label: true,
-          dueDate: true,
+          dueDate: false,
           rate: false,
           balance99: false,
           mark: true,
@@ -238,7 +238,7 @@ const rawCreditSource = [
           change: true,
           postBalance: true,
           actualBalance: false,
-          correction: false
+          correction: true
         }
       },
       {
@@ -281,14 +281,14 @@ const rawCreditSource = [
     children: [],
     editableFields: {
       label: false,
-      dueDate: true,
+      dueDate: false,
       rate: true,
-      balance99: false,
-      principal: false,
+      balance99: true,
+      principal: true,
       change: true,
-      postBalance: false,
+      postBalance: true,
       actualBalance: true,
-      correction: false
+      correction: true
     }
   },
   {
@@ -309,9 +309,9 @@ const rawCreditSource = [
       rate: true,
       balance99: true,
       principal: true,
-      change: false,
+      change: true,
       postBalance: true,
-      actualBalance: false,
+      actualBalance: true,
       correction: true
     }
   },
@@ -329,13 +329,13 @@ const rawCreditSource = [
     children: [],
     editableFields: {
       label: false,
-      dueDate: true,
-      rate: false,
+      dueDate: false,
+      rate: true,
       balance99: true,
-      principal: false,
+      principal: true,
       change: true,
       postBalance: true,
-      actualBalance: false,
+      actualBalance: true,
       correction: true
     }
   },
@@ -360,7 +360,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     }
   },
   {
@@ -382,10 +382,10 @@ const rawCreditSource = [
       balance99: true,
       mark: true,
       principal: true,
-      change: false,
-      postBalance: false,
+      change: true,
+      postBalance: true,
       actualBalance: true,
-      correction: false
+      correction: true
     }
   },
   {
@@ -409,7 +409,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     }
   },
   {
@@ -426,14 +426,14 @@ const rawCreditSource = [
     children: [],
     editableFields: {
       label: false,
-      dueDate: true,
+      dueDate: false,
       rate: false,
-      balance99: true,
+      balance99: false,
       mark: false,
-      principal: true,
-      change: true,
+      principal: false,
+      change: false,
       postBalance: false,
-      actualBalance: true,
+      actualBalance: false,
       correction: true
     }
   },
@@ -457,7 +457,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     },
     children: [
       {
@@ -473,7 +473,7 @@ const rawCreditSource = [
         correction: 50000,
         editableFields: {
           label: false,
-          dueDate: true,
+          dueDate: false,
           rate: false,
           balance99: true,
           mark: true,
@@ -505,7 +505,7 @@ const rawCreditSource = [
           change: true,
           postBalance: false,
           actualBalance: true,
-          correction: false
+          correction: true
         }
       }
     ]
@@ -531,7 +531,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     }
   },
   {
@@ -554,7 +554,7 @@ const rawCreditSource = [
       change: false,
       postBalance: false,
       actualBalance: false,
-      correction: false
+      correction: true
     },
     children: [
       {
@@ -570,7 +570,7 @@ const rawCreditSource = [
         correction: 50000,
         editableFields: {
           label: true,
-          dueDate: true,
+          dueDate: false,
           rate: true,
           balance99: false,
           mark: true,
@@ -578,7 +578,7 @@ const rawCreditSource = [
           change: true,
           postBalance: false,
           actualBalance: true,
-          correction: false
+          correction: true
         }
       },
       {
@@ -594,7 +594,7 @@ const rawCreditSource = [
         correction: "",
         editableFields: {
           label: true,
-          dueDate: true,
+          dueDate: false,
           rate: true,
           balance99: true,
           mark: true,
@@ -613,19 +613,19 @@ const rawCreditSource = [
 const rawCollateralSource = [
   {
     id: "collGeneral",
-    collateralType: "規定担保合計", 
+    collateralType: "規定担保合計",
     regValue: 8000000,
     marketValue: 9600000,
     children: [],
     editableFields: { regValue: false, marketValue: false }
   },
   {
-    id: "collGeneral2", 
+    id: "collGeneral2",
     collateralType: "裸与信",
     regValue: 8000000,
-    marketValue: 9600000, 
+    marketValue: 9600000,
     children: [],
-    editableFields: { regValue: true, marketValue: false }
+    editableFields: { regValue: true, marketValue: true }
   },
   {
     id: "collGeneral3",
@@ -633,11 +633,11 @@ const rawCollateralSource = [
     regValue: 8000000,
     marketValue: 9600000,
     children: [],
-    editableFields: { regValue: false, marketValue: true }
+    editableFields: { regValue: true, marketValue: true }
   },
   {
     id: "collGeneral4",
-    collateralType: "規定・優良小計", 
+    collateralType: "規定・優良小計",
     regValue: 8000000,
     marketValue: 9600000,
     children: [
@@ -649,14 +649,14 @@ const rawCollateralSource = [
         editableFields: { regValue: true, marketValue: true }
       },
       {
-        id: "cg4_2", 
+        id: "cg4_2",
         collateralType: "規定・優良小計 子2",
         regValue: 4000000,
         marketValue: 4800000,
         editableFields: { regValue: true, marketValue: true }
       }
     ],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera21",
@@ -669,30 +669,30 @@ const rawCollateralSource = [
         collateralType: "規定・一般小計 子1",
         regValue: 2500000,
         marketValue: 3000000,
-        editableFields: { regValue: false, marketValue: true }
+        editableFields: { regValue: true, marketValue: true }
       },
       {
         id: "co_2",
         collateralType: "規定・一般小計 子2",
         regValue: 2500000,
         marketValue: 3000000,
-        editableFields: { regValue: false, marketValue: true }
+        editableFields: { regValue: true, marketValue: true }
       }
     ],
-    editableFields: { regValue: false, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
-    id: "collGenera22", 
+    id: "collGenera22",
     collateralType: "規定・その他小計",
     regValue: 5000000,
     marketValue: 6000000,
     children: [],
-    editableFields: { regValue: true, marketValue: false }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera23",
     collateralType: "規定外合計",
-    regValue: 5000000, 
+    regValue: 5000000,
     marketValue: 6000000,
     children: [],
     editableFields: { regValue: false, marketValue: false }
@@ -718,11 +718,11 @@ const rawCollateralSource = [
         editableFields: { regValue: true, marketValue: true }
       }
     ],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera25",
-    collateralType: "規定外・一般小計", 
+    collateralType: "規定外・一般小計",
     regValue: 5000000,
     marketValue: 6000000,
     children: [],
@@ -751,9 +751,4 @@ function attachEditableFlags(tree) {
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
 // データを外部から使用可能にするためのエクスポート
-export {
-  rawCreditSource,
-  rawCollateralSource,
-  attachEditableFlags,
-  deepCopy
-};
+export { rawCreditSource, rawCollateralSource, attachEditableFlags, deepCopy };
