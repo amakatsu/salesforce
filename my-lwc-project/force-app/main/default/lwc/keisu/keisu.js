@@ -1,103 +1,77 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from "./state";
 
+// フィールド定義
+const FIELD_DEFINITIONS = {
+  CREDIT: [
+    "label", "currentBalance", "principal", "currentRate", 
+    "postRate", "applyDate", "applyDateType"
+  ],
+  OTHER_BANK: [
+    "label", "currentBalance", "principal", "currentRate", 
+    "postRate", "applyDate"
+  ]
+};
+
 /**
  * 係数情報管理コンポーネント
- * 与信状況と他行動向の情報を管理するコンポーネント
+ * 与信状況と他行動向の情報を管理
  */
 export default class KeisuComponent extends LightningElement {
-  // 表示用データ
   @track creditRows = [];
   @track otherBankRows = [];
-
-  // 表示状態管理
+  
   highlightOn = false;
-
-  // アコーディオンのアクティブセクション
   activeSections = ["d", "e"];
+
+  /* =========================================
+   * PUBLIC METHODS - HTMLから呼び出される
+   * ======================================== */
 
   // 下書き状態の取得
   get draft() {
     return stateService.getState().draft;
   }
 
-  // コンポーネント初期化
   connectedCallback() {
-    this.initializeData();
-  }
-
-  // データ初期化
-  initializeData() {
-    stateService.initializeState();
-    const state = stateService.getState();
-    this.creditRows = this.flattenTreeData(state.creditSource, false);
-    this.otherBankRows = this.prepareOtherBankRows(
-      state.otherBankSource,
-      false
-    );
+    this._initializeData();
   }
 
   /**
-   * 保存処理
-   * 下書きデータをクリアし、変更ハイライトを有効化
+   * 保存処理 - HTMLから呼び出し
    * @public
    */
   handleSave() {
     stateService.getState().draft.clear();
     this.highlightOn = true;
-    this.refreshDisplayData(true);
+    this._refreshData();
   }
 
   /**
-   * リセット処理
-   * 状態を初期化し、変更ハイライトを無効化
+   * リセット処理 - HTMLから呼び出し
    * @public
    */
   handleReset() {
     stateService.resetState();
     this.highlightOn = false;
-    this.refreshDisplayData(false);
+    this._refreshData();
   }
 
   /**
-   * 表示データの更新
-   * @param {boolean} highlight - 変更ハイライトを有効化するか
-   */
-  refreshDisplayData(highlight) {
-    const state = stateService.getState();
-    this.creditRows = this.flattenTreeData(state.creditSource, highlight);
-    this.otherBankRows = this.prepareOtherBankRows(
-      state.otherBankSource,
-      highlight
-    );
-  }
-
-  /**
-   * ツリーノードの展開/折りたたみ処理
+   * ツリー展開/折りたたみ - HTMLから呼び出し
    * @param {Event} event - クリックイベント
    * @public
    */
   handleTreeToggle(event) {
-    const { creditSource, otherBankSource, expanded } = stateService.getState();
+    const { expanded } = stateService.getState();
     const nodeId = event.currentTarget.dataset.id;
 
-    // 展開状態の切り替え
-    if (expanded.has(nodeId)) {
-      expanded.delete(nodeId);
-    } else {
-      expanded.add(nodeId);
-    }
-
-    // 表示データの更新
-    this.creditRows = this.flattenTreeData(creditSource, this.highlightOn);
-    this.otherBankRows = this.prepareOtherBankRows(
-      otherBankSource,
-      this.highlightOn
-    );
+    expanded.has(nodeId) ? expanded.delete(nodeId) : expanded.add(nodeId);
+    this._refreshData();
   }
 
   /**
-   * フィールド編集処理
+   * 編集処理 - HTMLから呼び出し
    * @param {Event} event - 入力イベント
    * @public
    */
@@ -106,206 +80,257 @@ export default class KeisuComponent extends LightningElement {
     const fieldName = event.target.dataset.field;
     const newValue = event.target.value;
 
-    // データ更新
-    this.updateFieldValue(nodeId, fieldName, newValue);
-
-    // 表示データの更新
-    this.refreshDisplayData(this.highlightOn);
+    this._updateNodeData(nodeId, fieldName, newValue);
+    this._updateDraft(nodeId, fieldName, newValue);
+    this._refreshData();
   }
 
   /**
-   * フィールド値の更新
+   * 数値入力エラーハンドラー - HTMLから呼び出し
+   * @param {Event} event - エラーイベント
+   * @public
+   */
+  numberErrorHandler(event) {
+    const { message, field } = event.detail;
+    console.error(`数値入力エラー: ${field} - ${message}`);
+    
+    // TODO: ユーザー通知の実装
+    // this.showToast('エラー', message, 'error');
+  }
+
+  /* =========================================
+   * PRIVATE METHODS - 内部処理専用
+   * ======================================== */
+
+  /**
+   * データ初期化
+   * @private
+   */
+  _initializeData() {
+    stateService.initializeState();
+    const { creditSource, otherBankSource } = stateService.getState();
+    this.creditRows = this._flattenTree(creditSource, false);
+    this.otherBankRows = this._prepareOtherBankData(otherBankSource, false);
+  }
+
+  /**
+   * データ更新
+   * @private
+   */
+  _refreshData() {
+    const { creditSource, otherBankSource } = stateService.getState();
+    this.creditRows = this._flattenTree(creditSource, this.highlightOn);
+    this.otherBankRows = this._prepareOtherBankData(otherBankSource, this.highlightOn);
+  }
+
+  /**
+   * ノードデータ更新
    * @param {string} nodeId - ノードID
    * @param {string} fieldName - フィールド名
    * @param {*} newValue - 新しい値
+   * @private
    */
-  updateFieldValue(nodeId, fieldName, newValue) {
-    const { creditSource, otherBankSource, draft } = stateService.getState();
+  _updateNodeData(nodeId, fieldName, newValue) {
+    const { creditSource, otherBankSource } = stateService.getState();
+    
+    const updated = 
+      this._updateNodeInTree(creditSource, nodeId, fieldName, newValue) ||
+      this._updateNodeInTree(otherBankSource, nodeId, fieldName, newValue) ||
+      this._updateSubRowInBanks(otherBankSource, nodeId, fieldName, newValue);
 
-    // データソースの更新
-    const updated =
-      this.updateNodeInTree(creditSource, nodeId, fieldName, newValue) ||
-      this.updateNodeInTree(otherBankSource, nodeId, fieldName, newValue) ||
-      this.updateSubRowInBanks(otherBankSource, nodeId, fieldName, newValue);
-
-    if (updated) {
-      // 下書きデータの更新
-      const previousDraft = draft.get(nodeId) || {};
-      draft.set(nodeId, { ...previousDraft, [fieldName]: newValue });
-    }
+    return updated;
   }
 
   /**
-   * ツリー構造をフラット配列に変換
-   * @param {Array} tree - ツリーデータ
-   * @param {boolean} shouldHighlight - 変更ハイライトを有効化するか
-   * @param {number} level - ネストレベル
-   * @param {Array} output - 出力配列
-   * @returns {Array} フラット化されたデータ
+   * 下書きデータ更新
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @param {*} newValue - 新しい値
    * @private
    */
-  flattenTreeData(tree, shouldHighlight, level = 0, output = []) {
+  _updateDraft(nodeId, fieldName, newValue) {
+    const { draft } = stateService.getState();
+    const existingDraft = draft.get(nodeId) || {};
+    draft.set(nodeId, { ...existingDraft, [fieldName]: newValue });
+  }
+
+  /**
+   * ツリーをフラット配列に変換
+   * @param {Array} tree - ツリーデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {number} level - ネストレベル
+   * @param {Array} result - 結果配列
+   * @returns {Array} フラット化された配列
+   * @private
+   */
+  _flattenTree(tree, shouldHighlight, level = 0, result = []) {
     const { expanded, originalCreditSource, draft } = stateService.getState();
 
-    tree.forEach((node) => {
-      const originalNode = this.findNodeInTree(originalCreditSource, node.id);
-      const flatNode = this.createFlatNode(
-        node,
-        originalNode,
-        shouldHighlight,
-        level,
-        expanded,
-        draft
+    tree.forEach(node => {
+      const originalNode = this._findNodeInTree(originalCreditSource, node.id);
+      const flatNode = this._createFlatNode(
+        node, originalNode, shouldHighlight, level, expanded, draft
       );
-      output.push(flatNode);
+      result.push(flatNode);
 
       // 子ノードの処理
-      if (expanded.has(node.id) && node.children) {
-        this.flattenTreeData(node.children, shouldHighlight, level + 1, output);
+      if (expanded.has(node.id) && node.children?.length) {
+        this._flattenTree(node.children, shouldHighlight, level + 1, result);
       }
     });
 
-    return output;
+    return result;
   }
 
   /**
-   * フラット表示用ノードを作成
+   * フラット表示用ノード作成
    * @param {Object} node - ノードデータ
    * @param {Object} originalNode - 元のノードデータ
-   * @param {boolean} shouldHighlight - ハイライトを有効化するか
+   * @param {boolean} shouldHighlight - ハイライト表示するか
    * @param {number} level - ネストレベル
    * @param {Set} expanded - 展開状態
    * @param {Map} draft - 下書きデータ
-   * @returns {Object} フラットノード
+   * @returns {Object} フラット表示用ノード
+   * @private
    */
-  createFlatNode(node, originalNode, shouldHighlight, level, expanded, draft) {
-    const indentClass =
-      level === 0
-        ? "indent-0"
-        : level === 1
-        ? "indent-1"
-        : level === 2
-        ? "indent-2"
-        : "indent-3";
-    const editableFlags = node.editable;
+  _createFlatNode(node, originalNode, shouldHighlight, level, expanded, draft) {
+    const indentClass = `indent-${Math.min(level, 3)}`;
+    const hasChildren = node.children?.length > 0;
+    const isExpanded = expanded.has(node.id);
 
     return {
       ...node,
       level,
-      hasChildren: node.children?.length > 0,
-      icon: this.getNodeIcon(node, expanded),
+      hasChildren,
+      icon: hasChildren ? 
+        (isExpanded ? "utility:chevrondown" : "utility:chevronright") : "",
 
-      // CSS クラス
-      labelClass: `${indentClass} ${this.getChangeClass(
-        "label",
-        node,
-        originalNode,
-        shouldHighlight,
-        draft
-      )}`.trim(),
-      currentBalanceClass: `${indentClass} ${this.getChangeClass(
-        "currentBalance",
-        node,
-        originalNode,
-        shouldHighlight,
-        draft
-      )}`.trim(),
-      principalClass: `${indentClass} ${this.getChangeClass(
-        "principal",
-        node,
-        originalNode,
-        shouldHighlight,
-        draft
-      )}`.trim(),
-      currentRateClass: `${indentClass} ${this.getChangeClass(
-        "currentRate",
-        node,
-        originalNode,
-        shouldHighlight,
-        draft
-      )}`.trim(),
-      postRateClass: `${indentClass} ${this.getChangeClass(
-        "postRate",
-        node,
-        originalNode,
-        shouldHighlight,
-        draft
-      )}`.trim(),
-      applyDateClass: `${indentClass} ${this.getChangeClass(
-        "applyDate",
-        node,
-        originalNode,
-        shouldHighlight,
-        draft
-      )}`.trim(),
-      applyDateTypeClass: `${indentClass} ${this.getChangeClass(
-        "applyDateType",
-        node,
-        originalNode,
-        shouldHighlight,
-        draft
-      )}`.trim(),
-
-      // 無効化フラグ
-      currentBalanceDisabled: !editableFlags.currentBalance,
-      principalDisabled: !editableFlags.principal,
-      currentRateDisabled: !editableFlags.currentRate,
-      postRateDisabled: !editableFlags.postRate,
-      applyDateDisabled: !editableFlags.applyDate
+      // フィールドクラス生成
+      ...this._generateFieldClasses(node, originalNode, shouldHighlight, draft, indentClass),
+      
+      // 無効化フラグ生成
+      ...this._generateDisabledFlags(node)
     };
   }
 
   /**
-   * ノードのアイコンを取得
+   * フィールドクラス生成（統一化）
    * @param {Object} node - ノードデータ
-   * @param {Set} expanded - 展開状態
-   * @returns {string} アイコン名
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {Map} draft - 下書きデータ
+   * @param {string} indentClass - インデントクラス
+   * @returns {Object} CSSクラス名のオブジェクト
+   * @private
    */
-  getNodeIcon(node, expanded) {
-    if (!node.children || node.children.length === 0) {
-      return "";
-    }
-    return expanded.has(node.id)
-      ? "utility:chevrondown"
-      : "utility:chevronright";
+  _generateFieldClasses(node, originalNode, shouldHighlight, draft, indentClass) {
+    const classes = {};
+
+    FIELD_DEFINITIONS.CREDIT.forEach(field => {
+      const changeClass = this._getChangeClass(
+        field, node, originalNode, shouldHighlight, draft
+      );
+      classes[`${field}Class`] = `${indentClass} ${changeClass}`.trim();
+    });
+
+    return classes;
   }
 
   /**
-   * 変更ハイライト用のCSSクラスを取得
+   * 無効化フラグ生成（統一化）
+   * @param {Object} node - ノードデータ
+   * @returns {Object} 無効化フラグのオブジェクト
+   * @private
+   */
+  _generateDisabledFlags(node) {
+    const flags = {};
+    const editable = node.editable || {};
+
+    FIELD_DEFINITIONS.CREDIT.forEach(field => {
+      flags[`${field}Disabled`] = !editable[field];
+    });
+
+    return flags;
+  }
+
+  /**
+   * 変更クラス取得
    * @param {string} fieldName - フィールド名
-   * @param {Object} node - 現在のノード
-   * @param {Object} originalNode - 元のノード
-   * @param {boolean} shouldHighlight - ハイライトを有効化するか
+   * @param {Object} node - ノードデータ
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
    * @param {Map} draft - 下書きデータ
    * @returns {string} CSSクラス名
+   * @private
    */
-  getChangeClass(fieldName, node, originalNode, shouldHighlight, draft) {
-    const hasChanged =
-      shouldHighlight &&
-      !draft.has(node.id) &&
-      originalNode &&
-      originalNode[fieldName] !== node[fieldName];
+  _getChangeClass(fieldName, node, originalNode, shouldHighlight, draft) {
+    const hasChanged = shouldHighlight && 
+                      !draft.has(node.id) && 
+                      originalNode && 
+                      originalNode[fieldName] !== node[fieldName];
     return hasChanged ? "changed-cell" : "";
   }
 
   /**
-   * ツリー内のノードを更新
+   * 他行動向データの準備
+   * @param {Array} otherBankSource - 他行動向データソース
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @returns {Array} 表示用の他行動向データ
+   * @private
+   */
+  _prepareOtherBankData(otherBankSource, shouldHighlight) {
+    const { draft } = stateService.getState();
+
+    return otherBankSource.map(bank => ({
+      ...bank,
+      currentBalanceClass: this._getChangeClass(
+        "currentBalance", bank, null, shouldHighlight, draft
+      ),
+      subRows: bank.subRows.map((subRow, index) => ({
+        ...subRow,
+        isFirst: index === 0,
+        ...this._generateSubRowClasses(subRow, shouldHighlight, draft)
+      }))
+    }));
+  }
+
+  /**
+   * サブ行のクラス生成
+   * @param {Object} subRow - サブ行データ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {Map} draft - 下書きデータ
+   * @returns {Object} CSSクラス名のオブジェクト
+   * @private
+   */
+  _generateSubRowClasses(subRow, shouldHighlight, draft) {
+    const classes = {};
+    const subRowFields = ["principal", "currentRate", "postRate", "applyDate"];
+
+    subRowFields.forEach(field => {
+      classes[`${field}Class`] = this._getChangeClass(
+        field, subRow, null, shouldHighlight, draft
+      );
+    });
+
+    return classes;
+  }
+
+  /**
+   * ツリー内ノード更新
    * @param {Array} tree - ツリーデータ
    * @param {string} nodeId - ノードID
    * @param {string} fieldName - フィールド名
    * @param {*} newValue - 新しい値
    * @returns {boolean} 更新成功したか
+   * @private
    */
-  updateNodeInTree(tree, nodeId, fieldName, newValue) {
+  _updateNodeInTree(tree, nodeId, fieldName, newValue) {
     for (const node of tree) {
       if (node.id === nodeId) {
         node[fieldName] = newValue;
         return true;
       }
-      if (
-        node.children &&
-        this.updateNodeInTree(node.children, nodeId, fieldName, newValue)
-      ) {
+      if (node.children && this._updateNodeInTree(node.children, nodeId, fieldName, newValue)) {
         return true;
       }
     }
@@ -313,91 +338,36 @@ export default class KeisuComponent extends LightningElement {
   }
 
   /**
-   * ツリー内のノードを検索
+   * ツリー内ノード検索
    * @param {Array} tree - ツリーデータ
    * @param {string} nodeId - ノードID
-   * @returns {Object|null} 検索結果またはnull
+   * @returns {Object|null} 見つかったノードまたはnull
+   * @private
    */
-  findNodeInTree(tree, nodeId) {
+  _findNodeInTree(tree, nodeId) {
     for (const node of tree) {
-      if (node.id === nodeId) {
-        return node;
-      }
+      if (node.id === nodeId) return node;
       if (node.children) {
-        const foundNode = this.findNodeInTree(node.children, nodeId);
-        if (foundNode) {
-          return foundNode;
-        }
+        const found = this._findNodeInTree(node.children, nodeId);
+        if (found) return found;
       }
     }
     return null;
   }
 
   /**
-   * 他行動向データの準備
-   * @param {Array} otherBankSource - 他行動向データソース
-   * @param {boolean} shouldHighlight - ハイライトを有効化するか
-   * @returns {Array} 表示用の他行動向データ
-   */
-  prepareOtherBankRows(otherBankSource, shouldHighlight) {
-    const { draft } = stateService.getState();
-
-    return otherBankSource.map((bank) => ({
-      ...bank,
-      currentBalanceClass: this.getChangeClass(
-        "currentBalance",
-        bank,
-        null,
-        shouldHighlight,
-        draft
-      ),
-      subRows: bank.subRows.map((subRow, index) => ({
-        ...subRow,
-        isFirst: index === 0,
-        principalClass: this.getChangeClass(
-          "principal",
-          subRow,
-          null,
-          shouldHighlight,
-          draft
-        ),
-        currentRateClass: this.getChangeClass(
-          "currentRate",
-          subRow,
-          null,
-          shouldHighlight,
-          draft
-        ),
-        postRateClass: this.getChangeClass(
-          "postRate",
-          subRow,
-          null,
-          shouldHighlight,
-          draft
-        ),
-        applyDateClass: this.getChangeClass(
-          "applyDate",
-          subRow,
-          null,
-          shouldHighlight,
-          draft
-        )
-      }))
-    }));
-  }
-
-  /**
-   * 銀行のサブ行データを更新
+   * 銀行のサブ行データ更新
    * @param {Array} banks - 銀行データ配列
    * @param {string} nodeId - ノードID
    * @param {string} fieldName - フィールド名
    * @param {*} newValue - 新しい値
    * @returns {boolean} 更新成功したか
+   * @private
    */
-  updateSubRowInBanks(banks, nodeId, fieldName, newValue) {
+  _updateSubRowInBanks(banks, nodeId, fieldName, newValue) {
     for (const bank of banks) {
       if (bank.subRows) {
-        const subRow = bank.subRows.find((row) => row.id === nodeId);
+        const subRow = bank.subRows.find(row => row.id === nodeId);
         if (subRow) {
           subRow[fieldName] = newValue;
           return true;
@@ -407,17 +377,4 @@ export default class KeisuComponent extends LightningElement {
     return false;
   }
 
-  /**
-   * 数値入力エラーハンドラー
-   * @param {Event} event - エラーイベント
-   * @public
-   */
-  numberErrorHandler(event) {
-    const errorMessage = event.detail.message;
-    const fieldName = event.detail.field;
-    console.error(`数値入力エラー: ${fieldName} - ${errorMessage}`);
-
-    // 必要に応じてユーザーへの通知処理を追加
-    // this.showToast('エラー', errorMessage, 'error');
-  }
 }

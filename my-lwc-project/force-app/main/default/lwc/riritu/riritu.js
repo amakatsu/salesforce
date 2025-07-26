@@ -1,222 +1,333 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from "./state";
 
-/** @type {Array} 保証人テーブルのカラム定義 */
-const GUARANTOR_COLUMNS = [
-  { label: "保証人", fieldName: "name", type: "text" }
-];
+// フィールド定義
+const FIELD_DEFINITIONS = {
+  CREDIT: [
+    "label", "dueDate", "rate", "balance99", "mark"
+  ],
+  COLLATERAL: [
+    "collateralType", "principal", "change", "postBalance", 
+    "actualBalance", "regValue", "marketValue", "correction"
+  ]
+};
 
-export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends LightningElement {
-  activeSections = [
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r"
-  ];
-
-  @track guarantorData = generateGuarantorData();
-
-  guarantorColumns = GUARANTOR_COLUMNS;
-
-  handleInputChange(event) {
-    const { id, field } = event.currentTarget.dataset;
-    const value = event.target.value;
-    this.updateData(this.creditRows, id, field, value);
-    this.updateData(this.collateralRows, id, field, value);
-  }
-
-  updateData(data, id, field, value) {
-    const item = data.find((row) => row.id === id);
-    if (item) {
-      item[field] = value;
-    }
-  }
-
+/**
+ * 利率情報管理コンポーネント
+ * 与信状況と本件保全の情報を管理
+ */
+export default class RirituComponent extends LightningElement {
   @track creditRows = [];
   @track collateralRows = [];
+  @track guarantorData = generateGuarantorData();
+  
   highlightOn = false;
+  activeSections = [
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", 
+    "k", "l", "m", "n", "o", "p", "q", "r"
+  ];
 
+  // 保証人テーブルのカラム定義
+  guarantorColumns = [
+    { label: "保証人", fieldName: "name", type: "text" }
+  ];
+
+  /* =========================================
+   * PUBLIC METHODS - HTMLから呼び出される
+   * ======================================== */
+
+  // 下書き状態の取得
   get draft() {
     return stateService.getState().draft;
   }
+
   get hasDraft() {
     return this.draft.size > 0;
   }
+
   get draftJson() {
     return JSON.stringify(Object.fromEntries(this.draft), null, 2);
   }
 
   connectedCallback() {
-    stateService.initializeState();
-    this.creditRows = this.flatten(stateService.getState().creditSource, false);
-    this.collateralRows = this.flatten(
-      stateService.getState().collateralSource,
-      false
-    );
+    this._initializeData();
   }
 
-  /* ========================================
-   * 保存/リセット処理
-   * ======================================== */
+  /**
+   * 保存処理 - HTMLから呼び出し
+   * @public
+   */
   handleSave() {
     stateService.getState().draft.clear();
     this.highlightOn = true;
-    this.creditRows = this.flatten(stateService.getState().creditSource, true);
-    this.collateralRows = this.flatten(
-      stateService.getState().collateralSource,
-      true
-    );
+    this._refreshData();
   }
+
+  /**
+   * リセット処理 - HTMLから呼び出し
+   * @public
+   */
   handleReset() {
     stateService.resetState();
     this.highlightOn = false;
-    this.creditRows = this.flatten(stateService.getState().creditSource, false);
-    this.collateralRows = this.flatten(
-      stateService.getState().collateralSource,
-      false
-    );
+    this._refreshData();
   }
 
-  /* ========================================
-   * トグル/編集処理
+  /**
+   * ツリー展開/折りたたみ - HTMLから呼び出し
+   * @param {Event} event - クリックイベント
+   * @public
+   */
+  handleToggle(event) {
+    const { expanded } = stateService.getState();
+    const nodeId = event.currentTarget.dataset.id;
+    
+    expanded.has(nodeId) ? expanded.delete(nodeId) : expanded.add(nodeId);
+    this._refreshData();
+  }
+
+  /**
+   * 編集処理 - HTMLから呼び出し
+   * @param {Event} event - 入力イベント
+   * @public
+   */
+  handleEdit(event) {
+    const nodeId = event.target.dataset.id;
+    const fieldName = event.target.dataset.field;
+    const newValue = fieldName === "active" ? event.target.checked : event.target.value;
+
+    // 編集可能性チェック
+    if (this._isFieldDisabled(nodeId, fieldName)) return;
+
+    this._updateNodeData(nodeId, fieldName, newValue);
+    this._updateDraft(nodeId, fieldName, newValue);
+    this._refreshData();
+  }
+
+  /* =========================================
+   * PRIVATE METHODS - 内部処理専用
    * ======================================== */
-  handleToggle(e) {
-    const { creditSource, collateralSource, expanded } =
+
+  /**
+   * データ初期化
+   * @private
+   */
+  _initializeData() {
+    stateService.initializeState();
+    const { creditSource, collateralSource } = stateService.getState();
+    this.creditRows = this._flattenTree(creditSource, false);
+    this.collateralRows = this._flattenTree(collateralSource, false);
+  }
+
+  /**
+   * データ更新
+   * @private
+   */
+  _refreshData() {
+    const { creditSource, collateralSource } = stateService.getState();
+    this.creditRows = this._flattenTree(creditSource, this.highlightOn);
+    this.collateralRows = this._flattenTree(collateralSource, this.highlightOn);
+  }
+
+  /**
+   * フィールドが無効化されているかチェック
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @returns {boolean} 無効化されているか
+   * @private
+   */
+  _isFieldDisabled(nodeId, fieldName) {
+    const creditRow = this.creditRows.find(row => row.id === nodeId);
+    const collateralRow = this.collateralRows.find(row => row.id === nodeId);
+    
+    return (creditRow && creditRow[`${fieldName}Disabled`]) ||
+           (collateralRow && collateralRow[`${fieldName}Disabled`]);
+  }
+
+  /**
+   * ノードデータ更新
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @param {*} newValue - 新しい値
+   * @private
+   */
+  _updateNodeData(nodeId, fieldName, newValue) {
+    const { creditSource, collateralSource } = stateService.getState();
+    this._updateNodeInTree(creditSource, nodeId, fieldName, newValue);
+    this._updateNodeInTree(collateralSource, nodeId, fieldName, newValue);
+  }
+
+  /**
+   * 下書きデータ更新
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @param {*} newValue - 新しい値
+   * @private
+   */
+  _updateDraft(nodeId, fieldName, newValue) {
+    const { draft } = stateService.getState();
+    const existingDraft = draft.get(nodeId) || {};
+    draft.set(nodeId, { ...existingDraft, [fieldName]: newValue });
+  }
+
+  /**
+   * ツリーをフラット配列に変換
+   * @param {Array} tree - ツリーデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {number} level - ネストレベル
+   * @param {Array} result - 結果配列
+   * @returns {Array} フラット化された配列
+   * @private
+   */
+  _flattenTree(tree, shouldHighlight, level = 0, result = []) {
+    const { expanded, originalCreditSource, originalCollateralSource, draft } = 
       stateService.getState();
-    const id = e.currentTarget.dataset.id;
-    expanded.has(id) ? expanded.delete(id) : expanded.add(id);
-    this.creditRows = this.flatten(creditSource, this.highlightOn);
-    this.collateralRows = this.flatten(collateralSource, this.highlightOn);
-  }
 
-  handleEdit(e) {
-    const id = e.target.dataset.id;
-    const field = e.target.dataset.field;
-    const value = field === "active" ? e.target.checked : e.target.value;
+    tree.forEach(node => {
+      const originalNode = 
+        this._findNodeInTree(originalCreditSource, node.id) ||
+        this._findNodeInTree(originalCollateralSource, node.id);
 
-    const creditRow = this.creditRows.find((r) => r.id === id);
-    const collateralRow = this.collateralRows.find((r) => r.id === id);
-    if (creditRow && creditRow[`${field}Disabled`]) return; // 編集不可なら無視
-    if (collateralRow && collateralRow[`${field}Disabled`]) return; // 編集不可なら無視
+      const flatNode = this._createFlatNode(
+        node, originalNode, shouldHighlight, level, expanded, draft
+      );
+      result.push(flatNode);
 
-    const { creditSource, collateralSource, draft } = stateService.getState();
-    this.updateNode(creditSource, id, field, value); // ソース更新
-    this.updateNode(collateralSource, id, field, value); // ソース更新
-
-    const prev = draft.get(id) || {};
-    draft.set(id, { ...prev, [field]: value }); // draft へ
-
-    this.creditRows = this.flatten(creditSource, this.highlightOn);
-    this.collateralRows = this.flatten(collateralSource, this.highlightOn);
-  }
-
-  /* ========================================
-   * ツリー構造からフラット構造への変換
-   * ======================================== */
-  flatten(tree, highlight, level = 0, out = []) {
-    const { expanded, originalCreditSource, originalCollateralSource, draft } =
-      stateService.getState();
-
-    tree.forEach((node) => {
-      const open = expanded.has(node.id);
-      const base =
-        this.findNode(originalCreditSource, node.id) ||
-        this.findNode(originalCollateralSource, node.id);
-
-      const diff = (k) =>
-        highlight && !draft.has(node.id) && base && base[k] !== node[k]
-          ? "changed-cell"
-          : "";
-
-      const indent =
-        level === 0
-          ? "indent-0"
-          : level === 1
-          ? "indent-1"
-          : level === 2
-          ? "indent-2"
-          : "indent-3";
-      const ed = node.editable; // shorthand
-
-      out.push({
-        ...node,
-        level,
-        hasChildren: node.children?.length,
-        icon: node.children
-          ? open
-            ? "utility:chevrondown"
-            : "utility:chevronright"
-          : "",
-
-        labelClass: `${indent} ${diff("label")}`.trim(),
-        dueDateClass: `${indent} ${diff("dueDate")}`.trim(),
-        rateClass: `${indent} ${diff("rate")}`.trim(),
-        balance99Class: `${indent} ${diff("balance99")}`.trim(),
-        markClass: `${indent} ${diff("mark")}`.trim(),
-        principalClass: `${indent} ${diff("principal")}`.trim(),
-        changeClass: `${indent} ${diff("change")}`.trim(),
-        postBalanceClass: `${indent} ${diff("postBalance")}`.trim(),
-        actualBalanceClass: `${indent} ${diff("actualBalance")}`.trim(),
-        correctionClass: `${indent} ${diff("correction")}`.trim(),
-        collateralTypeClass: `${indent} ${diff("collateralType")}`.trim(),
-        regValueClass: `${indent} ${diff("regValue")}`.trim(),
-        marketValueClass: `${indent} ${diff("marketValue")}`.trim(),
-
-        /* disabled フラグを生成 */
-        labelDisabled: !ed.label,
-        dueDateDisabled: !ed.dueDate,
-        rateDisabled: !ed.rate,
-        balance99Disabled: !ed.balance99,
-        markDisabled: !ed.mark,
-        principalDisabled: !ed.principal,
-        changeDisabled: !ed.change,
-        postBalanceDisabled: !ed.postBalance,
-        actualBalanceDisabled: !ed.actualBalance,
-        correctionDisabled: !ed.correction,
-        collateralTypeDisabled: !ed.collateralType,
-        regValueDisabled: !ed.regValue,
-        marketValueDisabled: !ed.marketValue
-      });
-
-      if (open && node.children)
-        this.flatten(node.children, highlight, level + 1, out);
-    });
-    return out;
-  }
-
-  /* ========================================
-   * ヘルパーメソッド
-   * ======================================== */
-  updateNode(tree, id, field, value) {
-    for (const n of tree) {
-      if (n.id === id) {
-        n[field] = value;
-        return;
+      // 子ノードの処理
+      if (expanded.has(node.id) && node.children?.length) {
+        this._flattenTree(node.children, shouldHighlight, level + 1, result);
       }
-      if (n.children) this.updateNode(n.children, id, field, value);
-    }
+    });
+
+    return result;
   }
 
-  findNode(tree, id) {
-    for (const n of tree) {
-      if (n.id === id) return n;
-      if (n.children) {
-        const f = this.findNode(n.children, id);
-        if (f) return f;
+  /**
+   * フラット表示用ノード作成
+   * @param {Object} node - ノードデータ
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {number} level - ネストレベル
+   * @param {Set} expanded - 展開状態
+   * @param {Map} draft - 下書きデータ
+   * @returns {Object} フラット表示用ノード
+   * @private
+   */
+  _createFlatNode(node, originalNode, shouldHighlight, level, expanded, draft) {
+    const indentClass = `indent-${Math.min(level, 3)}`;
+    const hasChildren = node.children?.length > 0;
+    const isExpanded = expanded.has(node.id);
+
+    return {
+      ...node,
+      level,
+      hasChildren,
+      icon: hasChildren ? 
+        (isExpanded ? "utility:chevrondown" : "utility:chevronright") : "",
+
+      // 全フィールドのクラス生成を統一
+      ...this._generateFieldClasses(node, originalNode, shouldHighlight, draft, indentClass),
+      
+      // 無効化フラグ生成を統一
+      ...this._generateDisabledFlags(node)
+    };
+  }
+
+  /**
+   * フィールドクラス生成（統一化）
+   * @param {Object} node - ノードデータ
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {Map} draft - 下書きデータ
+   * @param {string} indentClass - インデントクラス
+   * @returns {Object} CSSクラス名のオブジェクト
+   * @private
+   */
+  _generateFieldClasses(node, originalNode, shouldHighlight, draft, indentClass) {
+    const allFields = [...FIELD_DEFINITIONS.CREDIT, ...FIELD_DEFINITIONS.COLLATERAL];
+    const classes = {};
+
+    allFields.forEach(field => {
+      const changeClass = this._getChangeClass(
+        field, node, originalNode, shouldHighlight, draft
+      );
+      classes[`${field}Class`] = `${indentClass} ${changeClass}`.trim();
+    });
+
+    return classes;
+  }
+
+  /**
+   * 無効化フラグ生成（統一化）
+   * @param {Object} node - ノードデータ
+   * @returns {Object} 無効化フラグのオブジェクト
+   * @private
+   */
+  _generateDisabledFlags(node) {
+    const allFields = [...FIELD_DEFINITIONS.CREDIT, ...FIELD_DEFINITIONS.COLLATERAL];
+    const flags = {};
+    const editable = node.editable || {};
+
+    allFields.forEach(field => {
+      flags[`${field}Disabled`] = !editable[field];
+    });
+
+    return flags;
+  }
+
+  /**
+   * 変更クラス取得
+   * @param {string} fieldName - フィールド名
+   * @param {Object} node - ノードデータ
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {Map} draft - 下書きデータ
+   * @returns {string} CSSクラス名
+   * @private
+   */
+  _getChangeClass(fieldName, node, originalNode, shouldHighlight, draft) {
+    const hasChanged = shouldHighlight && 
+                      !draft.has(node.id) && 
+                      originalNode && 
+                      originalNode[fieldName] !== node[fieldName];
+    return hasChanged ? "changed-cell" : "";
+  }
+
+  /**
+   * ツリー内ノード更新
+   * @param {Array} tree - ツリーデータ
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @param {*} newValue - 新しい値
+   * @returns {boolean} 更新成功したか
+   * @private
+   */
+  _updateNodeInTree(tree, nodeId, fieldName, newValue) {
+    for (const node of tree) {
+      if (node.id === nodeId) {
+        node[fieldName] = newValue;
+        return true;
+      }
+      if (node.children && this._updateNodeInTree(node.children, nodeId, fieldName, newValue)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * ツリー内ノード検索
+   * @param {Array} tree - ツリーデータ
+   * @param {string} nodeId - ノードID
+   * @returns {Object|null} 見つかったノードまたはnull
+   * @private
+   */
+  _findNodeInTree(tree, nodeId) {
+    for (const node of tree) {
+      if (node.id === nodeId) return node;
+      if (node.children) {
+        const found = this._findNodeInTree(node.children, nodeId);
+        if (found) return found;
       }
     }
     return null;
@@ -224,12 +335,12 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
 }
 
 /**
- * 保証人データを生成するユーティリティ関数
- * @returns {Array} 保証人データの配列
+ * 保証人データ生成
+ * @returns {Array} 保証人データ配列
  */
 function generateGuarantorData() {
-  return Array.from({ length: 5 }, (_, i) => ({
-    id: `g${i + 1}`,
-    name: `保証人${i + 1}`
+  return Array.from({ length: 5 }, (_, index) => ({
+    id: `guarantor_${index + 1}`,
+    name: `保証人${index + 1}`
   }));
 }
