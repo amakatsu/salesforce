@@ -188,27 +188,32 @@ tr:nth-last-child(2) td {
 * カラム幅設定
 * ========================================= */
 
-/* サイズ別カラム幅 */
+/* サイズ別カラム幅 - rem単位で統一 */
 .column-xs {
-  width: 20px;
+  width: 1.25rem; /* 20px相当 */
 }
 
 .column-small {
-  width: 100px;
+  width: 6.25rem; /* 100px相当 */
 }
 
 .column-medium {
-  width: 120px;
+  width: 7.5rem; /* 120px相当 */
 }
 
 .column-large {
-  width: 150px;
+  width: 9.375rem; /* 150px相当 */
 }
 
 .column-xl {
-  width: 160px;
+  width: 10rem; /* 160px相当 */
 }
 
 .column-xxl {
-  width: 250px;
+  width: 15.625rem; /* 250px相当 */
+}
+
+/* 特殊サイズ - HTMLのstyle属性を置き換え */
+.column-45px {
+  width: 2.8125rem; /* 45px相当 */
 }
