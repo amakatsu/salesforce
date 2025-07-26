@@ -10,7 +10,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   },
   {
     id: "root2",
@@ -21,6 +30,15 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    },
     children: [
       {
         id: "l21",
@@ -30,7 +48,16 @@ const rawCreditSource = [
         currentRate: "1.3",
         postRate: "1.5",
         applyDate: "2023-03-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: true,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       },
       {
         id: "l22",
@@ -40,7 +67,16 @@ const rawCreditSource = [
         currentRate: "1.4",
         postRate: "1.6",
         applyDate: "2023-04-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: true,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       }
     ]
   },
@@ -53,7 +89,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   },
   {
     id: "root4",
@@ -64,6 +109,15 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    },
     children: [
       {
         id: "e41",
@@ -73,7 +127,16 @@ const rawCreditSource = [
         currentRate: "1.7",
         postRate: "1.9",
         applyDate: "2023-07-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: false,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       },
       {
         id: "e42",
@@ -83,7 +146,16 @@ const rawCreditSource = [
         currentRate: "1.8",
         postRate: "2.0",
         applyDate: "2023-08-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: true,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       }
     ]
   },
@@ -96,6 +168,15 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    },
     children: [
       {
         id: "s51",
@@ -105,7 +186,16 @@ const rawCreditSource = [
         currentRate: "2.0",
         postRate: "2.2",
         applyDate: "2023-10-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: true,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       },
       {
         id: "s52",
@@ -115,7 +205,16 @@ const rawCreditSource = [
         currentRate: "2.1",
         postRate: "2.3",
         applyDate: "2023-11-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: true,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       }
     ]
   },
@@ -128,7 +227,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: true,
+      principal: true,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   },
   {
     id: "root16",
@@ -139,7 +247,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: true,
+      principal: true,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   },
   {
     id: "root8",
@@ -150,7 +267,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   },
   {
     id: "root10",
@@ -161,7 +287,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   },
   {
     id: "root11",
@@ -172,7 +307,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   },
   {
     id: "root12",
@@ -183,6 +327,15 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
+    editableFields: {
+      label: false,
+      currentBalance: true,
+      principal: true,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    },
     children: [
       {
         id: "l121",
@@ -192,7 +345,16 @@ const rawCreditSource = [
         currentRate: "3.0",
         postRate: "3.2",
         applyDate: "2024-08-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: true,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       },
       {
         id: "l122",
@@ -202,7 +364,16 @@ const rawCreditSource = [
         currentRate: "3.1",
         postRate: "3.3",
         applyDate: "2024-09-01",
-        applyDateType: "〇〇"
+        applyDateType: "〇〇",
+        editableFields: {
+          label: false,
+          currentBalance: true,
+          principal: true,
+          currentRate: true,
+          postRate: true,
+          applyDate: true,
+          applyDateType: false
+        }
       }
     ]
   },
@@ -215,7 +386,16 @@ const rawCreditSource = [
     postRate: "",
     applyDate: "",
     applyDateType: "",
-    children: []
+    children: [],
+    editableFields: {
+      label: false,
+      currentBalance: false,
+      principal: false,
+      currentRate: false,
+      postRate: false,
+      applyDate: false,
+      applyDateType: false
+    }
   }
 ];
 
@@ -363,23 +543,11 @@ const rawOtherBankSource = [
   }
 ];
 
-// 編集可能フラグの設定
-function getEditableFlags() {
-  return {
-    label: true,
-    currentBalance: true,
-    principal: true,
-    currentRate: true,
-    postRate: true,
-    applyDate: true
-  };
-}
-
-// 編集可能フラグを各ノードに付与
+// 編集可能フラグを各ノードに付与（簡素化）
 function attachEditableFlags(tree) {
   return tree.map((node) => ({
     ...node,
-    editable: getEditableFlags(),
+    editable: node.editableFields || {},
     children: node.children ? attachEditableFlags(node.children) : undefined
   }));
 }
@@ -387,10 +555,4 @@ function attachEditableFlags(tree) {
 // ディープコピー関数
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
-// データを外部から使用可能にするためのエクスポート
-export {
-  rawCreditSource,
-  rawOtherBankSource,
-  attachEditableFlags,
-  deepCopy
-};
+export { rawCreditSource, rawOtherBankSource, attachEditableFlags, deepCopy };

@@ -594,7 +594,7 @@ const rawCreditSource = [
         correction: "",
         editableFields: {
           label: true,
-          dueDate: false,
+          dueDate: true,
           rate: true,
           balance99: true,
           mark: true,

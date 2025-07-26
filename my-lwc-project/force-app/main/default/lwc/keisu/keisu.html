@@ -196,6 +196,7 @@
                             value={row.applyDate}
                             data-id={row.id}
                             data-field="applyDate"
+                            disabled={row.applyDateDisabled}
                             onchange={handleEdit}
                           ></lightning-input>
                         </td>
@@ -210,6 +211,7 @@
                             value={row.applyDateType}
                             data-id={row.id}
                             data-field="applyDateType"
+                            disabled={row.applyDateTypeDisabled}
                             onchange={handleEdit}
                           ></lightning-input>
                         </td>
