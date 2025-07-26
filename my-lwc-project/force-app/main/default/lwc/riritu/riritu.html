@@ -7,7 +7,7 @@
       <lightning-layout-item size="9" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="d"
-          label="与信状況"
+          label={labels.accordion.CREDIT_STATUS}
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -28,9 +28,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="科目・摘要・禀査番号"
+                          title={labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}
                         >
-                          科目・摘要・禀査番号
+                          {labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}
                         </div>
                       </th>
                       <th
@@ -39,9 +39,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="期日"
+                          title={labels.tableHeaders.CREDIT.DUE_DATE}
                         >
-                          期日
+                          {labels.tableHeaders.CREDIT.DUE_DATE}
                         </div>
                       </th>
                       <th
@@ -50,9 +50,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="利率（%）"
+                          title={labels.tableHeaders.CREDIT.RATE}
                         >
-                          利率（%）
+                          {labels.tableHeaders.CREDIT.RATE}
                         </div>
                       </th>
                       <th
@@ -61,9 +61,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="99月末残高"
+                          title={labels.tableHeaders.CREDIT.BALANCE_99}
                         >
-                          99月末残高
+                          {labels.tableHeaders.CREDIT.BALANCE_99}
                         </div>
                       </th>
                       <th
@@ -72,9 +72,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="合算"
+                          title={labels.tableHeaders.CREDIT.MARK}
                         >
-                          合算
+                          {labels.tableHeaders.CREDIT.MARK}
                         </div>
                       </th>
                       <th
@@ -83,9 +83,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="極度額"
+                          title={labels.tableHeaders.CREDIT.PRINCIPAL}
                         >
-                          極度額
+                          {labels.tableHeaders.CREDIT.PRINCIPAL}
                         </div>
                       </th>
                       <th
@@ -94,9 +94,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="当月増減"
+                          title={labels.tableHeaders.CREDIT.CHANGE}
                         >
-                          当月増減
+                          {labels.tableHeaders.CREDIT.CHANGE}
                         </div>
                       </th>
                       <th
@@ -105,9 +105,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="本件後残高"
+                          title={labels.tableHeaders.CREDIT.POST_BALANCE}
                         >
-                          本件後残高
+                          {labels.tableHeaders.CREDIT.POST_BALANCE}
                         </div>
                       </th>
                       <th
@@ -116,9 +116,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="実勢現在残"
+                          title={labels.tableHeaders.CREDIT.ACTUAL_BALANCE}
                         >
-                          実勢現在残
+                          {labels.tableHeaders.CREDIT.ACTUAL_BALANCE}
                         </div>
                       </th>
                       <th
@@ -127,9 +127,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="補正値"
+                          title={labels.tableHeaders.CREDIT.CORRECTION}
                         >
-                          補正値
+                          {labels.tableHeaders.CREDIT.CORRECTION}
                         </div>
                       </th>
                     </tr>
@@ -172,12 +172,12 @@
                         <td data-label="rate" class={row.rateClass}>
                           <c-f003-gs-v0000-number
                             num-value={row.rate}
-                            num-label="利率"
+                            num-label={labels.field.RATE}
                             is-table="true"
                             data-id={row.id}
                             set-id="rate"
                             disabled="false"
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -186,12 +186,12 @@
                         <td data-label="balance99" class={row.balance99Class}>
                           <c-f003-gs-v0000-number
                             num-value={row.balance99}
-                            num-label="99月末残高"
+                            num-label={labels.field.BALANCE_99}
                             is-table="true"
                             data-id={row.id}
                             set-id="balance99"
                             disabled={row.balance99Disabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -204,12 +204,12 @@
                         <td data-label="principal" class={row.principalClass}>
                           <c-f003-gs-v0000-number
                             num-value={row.principal}
-                            num-label="極度額"
+                            num-label={labels.field.PRINCIPAL}
                             is-table="true"
                             data-id={row.id}
                             set-id="principal"
                             disabled={row.principalDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -218,12 +218,12 @@
                         <td data-label="change" class={row.changeClass}>
                           <c-f003-gs-v0000-number
                             num-value={row.change}
-                            num-label="当月増減"
+                            num-label={labels.field.CHANGE}
                             is-table="true"
                             data-id={row.id}
                             set-id="change"
                             disabled={row.changeDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -235,12 +235,12 @@
                         >
                           <c-f003-gs-v0000-number
                             num-value={row.postBalance}
-                            num-label="本件後残高"
+                            num-label={labels.field.POST_BALANCE}
                             is-table="true"
                             data-id={row.id}
                             set-id="postBalance"
                             disabled={row.postBalanceDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -252,12 +252,12 @@
                         >
                           <c-f003-gs-v0000-number
                             num-value={row.actualBalance}
-                            num-label="実勢現在残"
+                            num-label={labels.field.ACTUAL_BALANCE}
                             is-table="true"
                             data-id={row.id}
                             set-id="actualBalance"
                             disabled={row.actualBalanceDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -266,12 +266,12 @@
                         <td data-label="correction" class={row.correctionClass}>
                           <c-f003-gs-v0000-number
                             num-value={row.correction}
-                            num-label="補正値"
+                            num-label={labels.field.CORRECTION}
                             is-table="true"
                             data-id={row.id}
                             set-id="correction"
                             disabled={row.correctionDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -288,7 +288,7 @@
       <lightning-layout-item size="3" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="e"
-          label="本件保全状況"
+          label={labels.accordion.COLLATERAL}
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -309,9 +309,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="担保種類"
+                          title={labels.tableHeaders.COLLATERAL.COLLATERAL_TYPE}
                         >
-                          担保種類
+                          {labels.tableHeaders.COLLATERAL.COLLATERAL_TYPE}
                         </div>
                       </th>
                       <th
@@ -320,9 +320,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="規定値"
+                          title={labels.tableHeaders.COLLATERAL.REG_VALUE}
                         >
-                          規定値
+                          {labels.tableHeaders.COLLATERAL.REG_VALUE}
                         </div>
                       </th>
                       <th
@@ -331,9 +331,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="時価ベース"
+                          title={labels.tableHeaders.COLLATERAL.MARKET_VALUE}
                         >
-                          時価ベース
+                          {labels.tableHeaders.COLLATERAL.MARKET_VALUE}
                         </div>
                       </th>
                     </tr>
@@ -364,12 +364,12 @@
                         <td data-label="regValue" class={row.regValueClass}>
                           <c-f003-gs-v0000-number
                             num-value={row.regValue}
-                            num-label="規定値"
+                            num-label={labels.field.REG_VALUE}
                             is-table="true"
                             data-id={row.id}
                             set-id="regValue"
                             disabled={row.regValueDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -381,12 +381,12 @@
                         >
                           <c-f003-gs-v0000-number
                             num-value={row.marketValue}
-                            num-label="時価ベース"
+                            num-label={labels.field.MARKET_VALUE}
                             is-table="true"
                             data-id={row.id}
                             set-id="marketValue"
                             disabled={row.marketValueDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -400,11 +400,11 @@
           </lightning-card>
         </lightning-accordion-section>
         <div class="slds-modal__content slds-var-p-around_medium">
-          裸与信は信用限度不参集与信を考慮した権限判定上の裸与信を表示
+          {labels.message.NAKED_CREDIT_INFO}
         </div>
         <lightning-accordion-section
           name="f"
-          label="保証人"
+          label={labels.accordion.GUARANTOR}
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -421,9 +421,9 @@
                       >
                         <div
                           class="slds-truncate slds-text-align_center"
-                          title="保証人"
+                          title={labels.tableHeaders.GUARANTOR.GUARANTOR}
                         >
-                          保証人
+                          {labels.tableHeaders.GUARANTOR.GUARANTOR}
                         </div>
                       </th>
                     </tr>

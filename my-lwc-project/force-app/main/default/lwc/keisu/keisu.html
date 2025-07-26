@@ -8,7 +8,7 @@
       <lightning-layout-item size="6" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="d"
-          label="与信状況"
+          label={labels.accordion.CREDIT_STATUS}
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -30,9 +30,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="科目・概要"
+                          title={labels.tableHeaders.CREDIT.SUBJECT_SUMMARY}
                         >
-                          科目・概要
+                          {labels.tableHeaders.CREDIT.SUBJECT_SUMMARY}
                         </div>
                       </th>
                       <th
@@ -41,9 +41,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="現状残高"
+                          title={labels.tableHeaders.CREDIT.CURRENT_BALANCE}
                         >
-                          現状残高
+                          {labels.tableHeaders.CREDIT.CURRENT_BALANCE}
                         </div>
                       </th>
                       <th
@@ -52,9 +52,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="極度額"
+                          title={labels.tableHeaders.CREDIT.PRINCIPAL}
                         >
-                          極度額
+                          {labels.tableHeaders.CREDIT.PRINCIPAL}
                         </div>
                       </th>
                       <th
@@ -63,9 +63,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="現状利率（%）"
+                          title={labels.tableHeaders.CREDIT.CURRENT_RATE}
                         >
-                          現状利率（%）
+                          {labels.tableHeaders.CREDIT.CURRENT_RATE}
                         </div>
                       </th>
                       <th
@@ -74,9 +74,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="本件後利率（%）"
+                          title={labels.tableHeaders.CREDIT.POST_RATE}
                         >
-                          本件後利率（%）
+                          {labels.tableHeaders.CREDIT.POST_RATE}
                         </div>
                       </th>
                       <th
@@ -85,9 +85,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="適用日"
+                          title={labels.tableHeaders.CREDIT.APPLY_DATE}
                         >
-                          適用日
+                          {labels.tableHeaders.CREDIT.APPLY_DATE}
                         </div>
                       </th>
                       <th
@@ -96,9 +96,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="適用日区分"
+                          title={labels.tableHeaders.CREDIT.APPLY_DATE_TYPE}
                         >
-                          適用日区分
+                          {labels.tableHeaders.CREDIT.APPLY_DATE_TYPE}
                         </div>
                       </th>
                     </tr>
@@ -133,12 +133,12 @@
                         >
                           <c-f003-gs-v0000-number
                             num-value={row.currentBalance}
-                            num-label="現状残高"
+                            num-label={labels.field.CURRENT_BALANCE}
                             is-table="true"
                             data-id={row.id}
                             set-id="currentBalance"
                             disabled={row.currentBalanceDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -147,12 +147,12 @@
                         <td data-label="principal" class={row.principalClass}>
                           <c-f003-gs-v0000-number
                             num-value={row.principal}
-                            num-label="極度額"
+                            num-label={labels.field.PRINCIPAL}
                             is-table="true"
                             data-id={row.id}
                             set-id="principal"
                             disabled={row.principalDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -164,12 +164,12 @@
                         >
                           <c-f003-gs-v0000-number
                             num-value={row.currentRate}
-                            num-label="現状利率"
+                            num-label={labels.field.CURRENT_RATE}
                             is-table="true"
                             data-id={row.id}
                             set-id="currentRate"
                             disabled={row.currentRateDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -178,12 +178,12 @@
                         <td data-label="postRate" class={row.postRateClass}>
                           <c-f003-gs-v0000-number
                             num-value={row.postRate}
-                            num-label="本件後利率"
+                            num-label={labels.field.POST_RATE}
                             is-table="true"
                             data-id={row.id}
                             set-id="postRate"
                             disabled={row.postRateDisabled}
-                            step="0.01"
+                            step={labels.config.DECIMAL_STEP}
                             onerror={numberErrorHandler}
                             onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
@@ -227,7 +227,7 @@
       <lightning-layout-item size="6" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="e"
-          label="他行動向"
+          label={labels.accordion.OTHER_BANK_TREND}
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -245,9 +245,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="銀行名"
+                          title={labels.tableHeaders.OTHER_BANK.BANK_NAME}
                         >
-                          銀行名
+                          {labels.tableHeaders.OTHER_BANK.BANK_NAME}
                         </div>
                       </th>
                       <th
@@ -256,9 +256,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="引上下月(月)"
+                          title={labels.tableHeaders.OTHER_BANK.RAISE_LOWER_MONTH}
                         >
-                          引上下月(月)
+                          {labels.tableHeaders.OTHER_BANK.RAISE_LOWER_MONTH}
                         </div>
                       </th>
                       <th
@@ -267,9 +267,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="長期比率(%)"
+                          title={labels.tableHeaders.OTHER_BANK.LONG_TERM_RATIO}
                         >
-                          長期比率(%)
+                          {labels.tableHeaders.OTHER_BANK.LONG_TERM_RATIO}
                         </div>
                       </th>
                       <th
@@ -278,9 +278,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="科目"
+                          title={labels.tableHeaders.OTHER_BANK.SUBJECT}
                         >
-                          科目
+                          {labels.tableHeaders.OTHER_BANK.SUBJECT}
                         </div>
                       </th>
                       <th
@@ -289,9 +289,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="現状(%)"
+                          title={labels.tableHeaders.OTHER_BANK.CURRENT_STATUS}
                         >
-                          現状(%)
+                          {labels.tableHeaders.OTHER_BANK.CURRENT_STATUS}
                         </div>
                       </th>
                       <th
@@ -300,9 +300,9 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title="本件後(%)"
+                          title={labels.tableHeaders.OTHER_BANK.POST_CASE}
                         >
-                          本件後(%)
+                          {labels.tableHeaders.OTHER_BANK.POST_CASE}
                         </div>
                       </th>
                     </tr>
@@ -350,11 +350,11 @@
                           >
                             <c-f003-gs-v0000-number
                               num-value={subRow.principal}
-                              num-label="長期比率(%)"
+                              num-label={labels.field.LONG_TERM_RATIO}
                               is-table="true"
                               data-id={subRow.id}
                               set-id="principal"
-                              step="0.01"
+                              step={labels.config.DECIMAL_STEP}
                               onerror={numberErrorHandler}
                               onchange={handleEdit}
                             ></c-f003-gs-v0000-number>
@@ -380,11 +380,11 @@
                           >
                             <c-f003-gs-v0000-number
                               num-value={subRow.postRate}
-                              num-label="現状(%)"
+                              num-label={labels.field.CURRENT_STATUS}
                               is-table="true"
                               data-id={subRow.id}
                               set-id="postRate"
-                              step="0.01"
+                              step={labels.config.DECIMAL_STEP}
                               onerror={numberErrorHandler}
                               onchange={handleEdit}
                             ></c-f003-gs-v0000-number>
@@ -396,11 +396,11 @@
                           >
                             <c-f003-gs-v0000-number
                               num-value={subRow.applyDate}
-                              num-label="本件後(%)"
+                              num-label={labels.field.POST_CASE}
                               is-table="true"
                               data-id={subRow.id}
                               set-id="applyDate"
-                              step="0.01"
+                              step={labels.config.DECIMAL_STEP}
                               onerror={numberErrorHandler}
                               onchange={handleEdit}
                             ></c-f003-gs-v0000-number>

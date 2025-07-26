@@ -1,6 +1,63 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from "./state";
 
+// ラベル定義（共通化）
+const TABLE_HEADERS = {
+  CREDIT: {
+    SUBJECT_SUMMARY: '科目・概要',
+    CURRENT_BALANCE: '現状残高',
+    PRINCIPAL: '極度額',
+    CURRENT_RATE: '現状利率（%）',
+    POST_RATE: '本件後利率（%）',
+    APPLY_DATE: '適用日',
+    APPLY_DATE_TYPE: '適用日区分'
+  },
+  OTHER_BANK: {
+    BANK_NAME: '銀行名',
+    RAISE_LOWER_MONTH: '引上下月(月)',
+    LONG_TERM_RATIO: '長期比率(%)',
+    SUBJECT: '科目',
+    CURRENT_STATUS: '現状(%)',
+    POST_CASE: '本件後(%)'
+  }
+};
+
+const ACCORDION_LABELS = {
+  CREDIT_STATUS: '与信状況',
+  OTHER_BANK_TREND: '他行動向'
+};
+
+const BUTTON_LABELS = {
+  SAVE: '保存',
+  RESET: 'リセット'
+};
+
+const MESSAGE_LABELS = {
+  SAVE_SUCCESS: '保存が完了しました',
+  RESET_SUCCESS: 'リセットが完了しました'
+};
+
+const ARIA_LABELS = {
+  EXPAND_COLLAPSE: '展開/折りたたみ',
+  EDIT_FIELD: 'フィールドを編集'
+};
+
+// 入力フィールドラベル
+const FIELD_LABELS = {
+  CURRENT_BALANCE: '現状残高',
+  PRINCIPAL: '極度額', 
+  CURRENT_RATE: '現状利率',
+  POST_RATE: '本件後利率',
+  LONG_TERM_RATIO: '長期比率(%)',
+  CURRENT_STATUS: '現状(%)',
+  POST_CASE: '本件後(%)'
+};
+
+// 入力フィールド設定
+const FIELD_CONFIG = {
+  DECIMAL_STEP: '0.01'
+};
+
 // フィールド定義
 const FIELD_DEFINITIONS = {
   CREDIT: [
@@ -27,6 +84,19 @@ export default class KeisuComponent extends LightningElement {
   /* =========================================
    * PUBLIC METHODS - HTMLから呼び出される
    * ======================================== */
+
+  // ラベル定義をテンプレートで使用可能にする
+  get labels() {
+    return {
+      tableHeaders: TABLE_HEADERS,
+      accordion: ACCORDION_LABELS,
+      button: BUTTON_LABELS,
+      message: MESSAGE_LABELS,
+      aria: ARIA_LABELS,
+      field: FIELD_LABELS,
+      config: FIELD_CONFIG
+    };
+  }
 
   // 下書き状態の取得
   get draft() {

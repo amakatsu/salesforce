@@ -1,6 +1,70 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from "./state";
 
+// ラベル定義（共通化）  
+const TABLE_HEADERS = {
+  CREDIT: {
+    SUBJECT_SUMMARY_NUMBER: '科目・摘要・稟査番号',
+    DUE_DATE: '期日',
+    RATE: '利率（%）',
+    BALANCE_99: '99月末残高',
+    MARK: '合算',
+    PRINCIPAL: '極度額',
+    CHANGE: '当月増減',
+    POST_BALANCE: '本件後残高',
+    ACTUAL_BALANCE: '実勢現在残',
+    CORRECTION: '補正値'
+  },
+  COLLATERAL: {
+    COLLATERAL_TYPE: '担保種類',
+    REG_VALUE: '規定値',
+    MARKET_VALUE: '時価ベース'
+  },
+  GUARANTOR: {
+    GUARANTOR: '保証人'
+  }
+};
+
+const ACCORDION_LABELS = {
+  CREDIT_STATUS: '与信状況',
+  COLLATERAL: '本件保全状況',
+  GUARANTOR: '保証人'
+};
+
+const BUTTON_LABELS = {
+  SAVE: '保存',
+  RESET: 'リセット'
+};
+
+const MESSAGE_LABELS = {
+  SAVE_SUCCESS: '保存が完了しました',
+  RESET_SUCCESS: 'リセットが完了しました',
+  NAKED_CREDIT_INFO: '裸与信は信用限度不参集与信を考慮した権限判定上の裸与信を表示'
+};
+
+const ARIA_LABELS = {
+  EXPAND_COLLAPSE: '展開/折りたたみ',
+  EDIT_FIELD: 'フィールドを編集'
+};
+
+// 入力フィールドラベル
+const FIELD_LABELS = {
+  RATE: '利率',
+  BALANCE_99: '99月末残高',
+  PRINCIPAL: '極度額',
+  CHANGE: '当月増減',
+  POST_BALANCE: '本件後残高',
+  ACTUAL_BALANCE: '実勢現在残',
+  CORRECTION: '補正値',
+  REG_VALUE: '規定値',
+  MARKET_VALUE: '時価ベース'
+};
+
+// 入力フィールド設定
+const FIELD_CONFIG = {
+  DECIMAL_STEP: '0.01'
+};
+
 // フィールド定義
 const FIELD_DEFINITIONS = {
   CREDIT: [
@@ -27,14 +91,23 @@ export default class RirituComponent extends LightningElement {
     "k", "l", "m", "n", "o", "p", "q", "r"
   ];
 
-  // 保証人テーブルのカラム定義
-  guarantorColumns = [
-    { label: "保証人", fieldName: "name", type: "text" }
-  ];
 
   /* =========================================
    * PUBLIC METHODS - HTMLから呼び出される
    * ======================================== */
+
+  // ラベル定義をテンプレートで使用可能にする
+  get labels() {
+    return {
+      tableHeaders: TABLE_HEADERS,
+      accordion: ACCORDION_LABELS,
+      button: BUTTON_LABELS,
+      message: MESSAGE_LABELS,
+      aria: ARIA_LABELS,
+      field: FIELD_LABELS,
+      config: FIELD_CONFIG
+    };
+  }
 
   // 下書き状態の取得
   get draft() {
