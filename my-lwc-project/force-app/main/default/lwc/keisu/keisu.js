@@ -129,7 +129,7 @@ const ACTIVE_SECTIONS = [
 ];
 
 function generateBankData() {
-  return [
+  const data = [
     {
       id: "1",
       bankName: "当行",
@@ -137,7 +137,12 @@ function generateBankData() {
       oneYearAgo: "99999",
       recentEnd: "99999",
       foreignCurrency: "99999",
-      editable: false
+      disable: {
+        twoYearsAgo: true,
+        oneYearAgo: true,
+        recentEnd: true,
+        foreignCurrency: false
+      }
     },
     {
       id: "2",
@@ -146,7 +151,12 @@ function generateBankData() {
       oneYearAgo: "99.999",
       recentEnd: "99.999",
       foreignCurrency: "-",
-      editable: true
+      disable: {
+        twoYearsAgo: true,
+        oneYearAgo: true,
+        recentEnd: true,
+        foreignCurrency: true
+      }
     },
     {
       id: "3",
@@ -155,7 +165,12 @@ function generateBankData() {
       oneYearAgo: "99999",
       recentEnd: "99999",
       foreignCurrency: "99999",
-      editable: false
+      disable: {
+        twoYearsAgo: true,
+        oneYearAgo: true,
+        recentEnd: true,
+        foreignCurrency: false
+      }
     },
     {
       id: "4",
@@ -164,7 +179,12 @@ function generateBankData() {
       oneYearAgo: "99999",
       recentEnd: "99999",
       foreignCurrency: "99999",
-      editable: false
+      disable: {
+        twoYearsAgo: true,
+        oneYearAgo: true,
+        recentEnd: true,
+        foreignCurrency: false
+      }
     },
     {
       id: "5",
@@ -173,7 +193,12 @@ function generateBankData() {
       oneYearAgo: "99999",
       recentEnd: "99999",
       foreignCurrency: "99999",
-      editable: false
+      disable: {
+        twoYearsAgo: true,
+        oneYearAgo: true,
+        recentEnd: true,
+        foreignCurrency: false
+      }
     },
     {
       id: "6",
@@ -182,13 +207,20 @@ function generateBankData() {
       oneYearAgo: "99999",
       recentEnd: "99999",
       foreignCurrency: "99999",
-      editable: false
+      disable: {
+        twoYearsAgo: true,
+        oneYearAgo: true,
+        recentEnd: true,
+        foreignCurrency: false
+      }
     }
   ];
+
+  return data;
 }
 
 function generateIndicatorData() {
-  return [
+  const data = [
     {
       id: "1",
       type: "",
@@ -205,7 +237,23 @@ function generateIndicatorData() {
       netInterestBurdenRate: "99.99",
       ownCapitalRatio: "99.99",
       currentBalanceRatio: "99.99",
-      editable: true
+      disable: {
+        period: true,
+        sales: true,
+        operatingProfit: true,
+        currentProfit: true,
+        currentProfitRate: true,
+        netProfit: true,
+        netProfitRate: true,
+        depreciation: true,
+        commercialCF: true,
+        distributionRate: true,
+        ownCapital: true,
+        borrowingPeriod: true,
+        netInterestBurdenRate: true,
+        ownCapitalRatio: true,
+        currentBalanceRatio: true
+      }
     },
     {
       id: "2",
@@ -223,7 +271,23 @@ function generateIndicatorData() {
       netInterestBurdenRate: "99.99",
       ownCapitalRatio: "99.99",
       currentBalanceRatio: "99.99",
-      editable: true
+      disable: {
+        period: true,
+        sales: true,
+        operatingProfit: true,
+        currentProfit: true,
+        currentProfitRate: true,
+        netProfit: true,
+        netProfitRate: true,
+        depreciation: true,
+        commercialCF: true,
+        distributionRate: true,
+        ownCapital: true,
+        borrowingPeriod: true,
+        netInterestBurdenRate: true,
+        ownCapitalRatio: true,
+        currentBalanceRatio: true
+      }
     },
     {
       id: "3",
@@ -241,7 +305,23 @@ function generateIndicatorData() {
       netInterestBurdenRate: "99.99",
       ownCapitalRatio: "99.99",
       currentBalanceRatio: "99.99",
-      editable: true
+      disable: {
+        period: true,
+        sales: true,
+        operatingProfit: true,
+        currentProfit: true,
+        currentProfitRate: true,
+        netProfit: true,
+        netProfitRate: true,
+        depreciation: true,
+        commercialCF: true,
+        distributionRate: true,
+        ownCapital: true,
+        borrowingPeriod: true,
+        netInterestBurdenRate: true,
+        ownCapitalRatio: true,
+        currentBalanceRatio: true
+      }
     },
     {
       id: "4",
@@ -259,7 +339,23 @@ function generateIndicatorData() {
       netInterestBurdenRate: "99.99",
       ownCapitalRatio: "99.99",
       currentBalanceRatio: "",
-      editable: false
+      disable: {
+        period: false,
+        sales: false,
+        operatingProfit: false,
+        currentProfit: false,
+        currentProfitRate: false,
+        netProfit: false,
+        netProfitRate: false,
+        depreciation: false,
+        commercialCF: false,
+        distributionRate: false,
+        ownCapital: false,
+        borrowingPeriod: false,
+        netInterestBurdenRate: false,
+        ownCapitalRatio: false,
+        currentBalanceRatio: true
+      }
     },
     {
       id: "5",
@@ -277,9 +373,27 @@ function generateIndicatorData() {
       netInterestBurdenRate: "",
       ownCapitalRatio: "",
       currentBalanceRatio: "",
-      editable: false
+      disable: {
+        period: false,
+        sales: false,
+        operatingProfit: false,
+        currentProfit: false,
+        currentProfitRate: false,
+        netProfit: false,
+        netProfitRate: false,
+        depreciation: false,
+        commercialCF: false,
+        distributionRate: false,
+        ownCapital: false,
+        borrowingPeriod: false,
+        netInterestBurdenRate: true,
+        ownCapitalRatio: true,
+        currentBalanceRatio: true
+      }
     }
   ];
+
+  return data;
 }
 
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
@@ -293,33 +407,120 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   @track indicatorData = generateIndicatorData();
   indicatorColumns = INDICATOR_COLUMNS;
 
-  @track total = "99.9999";
+  // 自己査定結果データ
+  @track assessmentData = {
+    nonClassifiedAmount: { value: "99999", editable: true },
+    firstClassifiedAmount: { value: "99999", editable: true },
+    secondClassifiedAmount: { value: "99999", editable: true },
+    thirdClassifiedAmount: { value: "99999", editable: true },
+    fourthClassifiedAmount: { value: "99999", editable: true },
+    totalAmount: { value: "99999", editable: true },
+    managedPreferredDebt: { value: "99999", editable: true },
+    creditRelatedCosts: { value: "99999", editable: true }
+  };
 
-  @track nonClassifiedAmount = "99999";
-  @track firstClassifiedAmount = "99999";
-  @track secondClassifiedAmount = "99999";
-  @track thirdClassifiedAmount = "99999";
-  @track fourthClassifiedAmount = "99999";
-  @track totalAmount = "99999";
-  @track managedPreferredDebt = "99999";
-  @track creditRelatedCosts = "99999";
+  // その他取引状況データ
+  @track otherTransactionData = {
+    agencyFee: { value: "99999", editable: true },
+    privateBond: { value: "99999", editable: true },
+    principal: { value: "99999", editable: true },
+    guarantor: { value: "99999", editable: true },
+    largeRemaining: { value: "99999", editable: true },
+    extreme: { value: "99999", editable: true },
+    specialContract: { value: "99999", editable: true }
+  };
 
-  @track agencyFee = "99999";
-  @track principal = "99999";
-  @track guarantor = "99999";
-  @track largeRemaining = "99999";
-  @track extreme = "99999";
-  @track specialContract = "99999";
+  // 政策投資株式データ
+  @track stockData = {
+    stockName: { value: "99999", editable: true },
+    stockQuantity: { value: "99999", editable: true },
+    acquisitionPrice: { value: "99999", editable: true },
+    stockPrice: { value: "99999", editable: true },
+    acquisitionDate: { value: "99999", editable: true },
+    currentPrice: { value: "99999", editable: true },
+    valuationProfitLoss: { value: "99999", editable: true }
+  };
 
-  @track stockName = "99999";
-  @track stockQuantity = "99999";
-  @track acquisitionPrice = "99999";
-  @track stockPrice = "99999";
-  @track acquisitionDate = "99999";
-  @track currentPrice = "99999";
-  @track valuationProfitLoss = "99999";
+  // その他単体データ
+  @track memo = { value: "メモ内容", editable: false };
+  @track total = { value: "99.9999", editable: true };
 
-  @track memo = "メモ内容";
+  // ゲッター：データ値を簡単にアクセスできるように
+  get nonClassifiedAmount() {
+    return this.assessmentData.nonClassifiedAmount.value;
+  }
+  get firstClassifiedAmount() {
+    return this.assessmentData.firstClassifiedAmount.value;
+  }
+  get secondClassifiedAmount() {
+    return this.assessmentData.secondClassifiedAmount.value;
+  }
+  get thirdClassifiedAmount() {
+    return this.assessmentData.thirdClassifiedAmount.value;
+  }
+  get fourthClassifiedAmount() {
+    return this.assessmentData.fourthClassifiedAmount.value;
+  }
+  get totalAmount() {
+    return this.assessmentData.totalAmount.value;
+  }
+  get managedPreferredDebt() {
+    return this.assessmentData.managedPreferredDebt.value;
+  }
+  get creditRelatedCosts() {
+    return this.assessmentData.creditRelatedCosts.value;
+  }
+
+  get agencyFee() {
+    return this.otherTransactionData.agencyFee.value;
+  }
+  get privateBond() {
+    return this.otherTransactionData.privateBond.value;
+  }
+  get principal() {
+    return this.otherTransactionData.principal.value;
+  }
+  get guarantor() {
+    return this.otherTransactionData.guarantor.value;
+  }
+  get largeRemaining() {
+    return this.otherTransactionData.largeRemaining.value;
+  }
+  get extreme() {
+    return this.otherTransactionData.extreme.value;
+  }
+  get specialContract() {
+    return this.otherTransactionData.specialContract.value;
+  }
+
+  get stockName() {
+    return this.stockData.stockName.value;
+  }
+  get stockQuantity() {
+    return this.stockData.stockQuantity.value;
+  }
+  get acquisitionPrice() {
+    return this.stockData.acquisitionPrice.value;
+  }
+  get stockPrice() {
+    return this.stockData.stockPrice.value;
+  }
+  get acquisitionDate() {
+    return this.stockData.acquisitionDate.value;
+  }
+  get currentPrice() {
+    return this.stockData.currentPrice.value;
+  }
+  get valuationProfitLoss() {
+    return this.stockData.valuationProfitLoss.value;
+  }
+
+  get memoValue() {
+    return this.memo.value;
+  }
+  get totalValue() {
+    return this.total.value;
+  }
 
   handleInputChange(event) {
     const { id, field } = event.currentTarget.dataset;
@@ -330,7 +531,7 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
 
   updateData(data, id, field, value) {
     const item = data.find((row) => row.id === id);
-    if (item) {
+    if (item && !item.disable[field]) {
       item[field] = value;
     }
   }

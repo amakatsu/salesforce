@@ -52,7 +52,7 @@
                         is-table="true"
                         data-id={row.id}
                         set-id="twoYearsAgo"
-                        disabled="true"
+                        disabled={row.disable.twoYearsAgo}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -65,7 +65,7 @@
                         is-table="true"
                         data-id={row.id}
                         set-id="oneYearAgo"
-                        disabled="true"
+                        disabled={row.disable.oneYearAgo}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -78,7 +78,7 @@
                         is-table="true"
                         data-id={row.id}
                         set-id="recentEnd"
-                        disabled="true"
+                        disabled={row.disable.recentEnd}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -91,7 +91,7 @@
                         is-table="true"
                         data-id={row.id}
                         set-id="foreignCurrency"
-                        disabled={row.editable}
+                        disabled={row.disable.foreignCurrency}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -119,7 +119,7 @@
                 <c-f003-gs-v0000-number
                   num-value={nonClassifiedAmount}
                   num-label="非分類額"
-                  disabled="false"
+                  disabled={assessmentData.nonClassifiedAmount.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -129,7 +129,7 @@
                 <c-f003-gs-v0000-number
                   num-value={firstClassifiedAmount}
                   num-label="第I分類額"
-                  disabled="false"
+                  disabled={assessmentData.firstClassifiedAmount.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -139,7 +139,7 @@
                 <c-f003-gs-v0000-number
                   num-value={secondClassifiedAmount}
                   num-label="第II分類額"
-                  disabled="false"
+                  disabled={assessmentData.secondClassifiedAmount.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -149,7 +149,7 @@
                 <c-f003-gs-v0000-number
                   num-value={thirdClassifiedAmount}
                   num-label="第III分類額"
-                  disabled="false"
+                  disabled={assessmentData.thirdClassifiedAmount.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -159,7 +159,7 @@
                 <c-f003-gs-v0000-number
                   num-value={fourthClassifiedAmount}
                   num-label="第IV分類額"
-                  disabled="false"
+                  disabled={assessmentData.fourthClassifiedAmount.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -173,7 +173,7 @@
                 <c-f003-gs-v0000-number
                   num-value={totalAmount}
                   num-label="合計"
-                  disabled="false"
+                  disabled={assessmentData.totalAmount.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -183,7 +183,7 @@
                 <c-f003-gs-v0000-number
                   num-value={managedPreferredDebt}
                   num-label="内要管理優債権"
-                  disabled="false"
+                  disabled={assessmentData.managedPreferredDebt.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -193,7 +193,7 @@
                 <c-f003-gs-v0000-number
                   num-value={creditRelatedCosts}
                   num-label="与信関係費用（千円）"
-                  disabled="false"
+                  disabled={assessmentData.creditRelatedCosts.editable}
                   step="0.01"
                   onerror={numberErrorHandler}
                   onchange={handleInputChange}
@@ -260,7 +260,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="period"
-                            disabled={row.editable}
+                            disabled={row.disable.period}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -273,7 +273,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="sales"
-                            disabled={row.editable}
+                            disabled={row.disable.sales}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -289,7 +289,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="operatingProfit"
-                            disabled={row.editable}
+                            disabled={row.disable.operatingProfit}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -305,7 +305,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="currentProfit"
-                            disabled={row.editable}
+                            disabled={row.disable.currentProfit}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -321,7 +321,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="currentProfitRate"
-                            disabled={row.editable}
+                            disabled={row.disable.currentProfitRate}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -334,7 +334,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="netProfit"
-                            disabled={row.editable}
+                            disabled={row.disable.netProfit}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -350,7 +350,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="netProfitRate"
-                            disabled={row.editable}
+                            disabled={row.disable.netProfitRate}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -366,7 +366,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="depreciation"
-                            disabled={row.editable}
+                            disabled={row.disable.depreciation}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -382,7 +382,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="commercialCF"
-                            disabled={row.editable}
+                            disabled={row.disable.commercialCF}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -398,7 +398,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="distributionRate"
-                            disabled={row.editable}
+                            disabled={row.disable.distributionRate}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -411,7 +411,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="ownCapital"
-                            disabled={row.editable}
+                            disabled={row.disable.ownCapital}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -427,7 +427,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="borrowingPeriod"
-                            disabled={row.editable}
+                            disabled={row.disable.borrowingPeriod}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -443,7 +443,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="netInterestBurdenRate"
-                            disabled={row.editable}
+                            disabled={row.disable.netInterestBurdenRate}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -459,7 +459,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="ownCapitalRatio"
-                            disabled={row.editable}
+                            disabled={row.disable.ownCapitalRatio}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -475,7 +475,7 @@
                             is-table="true"
                             data-id={row.id}
                             set-id="currentBalanceRatio"
-                            disabled="false"
+                            disabled={row.disable.currentBalanceRatio}
                             step="0.01"
                             onerror={numberErrorHandler}
                             onchange={handleInputChange}
@@ -491,9 +491,10 @@
         </lightning-layout-item>
         <lightning-layout-item size="2">
           <c-f003-gs-v0000-number
-            num-value={total}
+            num-value={totalValue}
             num-label="Ｇｒ合算実態純資産額"
             class="slds-var-p-top_large"
+            disabled={total.editable}
             step="0.01"
             onerror={numberErrorHandler}
             onchange={handleInputChange}
@@ -524,6 +525,7 @@
                     <c-f003-gs-v0000-number
                       num-value={agencyFee}
                       num-label="代手残高"
+                      disabled={otherTransactionData.agencyFee.editable}
                       step="0.01"
                       onerror={numberErrorHandler}
                       onchange={handleInputChange}
@@ -531,9 +533,9 @@
                   </lightning-layout-item>
                   <lightning-layout-item size="4">
                     <c-f003-gs-v0000-number
-                      num-value={agencyFee}
+                      num-value={privateBond}
                       num-label="私募債"
-                      disabled="false"
+                      disabled={otherTransactionData.privateBond.editable}
                       step="0.01"
                       onerror={numberErrorHandler}
                       onchange={handleInputChange}
@@ -555,6 +557,7 @@
                       <c-f003-gs-v0000-number
                         num-value={principal}
                         num-label="本人"
+                        disabled={otherTransactionData.principal.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -565,6 +568,7 @@
                       <c-f003-gs-v0000-number
                         num-value={guarantor}
                         num-label="保証人"
+                        disabled={otherTransactionData.guarantor.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -587,6 +591,7 @@
                       <c-f003-gs-v0000-number
                         num-value={largeRemaining}
                         num-label="99未残"
+                        disabled={otherTransactionData.largeRemaining.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -596,6 +601,7 @@
                       <c-f003-gs-v0000-number
                         num-value={extreme}
                         num-label="極度"
+                        disabled={otherTransactionData.extreme.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -605,6 +611,7 @@
                       <c-f003-gs-v0000-number
                         num-value={specialContract}
                         num-label="本件後残高"
+                        disabled={otherTransactionData.specialContract.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -627,6 +634,7 @@
                       <c-f003-gs-v0000-number
                         num-value={largeRemaining}
                         num-label="99未残"
+                        disabled={otherTransactionData.largeRemaining.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -636,6 +644,7 @@
                       <c-f003-gs-v0000-number
                         num-value={extreme}
                         num-label="極度"
+                        disabled={otherTransactionData.extreme.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -645,6 +654,7 @@
                       <c-f003-gs-v0000-number
                         num-value={specialContract}
                         num-label="本件後残高"
+                        disabled={otherTransactionData.specialContract.editable}
                         step="0.01"
                         onerror={numberErrorHandler}
                         onchange={handleInputChange}
@@ -668,7 +678,7 @@
               <c-f003-gs-v0000-number
                 num-value={stockName}
                 num-label="株数（株）"
-                disabled="false"
+                disabled={stockData.stockName.editable}
                 step="0.01"
                 onerror={numberErrorHandler}
                 onchange={handleInputChange}
@@ -678,7 +688,7 @@
               <c-f003-gs-v0000-number
                 num-value={stockQuantity}
                 num-label="簿価（円）"
-                disabled="false"
+                disabled={stockData.stockQuantity.editable}
                 step="0.01"
                 onerror={numberErrorHandler}
                 onchange={handleInputChange}
@@ -688,7 +698,7 @@
               <c-f003-gs-v0000-number
                 num-value={acquisitionPrice}
                 num-label="取得価格（円）"
-                disabled="false"
+                disabled={stockData.acquisitionPrice.editable}
                 step="0.01"
                 onerror={numberErrorHandler}
                 onchange={handleInputChange}
@@ -698,7 +708,7 @@
               <c-f003-gs-v0000-number
                 num-value={stockPrice}
                 num-label="時価（円）"
-                disabled="false"
+                disabled={stockData.stockPrice.editable}
                 step="0.01"
                 onerror={numberErrorHandler}
                 onchange={handleInputChange}
@@ -708,7 +718,7 @@
               <c-f003-gs-v0000-number
                 num-value={acquisitionDate}
                 num-label="取引先保有株数（株）"
-                disabled="false"
+                disabled={stockData.acquisitionDate.editable}
                 step="0.01"
                 onerror={numberErrorHandler}
                 onchange={handleInputChange}
@@ -718,7 +728,7 @@
               <c-f003-gs-v0000-number
                 num-value={currentPrice}
                 num-label="取引先保有時価（円）"
-                disabled="false"
+                disabled={stockData.currentPrice.editable}
                 step="0.01"
                 onerror={numberErrorHandler}
                 onchange={handleInputChange}
@@ -728,7 +738,7 @@
               <c-f003-gs-v0000-number
                 num-value={valuationProfitLoss}
                 num-label="採算（％）"
-                disabled="false"
+                disabled={stockData.valuationProfitLoss.editable}
                 step="0.01"
                 onerror={numberErrorHandler}
                 onchange={handleInputChange}
@@ -747,7 +757,8 @@
         <lightning-layout-item size="12" padding="around-small">
           <lightning-textarea
             label="メモ"
-            value={memo}
+            value={memoValue}
+            disabled={memo.editable}
             style="--sds-c-textarea-sizing-min-height: 5rem"
           ></lightning-textarea>
         </lightning-layout-item>
