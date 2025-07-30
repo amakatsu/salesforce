@@ -86,8 +86,6 @@ const FIELD_DEFINITIONS = {
  * 与信状況と本件保全の情報を管理
  */
 export default class RirituComponent extends LightningElement {
-  @track amountUnit = "〇〇〇";
-  @track groupNumber = "9";
   @track creditRows = [];
   @track collateralRows = [];
   @track guarantorData = [
@@ -453,3 +451,4 @@ export default class RirituComponent extends LightningElement {
     return null;
   }
 }
+

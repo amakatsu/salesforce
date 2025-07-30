@@ -25,30 +25,6 @@
 /* =========================================
  * 共通テーブルスタイル
  * ========================================= */
-
-.common-table {
-  width: 100%;
-  border: 1px solid #999;
-  border-collapse: collapse;
-  table-layout: fixed;
-  overflow: visible;
-}
-
-.common-table th {
-  border: 1px solid #999;
-  background: #f2f2f2;
-  top: 0;
-  left: 0;
-  text-align: left; /* 左寄せ */
-}
-
-.common-table td {
-  border: 1px solid #999;
-  background: #fff;
-  padding: 5px;
-  text-align: left; /* 左寄せ */
-}
-
 .changed-cell {
   --slds-c-input-color-background: #fff9c4;
 }
@@ -172,7 +148,7 @@ tr:nth-last-child(2) td {
 /* 与信状況テーブル: 1行目固定 - 下部見切れ防止 */
 .table-container-credit tbody tr:nth-child(1) {
   position: sticky;
-  top: 1.8rem; /* ヘッダー直下に配置 */
+  top: 1.85rem; /* ヘッダー直下に配置 */
   background-color: #ffffff;
   z-index: 9;
 }
@@ -180,21 +156,21 @@ tr:nth-last-child(2) td {
 /* 本件保全テーブル: 1-3行目の階層固定 */
 .table-container-collateral tbody tr:nth-child(1) {
   position: sticky;
-  top: 1.8rem; /* ヘッダー直下に配置 */
+  top: 1.85rem; /* ヘッダー直下に配置 */
   background-color: #ffffff;
   z-index: 9;
 }
 
 .table-container-collateral tbody tr:nth-child(2) {
   position: sticky;
-  top: 4.48rem; /* 1行目直下に配置 */
+  top: 4.45rem; /* 1行目直下に配置 */
   background-color: #ffffff;
   z-index: 8;
 }
 
 .table-container-collateral tbody tr:nth-child(3) {
   position: sticky;
-  top: 7.17rem; /* 2行目直下に配置 */
+  top: 7rem; /* 2行目直下に配置 */
   background-color: #ffffff;
   z-index: 7;
 }
@@ -203,18 +179,18 @@ tr:nth-last-child(2) td {
  * テーブルコンテナスタイル (SLDSクラスで代替済み)
  * ========================================= */
 .table-container-credit {
-  max-height: 700px;
-  overflow-y: auto; /* 必要な時だけスクロール、カレンダー展開時は高さが自動拡張 */
+  max-height: 680px;
+  overflow-y: auto;
 }
 
 .table-container-collateral {
-  max-height: 470px;
-  overflow-y: auto; /* 必要な時だけスクロール、カレンダー展開時は高さが自動拡張 */
+  max-height: 450px;
+  overflow-y: auto;
 }
 
 .table-container-guarantor {
-  max-height: 110px;
-  overflow-y: auto; /* 必要な時だけスクロール、カレンダー展開時は高さが自動拡張 */
+  max-height: 105px;
+  overflow-y: auto;
 }
 
 /* =========================================

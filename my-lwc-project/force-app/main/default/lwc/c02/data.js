@@ -1,3 +1,5 @@
+// 利率コンポーネント用のデータ定義
+
 const rawCreditSource = [
   {
     id: "root1",
@@ -25,7 +27,7 @@ const rawCreditSource = [
   },
   {
     id: "root2",
-    label: "貸付金・割引合計",
+    label: "貸付金・割合合計",
     dueDate: "",
     rate: "",
     balance99: 200000,
@@ -48,8 +50,8 @@ const rawCreditSource = [
     children: [
       {
         id: "l21",
-        label: "貸付金・割引合計 子1",
-        dueDate: "03/01",
+        label: "貸付金・割合合計 子1",
+        dueDate: "2023-03-01",
         rate: "1.3",
         balance99: 300000,
         principal: 1500000,
@@ -71,8 +73,8 @@ const rawCreditSource = [
       },
       {
         id: "l22",
-        label: "貸付金・割引合計 子2",
-        dueDate: "04/01",
+        label: "貸付金・割合合計 子2",
+        dueDate: "2023-04-01",
         rate: "1.4",
         balance99: 400000,
         principal: 2000000,
@@ -145,7 +147,7 @@ const rawCreditSource = [
       {
         id: "e41",
         label: "外為与信合計 子1",
-        dueDate: "07/01",
+        dueDate: "2023-07-01",
         rate: "1.7",
         balance99: 700000,
         principal: 3500000,
@@ -169,7 +171,7 @@ const rawCreditSource = [
       {
         id: "e42",
         label: "外為与信合計 子2",
-        dueDate: "08/01",
+        dueDate: "2023-08-01",
         rate: "1.8",
         balance99: 800000,
         principal: 4000000,
@@ -218,7 +220,7 @@ const rawCreditSource = [
       {
         id: "s51",
         label: "支払承諾合計 子1",
-        dueDate: "10/01",
+        dueDate: "2023-10-01",
         rate: "2.0",
         balance99: 1000000,
         principal: 5000000,
@@ -242,7 +244,7 @@ const rawCreditSource = [
       {
         id: "s52",
         label: "支払承諾合計 子2",
-        dueDate: "11/01",
+        dueDate: "2023-11-01",
         rate: "2.1",
         balance99: 1100000,
         principal: 5500000,
@@ -461,7 +463,7 @@ const rawCreditSource = [
       {
         id: "l121",
         label: "限度不算入 子1",
-        dueDate: "08/01",
+        dueDate: "2024-08-01",
         rate: "3.0",
         balance99: 2000000,
         principal: 10000000,
@@ -485,7 +487,7 @@ const rawCreditSource = [
       {
         id: "l122",
         label: "限度不算入 子2",
-        dueDate: "09/01",
+        dueDate: "2024-09-01",
         rate: "3.1",
         balance99: 2100000,
         principal: 10500000,
@@ -558,7 +560,7 @@ const rawCreditSource = [
       {
         id: "l141",
         label: "特定与信合計 子1",
-        dueDate: "12/01",
+        dueDate: "2024-12-01",
         rate: "3.4",
         balance99: 2400000,
         principal: 12000000,
@@ -615,7 +617,7 @@ const rawCollateralSource = [
     regValue: 8000000,
     marketValue: 9600000,
     children: [],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGeneral2",
@@ -654,7 +656,7 @@ const rawCollateralSource = [
         editableFields: { regValue: true, marketValue: true }
       }
     ],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera21",
@@ -677,7 +679,7 @@ const rawCollateralSource = [
         editableFields: { regValue: true, marketValue: true }
       }
     ],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera22",
@@ -685,7 +687,7 @@ const rawCollateralSource = [
     regValue: 5000000,
     marketValue: 6000000,
     children: [],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera23",
@@ -693,7 +695,7 @@ const rawCollateralSource = [
     regValue: 5000000,
     marketValue: 6000000,
     children: [],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera24",
@@ -716,7 +718,7 @@ const rawCollateralSource = [
         editableFields: { regValue: true, marketValue: true }
       }
     ],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: false }
   },
   {
     id: "collGenera25",
@@ -724,7 +726,7 @@ const rawCollateralSource = [
     regValue: 5000000,
     marketValue: 6000000,
     children: [],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: false, marketValue: true }
   },
   {
     id: "collGenera26",
@@ -732,7 +734,7 @@ const rawCollateralSource = [
     regValue: 5000000,
     marketValue: 6000000,
     children: [],
-    editableFields: { regValue: true, marketValue: true }
+    editableFields: { regValue: true, marketValue: false }
   }
 ];
 

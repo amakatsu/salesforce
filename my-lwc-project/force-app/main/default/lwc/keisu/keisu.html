@@ -3,217 +3,483 @@
     allow-multiple-sections-open
     active-section-name={activeSections}
   >
-    <lightning-layout style="height: 800px; column-gap: 2px">
-      <!-- 与信状況テーブル -->
-      <lightning-layout-item size="6" class="slds-grid slds-grid_vertical">
+    <lightning-layout multiple-rows>
+      <!-- 金額単位・括り -->
+      <lightning-layout-item size="12" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
-          name="d"
-          label={labels.accordion.CREDIT_STATUS}
+          name="f"
+          label="金額単位・括り"
+          icon-name="standard:choice"
+        >
+        </lightning-accordion-section>
+      </lightning-layout-item>
+      <lightning-layout-item size="6">
+        <lightning-accordion-section
+          name="g"
+          label="主要銀行取引状況"
           icon-name="standard:choice"
         >
           <lightning-card>
+            <div class="slds-text-align_right">
+              <p class="slds-var-p-top_small">金額単位〇〇〇</p>
+            </div>
+            <table
+              class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
+            >
+              <thead>
+                <tr class="slds-line-height_reset">
+                  <template for:each={bankColumns} for:item="column">
+                    <th
+                      key={column.fieldName}
+                      class="slds-text-align_center"
+                      scope="col"
+                    >
+                      <div class="slds-truncate" title={column.label}>
+                        {column.label}
+                      </div>
+                    </th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody>
+                <template for:each={bankData} for:item="row">
+                  <tr key={row.id} class="slds-hint-parent">
+                    <th data-label="bankName">{row.bankName}</th>
+                    <td data-label="twoYearsAgo">
+                      <c-f003-gs-v0000-number
+                        num-value={row.twoYearsAgo}
+                        num-label="twoYearsAgo"
+                        is-table="true"
+                        data-id={row.id}
+                        set-id="twoYearsAgo"
+                        disabled="true"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </td>
+                    <td data-label="oneYearAgo">
+                      <c-f003-gs-v0000-number
+                        num-value={row.oneYearAgo}
+                        num-label="oneYearAgo"
+                        is-table="true"
+                        data-id={row.id}
+                        set-id="oneYearAgo"
+                        disabled="true"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </td>
+                    <td data-label="recentEnd">
+                      <c-f003-gs-v0000-number
+                        num-value={row.recentEnd}
+                        num-label="recentEnd"
+                        is-table="true"
+                        data-id={row.id}
+                        set-id="recentEnd"
+                        disabled="true"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </td>
+                    <td data-label="foreignCurrency">
+                      <c-f003-gs-v0000-number
+                        num-value={row.foreignCurrency}
+                        num-label="foreignCurrency"
+                        is-table="true"
+                        data-id={row.id}
+                        set-id="foreignCurrency"
+                        disabled={row.editable}
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </lightning-card>
+        </lightning-accordion-section>
+      </lightning-layout-item>
+      <lightning-layout-item size="6">
+        <lightning-accordion-section
+          name="h"
+          label="自己査定結果"
+          icon-name="standard:choice"
+        >
+          <lightning-card>
+            <div class="slds-text-align_right">
+              <p class="slds-var-p-top_small">金額単位〇〇〇</p>
+            </div>
+            <lightning-layout multiple-rows>
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={nonClassifiedAmount}
+                  num-label="非分類額"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={firstClassifiedAmount}
+                  num-label="第I分類額"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={secondClassifiedAmount}
+                  num-label="第II分類額"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={thirdClassifiedAmount}
+                  num-label="第III分類額"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={fourthClassifiedAmount}
+                  num-label="第IV分類額"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+            </lightning-layout>
+
+            <!-- 合計額のレイアウト -->
+            <lightning-layout multiple-rows class="slds-var-p-top_xx-large">
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={totalAmount}
+                  num-label="合計"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={managedPreferredDebt}
+                  num-label="内要管理優債権"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="around-small">
+                <c-f003-gs-v0000-number
+                  num-value={creditRelatedCosts}
+                  num-label="与信関係費用（千円）"
+                  disabled="false"
+                  step="0.01"
+                  onerror={numberErrorHandler}
+                  onchange={handleInputChange}
+                ></c-f003-gs-v0000-number>
+              </lightning-layout-item>
+            </lightning-layout>
+          </lightning-card>
+        </lightning-accordion-section>
+      </lightning-layout-item>
+    </lightning-layout>
+
+    <lightning-accordion-section
+      name="i"
+      label="経営指標"
+      icon-name="standard:choice"
+    >
+      <lightning-layout multiple-rows>
+        <lightning-layout-item size="12">
+          <lightning-card>
             <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+              <div class="slds-col slds-size_12-of-12">
+                <div class="slds-text-align_right slds-var-p-right_large">
+                  <p class="slds-var-p-top_small">金額単位〇〇〇</p>
+                </div>
+              </div>
               <div
-                class="table-sticky slds-col slds-size_12-of-12 slds-var-p-right_small slds-var-m-left_small table-container-credit"
+                class="table-sticky slds-col slds-size_12-of-12 slds-var-p-right_small slds-var-m-left_small"
               >
                 <table roles="grid" class="slds-table table-sticky__title">
-                  <!-- テーブルヘッダー -->
                   <thead>
                     <tr class="slds-line-height_reset">
-                      <th
-                        scope="col"
-                        class="column-xs table-sticky__title table-sticky3__title01"
-                      ></th>
-                      <th
-                        scope="col"
-                        class="column-xl table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.SUBJECT_SUMMARY}
+                      <template for:each={indicatorColumns} for:item="column">
+                        <th
+                          key={column.fieldName}
+                          class={column.className}
+                          scope="col"
                         >
-                          {labels.tableHeaders.CREDIT.SUBJECT_SUMMARY}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-medium table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.CURRENT_BALANCE}
-                        >
-                          {labels.tableHeaders.CREDIT.CURRENT_BALANCE}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-medium table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.PRINCIPAL}
-                        >
-                          {labels.tableHeaders.CREDIT.PRINCIPAL}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-small table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.CURRENT_RATE}
-                        >
-                          {labels.tableHeaders.CREDIT.CURRENT_RATE}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-small table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.POST_RATE}
-                        >
-                          {labels.tableHeaders.CREDIT.POST_RATE}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-large table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.APPLY_DATE}
-                        >
-                          {labels.tableHeaders.CREDIT.APPLY_DATE}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-small table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.APPLY_DATE_TYPE}
-                        >
-                          {labels.tableHeaders.CREDIT.APPLY_DATE_TYPE}
-                        </div>
-                      </th>
+                          <div
+                            class="slds-truncate slds-var-p-right_x-small"
+                            title={column.label}
+                          >
+                            {column.label}
+                          </div>
+                        </th>
+                      </template>
                     </tr>
                   </thead>
-                  <!-- テーブルボディ -->
                   <tbody>
-                    <template for:each={creditRows} for:item="row">
+                    <template for:each={indicatorData} for:item="row">
                       <tr
                         key={row.id}
                         class="slds-hint-parent slds-line-height_reset"
                       >
-                        <!-- 展開ボタン列 -->
-                        <th scope="col">
-                          <lightning-button-icon
-                            if:true={row.hasChildren}
-                            icon-name={row.icon}
-                            variant="bare"
-                            size="small"
-                            alternative-text="toggle"
-                            onclick={handleTreeToggle}
-                            data-id={row.id}
-                          ></lightning-button-icon>
+                        <th
+                          class="table-sticky__title table-sticky3__title02"
+                          scope="row"
+                        >
+                          <div class="slds-truncate">{row.type}</div>
                         </th>
-                        <!-- ラベル列 -->
-                        <th class={row.labelClass} scope="col">
-                          <div class="slds-truncate">{row.label}</div>
-                        </th>
-                        <!-- 現状残高列 -->
+                        <td data-label="period" class={row.periodClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.period}
+                            num-label="period"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="period"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td data-label="sales" class={row.salesClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.sales}
+                            num-label="sales"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="sales"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
                         <td
-                          data-label="currentBalance"
-                          class={row.currentBalanceClass}
+                          data-label="operatingProfit"
+                          class={row.operatingProfitClass}
                         >
                           <c-f003-gs-v0000-number
-                            num-value={row.currentBalance}
-                            num-label={labels.field.CURRENT_BALANCE}
+                            num-value={row.operatingProfit}
+                            num-label="operatingProfit"
                             is-table="true"
                             data-id={row.id}
-                            set-id="currentBalance"
-                            disabled={row.currentBalanceDisabled}
-                            step={labels.config.DECIMAL_STEP}
+                            set-id="operatingProfit"
+                            disabled={row.editable}
+                            step="0.01"
                             onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            onchange={handleInputChange}
                           ></c-f003-gs-v0000-number>
                         </td>
-                        <!-- 極度額列 -->
-                        <td data-label="principal" class={row.principalClass}>
-                          <c-f003-gs-v0000-number
-                            num-value={row.principal}
-                            num-label={labels.field.PRINCIPAL}
-                            is-table="true"
-                            data-id={row.id}
-                            set-id="principal"
-                            disabled={row.principalDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
-                          ></c-f003-gs-v0000-number>
-                        </td>
-                        <!-- 現状利率列 -->
                         <td
-                          data-label="currentRate"
-                          class={row.currentRateClass}
+                          data-label="currentProfit"
+                          class={row.currentProfitClass}
                         >
                           <c-f003-gs-v0000-number
-                            num-value={row.currentRate}
-                            num-label={labels.field.CURRENT_RATE}
+                            num-value={row.currentProfit}
+                            num-label="currentProfit"
                             is-table="true"
                             data-id={row.id}
-                            set-id="currentRate"
-                            disabled={row.currentRateDisabled}
-                            step={labels.config.DECIMAL_STEP}
+                            set-id="currentProfit"
+                            disabled={row.editable}
+                            step="0.01"
                             onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            onchange={handleInputChange}
                           ></c-f003-gs-v0000-number>
                         </td>
-                        <!-- 本件後利率列 -->
-                        <td data-label="postRate" class={row.postRateClass}>
-                          <c-f003-gs-v0000-number
-                            num-value={row.postRate}
-                            num-label={labels.field.POST_RATE}
-                            is-table="true"
-                            data-id={row.id}
-                            set-id="postRate"
-                            disabled={row.postRateDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
-                          ></c-f003-gs-v0000-number>
-                        </td>
-                        <!-- 適用日列 -->
-                        <td data-label="applyDate" class={row.applyDateClass}>
-                          <lightning-input
-                            type="date"
-                            variant="label-hidden"
-                            value={row.applyDate}
-                            data-id={row.id}
-                            data-field="applyDate"
-                            disabled={row.applyDateDisabled}
-                            onchange={handleEdit}
-                          ></lightning-input>
-                        </td>
-                        <!-- 適用日区分列 -->
                         <td
-                          data-label="applyDateType"
-                          class={row.applyDateTypeClass}
+                          data-label="currentProfitRate"
+                          class={row.currentProfitRateClass}
                         >
-                          <lightning-input
-                            type="text"
-                            variant="label-hidden"
-                            value={row.applyDateType}
+                          <c-f003-gs-v0000-number
+                            num-value={row.currentProfitRate}
+                            num-label="currentProfitRate"
+                            is-table="true"
                             data-id={row.id}
-                            data-field="applyDateType"
-                            disabled={row.applyDateTypeDisabled}
-                            onchange={handleEdit}
-                          ></lightning-input>
+                            set-id="currentProfitRate"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td data-label="netProfit" class={row.netProfitClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.netProfit}
+                            num-label="netProfit"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="netProfit"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="netProfitRate"
+                          class={row.netProfitRateClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.netProfitRate}
+                            num-label="netProfitRate"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="netProfitRate"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="depreciation"
+                          class={row.depreciationClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.depreciation}
+                            num-label="depreciation"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="depreciation"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="commercialCF"
+                          class={row.commercialCFClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.commercialCF}
+                            num-label="commercialCF"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="commercialCF"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="distributionRate"
+                          class={row.distributionRateClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.distributionRate}
+                            num-label="distributionRate"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="distributionRate"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td data-label="ownCapital" class={row.ownCapitalClass}>
+                          <c-f003-gs-v0000-number
+                            num-value={row.ownCapital}
+                            num-label="ownCapital"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="ownCapital"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="borrowingPeriod"
+                          class={row.borrowingPeriodClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.borrowingPeriod}
+                            num-label="borrowingPeriod"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="borrowingPeriod"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="netInterestBurdenRate"
+                          class={row.netInterestBurdenRateClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.netInterestBurdenRate}
+                            num-label="netInterestBurdenRate"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="netInterestBurdenRate"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="ownCapitalRatio"
+                          class={row.ownCapitalRatioClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.ownCapitalRatio}
+                            num-label="ownCapitalRatio"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="ownCapitalRatio"
+                            disabled={row.editable}
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
+                        </td>
+                        <td
+                          data-label="currentBalanceRatio"
+                          class={row.currentBalanceRatioClass}
+                        >
+                          <c-f003-gs-v0000-number
+                            num-value={row.currentBalanceRatio}
+                            num-label="currentBalanceRatio"
+                            is-table="true"
+                            data-id={row.id}
+                            set-id="currentBalanceRatio"
+                            disabled="false"
+                            step="0.01"
+                            onerror={numberErrorHandler}
+                            onchange={handleInputChange}
+                          ></c-f003-gs-v0000-number>
                         </td>
                       </tr>
                     </template>
@@ -222,201 +488,270 @@
               </div>
             </div>
           </lightning-card>
-        </lightning-accordion-section>
-      </lightning-layout-item>
+        </lightning-layout-item>
+        <lightning-layout-item size="2">
+          <c-f003-gs-v0000-number
+            num-value={total}
+            num-label="Ｇｒ合算実態純資産額"
+            class="slds-var-p-top_large"
+            step="0.01"
+            onerror={numberErrorHandler}
+            onchange={handleInputChange}
+          ></c-f003-gs-v0000-number>
+        </lightning-layout-item>
+      </lightning-layout>
+    </lightning-accordion-section>
 
-      <!-- 他行動向テーブル -->
-      <lightning-layout-item size="6" class="slds-grid slds-grid_vertical">
+    <lightning-layout>
+      <lightning-layout-item size="6">
         <lightning-accordion-section
-          name="e"
-          label={labels.accordion.OTHER_BANK_TREND}
+          name="j"
+          label="その他取引状況"
           icon-name="standard:choice"
         >
           <lightning-card>
-            <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
-              <div
-                class="table-sticky slds-col slds-size_12-of-12 slds-var-p-right_small slds-var-m-left_small table-container-other-bank"
-              >
-                <table roles="grid" class="slds-table table-sticky__title">
-                  <!-- テーブルヘッダー -->
-                  <thead>
-                    <tr class="slds-line-height_reset">
-                      <th
-                        scope="col"
-                        class="column-xxl table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.OTHER_BANK.BANK_NAME}
-                        >
-                          {labels.tableHeaders.OTHER_BANK.BANK_NAME}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-large table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.OTHER_BANK.RAISE_LOWER_MONTH}
-                        >
-                          {labels.tableHeaders.OTHER_BANK.RAISE_LOWER_MONTH}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-small table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.OTHER_BANK.LONG_TERM_RATIO}
-                        >
-                          {labels.tableHeaders.OTHER_BANK.LONG_TERM_RATIO}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-large table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.OTHER_BANK.SUBJECT}
-                        >
-                          {labels.tableHeaders.OTHER_BANK.SUBJECT}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-small table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.OTHER_BANK.CURRENT_STATUS}
-                        >
-                          {labels.tableHeaders.OTHER_BANK.CURRENT_STATUS}
-                        </div>
-                      </th>
-                      <th
-                        scope="col"
-                        class="column-small table-sticky__title table-sticky3__title02"
-                      >
-                        <div
-                          class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.OTHER_BANK.POST_CASE}
-                        >
-                          {labels.tableHeaders.OTHER_BANK.POST_CASE}
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <!-- テーブルボディ -->
-                  <tbody>
-                    <template for:each={otherBankRows} for:item="bank">
-                      <template
-                        for:each={bank.subRows}
-                        for:item="subRow"
-                        for:index="subIndex"
-                      >
-                        <tr
-                          key={subRow.id}
-                          class="slds-hint-parent slds-line-height_reset"
-                        >
-                          <!-- 銀行名列（最初の行のみ、3行結合） -->
-                          <td if:true={subRow.isFirst} scope="row" rowspan="3">
-                            <lightning-input
-                              type="text"
-                              variant="label-hidden"
-                              value={bank.label}
-                              data-id={bank.id}
-                              data-field="label"
-                              onchange={handleEdit}
-                            ></lightning-input>
-                          </td>
-                          <!-- 引上下月列（最初の行のみ、3行結合） -->
-                          <td if:true={subRow.isFirst} rowspan="3">
-                            <div class={bank.currentBalanceClass}>
-                              <lightning-input
-                                type="month"
-                                variant="label-hidden"
-                                value={bank.currentBalance}
-                                data-id={bank.id}
-                                data-field="currentBalance"
-                                onchange={handleEdit}
-                              ></lightning-input>
-                            </div>
-                          </td>
-                          <!-- 長期比率列 -->
-                          <td
-                            data-label="principal"
-                            class={subRow.principalClass}
-                          >
-                            <c-f003-gs-v0000-number
-                              num-value={subRow.principal}
-                              num-label={labels.field.LONG_TERM_RATIO}
-                              is-table="true"
-                              data-id={subRow.id}
-                              set-id="principal"
-                              step={labels.config.DECIMAL_STEP}
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </td>
-                          <!-- 科目列 -->
-                          <td
-                            data-label="currentRate"
-                            class={subRow.currentRateClass}
-                          >
-                            <lightning-input
-                              type="text"
-                              variant="label-hidden"
-                              value={subRow.currentRate}
-                              data-id={subRow.id}
-                              data-field="currentRate"
-                              onchange={handleEdit}
-                            ></lightning-input>
-                          </td>
-                          <!-- 現状%列 -->
-                          <td
-                            data-label="postRate"
-                            class={subRow.postRateClass}
-                          >
-                            <c-f003-gs-v0000-number
-                              num-value={subRow.postRate}
-                              num-label={labels.field.CURRENT_STATUS}
-                              is-table="true"
-                              data-id={subRow.id}
-                              set-id="postRate"
-                              step={labels.config.DECIMAL_STEP}
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </td>
-                          <!-- 本件後%列 -->
-                          <td
-                            data-label="applyDate"
-                            class={subRow.applyDateClass}
-                          >
-                            <c-f003-gs-v0000-number
-                              num-value={subRow.applyDate}
-                              num-label={labels.field.POST_CASE}
-                              is-table="true"
-                              data-id={subRow.id}
-                              set-id="applyDate"
-                              step={labels.config.DECIMAL_STEP}
-                              onerror={numberErrorHandler}
-                              onchange={handleEdit}
-                            ></c-f003-gs-v0000-number>
-                          </td>
-                        </tr>
-                      </template>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
+            <div class="slds-text-align_right">
+              <p class="slds-var-p-top_small">金額単位〇〇〇</p>
             </div>
+            <lightning-layout multiple-rows>
+              <!-- Row: 代手残高と私募債 -->
+              <lightning-layout-item size="12" class="slds-var-p-bottom_large">
+                <lightning-layout multiple-rows>
+                  <lightning-layout-item
+                    size="4"
+                    class="slds-var-p-right_xx-large"
+                  >
+                    <c-f003-gs-v0000-number
+                      num-value={agencyFee}
+                      num-label="代手残高"
+                      step="0.01"
+                      onerror={numberErrorHandler}
+                      onchange={handleInputChange}
+                    ></c-f003-gs-v0000-number>
+                  </lightning-layout-item>
+                  <lightning-layout-item size="4">
+                    <c-f003-gs-v0000-number
+                      num-value={agencyFee}
+                      num-label="私募債"
+                      disabled="false"
+                      step="0.01"
+                      onerror={numberErrorHandler}
+                      onchange={handleInputChange}
+                    ></c-f003-gs-v0000-number>
+                  </lightning-layout-item>
+                </lightning-layout>
+              </lightning-layout-item>
+              <!-- Row: 非拘束定期 -->
+              <lightning-layout-item size="12" class="slds-var-p-bottom_large">
+                <div class="slds-grid slds-gutters">
+                  <div class="slds-col slds-text-align_left">
+                    <p>非拘束定期</p>
+                  </div>
+                </div>
+                <div class="slds-box slds-box_small">
+                  <lightning-layout multiple-rows>
+                    *
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={principal}
+                        num-label="本人"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                    *
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={guarantor}
+                        num-label="保証人"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                  </lightning-layout>
+                </div>
+              </lightning-layout-item>
+
+              <!-- Row: 住宅ローン -->
+              <lightning-layout-item size="6" class="slds-var-p-right_xx-large">
+                <div class="slds-grid slds-gutters">
+                  <div class="slds-col slds-text-align_left">
+                    <p>住宅ローン</p>
+                  </div>
+                </div>
+                <div class="slds-box slds-box_small">
+                  <lightning-layout multiple-rows>
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={largeRemaining}
+                        num-label="99未残"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={extreme}
+                        num-label="極度"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={specialContract}
+                        num-label="本件後残高"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                  </lightning-layout>
+                </div>
+              </lightning-layout-item>
+
+              <!-- Row: 一括支払いなど -->
+              <lightning-layout-item size="6">
+                <div class="slds-grid slds-gutters">
+                  <div class="slds-col slds-text-align_left">
+                    <p>一括支払等</p>
+                  </div>
+                </div>
+                <div class="slds-box slds-box_small">
+                  <lightning-layout multiple-rows>
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={largeRemaining}
+                        num-label="99未残"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={extreme}
+                        num-label="極度"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="4" padding="around-small">
+                      <c-f003-gs-v0000-number
+                        num-value={specialContract}
+                        num-label="本件後残高"
+                        step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </lightning-layout-item>
+                  </lightning-layout>
+                </div>
+              </lightning-layout-item>
+            </lightning-layout>
           </lightning-card>
         </lightning-accordion-section>
       </lightning-layout-item>
+      <lightning-layout-item size="6">
+        <lightning-accordion-section
+          name="k"
+          label="政策投資株式"
+          icon-name="standard:choice"
+        >
+          <lightning-layout multiple-rows class="slds-var-p-top_xx-large">
+            <lightning-layout-item size="4" padding="around-small">
+              <c-f003-gs-v0000-number
+                num-value={stockName}
+                num-label="株数（株）"
+                disabled="false"
+                step="0.01"
+                onerror={numberErrorHandler}
+                onchange={handleInputChange}
+              ></c-f003-gs-v0000-number>
+            </lightning-layout-item>
+            <lightning-layout-item size="4" padding="around-small">
+              <c-f003-gs-v0000-number
+                num-value={stockQuantity}
+                num-label="簿価（円）"
+                disabled="false"
+                step="0.01"
+                onerror={numberErrorHandler}
+                onchange={handleInputChange}
+              ></c-f003-gs-v0000-number>
+            </lightning-layout-item>
+            <lightning-layout-item size="4" padding="around-small">
+              <c-f003-gs-v0000-number
+                num-value={acquisitionPrice}
+                num-label="取得価格（円）"
+                disabled="false"
+                step="0.01"
+                onerror={numberErrorHandler}
+                onchange={handleInputChange}
+              ></c-f003-gs-v0000-number>
+            </lightning-layout-item>
+            <lightning-layout-item size="4" padding="around-small">
+              <c-f003-gs-v0000-number
+                num-value={stockPrice}
+                num-label="時価（円）"
+                disabled="false"
+                step="0.01"
+                onerror={numberErrorHandler}
+                onchange={handleInputChange}
+              ></c-f003-gs-v0000-number>
+            </lightning-layout-item>
+            <lightning-layout-item size="4" padding="around-small">
+              <c-f003-gs-v0000-number
+                num-value={acquisitionDate}
+                num-label="取引先保有株数（株）"
+                disabled="false"
+                step="0.01"
+                onerror={numberErrorHandler}
+                onchange={handleInputChange}
+              ></c-f003-gs-v0000-number>
+            </lightning-layout-item>
+            <lightning-layout-item size="4" padding="around-small">
+              <c-f003-gs-v0000-number
+                num-value={currentPrice}
+                num-label="取引先保有時価（円）"
+                disabled="false"
+                step="0.01"
+                onerror={numberErrorHandler}
+                onchange={handleInputChange}
+              ></c-f003-gs-v0000-number>
+            </lightning-layout-item>
+            <lightning-layout-item size="4" padding="around-small">
+              <c-f003-gs-v0000-number
+                num-value={valuationProfitLoss}
+                num-label="採算（％）"
+                disabled="false"
+                step="0.01"
+                onerror={numberErrorHandler}
+                onchange={handleInputChange}
+              ></c-f003-gs-v0000-number>
+            </lightning-layout-item>
+          </lightning-layout>
+        </lightning-accordion-section>
+      </lightning-layout-item>
     </lightning-layout>
+    <lightning-accordion-section
+      name="l"
+      label="メモ"
+      icon-name="standard:choice"
+    >
+      <lightning-layout>
+        <lightning-layout-item size="12" padding="around-small">
+          <lightning-textarea
+            label="メモ"
+            value={memo}
+            style="--sds-c-textarea-sizing-min-height: 5rem"
+          ></lightning-textarea>
+        </lightning-layout-item>
+      </lightning-layout>
+    </lightning-accordion-section>
   </lightning-accordion>
 </template>
