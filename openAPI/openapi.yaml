@@ -1,49 +1,320 @@
 openapi: 3.1.0
 info:
-  title: Todo API
+  title: Riritu Keisu API
   version: 0.1.0
+  description: 利率・係数情報管理API
 servers:
   - url: http://localhost:8080
 paths:
-  /todos:
+  /api/credit-data:
     get:
-      summary: 一覧取得
+      summary: 与信データ一覧取得
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TodoList'
-  /users:
-    get:
-      summary: ユーザー一覧取得
+                $ref: '#/components/schemas/CreditDataList'
+    post:
+      summary: 与信データ作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditDataInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditData'
+    put:
+      summary: 与信データ一括更新
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditDataList'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserList'
+                $ref: '#/components/schemas/CreditDataList'
+  
+  /api/credit-data/{id}:
+    get:
+      summary: 与信データ取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditData'
+    put:
+      summary: 与信データ更新
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditDataInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditData'
+    delete:
+      summary: 与信データ削除
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+
+  /api/collateral-data:
+    get:
+      summary: 担保データ一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollateralDataList'
+    post:
+      summary: 担保データ作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollateralDataInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollateralData'
+    put:
+      summary: 担保データ一括更新
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollateralDataList'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollateralDataList'
+
+  /api/collateral-data/{id}:
+    get:
+      summary: 担保データ取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollateralData'
+    put:
+      summary: 担保データ更新
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollateralDataInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollateralData'
+    delete:
+      summary: 担保データ削除
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
 
 components:
   schemas:
-    Todo:
+    CreditData:
       type: object
       properties:
-        id: { type: integer, example: 1 }
-        text: { type: string, example: '牛乳を買う' }
-        done: { type: boolean, example: false }
-    TodoList:
+        id: 
+          type: string
+          example: "root1"
+        label:
+          type: string
+          example: "限度算入与信合計"
+        dueDate:
+          type: string
+          example: "03/01"
+        rate:
+          type: string
+          example: "1.3"
+        balance99:
+          type: number
+          example: 1000000
+        principal:
+          type: number
+          example: 5000000
+        change:
+          type: number
+          example: 100000
+        postBalance:
+          type: number
+          example: 1100000
+        actualBalance:
+          type: number
+          example: 1050000
+        correction:
+          type: number
+          example: 50000
+        parentId:
+          type: string
+          nullable: true
+          example: null
+        editableFields:
+          type: object
+          properties:
+            label: { type: boolean }
+            dueDate: { type: boolean }
+            rate: { type: boolean }
+            balance99: { type: boolean }
+            principal: { type: boolean }
+            change: { type: boolean }
+            postBalance: { type: boolean }
+            actualBalance: { type: boolean }
+            correction: { type: boolean }
+    
+    CreditDataInput:
+      type: object
+      required:
+        - label
+      properties:
+        label:
+          type: string
+        dueDate:
+          type: string
+        rate:
+          type: string
+        balance99:
+          type: number
+        principal:
+          type: number
+        change:
+          type: number
+        postBalance:
+          type: number
+        actualBalance:
+          type: number
+        correction:
+          type: number
+        parentId:
+          type: string
+          nullable: true
+        editableFields:
+          type: object
+    
+    CreditDataList:
       type: array
       items:
-        $ref: '#/components/schemas/Todo'
-    User:
+        $ref: '#/components/schemas/CreditData'
+    
+    CollateralData:
       type: object
       properties:
-        id: { type: integer, example: 1 }
-        name: { type: string, example: 'John Doe' }
-    UserList:
+        id:
+          type: string
+          example: "collGeneral"
+        collateralType:
+          type: string
+          example: "規定担保合計"
+        regValue:
+          type: number
+          example: 8000000
+        marketValue:
+          type: number
+          example: 9600000
+        parentId:
+          type: string
+          nullable: true
+          example: null
+        editableFields:
+          type: object
+          properties:
+            regValue: { type: boolean }
+            marketValue: { type: boolean }
+    
+    CollateralDataInput:
+      type: object
+      required:
+        - collateralType
+      properties:
+        collateralType:
+          type: string
+        regValue:
+          type: number
+        marketValue:
+          type: number
+        parentId:
+          type: string
+          nullable: true
+        editableFields:
+          type: object
+    
+    CollateralDataList:
       type: array
       items:
-        $ref: '#/components/schemas/User'
+        $ref: '#/components/schemas/CollateralData'

@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb # まずメモリ DB
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+mybatis:
+  type-aliases-package: org.openapitools.model

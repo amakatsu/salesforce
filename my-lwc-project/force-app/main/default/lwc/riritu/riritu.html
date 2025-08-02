@@ -1,4 +1,40 @@
 <template>
+  <!-- トーストメッセージ -->
+  <template if:true={showToast}>
+    <div class={toastClass} role="alert">
+      <span class="slds-assistive-text">{toastVariant}</span>
+      <span class="slds-icon_container slds-icon-utility-success slds-m-right_x-small slds-no-flex slds-align-top" if:true={isSuccessToast}>
+        <lightning-icon icon-name="utility:success" alternative-text="成功" title="成功" size="small"></lightning-icon>
+      </span>
+      <span class="slds-icon_container slds-icon-utility-warning slds-m-right_x-small slds-no-flex slds-align-top" if:true={isWarningToast}>
+        <lightning-icon icon-name="utility:warning" alternative-text="警告" title="警告" size="small"></lightning-icon>
+      </span>
+      <span class="slds-icon_container slds-icon-utility-error slds-m-right_x-small slds-no-flex slds-align-top" if:true={isErrorToast}>
+        <lightning-icon icon-name="utility:error" alternative-text="エラー" title="エラー" size="small"></lightning-icon>
+      </span>
+      <div class="slds-notify__content">
+        <h2 class="slds-text-heading_small">{toastMessage}</h2>
+      </div>
+      <div class="slds-notify__close">
+        <lightning-button-icon icon-name="utility:close" alternative-text="閉じる" title="通知を閉じる" onclick={handleCloseToast}></lightning-button-icon>
+      </div>
+    </div>
+  </template>
+
+  <!-- 操作ボタンエリア -->
+  <div class="slds-grid slds-gutters slds-wrap slds-var-m-bottom_medium">
+    <div class="slds-col slds-size_12-of-12">
+      <lightning-button-group>
+        <lightning-button label={labels.button.SAVE} variant="brand" onclick={handleSave}></lightning-button>
+        <lightning-button label={labels.button.RESET} variant="neutral" onclick={handleReset}></lightning-button>
+        <lightning-button label={labels.button.REFRESH} variant="neutral" onclick={handleRefreshData}></lightning-button>
+        <lightning-button label={labels.button.ADD_ROW} variant="success" onclick={handleAddCreditRow} title="与信行を追加"></lightning-button>
+        <lightning-button label="担保行追加" variant="success" onclick={handleAddCollateralRow} title="担保行を追加"></lightning-button>
+        <lightning-button label={labels.button.DELETE_ROW} variant="destructive" onclick={handleDeleteSelectedRows}></lightning-button>
+      </lightning-button-group>
+    </div>
+  </div>
+
   <lightning-accordion
     allow-multiple-sections-open
     active-section-name={activeSections}
@@ -18,6 +54,12 @@
                 <table roles="grid" class="slds-table table-sticky__title">
                   <thead>
                     <tr class="slds-line-height_reset">
+                      <th
+                        class="column-xs table-sticky__title table-sticky3__title01"
+                        scope="col"
+                      >
+                        <lightning-input type="checkbox" label="全選択" variant="label-hidden" onchange={handleSelectAllCredit}></lightning-input>
+                      </th>
                       <th
                         class="column-xs table-sticky__title table-sticky3__title01"
                         scope="col"
@@ -140,6 +182,17 @@
                         key={row.id}
                         class="slds-hint-parent slds-line-height_reset"
                       >
+                        <!-- 行選択チェックボックス -->
+                        <th scope="col">
+                          <lightning-input 
+                            type="checkbox" 
+                            label="選択" 
+                            variant="label-hidden" 
+                            data-id={row.id}
+                            data-type="credit"
+                            onchange={handleRowSelection}
+                          ></lightning-input>
+                        </th>
                         <!-- 展開トグル -->
                         <th scope="col">
                           <lightning-button-icon
@@ -314,6 +367,12 @@
                       <th
                         class="column-xs table-sticky__title table-sticky3__title01"
                         scope="col"
+                      >
+                        <lightning-input type="checkbox" label="全選択" variant="label-hidden" onchange={handleSelectAllCollateral}></lightning-input>
+                      </th>
+                      <th
+                        class="column-xs table-sticky__title table-sticky3__title01"
+                        scope="col"
                       ></th>
                       <th
                         class="table-sticky__title table-sticky3__title02"
@@ -356,6 +415,17 @@
                         key={row.id}
                         class="slds-hint-parent slds-line-height_reset"
                       >
+                        <!-- 行選択チェックボックス -->
+                        <th scope="col">
+                          <lightning-input 
+                            type="checkbox" 
+                            label="選択" 
+                            variant="label-hidden" 
+                            data-id={row.id}
+                            data-type="collateral"
+                            onchange={handleRowSelection}
+                          ></lightning-input>
+                        </th>
                         <!-- 展開トグル -->
                         <th scope="col">
                           <lightning-button-icon

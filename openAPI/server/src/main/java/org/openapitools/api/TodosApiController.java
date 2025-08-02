@@ -33,7 +33,7 @@ import jakarta.annotation.Generated;
  * このクラスは、Todoアイテムに関連するHTTPリクエストを処理します。
  * OpenAPI定義に基づいて自動生成されています。
  */
-public class TodosApiController implements TodosApi {
+public class TodosApiController {
 
     private final NativeWebRequest request;
 
@@ -55,7 +55,6 @@ public class TodosApiController implements TodosApi {
      * 
      * @return 現在のNativeWebRequestを含むOptional
      */
-    @Override
     public Optional<NativeWebRequest> getRequest() {
         return Optional.ofNullable(request);
     }

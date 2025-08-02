@@ -226,3 +226,81 @@ tr:nth-last-child(2) td {
 .column-45px {
   width: 2.8125rem; /* 45px相当 */
 }
+
+/* =========================================
+ * トーストメッセージのスタイル
+ * ========================================= */
+.slds-notify_toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  min-width: 300px;
+  max-width: 500px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.3s ease-out;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slds-notify_toast-success {
+  background-color: #04844b;
+  color: white;
+}
+
+.slds-notify_toast-warning {
+  background-color: #fe9339;
+  color: white;
+}
+
+.slds-notify_toast-error {
+  background-color: #c23934;
+  color: white;
+}
+
+.slds-notify__content {
+  flex: 1;
+}
+
+.slds-notify__close {
+  margin-left: 1rem;
+}
+
+/* =========================================
+ * ボタングループのスタイル
+ * ========================================= */
+.slds-button-group .slds-button {
+  margin-right: 0.5rem;
+}
+
+.slds-button-group .slds-button:last-child {
+  margin-right: 0;
+}
+
+/* =========================================
+ * 選択機能のスタイル
+ * ========================================= */
+.checkbox-column {
+  width: 3rem;
+  text-align: center;
+}
+
+/* チェックボックス列のヘッダー */
+.checkbox-header {
+  background-color: #f3f3f3;
+  border: 1px solid #d8dde6;
+  padding: 0.5rem;
+}

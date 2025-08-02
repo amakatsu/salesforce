@@ -3,6 +3,7 @@
 # For useful gitignore templates see: https://github.com/github/gitignore
 
 # Salesforce cache
+.openapi/server
 .sf/
 .sfdx/
 .localdevserver/
@@ -47,3 +48,6 @@ sfca_results.json
 # Local environment variables/config
 .env
 .config
+
+# Maven build output
+openAPI/server/target/

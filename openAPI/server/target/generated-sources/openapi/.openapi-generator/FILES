@@ -1,5 +1,10 @@
 README.md
 pom.xml
+src/main/java/org/openapitools/api/ApiApi.java
 src/main/java/org/openapitools/api/ApiUtil.java
-src/main/java/org/openapitools/api/TodosApi.java
-src/main/java/org/openapitools/api/UsersApi.java
+src/main/java/org/openapitools/model/CollateralData.java
+src/main/java/org/openapitools/model/CollateralDataEditableFields.java
+src/main/java/org/openapitools/model/CollateralDataInput.java
+src/main/java/org/openapitools/model/CreditData.java
+src/main/java/org/openapitools/model/CreditDataEditableFields.java
+src/main/java/org/openapitools/model/CreditDataInput.java

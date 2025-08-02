@@ -1,5 +1,6 @@
 import { LightningElement, track } from "lwc";
 import { stateService } from "./state";
+import { apiService } from "./apiService";
 
 // ラベル定義（共通化）
 const TABLE_HEADERS = {
@@ -33,12 +34,19 @@ const ACCORDION_LABELS = {
 
 const BUTTON_LABELS = {
   SAVE: "保存",
-  RESET: "リセット"
+  RESET: "リセット",
+  ADD_ROW: "新規行追加",
+  DELETE_ROW: "行削除",
+  REFRESH: "データ再取得"
 };
 
 const MESSAGE_LABELS = {
   SAVE_SUCCESS: "保存が完了しました",
   RESET_SUCCESS: "リセットが完了しました",
+  ADD_ROW_SUCCESS: "新規行が追加されました",
+  DELETE_ROW_SUCCESS: "行が削除されました",
+  REFRESH_SUCCESS: "データが再取得されました",
+  DELETE_CONFIRM: "選択した行を削除しますか？",
   NAKED_CREDIT_INFO:
     "裸与信は信用限度不参集与信を考慮した権限判定上の裸与信を表示"
 };
@@ -97,6 +105,11 @@ export default class RirituComponent extends LightningElement {
     { id: "guarantor_4", name: "保証人4" },
     { id: "guarantor_5", name: "保証人5" }
   ];
+  @track selectedCreditRows = new Set();
+  @track selectedCollateralRows = new Set();
+  @track showToast = false;
+  @track toastMessage = "";
+  @track toastVariant = "success";
 
   highlightOn = false;
   activeSections = [
@@ -150,18 +163,52 @@ export default class RirituComponent extends LightningElement {
     return JSON.stringify(Object.fromEntries(this.draft), null, 2);
   }
 
-  connectedCallback() {
-    this._initializeData();
+  // トースト関連のゲッター
+  get toastClass() {
+    const baseClass = "slds-notify slds-notify_toast slds-notify_toast-";
+    return `${baseClass}${this.toastVariant} slds-theme_${this.toastVariant}`;
+  }
+
+  get isSuccessToast() {
+    return this.toastVariant === "success";
+  }
+
+  get isWarningToast() {
+    return this.toastVariant === "warning";
+  }
+
+  get isErrorToast() {
+    return this.toastVariant === "error";
+  }
+
+  async connectedCallback() {
+    await this._initializeData();
   }
 
   /**
    * 保存処理 - HTMLから呼び出し
    * @public
    */
-  handleSave() {
-    stateService.getState().draft.clear();
-    this.highlightOn = true;
-    this._refreshData();
+  async handleSave() {
+    try {
+      const { draft } = stateService.getState();
+      
+      if (draft.size === 0) {
+        this._showToast("保存する変更がありません", "warning");
+        return;
+      }
+
+      // API保存処理
+      await this._saveDataToAPI();
+      
+      stateService.getState().draft.clear();
+      this.highlightOn = true;
+      this._refreshData();
+      this._showToast(MESSAGE_LABELS.SAVE_SUCCESS, "success");
+    } catch (error) {
+      console.error('保存エラー:', error);
+      this._showToast("保存に失敗しました: " + error.message, "error");
+    }
   }
 
   /**
@@ -172,6 +219,7 @@ export default class RirituComponent extends LightningElement {
     stateService.resetState();
     this.highlightOn = false;
     this._refreshData();
+    this._showToast(MESSAGE_LABELS.RESET_SUCCESS, "success");
   }
 
   /**
@@ -206,6 +254,188 @@ export default class RirituComponent extends LightningElement {
     this._refreshData();
   }
 
+  /**
+   * 新規行追加処理 - HTMLから呼び出し
+   * @public
+   */
+  handleAddCreditRow() {
+    const newId = `new_credit_${Date.now()}`;
+    const newRow = {
+      id: newId,
+      label: "",
+      dueDate: "",
+      rate: "",
+      balance99: "",
+      principal: "",
+      change: "",
+      postBalance: "",
+      actualBalance: "",
+      correction: "",
+      children: [],
+      editableFields: {
+        label: true,
+        dueDate: true,
+        rate: true,
+        balance99: true,
+        principal: true,
+        change: true,
+        postBalance: true,
+        actualBalance: true,
+        correction: true
+      }
+    };
+
+    const { creditSource } = stateService.getState();
+    creditSource.push(newRow);
+    this._refreshData();
+    this._showToast(MESSAGE_LABELS.ADD_ROW_SUCCESS, "success");
+  }
+
+  /**
+   * 新規担保行追加処理 - HTMLから呼び出し
+   * @public
+   */
+  handleAddCollateralRow() {
+    const newId = `new_collateral_${Date.now()}`;
+    const newRow = {
+      id: newId,
+      collateralType: "",
+      regValue: "",
+      marketValue: "",
+      children: [],
+      editableFields: {
+        regValue: true,
+        marketValue: true
+      }
+    };
+
+    const { collateralSource } = stateService.getState();
+    collateralSource.push(newRow);
+    this._refreshData();
+    this._showToast(MESSAGE_LABELS.ADD_ROW_SUCCESS, "success");
+  }
+
+  /**
+   * 行選択処理 - HTMLから呼び出し
+   * @param {Event} event - チェックボックスイベント
+   * @public
+   */
+  handleRowSelection(event) {
+    const rowId = event.target.dataset.id;
+    const isCredit = event.target.dataset.type === "credit";
+    const isChecked = event.target.checked;
+
+    if (isCredit) {
+      if (isChecked) {
+        this.selectedCreditRows.add(rowId);
+      } else {
+        this.selectedCreditRows.delete(rowId);
+      }
+    } else {
+      if (isChecked) {
+        this.selectedCollateralRows.add(rowId);
+      } else {
+        this.selectedCollateralRows.delete(rowId);
+      }
+    }
+  }
+
+  /**
+   * 選択行削除処理 - HTMLから呼び出し
+   * @public
+   */
+  handleDeleteSelectedRows() {
+    if (this.selectedCreditRows.size === 0 && this.selectedCollateralRows.size === 0) {
+      this._showToast("削除する行を選択してください", "warning");
+      return;
+    }
+
+    if (confirm(MESSAGE_LABELS.DELETE_CONFIRM)) {
+      const { creditSource, collateralSource } = stateService.getState();
+      
+      // 与信行削除
+      if (this.selectedCreditRows.size > 0) {
+        this._deleteRowsFromTree(creditSource, this.selectedCreditRows);
+        this.selectedCreditRows.clear();
+      }
+
+      // 担保行削除
+      if (this.selectedCollateralRows.size > 0) {
+        this._deleteRowsFromTree(collateralSource, this.selectedCollateralRows);
+        this.selectedCollateralRows.clear();
+      }
+
+      this._refreshData();
+      this._showToast(MESSAGE_LABELS.DELETE_ROW_SUCCESS, "success");
+    }
+  }
+
+  /**
+   * データ再取得処理 - HTMLから呼び出し
+   * @public
+   */
+  async handleRefreshData() {
+    try {
+      stateService.resetState();
+      this.highlightOn = false;
+      this.selectedCreditRows.clear();
+      this.selectedCollateralRows.clear();
+      await this._initializeData();
+      this._showToast(MESSAGE_LABELS.REFRESH_SUCCESS, "success");
+    } catch (error) {
+      console.error('データ再取得エラー:', error);
+      this._showToast("データ再取得に失敗しました: " + error.message, "error");
+    }
+  }
+
+  /**
+   * 与信行全選択/全解除 - HTMLから呼び出し
+   * @param {Event} event - チェックボックスイベント
+   * @public
+   */
+  handleSelectAllCredit(event) {
+    const isChecked = event.target.checked;
+    const checkboxes = this.template.querySelectorAll('lightning-input[data-type="credit"]');
+    
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = isChecked;
+      const rowId = checkbox.dataset.id;
+      if (isChecked) {
+        this.selectedCreditRows.add(rowId);
+      } else {
+        this.selectedCreditRows.delete(rowId);
+      }
+    });
+  }
+
+  /**
+   * 担保行全選択/全解除 - HTMLから呼び出し
+   * @param {Event} event - チェックボックスイベント
+   * @public
+   */
+  handleSelectAllCollateral(event) {
+    const isChecked = event.target.checked;
+    const checkboxes = this.template.querySelectorAll('lightning-input[data-type="collateral"]');
+    
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = isChecked;
+      const rowId = checkbox.dataset.id;
+      if (isChecked) {
+        this.selectedCollateralRows.add(rowId);
+      } else {
+        this.selectedCollateralRows.delete(rowId);
+      }
+    });
+  }
+
+  /**
+   * トースト閉じる処理 - HTMLから呼び出し
+   * @public
+   */
+  handleCloseToast() {
+    this.showToast = false;
+  }
+
   /* =========================================
    * PRIVATE METHODS - 内部処理専用
    * ======================================== */
@@ -214,11 +444,33 @@ export default class RirituComponent extends LightningElement {
    * データ初期化
    * @private
    */
-  _initializeData() {
-    stateService.initializeState();
-    const { creditSource, collateralSource } = stateService.getState();
-    this.creditRows = this._flattenTree(creditSource, false);
-    this.collateralRows = this._flattenTree(collateralSource, false);
+  async _initializeData() {
+    try {
+      // APIからデータを取得
+      const [creditData, collateralData] = await Promise.all([
+        this._loadCreditDataFromAPI(),
+        this._loadCollateralDataFromAPI()
+      ]);
+      
+      // ステートサービスに設定
+      if (creditData || collateralData) {
+        stateService.initializeWithData(creditData, collateralData);
+      } else {
+        stateService.initializeState();
+      }
+      
+      const { creditSource, collateralSource } = stateService.getState();
+      this.creditRows = this._flattenTree(creditSource, false);
+      this.collateralRows = this._flattenTree(collateralSource, false);
+    } catch (error) {
+      console.error('データ初期化エラー:', error);
+      // エラー時はローカルデータで初期化
+      stateService.initializeState();
+      const { creditSource, collateralSource } = stateService.getState();
+      this.creditRows = this._flattenTree(creditSource, false);
+      this.collateralRows = this._flattenTree(collateralSource, false);
+      this._showToast("データの読み込みに失敗しました。ローカルデータを使用します。", "warning");
+    }
   }
 
   /**
@@ -451,5 +703,153 @@ export default class RirituComponent extends LightningElement {
       }
     }
     return null;
+  }
+
+  /**
+   * トースト表示
+   * @param {string} message - 表示メッセージ
+   * @param {string} variant - バリアント (success, error, warning, info)
+   * @private
+   */
+  _showToast(message, variant = "success") {
+    this.toastMessage = message;
+    this.toastVariant = variant;
+    this.showToast = true;
+    
+    // 3秒後に自動で非表示
+    setTimeout(() => {
+      this.showToast = false;
+    }, 3000);
+  }
+
+  /**
+   * ツリーから行を削除
+   * @param {Array} tree - ツリーデータ
+   * @param {Set} idsToDelete - 削除するIDのセット
+   * @private
+   */
+  _deleteRowsFromTree(tree, idsToDelete) {
+    for (let i = tree.length - 1; i >= 0; i--) {
+      const node = tree[i];
+      if (idsToDelete.has(node.id)) {
+        tree.splice(i, 1);
+      } else if (node.children && node.children.length > 0) {
+        this._deleteRowsFromTree(node.children, idsToDelete);
+      }
+    }
+  }
+
+  /* =========================================
+   * API連携メソッド - 外部APIとの通信
+   * ======================================== */
+
+  /**
+   * 与信データをAPIから読み込み
+   * @returns {Array|null} 与信データまたはnull
+   * @private
+   */
+  async _loadCreditDataFromAPI() {
+    try {
+      const response = await apiService.getCreditData();
+      return response.success ? response.data : response;
+    } catch (error) {
+      console.error('与信データの読み込み失敗:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 担保データをAPIから読み込み
+   * @returns {Array|null} 担保データまたはnull
+   * @private
+   */
+  async _loadCollateralDataFromAPI() {
+    try {
+      const response = await apiService.getCollateralData();
+      return response.success ? response.data : response;
+    } catch (error) {
+      console.error('担保データの読み込み失敗:', error);
+      return null;
+    }
+  }
+
+  /**
+   * データをAPIに保存
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _saveDataToAPI() {
+    const { draft, creditSource, collateralSource } = stateService.getState();
+    const creditUpdates = [];
+    const collateralUpdates = [];
+
+    // 下書きデータから更新対象を抽出
+    for (const [nodeId, changes] of draft) {
+      const creditNode = this._findNodeInTree(creditSource, nodeId);
+      const collateralNode = this._findNodeInTree(collateralSource, nodeId);
+
+      if (creditNode) {
+        creditUpdates.push({ id: nodeId, ...creditNode, ...changes });
+      } else if (collateralNode) {
+        collateralUpdates.push({ id: nodeId, ...collateralNode, ...changes });
+      }
+    }
+
+    // API保存実行
+    const savePromises = [];
+
+    if (creditUpdates.length > 0) {
+      savePromises.push(apiService.updateAllCreditData(creditUpdates));
+    }
+
+    if (collateralUpdates.length > 0) {
+      savePromises.push(apiService.updateAllCollateralData(collateralUpdates));
+    }
+
+    await Promise.all(savePromises);
+  }
+
+  /**
+   * APIヘルスチェック
+   * @returns {Promise<boolean>} API利用可能状態
+   * @private
+   */
+  async _checkAPIHealth() {
+    try {
+      return await apiService.healthCheck();
+    } catch (error) {
+      console.error('APIヘルスチェック失敗:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 認証処理
+   * @param {Object} credentials - 認証情報
+   * @returns {Promise<Object>} 認証結果
+   * @private
+   */
+  async _authenticateUser(credentials) {
+    try {
+      return await apiService.authenticate(credentials);
+    } catch (error) {
+      console.error('認証失敗:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * バッチ更新処理
+   * @param {Object} batchData - バッチデータ
+   * @returns {Promise<Object>} 更新結果
+   * @private
+   */
+  async _performBatchUpdate(batchData) {
+    try {
+      return await apiService.batchUpdate(batchData);
+    } catch (error) {
+      console.error('バッチ更新失敗:', error);
+      throw error;
+    }
   }
 }

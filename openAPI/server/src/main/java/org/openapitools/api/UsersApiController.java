@@ -18,7 +18,7 @@ import java.util.Optional;
  */
 @Controller
 @RequestMapping("${openapi.todo.base-path:}")
-public class UsersApiController implements UsersApi {
+public class UsersApiController {
 
     private final NativeWebRequest request;
 
@@ -30,12 +30,10 @@ public class UsersApiController implements UsersApi {
         this.userService = userService;
     }
 
-    @Override
     public Optional<NativeWebRequest> getRequest() {
         return Optional.ofNullable(request);
     }
 
-    @Override
     public ResponseEntity<List<User>> usersGet() {
         return ResponseEntity.ok(userService.findAllUsers());
     }
