@@ -1,0 +1,269 @@
+<template>
+    <lightning-card title="マッチング相手を探す" icon-name="standard:user">
+        
+        <!-- 検索・フィルター -->
+        <div slot="actions">
+            <lightning-button-group>
+                <lightning-button 
+                    label="検索" 
+                    onclick={handleSearch}
+                    variant="brand">
+                </lightning-button>
+                <lightning-button 
+                    label="フィルター" 
+                    onclick={toggleFilters}
+                    variant="neutral">
+                </lightning-button>
+                <lightning-button 
+                    label="更新" 
+                    onclick={handleRefresh}
+                    variant="neutral">
+                </lightning-button>
+            </lightning-button-group>
+        </div>
+
+        <div class="slds-p-horizontal_medium">
+            
+            <!-- フィルターパネル -->
+            <template if:true={showFilters}>
+                <div class="filter-panel slds-box slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">検索条件</h3>
+                    
+                    <div class="slds-grid slds-gutters slds-wrap">
+                        <!-- 年齢範囲 -->
+                        <div class="slds-col slds-size_1-of-4">
+                            <lightning-input 
+                                label="最小年齢" 
+                                type="number" 
+                                value={searchCriteria.minAge}
+                                name="minAge"
+                                onchange={handleFilterChange}
+                                min="18" 
+                                max="100">
+                            </lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4">
+                            <lightning-input 
+                                label="最大年齢" 
+                                type="number" 
+                                value={searchCriteria.maxAge}
+                                name="maxAge"
+                                onchange={handleFilterChange}
+                                min="18" 
+                                max="100">
+                            </lightning-input>
+                        </div>
+                        
+                        <!-- 性別 -->
+                        <div class="slds-col slds-size_1-of-4">
+                            <lightning-combobox
+                                label="性別"
+                                name="gender"
+                                value={searchCriteria.gender}
+                                placeholder="すべて"
+                                options={genderOptions}
+                                onchange={handleFilterChange}>
+                            </lightning-combobox>
+                        </div>
+                        
+                        <!-- 居住地 -->
+                        <div class="slds-col slds-size_1-of-4">
+                            <lightning-input 
+                                label="居住地" 
+                                type="text" 
+                                value={searchCriteria.location}
+                                name="location"
+                                onchange={handleFilterChange}
+                                placeholder="例：東京">
+                            </lightning-input>
+                        </div>
+                    </div>
+                    
+                    <!-- 趣味フィルター -->
+                    <div class="slds-m-top_small">
+                        <label class="slds-form-element__label">共通の趣味</label>
+                        <div class="interests-filter slds-grid slds-gutters_xx-small slds-wrap">
+                            <template for:each={interestOptions} for:item="interest">
+                                <div key={interest.value} class="slds-col">
+                                    <lightning-input 
+                                        type="checkbox" 
+                                        label={interest.label} 
+                                        name="interests" 
+                                        value={interest.value}
+                                        checked={interest.checked}
+                                        onchange={handleInterestFilterChange}>
+                                    </lightning-input>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ローディング表示 -->
+            <template if:true={isLoading}>
+                <div class="loading-container slds-align_absolute-center slds-p-vertical_large">
+                    <lightning-spinner alternative-text="読み込み中..." size="medium"></lightning-spinner>
+                    <p class="slds-text-body_regular slds-m-top_small">プロフィールを読み込み中...</p>
+                </div>
+            </template>
+
+            <!-- エラー表示 -->
+            <template if:true={hasError}>
+                <div class="error-container slds-align_absolute-center slds-p-vertical_large">
+                    <lightning-icon icon-name="utility:error" size="large" variant="error"></lightning-icon>
+                    <h3 class="slds-text-heading_small slds-m-top_small">データの読み込みに失敗しました</h3>
+                    <p class="slds-text-body_regular slds-text-color_weak">{errorMessage}</p>
+                    <lightning-button 
+                        label="再試行" 
+                        onclick={handleRefresh}
+                        variant="brand"
+                        class="slds-m-top_small">
+                    </lightning-button>
+                </div>
+            </template>
+
+            <!-- プロフィール一覧 -->
+            <template if:false={isLoading}>
+                <template if:false={hasError}>
+                    <template if:true={hasProfiles}>
+                        
+                        <!-- 表示モード切り替え -->
+                        <div class="view-controls slds-grid slds-grid_align-spread slds-m-bottom_medium">
+                            <div class="results-count">
+                                <span class="slds-text-body_small slds-text-color_weak">
+                                    {profilesCount}件のプロフィールが見つかりました
+                                </span>
+                            </div>
+                            <div class="view-toggle">
+                                <lightning-button-group>
+                                    <lightning-button 
+                                        label="カード表示" 
+                                        onclick={setCardView}
+                                        variant={cardViewVariant}>
+                                    </lightning-button>
+                                    <lightning-button 
+                                        label="リスト表示" 
+                                        onclick={setListView}
+                                        variant={listViewVariant}>
+                                    </lightning-button>
+                                </lightning-button-group>
+                            </div>
+                        </div>
+
+                        <!-- カード表示 -->
+                        <template if:true={isCardView}>
+                            <div class="profiles-grid">
+                                <template for:each={filteredProfiles} for:item="profile">
+                                    <div key={profile.id} class="profile-card-container">
+                                        <c-user-profile-card 
+                                            profile-data={profile}
+                                            show-matching-actions={showMatchingActions}
+                                            is-own-profile={profile.isOwn}
+                                            current-user-id={currentUserId}
+                                            onlike={handleProfileLike}
+                                            onpass={handleProfilePass}
+                                            onsuperlike={handleProfileSuperLike}
+                                            onedit={handleProfileEdit}
+                                            onmessage={handleProfileMessage}
+                                            onprofileclick={handleProfileClick}>
+                                        </c-user-profile-card>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- リスト表示 -->
+                        <template if:true={isListView}>
+                            <div class="profiles-list">
+                                <template for:each={filteredProfiles} for:item="profile">
+                                    <div key={profile.id} class="profile-list-item slds-box slds-m-bottom_small">
+                                        <div class="slds-grid slds-gutters slds-grid_vertical-align-center">
+                                            <!-- プロフィール写真 -->
+                                            <div class="slds-col slds-no-flex">
+                                                <div class="list-photo">
+                                                    <template if:true={profile.photos}>
+                                                        <template if:true={profile.photos.length}>
+                                                            <img src={profile.firstPhoto} alt={profile.name} class="list-photo__image">
+                                                        </template>
+                                                        <template if:false={profile.photos.length}>
+                                                            <lightning-icon icon-name="standard:avatar" size="medium"></lightning-icon>
+                                                        </template>
+                                                    </template>
+                                                    <template if:false={profile.photos}>
+                                                        <lightning-icon icon-name="standard:avatar" size="medium"></lightning-icon>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- プロフィール情報 -->
+                                            <div class="slds-col slds-has-flexi-truncate">
+                                                <div class="slds-grid slds-wrap">
+                                                    <div class="slds-col slds-size_1-of-1">
+                                                        <h3 class="slds-text-heading_small slds-truncate">
+                                                            {profile.name}, {profile.age}
+                                                        </h3>
+                                                    </div>
+                                                    <div class="slds-col slds-size_1-of-2">
+                                                        <p class="slds-text-body_small slds-text-color_weak">
+                                                            <lightning-icon icon-name="utility:location" size="xx-small"></lightning-icon>
+                                                            {profile.location}
+                                                        </p>
+                                                    </div>
+                                                    <div class="slds-col slds-size_1-of-2">
+                                                        <p class="slds-text-body_small slds-text-color_weak">
+                                                            <lightning-icon icon-name="utility:work" size="xx-small"></lightning-icon>
+                                                            {profile.occupation}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- アクションボタン -->
+                                            <div class="slds-col slds-no-flex">
+                                                <lightning-button-group>
+                                                    <lightning-button 
+                                                        label="詳細" 
+                                                        onclick={handleProfileClick}
+                                                        data-profile-id={profile.id}
+                                                        variant="neutral"
+                                                        size="small">
+                                                    </lightning-button>
+                                                    <template if:true={showMatchingActions}>
+                                                        <lightning-button 
+                                                            label="いいね" 
+                                                            onclick={handleProfileLike}
+                                                            data-profile-id={profile.id}
+                                                            variant="brand"
+                                                            size="small">
+                                                        </lightning-button>
+                                                    </template>
+                                                </lightning-button-group>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        
+                    </template>
+                    
+                    <!-- プロフィールが見つからない場合 -->
+                    <template if:false={hasProfiles}>
+                        <div class="no-results-container slds-align_absolute-center slds-p-vertical_large">
+                            <lightning-icon icon-name="utility:search" size="large"></lightning-icon>
+                            <h3 class="slds-text-heading_small slds-m-top_small">プロフィールが見つかりませんでした</h3>
+                            <p class="slds-text-body_regular slds-text-color_weak">検索条件を変更してみてください</p>
+                            <lightning-button 
+                                label="条件をリセット" 
+                                onclick={resetFilters}
+                                variant="neutral"
+                                class="slds-m-top_small">
+                            </lightning-button>
+                        </div>
+                    </template>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+</template>

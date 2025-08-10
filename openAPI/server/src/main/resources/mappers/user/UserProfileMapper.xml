@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.openapitools.mapper.UserProfileMapper">
+    
+    <!-- ResultMap for UserProfile -->
+    <resultMap id="UserProfileResultMap" type="org.openapitools.model.UserProfile">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="age" column="age" />
+        <result property="gender" column="gender" />
+        <result property="location" column="location" />
+        <result property="bio" column="bio" />
+        <result property="occupation" column="occupation" />
+        <result property="education" column="education" />
+        <result property="lookingFor" column="looking_for" />
+        <result property="ageRangeMin" column="age_range_min" />
+        <result property="ageRangeMax" column="age_range_max" />
+        <result property="maxDistance" column="max_distance" />
+        <result property="isActive" column="is_active" />
+        <result property="createdDate" column="created_date" />
+        <result property="lastActive" column="last_active" />
+        <collection property="interests" ofType="string" 
+                   select="selectInterestsByUserId" column="id" />
+        <collection property="photos" ofType="string" 
+                   select="selectPhotosByUserId" column="id" />
+    </resultMap>
+
+    <!-- Select all active user profiles -->
+    <select id="selectAllActiveUserProfiles" resultMap="UserProfileResultMap">
+        SELECT id, name, age, gender, location, bio, occupation, education, 
+               looking_for, age_range_min, age_range_max, max_distance, 
+               is_active, created_date, last_active
+        FROM user_profiles 
+        WHERE is_active = true
+        ORDER BY last_active DESC
+    </select>
+
+    <!-- Select user profile by ID -->
+    <select id="selectUserProfileById" parameterType="string" resultMap="UserProfileResultMap">
+        SELECT id, name, age, gender, location, bio, occupation, education, 
+               looking_for, age_range_min, age_range_max, max_distance, 
+               is_active, created_date, last_active
+        FROM user_profiles 
+        WHERE id = #{id} AND is_active = true
+    </select>
+
+    <!-- Select user profiles by search criteria -->
+    <select id="selectUserProfilesBySearch" resultMap="UserProfileResultMap">
+        SELECT DISTINCT p.id, p.name, p.age, p.gender, p.location, p.bio, p.occupation, p.education, 
+               p.looking_for, p.age_range_min, p.age_range_max, p.max_distance, 
+               p.is_active, p.created_date, p.last_active
+        FROM user_profiles p
+        <if test="interests != null and interests.size() > 0">
+            INNER JOIN user_interests i ON p.id = i.user_profile_id
+        </if>
+        WHERE p.is_active = true
+        <if test="minAge != null">
+            AND p.age &gt;= #{minAge}
+        </if>
+        <if test="maxAge != null">
+            AND p.age &lt;= #{maxAge}
+        </if>
+        <if test="gender != null and gender != ''">
+            AND p.gender = #{gender}
+        </if>
+        <if test="location != null and location != ''">
+            AND LOWER(p.location) LIKE LOWER(CONCAT('%', #{location}, '%'))
+        </if>
+        <if test="interests != null and interests.size() > 0">
+            AND i.interest IN
+            <foreach item="interest" collection="interests" open="(" separator="," close=")">
+                #{interest}
+            </foreach>
+        </if>
+        ORDER BY p.last_active DESC
+    </select>
+
+    <!-- Select interests by user ID -->
+    <select id="selectInterestsByUserId" parameterType="string" resultType="string">
+        SELECT interest 
+        FROM user_interests 
+        WHERE user_profile_id = #{userId}
+        ORDER BY id
+    </select>
+
+    <!-- Select photos by user ID -->
+    <select id="selectPhotosByUserId" parameterType="string" resultType="string">
+        SELECT photo_url 
+        FROM user_photos 
+        WHERE user_profile_id = #{userId}
+        ORDER BY display_order
+    </select>
+
+    <!-- Insert user profile -->
+    <insert id="insertUserProfile" parameterType="org.openapitools.model.UserProfile">
+        INSERT INTO user_profiles (
+            id, name, age, gender, location, bio, occupation, education,
+            looking_for, age_range_min, age_range_max, max_distance, 
+            is_active, created_date, last_active
+        ) VALUES (
+            #{id}, #{name}, #{age}, #{gender}, #{location}, #{bio}, #{occupation}, #{education},
+            #{lookingFor}, #{ageRangeMin}, #{ageRangeMax}, #{maxDistance}, 
+            #{isActive}, #{createdDate}, #{lastActive}
+        )
+    </insert>
+
+    <!-- Insert user interests -->
+    <insert id="insertUserInterests">
+        <if test="interests != null and interests.size() > 0">
+            INSERT INTO user_interests (user_profile_id, interest) VALUES
+            <foreach collection="interests" item="interest" separator=",">
+                (#{userId}, #{interest})
+            </foreach>
+        </if>
+    </insert>
+
+    <!-- Insert user photos -->
+    <insert id="insertUserPhotos">
+        <if test="photos != null and photos.size() > 0">
+            INSERT INTO user_photos (user_profile_id, photo_url, display_order) VALUES
+            <foreach collection="photos" item="photo" index="index" separator=",">
+                (#{userId}, #{photo}, #{index})
+            </foreach>
+        </if>
+    </insert>
+
+    <!-- Update user profile -->
+    <update id="updateUserProfile" parameterType="org.openapitools.model.UserProfile">
+        UPDATE user_profiles SET 
+            name = #{name},
+            age = #{age},
+            gender = #{gender},
+            location = #{location},
+            bio = #{bio},
+            occupation = #{occupation},
+            education = #{education},
+            looking_for = #{lookingFor},
+            age_range_min = #{ageRangeMin},
+            age_range_max = #{ageRangeMax},
+            max_distance = #{maxDistance},
+            last_active = #{lastActive}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Delete user interests -->
+    <delete id="deleteUserInterests" parameterType="string">
+        DELETE FROM user_interests WHERE user_profile_id = #{userId}
+    </delete>
+
+    <!-- Delete user photos -->
+    <delete id="deleteUserPhotos" parameterType="string">
+        DELETE FROM user_photos WHERE user_profile_id = #{userId}
+    </delete>
+
+    <!-- Soft delete user profile -->
+    <update id="deleteUserProfile" parameterType="string">
+        UPDATE user_profiles SET is_active = false WHERE id = #{id}
+    </update>
+
+</mapper>

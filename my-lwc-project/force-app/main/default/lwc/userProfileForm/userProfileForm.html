@@ -1,0 +1,175 @@
+<template>
+    <lightning-card title="プロフィール設定" icon-name="standard:user">
+        <div class="slds-p-horizontal_medium">
+            <lightning-record-edit-form object-api-name="Contact" onsubmit={handleSubmit}>
+                
+                <!-- 基本情報 -->
+                <div class="slds-grid slds-gutters slds-wrap">
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input 
+                            label="名前" 
+                            name="name" 
+                            value={formData.name} 
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input 
+                            label="年齢" 
+                            name="age" 
+                            type="number" 
+                            value={formData.age} 
+                            onchange={handleInputChange}
+                            min="18" max="100"
+                            required>
+                        </lightning-input>
+                    </div>
+                </div>
+
+                <div class="slds-grid slds-gutters slds-wrap">
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-combobox
+                            label="性別"
+                            name="gender"
+                            value={formData.gender}
+                            placeholder="選択してください"
+                            options={genderOptions}
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-combobox>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input 
+                            label="居住地" 
+                            name="location" 
+                            value={formData.location} 
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-input>
+                    </div>
+                </div>
+
+                <!-- 自己紹介 -->
+                <lightning-textarea
+                    label="自己紹介"
+                    name="bio"
+                    value={formData.bio}
+                    onchange={handleInputChange}
+                    max-length="500"
+                    placeholder="あなたの魅力や趣味について教えてください">
+                </lightning-textarea>
+
+                <!-- 職業・学歴 -->
+                <div class="slds-grid slds-gutters slds-wrap">
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input 
+                            label="職業" 
+                            name="occupation" 
+                            value={formData.occupation} 
+                            onchange={handleInputChange}>
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-combobox
+                            label="最終学歴"
+                            name="education"
+                            value={formData.education}
+                            placeholder="選択してください"
+                            options={educationOptions}
+                            onchange={handleInputChange}>
+                        </lightning-combobox>
+                    </div>
+                </div>
+
+                <!-- 趣味・興味 -->
+                <div class="slds-form-element">
+                    <label class="slds-form-element__label">趣味・興味</label>
+                    <div class="slds-form-element__control">
+                        <div class="slds-grid slds-gutters slds-wrap">
+                            <template for:each={interestOptions} for:item="interest">
+                                <div key={interest.value} class="slds-col slds-size_1-of-4">
+                                    <lightning-input 
+                                        type="checkbox" 
+                                        label={interest.label} 
+                                        name="interests" 
+                                        value={interest.value}
+                                        checked={interest.checked}
+                                        onchange={handleInterestChange}>
+                                    </lightning-input>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- マッチング設定 -->
+                <div class="slds-section slds-is-open">
+                    <h3 class="slds-section__title slds-theme_shade">
+                        <span class="slds-truncate">マッチング設定</span>
+                    </h3>
+                    
+                    <div class="slds-section__content">
+                        <div class="slds-grid slds-gutters slds-wrap">
+                            <div class="slds-col slds-size_1-of-3">
+                                <lightning-combobox
+                                    label="探している関係"
+                                    name="lookingFor"
+                                    value={formData.lookingFor}
+                                    placeholder="選択してください"
+                                    options={lookingForOptions}
+                                    onchange={handleInputChange}>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_1-of-3">
+                                <lightning-input 
+                                    label="希望年齢（最小）" 
+                                    name="ageRangeMin" 
+                                    type="number" 
+                                    value={formData.ageRangeMin} 
+                                    onchange={handleInputChange}
+                                    min="18" max="100">
+                                </lightning-input>
+                            </div>
+                            <div class="slds-col slds-size_1-of-3">
+                                <lightning-input 
+                                    label="希望年齢（最大）" 
+                                    name="ageRangeMax" 
+                                    type="number" 
+                                    value={formData.ageRangeMax} 
+                                    onchange={handleInputChange}
+                                    min="18" max="100">
+                                </lightning-input>
+                            </div>
+                        </div>
+
+                        <lightning-input 
+                            label="検索範囲（km）" 
+                            name="maxDistance" 
+                            type="number" 
+                            value={formData.maxDistance} 
+                            onchange={handleInputChange}
+                            min="1" max="100">
+                        </lightning-input>
+                    </div>
+                </div>
+
+                <!-- ボタン -->
+                <div class="slds-m-top_medium">
+                    <lightning-button 
+                        variant="brand" 
+                        type="submit" 
+                        label="プロフィールを保存"
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button 
+                        variant="neutral" 
+                        label="キャンセル" 
+                        onclick={handleCancel}>
+                    </lightning-button>
+                </div>
+
+            </lightning-record-edit-form>
+        </div>
+    </lightning-card>
+</template>

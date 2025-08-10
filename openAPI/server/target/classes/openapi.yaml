@@ -1,40 +1,225 @@
 openapi: 3.1.0
 info:
-  title: Todo API
+  title: Matching App API
   version: 0.1.0
+  description: マッチングアプリのユーザープロフィール管理API
 servers:
 - url: http://localhost:8080
+- url: http://35.79.251.78:8080
 paths:
-  /todos:
-    get:
+  /api/collateral-data:
+    post:
+      summary: 担保データを作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          description: 成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TodoList'
-          description: OK
-      summary: 一覧取得
-      x-accepts:
-      - application/json
+                type: object
+
+  /api/credit-data:
+    post:
+      summary: 与信データを作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/user-profiles:
+    get:
+      summary: 全ユーザープロフィール取得
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserProfile'
+        "500":
+          description: サーバーエラー
+    post:
+      summary: 新規ユーザープロフィール作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+      responses:
+        "201":
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        "400":
+          description: リクエストエラー
+
+  /api/user-profiles/{id}:
+    get:
+      summary: 特定ユーザープロフィール取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        "404":
+          description: 見つからない
+    put:
+      summary: ユーザープロフィール更新
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        "404":
+          description: 見つからない
+    delete:
+      summary: ユーザープロフィール削除（論理削除）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 削除成功
+        "404":
+          description: 見つからない
+
+  /api/user-profiles/search:
+    post:
+      summary: プロフィール検索
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                minAge:
+                  type: integer
+                maxAge:
+                  type: integer
+                gender:
+                  type: string
+                location:
+                  type: string
+                interests:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: 検索成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserProfile'
+
 components:
   schemas:
-    Todo:
-      example:
-        id: 1
-        text: 牛乳を買う
-        done: false
+    UserProfile:
+      type: object
       properties:
         id:
-          example: 1
-          type: integer
-        text:
-          example: 牛乳を買う
           type: string
-        done:
-          example: false
+          example: "user001"
+        name:
+          type: string
+          example: "田中太郎"
+        age:
+          type: integer
+          example: 28
+        gender:
+          type: string
+          enum: ["male", "female", "other"]
+          example: "male"
+        location:
+          type: string
+          example: "東京都渋谷区"
+        bio:
+          type: string
+          example: "映画と料理が好きです。"
+        interests:
+          type: array
+          items:
+            type: string
+          example: ["映画", "料理", "旅行"]
+        photos:
+          type: array
+          items:
+            type: string
+          example: ["https://example.com/photo1.jpg"]
+        occupation:
+          type: string
+          example: "エンジニア"
+        education:
+          type: string
+          example: "大学卒業"
+        lookingFor:
+          type: string
+          enum: ["友達", "恋人", "結婚相手"]
+          example: "恋人"
+        ageRangeMin:
+          type: integer
+          example: 25
+        ageRangeMax:
+          type: integer
+          example: 35
+        maxDistance:
+          type: integer
+          example: 10
+          description: "最大距離（km）"
+        isActive:
           type: boolean
-    TodoList:
-      items:
-        $ref: '#/components/schemas/Todo'
-      type: array
+          example: true
+        createdDate:
+          type: string
+          format: date-time
+        lastActive:
+          type: string
+          format: date-time

@@ -1,0 +1,5 @@
+org/openapitools/model/UserProfile.class
+org/openapitools/api/UserProfileController.class
+org/openapitools/configuration/CorsConfiguration$1.class
+org/openapitools/configuration/CorsConfiguration.class
+org/openapitools/OpenApiGeneratorApplication.class

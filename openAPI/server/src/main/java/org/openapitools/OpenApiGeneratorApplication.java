@@ -29,7 +29,8 @@ import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGe
 @SpringBootApplication(nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class)
 @ComponentScan(basePackages = { "org.openapitools", "org.openapitools.api",
         "org.openapitools.configuration",
-        "org.openapitools.service" }, nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class)
+        "org.openapitools.service",
+        "org.openapitools.mapper" }, nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class)
 @MapperScan("org.openapitools.mapper")
 public class OpenApiGeneratorApplication {
 
