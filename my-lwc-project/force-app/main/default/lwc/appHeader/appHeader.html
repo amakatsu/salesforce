@@ -1,0 +1,80 @@
+<template>
+  <div class="app-header">
+    <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+      <!-- アプリケーションロゴ・タイトル -->
+      <div class="slds-col">
+        <div class="slds-grid slds-grid_vertical-align-center">
+          <div class="app-logo slds-m-right_medium">
+            <lightning-icon icon-name="standard:groups" size="medium" variant="inverse"></lightning-icon>
+          </div>
+          <h1 class="app-title">Member Search</h1>
+        </div>
+      </div>
+      
+      <!-- ナビゲーションメニュー -->
+      <div class="slds-col slds-shrink-none">
+        <div class="nav-menu">
+          <lightning-button
+            variant="base"
+            label="メンバー検索・一覧"
+            onclick={handleNavigateToSearch}
+            class="nav-button"
+            data-page="search">
+          </lightning-button>
+        </div>
+      </div>
+      
+      <!-- ユーザープロフィールメニュー -->
+      <div class="slds-col slds-shrink-none">
+        <div class="user-menu-container">
+          <!-- ユーザーアバター -->
+          <button class="user-avatar" onclick={toggleUserMenu} type="button">
+            <template if:true={currentUser.photo}>
+              <img src={currentUser.photo} alt={currentUser.name} class="user-avatar-image"/>
+            </template>
+            <template if:false={currentUser.photo}>
+              <div class="user-avatar-placeholder">
+                <lightning-icon icon-name="standard:avatar" size="small" variant="inverse"></lightning-icon>
+              </div>
+            </template>
+          </button>
+          
+          <!-- ドロップダウンメニュー -->
+          <template if:true={showUserMenu}>
+            <div class="user-dropdown-menu" onclick={handleMenuClick}>
+              <div class="user-info">
+                <div class="user-name">{currentUser.name}</div>
+                <div class="user-email">{currentUser.email}</div>
+              </div>
+              <div class="menu-divider"></div>
+              <div class="menu-items">
+                <div class="menu-item" onclick={handleEditProfile}>
+                  <lightning-icon icon-name="utility:edit" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                  プロフィール編集
+                </div>
+                <div class="menu-item" onclick={handleViewProfile}>
+                  <lightning-icon icon-name="utility:preview" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                  プロフィール表示
+                </div>
+                <div class="menu-item" onclick={handleSettings}>
+                  <lightning-icon icon-name="utility:settings" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                  設定
+                </div>
+                <div class="menu-divider"></div>
+                <div class="menu-item" onclick={handleLogout}>
+                  <lightning-icon icon-name="utility:logout" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                  ログアウト
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- オーバーレイ（メニューを閉じるため） -->
+  <template if:true={showUserMenu}>
+    <div class="menu-overlay" onclick={closeUserMenu}></div>
+  </template>
+</template>

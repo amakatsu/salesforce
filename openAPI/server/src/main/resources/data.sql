@@ -1,5 +1,6 @@
-
--- User Profile 初期データ
+-- ===============================
+-- User Profiles 初期＋追加データ
+-- ===============================
 INSERT INTO user_profiles (id, name, age, gender, location, bio, occupation, education, looking_for, age_range_min, age_range_max, max_distance, is_active) VALUES
 ('user001', '田中太郎', 28, 'male', '東京都渋谷区', '映画と料理が好きです。一緒に楽しい時間を過ごせる方と出会いたいです。', 'エンジニア', '大学卒業', '恋人', 25, 35, 10, TRUE),
 ('user002', '佐藤花子', 26, 'female', '東京都新宿区', '読書と音楽鑑賞が趣味です。カフェでゆっくり過ごすのが好きです。', 'デザイナー', '専門学校卒業', '友達', 24, 32, 15, TRUE),
@@ -8,9 +9,19 @@ INSERT INTO user_profiles (id, name, age, gender, location, bio, occupation, edu
 ('user005', '高橋健一', 30, 'male', '千葉県船橋市', '音楽制作が趣味です。ライブにもよく行きます。音楽好きな方とお話したいです。', '音楽講師', '音楽大学卒業', '恋人', 26, 34, 30, TRUE),
 ('user006', '渡辺麻衣', 29, 'female', '埼玉県大宮区', '料理とお菓子作りが得意です。一緒に美味しいものを食べに行ける方を探しています。', 'パティシエ', '専門学校卒業', '恋人', 27, 35, 20, TRUE),
 ('user007', '中村広志', 35, 'male', '東京都中野区', 'アウトドア活動とDIYが趣味です。週末はキャンプによく行きます。', 'IT企業経営', '大学院卒業', '結婚相手', 30, 38, 15, TRUE),
-('user008', '小林聡子', 23, 'female', '神奈川県川崎市', 'ダンスとヨガをしています。健康的なライフスタイルを大切にしています。', 'インストラクター', '専門学校卒業', '友達', 21, 28, 18, TRUE);
+('user008', '小林聡子', 23, 'female', '神奈川県川崎市', 'ダンスとヨガをしています。健康的なライフスタイルを大切にしています。', 'インストラクター', '専門学校卒業', '友達', 21, 28, 18, TRUE),
+('user009', '藤井亮', 27, 'male', '東京都港区', 'カフェ巡りと写真撮影が好きです。', 'マーケティング', '大学卒業', '友達', 24, 30, 15, TRUE),
+('user010', '松本彩', 31, 'female', '千葉県千葉市', 'ランニングと旅行が趣味です。', '看護師', '専門学校卒業', '恋人', 28, 36, 20, TRUE),
+('user011', '石井大輔', 29, 'male', '埼玉県さいたま市', 'ボードゲームと映画鑑賞が好きです。', '公務員', '大学卒業', '友達', 26, 33, 10, TRUE),
+('user012', '村上恵', 33, 'female', '神奈川県藤沢市', '海辺の散歩と読書が趣味です。', '教師', '大学卒業', '結婚相手', 30, 38, 25, TRUE),
+('user013', '岡田翔', 26, 'male', '東京都杉並区', '筋トレと音楽が好きです。', 'パーソナルトレーナー', '専門学校卒業', '恋人', 23, 29, 15, TRUE),
+('user014', '森田優子', 28, 'female', '東京都目黒区', '映画と料理が大好きです。', '編集者', '大学卒業', '友達', 25, 33, 20, TRUE),
+('user015', '山本智', 34, 'male', '神奈川県鎌倉市', '釣りとアウトドアが趣味です。', '自営業', '大学卒業', '結婚相手', 30, 38, 30, TRUE),
+('user016', '西川舞', 25, 'female', '埼玉県川越市', 'カラオケとショッピングが好きです。', '販売員', '高校卒業', '恋人', 22, 28, 15, TRUE);
 
--- User Interests 初期データ
+-- ===============================
+-- User Interests 初期＋追加データ
+-- ===============================
 INSERT INTO user_interests (user_profile_id, interest) VALUES
 ('user001', '映画'), ('user001', '料理'), ('user001', '旅行'),
 ('user002', '読書'), ('user002', '音楽'), ('user002', 'カフェ巡り'),
@@ -19,26 +30,48 @@ INSERT INTO user_interests (user_profile_id, interest) VALUES
 ('user005', '音楽'), ('user005', 'アート'), ('user005', 'ライブ'),
 ('user006', '料理'), ('user006', 'お菓子作り'), ('user006', '旅行'),
 ('user007', 'アウトドア'), ('user007', 'DIY'), ('user007', 'キャンプ'),
-('user008', 'ダンス'), ('user008', 'ヨガ'), ('user008', 'フィットネス');
+('user008', 'ダンス'), ('user008', 'ヨガ'), ('user008', 'フィットネス'),
+('user009', 'カフェ巡り'), ('user009', '写真'), ('user009', '旅行'),
+('user010', 'ランニング'), ('user010', '旅行'), ('user010', '料理'),
+('user011', 'ボードゲーム'), ('user011', '映画'), ('user011', '音楽'),
+('user012', '読書'), ('user012', '海辺の散歩'), ('user012', '旅行'),
+('user013', '筋トレ'), ('user013', '音楽'), ('user013', 'スポーツ'),
+('user014', '映画'), ('user014', '料理'), ('user014', '読書'),
+('user015', '釣り'), ('user015', 'アウトドア'), ('user015', 'キャンプ'),
+('user016', 'カラオケ'), ('user016', 'ショッピング'), ('user016', '旅行');
 
--- User Photos 初期データ
+-- ===============================
+-- User Photos 初期＋追加データ
+-- ===============================
 INSERT INTO user_photos (user_profile_id, photo_url, display_order) VALUES
-('user001', 'https://example.com/photo1.jpg', 0),
-('user002', 'https://example.com/photo2.jpg', 0),
-('user003', 'https://example.com/photo3.jpg', 0),
-('user004', 'https://example.com/photo4.jpg', 0),
-('user005', 'https://example.com/photo5.jpg', 0),
-('user006', 'https://example.com/photo6.jpg', 0),
-('user007', 'https://example.com/photo7.jpg', 0),
-('user008', 'https://example.com/photo8.jpg', 0);
+('user001', 'https://picsum.photos/id/1001/400/400', 0),
+('user002', 'https://picsum.photos/id/1002/400/400', 0),
+('user003', 'https://picsum.photos/id/1003/400/400', 0),
+('user004', 'https://picsum.photos/id/1004/400/400', 0),
+('user005', 'https://picsum.photos/id/1005/400/400', 0),
+('user006', 'https://picsum.photos/id/1006/400/400', 0),
+('user007', 'https://picsum.photos/id/1007/400/400', 0),
+('user008', 'https://picsum.photos/id/1008/400/400', 0),
+('user009', 'https://picsum.photos/id/1011/400/400', 0),
+('user010', 'https://picsum.photos/id/1012/400/400', 0),
+('user011', 'https://picsum.photos/id/1013/400/400', 0),
+('user012', 'https://picsum.photos/id/1014/400/400', 0),
+('user013', 'https://picsum.photos/id/1015/400/400', 0),
+('user014', 'https://picsum.photos/id/1016/400/400', 0),
+('user015', 'https://picsum.photos/id/1018/400/400', 0),
+('user016', 'https://picsum.photos/id/1020/400/400', 0);
 
+-- ===============================
 -- Credit Data 初期データ
+-- ===============================
 INSERT INTO credit_data (id, label, due_date, rate, balance99, principal, change_amount, post_balance, actual_balance, correction, parent_id) VALUES
 ('root1', '信用取引関連', '2024-12-31', '2.5%', 10000000, 9500000, -500000, 1100000, 1050000, 50000, NULL),
 ('root2', '設備資金', '2025-03-31', '1.8%', 15000000, 14500000, -300000, 800000, 750000, 50000, NULL),
 ('child1', '短期借入金', '2024-06-30', '3.2%', 5000000, 4800000, -200000, 500000, 480000, 20000, 'root1');
 
+-- ===============================
 -- Collateral Data 初期データ
+-- ===============================
 INSERT INTO collateral_data (id, collateral_type, reg_value, market_value, parent_id) VALUES
 ('collGeneral', '規定担保合計', 8000000, 9600000, NULL),
 ('collGeneral2', '裸与信', 8000000, 9600000, NULL),

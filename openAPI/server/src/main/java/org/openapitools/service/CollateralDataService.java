@@ -1,6 +1,6 @@
 package org.openapitools.service;
 
-import org.openapitools.mapper.CollateralDataMapper;
+import org.openapitools.repository.CollateralDataRepository;
 import org.openapitools.model.CollateralData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,16 +12,16 @@ import java.util.Optional;
 public class CollateralDataService {
     
     @Autowired
-    private CollateralDataMapper collateralDataMapper;
+    private CollateralDataRepository collateralDataRepository;
     
     // 全ての担保データを取得
     public List<CollateralData> getAllCollateralData() {
-        return collateralDataMapper.findAll();
+        return collateralDataRepository.findAll();
     }
     
     // IDで担保データを取得
     public Optional<CollateralData> getCollateralDataById(String id) {
-        CollateralData collateralData = collateralDataMapper.findById(id);
+        CollateralData collateralData = collateralDataRepository.findById(id);
         return collateralData != null ? Optional.of(collateralData) : Optional.empty();
     }
     
@@ -30,28 +30,28 @@ public class CollateralDataService {
         if (collateralData.getId() == null || collateralData.getId().isEmpty()) {
             collateralData.setId("collateral_" + System.currentTimeMillis());
         }
-        collateralDataMapper.insert(collateralData);
+        collateralDataRepository.insert(collateralData);
         return collateralData;
     }
     
     // 担保データを更新
     public CollateralData updateCollateralData(String id, CollateralData collateralData) {
         collateralData.setId(id);
-        collateralDataMapper.update(collateralData);
+        collateralDataRepository.update(collateralData);
         return collateralData;
     }
     
     // 担保データを削除
     public void deleteCollateralData(String id) {
-        collateralDataMapper.deleteById(id);
+        collateralDataRepository.deleteById(id);
     }
     
     // 担保データを一括更新
     public List<CollateralData> updateAllCollateralData(List<CollateralData> collateralDataList) {
-        collateralDataMapper.deleteAll();
+        collateralDataRepository.deleteAll();
         for (CollateralData collateralData : collateralDataList) {
-            collateralDataMapper.insert(collateralData);
+            collateralDataRepository.insert(collateralData);
         }
-        return collateralDataMapper.findAll();
+        return collateralDataRepository.findAll();
     }
 }

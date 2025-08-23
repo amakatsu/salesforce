@@ -1,7 +1,8 @@
-import { LightningElement, track } from 'lwc';
+import { LightningElement, track, api } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import saveUserProfile from '@salesforce/apex/UserProfileService.saveUserProfile';
 import updateUserProfile from '@salesforce/apex/UserProfileService.updateUserProfile';
+import getUserProfile from '@salesforce/apex/UserProfileService.getUserProfile';
 
 export default class UserProfileForm extends LightningElement {
     @track formData = {
@@ -20,8 +21,11 @@ export default class UserProfileForm extends LightningElement {
         isActive: true
     };
 
+    @api userId = null; // 外部から渡されるユーザーID
     @track selectedUserId = null; // 編集モードの場合
     @track isEditMode = false;
+    @track isLoading = false;
+    @track hasLoadAttempted = false;
 
     // 選択肢の定義
     genderOptions = [
@@ -58,6 +62,69 @@ export default class UserProfileForm extends LightningElement {
         { label: 'ペット', value: 'ペット', checked: false },
         { label: '写真', value: '写真', checked: false }
     ];
+
+    // コンポーネント初期化時の処理
+    connectedCallback() {
+        if (this.userId) {
+            this.loadUserProfile();
+        }
+    }
+
+    // userIdプロパティが変更されたときの処理
+    renderedCallback() {
+        if (this.userId && !this.isEditMode && !this.isLoading && !this.hasLoadAttempted) {
+            this.hasLoadAttempted = true;
+            this.loadUserProfile();
+        }
+        
+        // Shadow DOM内のtextareaに直接アクセスを試行
+        this.tryDirectTextareaAccess();
+    }
+
+    // 直接textarea要素にアクセスしてスタイル適用を試行
+    tryDirectTextareaAccess() {
+        setTimeout(() => {
+            console.log('Attempting direct textarea access...');
+            const lightningTextareas = this.template.querySelectorAll('lightning-textarea');
+            lightningTextareas.forEach((ltTextarea, index) => {
+                console.log(`Lightning textarea ${index}:`, ltTextarea);
+                console.log(`Shadow root:`, ltTextarea.shadowRoot);
+                
+                if (ltTextarea.shadowRoot) {
+                    const textarea = ltTextarea.shadowRoot.querySelector('textarea');
+                    if (textarea) {
+                        console.log('Found textarea, applying styles...');
+                        textarea.style.resize = 'none';
+                        textarea.style.overflow = 'hidden';
+                    }
+                }
+            });
+        }, 100);
+    }
+
+    // ユーザープロフィールを読み込み
+    async loadUserProfile() {
+        if (!this.userId) return;
+        
+        this.isLoading = true;
+        try {
+            const profileData = await getUserProfile({ userId: this.userId });
+            if (profileData) {
+                this.loadProfile(JSON.parse(profileData));
+            } else {
+                // プロフィールが見つからない場合は新規作成モード
+                this.selectedUserId = this.userId;
+                this.isEditMode = false;
+            }
+        } catch (error) {
+            console.error('プロフィール読み込みエラー:', error);
+            // エラーの場合も新規作成モードとして続行
+            this.isEditMode = false;
+            this.selectedUserId = this.userId;
+        } finally {
+            this.isLoading = false;
+        }
+    }
 
     // 入力値変更処理
     handleInputChange(event) {
@@ -108,12 +175,18 @@ export default class UserProfileForm extends LightningElement {
 
             let result;
             if (this.isEditMode && this.selectedUserId) {
+                // 既存プロフィールを更新
                 result = await updateUserProfile({ 
                     userId: this.selectedUserId, 
-                    profileData: profileData 
+                    profileData: profileData
                 });
             } else {
-                result = await saveUserProfile({ profileData: profileData });
+                // 新規プロフィールを作成（userIdを含める）
+                const profileWithId = {
+                    ...profileData,
+                    id: this.userId || this.selectedUserId || 'user001'
+                };
+                result = await saveUserProfile({ profileData: profileWithId });
             }
 
             this.showToast(
@@ -126,19 +199,32 @@ export default class UserProfileForm extends LightningElement {
             this.resetForm();
 
             // カスタムイベントを発火（親コンポーネントに通知）
+            let parsedProfile = null;
+            try {
+                parsedProfile = result ? JSON.parse(result) : null;
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                parsedProfile = null;
+            }
+            
             this.dispatchEvent(new CustomEvent('profilesaved', {
                 detail: { 
-                    profile: JSON.parse(result), 
+                    profile: parsedProfile, 
                     isEdit: this.isEditMode 
                 }
             }));
 
         } catch (error) {
-            this.showToast(
-                'エラー',
-                'プロフィールの保存に失敗しました: ' + error.body.message,
-                'error'
-            );
+            console.error('Profile save error:', error);
+            let errorMessage = 'プロフィールの保存に失敗しました';
+            
+            if (error.body && error.body.message) {
+                errorMessage += ': ' + error.body.message;
+            } else if (error.message) {
+                errorMessage += ': ' + error.message;
+            }
+            
+            this.showToast('エラー', errorMessage, 'error');
         }
     }
 

@@ -24,6 +24,39 @@
 
         <div class="slds-p-horizontal_medium">
             
+            <!-- 検索窓 -->
+            <div class="search-section slds-m-bottom_medium">
+                <div class="slds-grid slds-gutters slds-wrap">
+                    <!-- キーワード検索 -->
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                        <lightning-input
+                            name="keyword"
+                            label="キーワード"
+                            placeholder="名前、職業、趣味など"
+                            value={searchKeyword}
+                            onchange={handleKeywordChange}>
+                        </lightning-input>
+                    </div>
+                    <!-- 検索ボタン -->
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-grid slds-grid_align-end">
+                        <lightning-button
+                            variant="brand"
+                            label="検索"
+                            onclick={handleKeywordSearch}
+                            disabled={isLoading}
+                            class="slds-m-left_small">
+                        </lightning-button>
+                        <lightning-button
+                            variant="neutral"
+                            label="リセット"
+                            onclick={handleSearchReset}
+                            disabled={isLoading}
+                            class="slds-m-left_small">
+                        </lightning-button>
+                    </div>
+                </div>
+            </div>
+            
             <!-- フィルターパネル -->
             <template if:true={showFilters}>
                 <div class="filter-panel slds-box slds-m-bottom_medium">

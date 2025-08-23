@@ -13,6 +13,7 @@ export default class UserProfileList extends LightningElement {
   @track isCardView = true;
   @track showMatchingActions = true;
   @track currentUserId = "current-user"; // 実際の実装では動的に取得
+  @track searchKeyword = "";
 
   // 検索条件
   @track searchCriteria = {
@@ -60,14 +61,18 @@ export default class UserProfileList extends LightningElement {
       const result = await getAllUserProfiles();
       const profilesData = JSON.parse(result);
 
-      this.profiles = profilesData.map((profile) => ({
+      this.profiles = profilesData.map((profile, index) => ({
         ...profile,
+        id: profile.id || `profile-${index}`,
         isOwn: profile.id === this.currentUserId,
-        firstPhoto: this.getFirstPhoto(profile.photos)
+        firstPhoto: this.getFirstPhoto(profile.photos),
+        photos: profile.photos || []
       }));
 
+      console.log('Loaded profiles:', this.profiles);
       this.applyFilters();
     } catch (error) {
+      console.error('Profile loading error:', error);
       this.hasError = true;
       this.errorMessage = error.body ? error.body.message : error.message;
       this.showToast("エラー", "プロフィールの読み込みに失敗しました", "error");
@@ -75,6 +80,7 @@ export default class UserProfileList extends LightningElement {
       this.isLoading = false;
     }
   }
+
 
   // 検索実行
   async performSearch() {
@@ -92,10 +98,12 @@ export default class UserProfileList extends LightningElement {
         });
         const profilesData = JSON.parse(result);
 
-        this.profiles = profilesData.map((profile) => ({
+        this.profiles = profilesData.map((profile, index) => ({
           ...profile,
+          id: profile.id || `search-${index}`,
           isOwn: profile.id === this.currentUserId,
-          firstPhoto: this.getFirstPhoto(profile.photos)
+          firstPhoto: this.getFirstPhoto(profile.photos),
+          photos: profile.photos || []
         }));
 
         this.applyFilters();
@@ -114,6 +122,24 @@ export default class UserProfileList extends LightningElement {
   // フィルター適用
   applyFilters() {
     this.filteredProfiles = this.profiles.filter((profile) => {
+      // キーワード検索フィルター
+      if (this.searchKeyword && this.searchKeyword.trim()) {
+        const keyword = this.searchKeyword.toLowerCase().trim();
+        const searchFields = [
+          profile.name?.toLowerCase() || '',
+          profile.occupation?.toLowerCase() || '',
+          profile.location?.toLowerCase() || '',
+          profile.bio?.toLowerCase() || '',
+          ...(profile.interests?.map(i => i.toLowerCase()) || [])
+        ];
+        
+        const hasKeyword = searchFields.some(field => 
+          field.includes(keyword)
+        );
+        
+        if (!hasKeyword) return false;
+      }
+
       // 年齢フィルター
       if (
         this.searchCriteria.minAge &&
@@ -198,6 +224,7 @@ export default class UserProfileList extends LightningElement {
     return photos && photos.length > 0 ? photos[0] : null;
   }
 
+
   // イベントハンドラー
   handleSearch() {
     this.performSearch();
@@ -227,6 +254,32 @@ export default class UserProfileList extends LightningElement {
       }
       return option;
     });
+  }
+
+  handleKeywordChange(event) {
+    this.searchKeyword = event.target.value;
+  }
+
+  handleKeywordSearch() {
+    this.applyFilters();
+  }
+
+  handleSearchReset() {
+    this.searchKeyword = "";
+    this.searchCriteria = {
+      minAge: 18,
+      maxAge: 50,
+      gender: "",
+      location: "",
+      interests: []
+    };
+
+    this.interestOptions = this.interestOptions.map((option) => ({
+      ...option,
+      checked: false
+    }));
+
+    this.applyFilters();
   }
 
   resetFilters() {

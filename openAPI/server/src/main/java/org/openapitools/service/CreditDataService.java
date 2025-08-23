@@ -1,27 +1,47 @@
 package org.openapitools.service;
 
-import org.openapitools.mapper.CreditDataMapper;
+import org.openapitools.repository.CreditDataRepository;
 import org.openapitools.model.CreditData;
+import org.openapitools.domain.entity.CreditDataEntity;
+import org.openapitools.domain.service.CreditDataDomainService;
+import org.openapitools.mapper.CreditDataDomainMapper;
+import org.openapitools.domain.valueobject.CreditId;
+import org.openapitools.domain.valueobject.Money;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class CreditDataService {
     
     @Autowired
-    private CreditDataMapper creditDataMapper;
+    private CreditDataRepository creditDataRepository;
+    
+    @Autowired
+    private CreditDataDomainMapper domainMapper;
+    
+    @Autowired
+    private CreditDataDomainService domainService;
     
     // 全ての与信データを取得
     public List<CreditData> getAllCreditData() {
-        return creditDataMapper.findAll();
+        List<CreditData> apiModels = creditDataRepository.findAll();
+        List<CreditDataEntity> entities = domainMapper.apiModelListToDomainList(apiModels);
+        return domainMapper.domainListToApiModelList(entities);
+    }
+    
+    // ドメインエンティティとして取得
+    public List<CreditDataEntity> getAllCreditDataEntities() {
+        List<CreditData> apiModels = creditDataRepository.findAll();
+        return domainMapper.apiModelListToDomainList(apiModels);
     }
 
     // ID による検索
     public Optional<CreditData> getCreditDataById(String id) {
-        CreditData creditData = creditDataMapper.findById(id);
+        CreditData creditData = creditDataRepository.findById(id);
         return creditData != null ? Optional.of(creditData) : Optional.empty();
     }
 
@@ -30,33 +50,33 @@ public class CreditDataService {
         if (creditData.getId() == null || creditData.getId().isEmpty()) {
             creditData.setId("credit_" + System.currentTimeMillis());
         }
-        creditDataMapper.insert(creditData);
+        creditDataRepository.insert(creditData);
         return creditData;
     }
 
     // 与信データ更新
     public CreditData updateCreditData(String id, CreditData creditData) {
         creditData.setId(id);
-        creditDataMapper.update(creditData);
+        creditDataRepository.update(creditData);
         return creditData;
     }
 
     // 与信データ削除
     public void deleteCreditData(String id) {
-        creditDataMapper.deleteById(id);
+        creditDataRepository.deleteById(id);
     }
 
     // 全削除とバッチ更新
     public void deleteAllCreditData() {
-        creditDataMapper.deleteAll();
+        creditDataRepository.deleteAll();
     }
     
     public List<CreditData> updateAllCreditData(List<CreditData> creditDataList) {
-        creditDataMapper.deleteAll();
+        creditDataRepository.deleteAll();
         for (CreditData creditData : creditDataList) {
-            creditDataMapper.insert(creditData);
+            creditDataRepository.insert(creditData);
         }
-        return creditDataMapper.findAll();
+        return creditDataRepository.findAll();
     }
 
 }

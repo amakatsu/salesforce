@@ -1,0 +1,184 @@
+.app-container {
+    min-height: 100vh;
+    background-color: #f7f9fb;
+}
+
+.main-content {
+    min-height: calc(100vh - 80px);
+    padding: 1.5rem;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.page-header h2 {
+    margin: 0;
+    color: #181818;
+}
+
+.profile-view-container,
+.profile-edit-container,
+.settings-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.welcome-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+
+.settings-content {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 通知システムのスタイル */
+.notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.slds-notify_toast {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.slds-theme_success {
+    background-color: #4bca81;
+    color: white;
+}
+
+.slds-theme_error {
+    background-color: #ea001e;
+    color: white;
+}
+
+.slds-theme_warning {
+    background-color: #fe9339;
+    color: white;
+}
+
+.slds-theme_info {
+    background-color: #0176d3;
+    color: white;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 1rem;
+    }
+    
+    .page-header {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .page-header h2 {
+        font-size: 1.25rem;
+    }
+    
+    .notification-container {
+        top: 0.5rem;
+        right: 0.5rem;
+        left: 0.5rem;
+    }
+    
+    .slds-notify_toast {
+        min-width: unset;
+        max-width: unset;
+        width: 100%;
+    }
+    
+    .welcome-container {
+        margin: 1rem auto;
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 0.75rem;
+    }
+    
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .page-header h2 {
+        font-size: 1.1rem;
+    }
+}
+
+/* プロフィール関連ページの共通スタイル */
+.profile-view-container .slds-card,
+.profile-edit-container .slds-card {
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.profile-view-container .slds-card__body,
+.profile-edit-container .slds-card__body {
+    padding: 1.5rem;
+}
+
+/* 設定ページのスタイル */
+.settings-content .slds-card {
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ウェルカムページのスタイル */
+.welcome-container .slds-card {
+    border-radius: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.welcome-container .slds-card__body {
+    padding: 3rem 2rem;
+}
+
+.welcome-container h3 {
+    color: #181818;
+}
+
+.welcome-container p {
+    color: #706e6b;
+    font-size: 1rem;
+    line-height: 1.5;
+}

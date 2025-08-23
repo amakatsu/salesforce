@@ -1,6 +1,17 @@
 <template>
     <lightning-card title="プロフィール設定" icon-name="standard:user">
-        <div class="slds-p-horizontal_medium">
+        
+        <!-- ローディング表示 -->
+        <template if:true={isLoading}>
+            <div class="slds-align_absolute-center slds-p-vertical_large">
+                <lightning-spinner alternative-text="プロフィールを読み込み中..." size="medium"></lightning-spinner>
+                <p class="slds-text-body_regular slds-m-top_small">プロフィールを読み込み中...</p>
+            </div>
+        </template>
+
+        <!-- フォーム内容 -->
+        <template if:false={isLoading}>
+            <div class="slds-p-horizontal_medium">
             <lightning-record-edit-form object-api-name="Contact" onsubmit={handleSubmit}>
                 
                 <!-- 基本情報 -->
@@ -51,14 +62,21 @@
                 </div>
 
                 <!-- 自己紹介 -->
-                <lightning-textarea
-                    label="自己紹介"
-                    name="bio"
-                    value={formData.bio}
-                    onchange={handleInputChange}
-                    max-length="500"
-                    placeholder="あなたの魅力や趣味について教えてください">
-                </lightning-textarea>
+                <div class="slds-form-element">
+                    <label class="slds-form-element__label" for="bio-textarea">自己紹介</label>
+                    <div class="slds-form-element__control">
+                        <textarea
+                            id="bio-textarea"
+                            name="bio"
+                            value={formData.bio}
+                            onchange={handleInputChange}
+                            maxlength="500"
+                            placeholder="あなたの魅力や趣味について教えてください"
+                            class="slds-textarea bio-textarea"
+                            rows="4">
+                        </textarea>
+                    </div>
+                </div>
 
                 <!-- 職業・学歴 -->
                 <div class="slds-grid slds-gutters slds-wrap">
@@ -170,6 +188,7 @@
                 </div>
 
             </lightning-record-edit-form>
-        </div>
+            </div>
+        </template>
     </lightning-card>
 </template>

@@ -1,0 +1,124 @@
+<template>
+  <div class="app-container">
+    <!-- アプリケーションヘッダー -->
+    <c-app-header 
+      current-page={currentPage}
+      onnavigate={handleNavigation}
+      onlogout={handleLogout}>
+    </c-app-header>
+    
+    <!-- メインコンテンツエリア -->
+    <div class="main-content">
+      <!-- プロフィール一覧・検索ページ -->
+      <template if:true={isSearchPage}>
+        <c-user-profile-list
+          onviewprofile={handleViewProfile}
+          oneditprofile={handleEditProfile}
+          onsendmessage={handleSendMessage}>
+        </c-user-profile-list>
+      </template>
+      
+      <!-- プロフィール詳細表示ページ -->
+      <template if:true={isProfileViewPage}>
+        <div class="profile-view-container">
+          <div class="page-header">
+            <lightning-button
+              variant="neutral"
+              label="戻る"
+              icon-name="utility:back"
+              onclick={handleGoBack}
+              class="slds-m-bottom_medium">
+            </lightning-button>
+            <h2 class="slds-text-heading_medium">プロフィール詳細</h2>
+          </div>
+          <c-user-profile-card
+            user-id={selectedUserId}
+            show-actions="true"
+            oneditprofile={handleEditProfile}
+            onsendmessage={handleSendMessage}>
+          </c-user-profile-card>
+        </div>
+      </template>
+      
+      <!-- プロフィール編集ページ -->
+      <template if:true={isProfileEditPage}>
+        <div class="profile-edit-container">
+          <div class="page-header">
+            <lightning-button
+              variant="neutral"
+              label="戻る"
+              icon-name="utility:back"
+              onclick={handleGoBack}
+              class="slds-m-bottom_medium">
+            </lightning-button>
+            <h2 class="slds-text-heading_medium">プロフィール編集</h2>
+          </div>
+          <c-user-profile-form
+            user-id={selectedUserId}
+            onsave={handleProfileSave}
+            oncancel={handleGoBack}
+            onprofilesaved={handleProfileSave}>
+          </c-user-profile-form>
+        </div>
+      </template>
+      
+      <!-- 設定ページ -->
+      <template if:true={isSettingsPage}>
+        <div class="settings-container">
+          <div class="page-header">
+            <lightning-button
+              variant="neutral"
+              label="戻る"
+              icon-name="utility:back"
+              onclick={handleGoBack}
+              class="slds-m-bottom_medium">
+            </lightning-button>
+            <h2 class="slds-text-heading_medium">設定</h2>
+          </div>
+          <div class="settings-content">
+            <lightning-card title="アプリケーション設定" class="slds-m-bottom_medium">
+              <div class="slds-card__body slds-card__body_inner">
+                <p>設定機能は開発中です。</p>
+              </div>
+            </lightning-card>
+          </div>
+        </div>
+      </template>
+      
+      <!-- デフォルトページ（何も選択されていない場合） -->
+      <template if:false={hasActivePage}>
+        <div class="welcome-container">
+          <lightning-card title="Member Search アプリケーション">
+            <div class="slds-card__body slds-card__body_inner slds-text-align_center">
+              <lightning-icon icon-name="standard:groups" size="large" class="slds-m-bottom_medium"></lightning-icon>
+              <h3 class="slds-text-heading_medium slds-m-bottom_small">ようこそ！</h3>
+              <p class="slds-m-bottom_medium">メンバー検索機能を使用して、理想のメンバーを見つけましょう。</p>
+              <lightning-button
+                variant="brand"
+                label="検索を開始"
+                onclick={handleStartSearch}>
+              </lightning-button>
+            </div>
+          </lightning-card>
+        </div>
+      </template>
+    </div>
+    
+    <!-- グローバル通知エリア -->
+    <template if:true={showNotification}>
+      <div class="notification-container">
+        <div class={notificationClass}>
+          <lightning-icon icon-name={notificationIcon} size="small" class="slds-m-right_small"></lightning-icon>
+          <span>{notificationMessage}</span>
+          <lightning-button-icon
+            icon-name="utility:close"
+            variant="bare-inverse"
+            size="small"
+            onclick={dismissNotification}
+            class="slds-m-left_small">
+          </lightning-button-icon>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>

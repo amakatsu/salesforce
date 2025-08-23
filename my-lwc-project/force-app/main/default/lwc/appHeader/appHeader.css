@@ -1,0 +1,203 @@
+.app-header {
+    background: linear-gradient(135deg, #1589ee 0%, #0070d2 100%);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.app-logo {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+    color: white;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nav-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white !important;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.nav-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.nav-button:active {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(0);
+}
+
+.user-menu-container {
+    position: relative;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: none;
+    padding: 0;
+    outline: none;
+}
+
+.user-avatar:hover {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.user-avatar-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 220px;
+    z-index: 1001;
+    border: 1px solid #e5e5e5;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-info {
+    padding: 1rem;
+    border-bottom: 1px solid #f3f3f3;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #181818;
+    font-size: 0.9rem;
+}
+
+.user-email {
+    color: #706e6b;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.menu-divider {
+    height: 1px;
+    background-color: #f3f3f3;
+    margin: 0.5rem 0;
+}
+
+.menu-items {
+    padding: 0.5rem 0;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    color: #181818;
+    font-size: 0.875rem;
+    transition: background-color 0.2s ease;
+}
+
+.menu-item:hover {
+    background-color: #f7f9fb;
+}
+
+.menu-item:last-child:hover {
+    background-color: #fee;
+    color: #ea001e;
+}
+
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    background: transparent;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .app-header {
+        padding: 0.5rem 1rem;
+    }
+    
+    .app-title {
+        font-size: 1.25rem;
+    }
+    
+    .nav-menu {
+        display: none;
+    }
+    
+    .user-dropdown-menu {
+        min-width: 200px;
+        right: -1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .app-header {
+        padding: 0.5rem;
+    }
+    
+    .app-title {
+        font-size: 1.1rem;
+    }
+    
+    .user-dropdown-menu {
+        min-width: 180px;
+    }
+}

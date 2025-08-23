@@ -1,0 +1,16 @@
+# Kindクラスター設定（ローカルKubernetes環境）
+# Kind = Kubernetes in Docker（DockerコンテナでKubernetesクラスターを実行）
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane  # コントロールプレーンノード（マスター）
+  extraPortMappings:  # ホストからKubernetesクラスターノードへのポートマッピング
+  # 流れ: ホスト → Kindクラスターノード → Kubernetesサービス → アプリPod
+  - containerPort: 30080  # Kubernetesクラスターノード（Dockerコンテナ）の30080ポート
+    hostPort: 8080  # ホストマシンの8080ポート
+    # この後Kubernetes内でNodePortサービス（Istio）が30080を受け取る
+    protocol: TCP
+  - containerPort: 30136  # Kubernetesクラスターノード（Dockerコンテナ）の30136ポート
+    hostPort: 80  # ホストマシンの80ポート
+    # この後Kubernetes内でNodePortサービス（Istio）が30136を受け取る
+    protocol: TCP
