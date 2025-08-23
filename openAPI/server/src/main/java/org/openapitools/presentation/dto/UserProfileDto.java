@@ -1,4 +1,4 @@
-package org.openapitools.dto;
+package org.openapitools.presentation.dto;
 
 import java.util.List;
 

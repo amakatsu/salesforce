@@ -1,10 +1,10 @@
-package org.openapitools.mapper;
+package org.openapitools.application.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.mapstruct.factory.Mappers;
-import org.openapitools.dto.CreditDataDto;
+import org.openapitools.presentation.dto.CreditDataDto;
 import org.openapitools.model.CreditData;
 import org.openapitools.domain.entity.CreditDataEntity;
 import org.openapitools.domain.valueobject.CreditId;

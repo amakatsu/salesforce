@@ -2,13 +2,19 @@ package org.openapitools.domain.service;
 
 import org.openapitools.domain.entity.UserProfileEntity;
 import org.openapitools.domain.valueobject.UserId;
-import org.openapitools.domain.valueobject.Age;
-import org.openapitools.domain.valueobject.Gender;
+import org.openapitools.domain.repository.UserProfileDomainRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Service
 public class UserProfileDomainService {
+    
+    @Autowired
+    private UserProfileDomainRepository domainRepository;
     
     /**
      * ユーザープロフィールのマッチング候補を取得
@@ -96,6 +102,78 @@ public class UserProfileDomainService {
         } else {
             return UserActivityRank.BEGINNER;
         }
+    }
+    
+    // ドメインサービスの主要メソッド（純粋なドメインロジック）
+    
+    /**
+     * 全アクティブユーザー取得
+     */
+    public List<UserProfileEntity> getAllActiveUserProfiles() {
+        return domainRepository.findAllActive();
+    }
+    
+    /**
+     * ID による検索
+     */
+    public Optional<UserProfileEntity> getUserProfileById(String id) {
+        return domainRepository.findById(new UserId(id));
+    }
+    
+    /**
+     * ユーザープロフィール作成
+     */
+    public UserProfileEntity createUserProfile(UserProfileEntity entity) {
+        // ドメイン検証
+        ProfileValidationResult validation = validateProfile(entity);
+        
+        if (!validation.isValid()) {
+            throw new IllegalArgumentException("プロフィール検証エラー: " + 
+                String.join(", ", validation.getErrors()));
+        }
+        
+        // ドメインリポジトリで永続化
+        return domainRepository.save(entity);
+    }
+    
+    /**
+     * ユーザープロフィール更新
+     */
+    public UserProfileEntity updateUserProfile(UserId userId, UserProfileEntity entity) {
+        // 存在確認
+        if (!domainRepository.existsById(userId)) {
+            throw new IllegalArgumentException("指定されたユーザーは存在しません: " + userId.getValue());
+        }
+        
+        // ドメイン検証
+        ProfileValidationResult validation = validateProfile(entity);
+        
+        if (!validation.isValid()) {
+            throw new IllegalArgumentException("プロフィール検証エラー: " + 
+                String.join(", ", validation.getErrors()));
+        }
+        
+        return domainRepository.update(entity);
+    }
+    
+    /**
+     * 削除
+     */
+    public void deleteUserProfile(UserId userId) {
+        if (!domainRepository.existsById(userId)) {
+            throw new IllegalArgumentException("指定されたユーザーは存在しません: " + userId.getValue());
+        }
+        
+        domainRepository.deleteById(userId);
+    }
+    
+    /**
+     * 検索
+     */
+    public List<UserProfileEntity> searchUserProfiles(Integer minAge, Integer maxAge, 
+                                                     String gender, String location, 
+                                                     List<String> interests) {
+        return domainRepository.findBySearchCriteria(minAge, maxAge, gender, location, interests);
     }
     
     public static class ProfileValidationResult {

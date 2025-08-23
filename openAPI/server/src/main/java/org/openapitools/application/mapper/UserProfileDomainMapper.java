@@ -1,10 +1,10 @@
-package org.openapitools.mapper;
+package org.openapitools.application.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.mapstruct.factory.Mappers;
-import org.openapitools.dto.UserProfileDto;
+import org.openapitools.presentation.dto.UserProfileDto;
 import org.openapitools.model.UserProfile;
 import org.openapitools.domain.entity.UserProfileEntity;
 import org.openapitools.domain.valueobject.UserId;
@@ -42,7 +42,7 @@ public interface UserProfileDomainMapper {
     @Mapping(target = "gender", source = "gender", qualifiedByName = "stringToGender")
     @Mapping(target = "ageRangeMin", source = "ageRangeMin", qualifiedByName = "integerToAge")
     @Mapping(target = "ageRangeMax", source = "ageRangeMax", qualifiedByName = "integerToAge")
-    @Mapping(target = "active", source = "isActive")
+    @Mapping(target = "isActive", source = "isActive")
     @Mapping(target = "createdAt", source = "createdDate", qualifiedByName = "dateToLocalDateTime")
     @Mapping(target = "lastActiveAt", source = "lastActive", qualifiedByName = "dateToLocalDateTime")
     UserProfileEntity apiModelToDomain(UserProfile model);
@@ -66,7 +66,7 @@ public interface UserProfileDomainMapper {
     @Mapping(target = "gender", source = "gender", qualifiedByName = "stringToGender")
     @Mapping(target = "ageRangeMin", source = "ageRangeMin", qualifiedByName = "integerToAge")
     @Mapping(target = "ageRangeMax", source = "ageRangeMax", qualifiedByName = "integerToAge")
-    @Mapping(target = "active", source = "isActive")
+    @Mapping(target = "isActive", source = "isActive")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "lastActiveAt", ignore = true)
     UserProfileEntity dtoToDomain(UserProfileDto dto);

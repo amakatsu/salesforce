@@ -1,5 +1,7 @@
 package org.openapitools.domain.entity;
 
+import lombok.Builder;
+import lombok.Getter;
 import org.openapitools.domain.valueobject.UserId;
 import org.openapitools.domain.valueobject.Age;
 import org.openapitools.domain.valueobject.Gender;
@@ -8,6 +10,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
+@Getter
+@Builder(toBuilder = true)
+@lombok.Setter(lombok.AccessLevel.PACKAGE)
 public class UserProfileEntity {
     
     private final UserId userId;
@@ -24,103 +29,61 @@ public class UserProfileEntity {
     private Age ageRangeMin;
     private Age ageRangeMax;
     private Integer maxDistance;
-    private boolean isActive;
-    private final LocalDateTime createdAt;
-    private LocalDateTime lastActiveAt;
+    @Builder.Default
+    private boolean isActive = true;
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+    @Builder.Default
+    private LocalDateTime lastActiveAt = LocalDateTime.now();
     
-    public UserProfileEntity(UserId userId, String name) {
-        this.userId = Objects.requireNonNull(userId, "UserId cannot be null");
-        this.name = Objects.requireNonNull(name, "Name cannot be null");
-        this.createdAt = LocalDateTime.now();
-        this.lastActiveAt = LocalDateTime.now();
-        this.isActive = true;
+    
+    // Factory method to create new instances
+    public static UserProfileEntity create(UserId userId, String name) {
+        Objects.requireNonNull(userId, "UserId cannot be null");
+        Objects.requireNonNull(name, "Name cannot be null");
+        
+        return UserProfileEntity.builder()
+                .userId(userId)
+                .name(name.trim())
+                .build();
     }
     
-    public UserProfileEntity(UserId userId, String name, Age age, Gender gender, 
-                           String location, String bio, List<String> interests, 
-                           List<String> photos, String occupation, String education,
-                           String lookingFor, Age ageRangeMin, Age ageRangeMax,
-                           Integer maxDistance, boolean isActive, 
-                           LocalDateTime createdAt, LocalDateTime lastActiveAt) {
-        this.userId = Objects.requireNonNull(userId, "UserId cannot be null");
-        this.name = Objects.requireNonNull(name, "Name cannot be null");
-        this.age = age;
-        this.gender = gender;
-        this.location = location;
-        this.bio = bio;
-        this.interests = interests;
-        this.photos = photos;
-        this.occupation = occupation;
-        this.education = education;
-        this.lookingFor = lookingFor;
-        this.ageRangeMin = ageRangeMin;
-        this.ageRangeMax = ageRangeMax;
-        this.maxDistance = maxDistance;
-        this.isActive = isActive;
-        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
-        this.lastActiveAt = lastActiveAt != null ? lastActiveAt : LocalDateTime.now();
-    }
-    
-    // Business methods
-    public void updateProfile(String name, Age age, Gender gender, String location, String bio,
+    // Business methods that return new instances
+    public UserProfileEntity updateProfile(String name, Age age, Gender gender, String location, String bio,
                             String occupation, String education) {
-        if (name != null && !name.trim().isEmpty()) {
-            this.name = name.trim();
-        }
-        this.age = age;
-        this.gender = gender;
-        this.location = location;
-        this.bio = bio;
-        this.occupation = occupation;
-        this.education = education;
-        this.lastActiveAt = LocalDateTime.now();
+        return this.toBuilder()
+                .name(name != null && !name.trim().isEmpty() ? name.trim() : this.name)
+                .age(age)
+                .gender(gender)
+                .location(location)
+                .bio(bio)
+                .occupation(occupation)
+                .education(education)
+                .lastActiveAt(LocalDateTime.now())
+                .build();
     }
     
-    public void updatePreferences(String lookingFor, Age ageRangeMin, Age ageRangeMax, Integer maxDistance) {
-        this.lookingFor = lookingFor;
-        this.ageRangeMin = ageRangeMin;
-        this.ageRangeMax = ageRangeMax;
-        this.maxDistance = maxDistance;
-        this.lastActiveAt = LocalDateTime.now();
+    public UserProfileEntity updatePreferences(String lookingFor, Age ageRangeMin, Age ageRangeMax, Integer maxDistance) {
+        return this.toBuilder()
+                .lookingFor(lookingFor)
+                .ageRangeMin(ageRangeMin)
+                .ageRangeMax(ageRangeMax)
+                .maxDistance(maxDistance)
+                .lastActiveAt(LocalDateTime.now())
+                .build();
     }
     
-    public void addInterest(String interest) {
-        if (interest != null && !interest.trim().isEmpty() && 
-            (interests == null || !interests.contains(interest.trim()))) {
-            interests.add(interest.trim());
-            this.lastActiveAt = LocalDateTime.now();
-        }
+    public UserProfileEntity activate() {
+        return this.toBuilder()
+                .isActive(true)
+                .lastActiveAt(LocalDateTime.now())
+                .build();
     }
     
-    public void removeInterest(String interest) {
-        if (interests != null) {
-            interests.remove(interest);
-            this.lastActiveAt = LocalDateTime.now();
-        }
-    }
-    
-    public void addPhoto(String photoUrl) {
-        if (photoUrl != null && !photoUrl.trim().isEmpty() &&
-            (photos == null || !photos.contains(photoUrl.trim()))) {
-            photos.add(photoUrl.trim());
-            this.lastActiveAt = LocalDateTime.now();
-        }
-    }
-    
-    public void removePhoto(String photoUrl) {
-        if (photos != null) {
-            photos.remove(photoUrl);
-            this.lastActiveAt = LocalDateTime.now();
-        }
-    }
-    
-    public void activate() {
-        this.isActive = true;
-        this.lastActiveAt = LocalDateTime.now();
-    }
-    
-    public void deactivate() {
-        this.isActive = false;
+    public UserProfileEntity deactivate() {
+        return this.toBuilder()
+                .isActive(false)
+                .build();
     }
     
     public boolean isMatchingPreferences(UserProfileEntity other) {
@@ -143,24 +106,6 @@ public class UserProfileEntity {
         return true;
     }
     
-    // Getters
-    public UserId getUserId() { return userId; }
-    public String getName() { return name; }
-    public Age getAge() { return age; }
-    public Gender getGender() { return gender; }
-    public String getLocation() { return location; }
-    public String getBio() { return bio; }
-    public List<String> getInterests() { return interests; }
-    public List<String> getPhotos() { return photos; }
-    public String getOccupation() { return occupation; }
-    public String getEducation() { return education; }
-    public String getLookingFor() { return lookingFor; }
-    public Age getAgeRangeMin() { return ageRangeMin; }
-    public Age getAgeRangeMax() { return ageRangeMax; }
-    public Integer getMaxDistance() { return maxDistance; }
-    public boolean isActive() { return isActive; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getLastActiveAt() { return lastActiveAt; }
     
     @Override
     public boolean equals(Object o) {

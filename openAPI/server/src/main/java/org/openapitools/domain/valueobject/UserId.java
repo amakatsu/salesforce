@@ -1,7 +1,14 @@
 package org.openapitools.domain.valueobject;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
 import java.util.Objects;
 
+@Getter
+@EqualsAndHashCode
+@ToString(of = "value")
 public class UserId {
     
     private final String value;
@@ -11,27 +18,5 @@ public class UserId {
             throw new IllegalArgumentException("UserId cannot be null or empty");
         }
         this.value = value.trim();
-    }
-    
-    public String getValue() {
-        return value;
-    }
-    
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        UserId userId = (UserId) o;
-        return Objects.equals(value, userId.value);
-    }
-    
-    @Override
-    public int hashCode() {
-        return Objects.hash(value);
-    }
-    
-    @Override
-    public String toString() {
-        return value;
     }
 }

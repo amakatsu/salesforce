@@ -1,5 +1,7 @@
 package org.openapitools.domain.entity;
 
+import lombok.Builder;
+import lombok.Getter;
 import org.openapitools.domain.valueobject.CreditId;
 import org.openapitools.domain.valueobject.Money;
 import org.openapitools.domain.valueobject.InterestRate;
@@ -8,6 +10,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
+@Getter
+@Builder(toBuilder = true)
+@lombok.Setter(lombok.AccessLevel.PACKAGE)
 public class CreditDataEntity {
     
     private final CreditId creditId;
@@ -22,42 +27,38 @@ public class CreditDataEntity {
     private Money correction;
     private String parentId;
     
-    public CreditDataEntity(CreditId creditId, String label) {
-        this.creditId = Objects.requireNonNull(creditId, "CreditId cannot be null");
-        this.label = Objects.requireNonNull(label, "Label cannot be null");
+    // Factory method
+    public static CreditDataEntity create(CreditId creditId, String label) {
+        Objects.requireNonNull(creditId, "CreditId cannot be null");
+        Objects.requireNonNull(label, "Label cannot be null");
+        
+        return CreditDataEntity.builder()
+                .creditId(creditId)
+                .label(label)
+                .build();
     }
     
-    public CreditDataEntity(CreditId creditId, String label, String dueDateString, 
-                           String rateString, Money balance99, Money principal,
-                           Money changeAmount, Money postBalance, Money actualBalance,
-                           Money correction, String parentId) {
-        this.creditId = Objects.requireNonNull(creditId, "CreditId cannot be null");
-        this.label = label;
-        this.dueDate = parseDueDate(dueDateString);
-        this.rate = new InterestRate(rateString);
-        this.balance99 = balance99;
-        this.principal = principal;
-        this.changeAmount = changeAmount;
-        this.postBalance = postBalance;
-        this.actualBalance = actualBalance;
-        this.correction = correction;
-        this.parentId = parentId;
-    }
-    
-    // Business methods
-    public void updateBalance(Money newBalance) {
+    // Business methods that return new instances
+    public CreditDataEntity updateBalance(Money newBalance) {
         if (newBalance != null) {
-            this.changeAmount = newBalance.subtract(this.actualBalance != null ? this.actualBalance : new Money(null));
-            this.postBalance = newBalance;
-            this.actualBalance = newBalance;
+            Money change = newBalance.subtract(this.actualBalance != null ? this.actualBalance : new Money(null));
+            return this.toBuilder()
+                    .changeAmount(change)
+                    .postBalance(newBalance)
+                    .actualBalance(newBalance)
+                    .build();
         }
+        return this;
     }
     
-    public void applyCorrection(Money correctionAmount) {
-        this.correction = correctionAmount;
-        if (this.actualBalance != null && correctionAmount != null) {
-            this.actualBalance = this.actualBalance.add(correctionAmount);
+    public CreditDataEntity applyCorrection(Money correctionAmount) {
+        if (correctionAmount != null && this.actualBalance != null) {
+            return this.toBuilder()
+                    .correction(correctionAmount)
+                    .actualBalance(this.actualBalance.add(correctionAmount))
+                    .build();
         }
+        return this.toBuilder().correction(correctionAmount).build();
     }
     
     public Money calculateInterestAmount() {
@@ -81,7 +82,7 @@ public class CreditDataEntity {
         return dueDate.format(DateTimeFormatter.ofPattern("MM/dd"));
     }
     
-    private LocalDate parseDueDate(String dueDateString) {
+    public static LocalDate parseDueDate(String dueDateString) {
         if (dueDateString == null || dueDateString.trim().isEmpty()) {
             return null;
         }
@@ -100,44 +101,6 @@ public class CreditDataEntity {
         }
         
         return null;
-    }
-    
-    // Getters
-    public CreditId getCreditId() { return creditId; }
-    public String getLabel() { return label; }
-    public LocalDate getDueDate() { return dueDate; }
-    public InterestRate getRate() { return rate; }
-    public Money getBalance99() { return balance99; }
-    public Money getPrincipal() { return principal; }
-    public Money getChangeAmount() { return changeAmount; }
-    public Money getPostBalance() { return postBalance; }
-    public Money getActualBalance() { return actualBalance; }
-    public Money getCorrection() { return correction; }
-    public String getParentId() { return parentId; }
-    
-    // Setters for updates
-    public void setLabel(String label) { 
-        this.label = label; 
-    }
-    
-    public void setDueDate(String dueDateString) { 
-        this.dueDate = parseDueDate(dueDateString); 
-    }
-    
-    public void setRate(String rateString) { 
-        this.rate = new InterestRate(rateString); 
-    }
-    
-    public void setBalance99(Money balance99) { 
-        this.balance99 = balance99; 
-    }
-    
-    public void setPrincipal(Money principal) { 
-        this.principal = principal; 
-    }
-    
-    public void setParentId(String parentId) { 
-        this.parentId = parentId; 
     }
     
     @Override

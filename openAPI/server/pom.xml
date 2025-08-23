@@ -19,6 +19,7 @@
         <java.version>17</java.version>
         <springdoc.version>2.2.0</springdoc.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <lombok.version>1.18.30</lombok.version>
     </properties>
 
     <!-- ========= 依存関係 ========= -->
@@ -85,6 +86,14 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- テスト -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -112,6 +121,13 @@
                     <source>17</source>
                     <target>17</target>
                     <annotationProcessorPaths>
+                        <!-- Lombok -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <!-- MapStruct -->
                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
