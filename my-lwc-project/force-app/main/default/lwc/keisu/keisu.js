@@ -1,538 +1,484 @@
 import { LightningElement, track } from "lwc";
+import { stateService } from "./state";
 
-const BANK_COLUMNS = [
-  { label: "銀行名", fieldName: "bankName", type: "text" },
-  { label: "2年前", fieldName: "twoYearsAgo", type: "text" },
-  { label: "1年前", fieldName: "oneYearAgo", type: "text" },
-  { label: "直近月末", fieldName: "recentEnd", type: "text" },
-  { label: "外為シェア", fieldName: "foreignCurrency", type: "text" }
-];
-
-const INDICATOR_COLUMNS = [
-  {
-    label: "",
-    fieldName: "type",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title01 width-15"
+// ラベル定義（共通化）
+const TABLE_HEADERS = {
+  CREDIT: {
+    SUBJECT_SUMMARY_NUMBER: "科目・摘要・禀査番号",
+    DUE_DATE: "期日",
+    RATE: "利率",
+    BALANCE_99: "99月末残高",
+    MARK: "合算",
+    PRINCIPAL: "極度額",
+    CHANGE: "当月増減",
+    POST_BALANCE: "本件後残高",
+    ACTUAL_BALANCE: "実勢現在残",
+    CORRECTION: "補正値"
   },
-  {
-    label: "決算期",
-    fieldName: "period",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
+  COLLATERAL: {
+    COLLATERAL_TYPE: "担保種類",
+    REG_VALUE: "規定値",
+    MARKET_VALUE: "時価ベース"
   },
-  {
-    label: "純売上高",
-    fieldName: "sales",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "純売上高（月商）",
-    fieldName: "operatingProfit",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "経常利益",
-    fieldName: "currentProfit",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "経常利益（同率）（％）",
-    fieldName: "currentProfitRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "当期利益",
-    fieldName: "netProfit",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "当期利益（同率）（％）",
-    fieldName: "netProfitRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "減価償却",
-    fieldName: "depreciation",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "商業CF",
-    fieldName: "commercialCF",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "配当率（％）",
-    fieldName: "distributionRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "自己資本",
-    fieldName: "ownCapital",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "借入金回転期間（月）",
-    fieldName: "borrowingPeriod",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "純金利負担率（％）",
-    fieldName: "netInterestBurdenRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "自己資本比率（％）",
-    fieldName: "ownCapitalRatio",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-120"
-  },
-  {
-    label: "経常収支比率（％）",
-    fieldName: "currentBalanceRatio",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
+  GUARANTOR: {
+    GUARANTOR: "保証人"
   }
-];
+};
 
-const ACTIVE_SECTIONS = [
-  "a",
-  "b",
-  "c",
-  "d",
-  "e",
-  "f",
-  "g",
-  "h",
-  "i",
-  "j",
-  "k",
-  "l",
-  "m",
-  "n",
-  "o",
-  "p",
-  "q",
-  "r"
-];
+const ACCORDION_LABELS = {
+  CREDIT_STATUS: "与信状況",
+  COLLATERAL: "本件保全状況",
+  GUARANTOR: "保証人"
+};
 
-function generateBankData() {
-  const data = [
-    {
-      id: "1",
-      bankName: "当行",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
-      id: "2",
-      bankName: "シェア(%)",
-      twoYearsAgo: "99.999",
-      oneYearAgo: "99.999",
-      recentEnd: "99.999",
-      foreignCurrency: "-",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: true
-      }
-    },
-    {
-      id: "3",
-      bankName: "○○○○○",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
-      id: "4",
-      bankName: "○○○○○",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
-      id: "5",
-      bankName: "○○○○○",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
-      id: "6",
-      bankName: "総借入",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    }
-  ];
+const BUTTON_LABELS = {
+  SAVE: "保存",
+  RESET: "リセット"
+};
 
-  return data;
-}
+const MESSAGE_LABELS = {
+  SAVE_SUCCESS: "保存が完了しました",
+  RESET_SUCCESS: "リセットが完了しました",
+  NAKED_CREDIT_INFO:
+    "裸与信は信用限度不参集与信を考慮した権限判定上の裸与信を表示"
+};
 
-function generateIndicatorData() {
-  const data = [
-    {
-      id: "1",
-      type: "",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "99.99",
-      disable: {
-        period: true,
-        sales: true,
-        operatingProfit: true,
-        currentProfit: true,
-        currentProfitRate: true,
-        netProfit: true,
-        netProfitRate: true,
-        depreciation: true,
-        commercialCF: true,
-        distributionRate: true,
-        ownCapital: true,
-        borrowingPeriod: true,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
-    },
-    {
-      id: "2",
-      type: "",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "99.99",
-      disable: {
-        period: true,
-        sales: true,
-        operatingProfit: true,
-        currentProfit: true,
-        currentProfitRate: true,
-        netProfit: true,
-        netProfitRate: true,
-        depreciation: true,
-        commercialCF: true,
-        distributionRate: true,
-        ownCapital: true,
-        borrowingPeriod: true,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
-    },
-    {
-      id: "3",
-      type: "",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "99.99",
-      disable: {
-        period: true,
-        sales: true,
-        operatingProfit: true,
-        currentProfit: true,
-        currentProfitRate: true,
-        netProfit: true,
-        netProfitRate: true,
-        depreciation: true,
-        commercialCF: true,
-        distributionRate: true,
-        ownCapital: true,
-        borrowingPeriod: true,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
-    },
-    {
-      id: "4",
-      type: "中間",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "",
-      disable: {
-        period: false,
-        sales: false,
-        operatingProfit: false,
-        currentProfit: false,
-        currentProfitRate: false,
-        netProfit: false,
-        netProfitRate: false,
-        depreciation: false,
-        commercialCF: false,
-        distributionRate: false,
-        ownCapital: false,
-        borrowingPeriod: false,
-        netInterestBurdenRate: false,
-        ownCapitalRatio: false,
-        currentBalanceRatio: true
-      }
-    },
-    {
-      id: "5",
-      type: "予想",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "",
-      ownCapitalRatio: "",
-      currentBalanceRatio: "",
-      disable: {
-        period: false,
-        sales: false,
-        operatingProfit: false,
-        currentProfit: false,
-        currentProfitRate: false,
-        netProfit: false,
-        netProfitRate: false,
-        depreciation: false,
-        commercialCF: false,
-        distributionRate: false,
-        ownCapital: false,
-        borrowingPeriod: false,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
-    }
-  ];
+const ARIA_LABELS = {
+  EXPAND_COLLAPSE: "展開/折りたたみ",
+  EDIT_FIELD: "フィールドを編集"
+};
 
-  return data;
-}
+// 入力フィールドラベル
+const FIELD_LABELS = {
+  RATE: "利率",
+  BALANCE_99: "99月末残高",
+  PRINCIPAL: "極度額",
+  CHANGE: "当月増減",
+  POST_BALANCE: "本件後残高",
+  ACTUAL_BALANCE: "実勢現在残",
+  CORRECTION: "補正値",
+  REG_VALUE: "規定値",
+  MARKET_VALUE: "時価ベース"
+};
 
-export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
+// 入力フィールド設定
+const FIELD_CONFIG = {
+  DECIMAL_STEP: "0.01"
+};
+
+// フィールド定義
+const FIELD_DEFINITIONS = {
+  CREDIT: ["label", "dueDate", "rate", "balance99", "mark"],
+  COLLATERAL: [
+    "collateralType",
+    "principal",
+    "change",
+    "postBalance",
+    "actualBalance",
+    "regValue",
+    "marketValue",
+    "correction"
+  ]
+};
+
+/**
+ * 利率情報管理コンポーネント
+ * 与信状況と本件保全の情報を管理
+ */
+export default class RirituComponent extends LightningElement {
   @track amountUnit = "〇〇〇";
   @track groupNumber = "9";
-  activeSections = ACTIVE_SECTIONS;
+  @track creditRows = [];
+  @track collateralRows = [];
+  @track guarantorData = [
+    { id: "guarantor_1", name: "保証人1" },
+    { id: "guarantor_2", name: "保証人2" },
+    { id: "guarantor_3", name: "保証人3" },
+    { id: "guarantor_4", name: "保証人4" },
+    { id: "guarantor_5", name: "保証人5" }
+  ];
 
-  @track bankData = generateBankData();
-  bankColumns = BANK_COLUMNS;
+  highlightOn = false;
+  activeSections = [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r"
+  ];
 
-  @track indicatorData = generateIndicatorData();
-  indicatorColumns = INDICATOR_COLUMNS;
+  /* =========================================
+   * PUBLIC METHODS - HTMLから呼び出される
+   * ======================================== */
 
-  // 自己査定結果データ
-  @track assessmentData = {
-    nonClassifiedAmount: { value: "99999", editable: true },
-    firstClassifiedAmount: { value: "99999", editable: true },
-    secondClassifiedAmount: { value: "99999", editable: true },
-    thirdClassifiedAmount: { value: "99999", editable: true },
-    fourthClassifiedAmount: { value: "99999", editable: true },
-    totalAmount: { value: "99999", editable: true },
-    managedPreferredDebt: { value: "99999", editable: true },
-    creditRelatedCosts: { value: "99999", editable: true }
-  };
-
-  // その他取引状況データ
-  @track otherTransactionData = {
-    agencyFee: { value: "99999", editable: true },
-    privateBond: { value: "99999", editable: true },
-    principal: { value: "99999", editable: true },
-    guarantor: { value: "99999", editable: true },
-    largeRemaining: { value: "99999", editable: true },
-    extreme: { value: "99999", editable: true },
-    specialContract: { value: "99999", editable: true }
-  };
-
-  // 政策投資株式データ
-  @track stockData = {
-    stockName: { value: "99999", editable: true },
-    stockQuantity: { value: "99999", editable: true },
-    acquisitionPrice: { value: "99999", editable: true },
-    stockPrice: { value: "99999", editable: true },
-    acquisitionDate: { value: "99999", editable: true },
-    currentPrice: { value: "99999", editable: true },
-    valuationProfitLoss: { value: "99999", editable: true }
-  };
-
-  // その他単体データ
-  @track memo = { value: "メモ内容", editable: false };
-  @track total = { value: "99.9999", editable: true };
-
-  // ゲッター：データ値を簡単にアクセスできるように
-  get nonClassifiedAmount() {
-    return this.assessmentData.nonClassifiedAmount.value;
-  }
-  get firstClassifiedAmount() {
-    return this.assessmentData.firstClassifiedAmount.value;
-  }
-  get secondClassifiedAmount() {
-    return this.assessmentData.secondClassifiedAmount.value;
-  }
-  get thirdClassifiedAmount() {
-    return this.assessmentData.thirdClassifiedAmount.value;
-  }
-  get fourthClassifiedAmount() {
-    return this.assessmentData.fourthClassifiedAmount.value;
-  }
-  get totalAmount() {
-    return this.assessmentData.totalAmount.value;
-  }
-  get managedPreferredDebt() {
-    return this.assessmentData.managedPreferredDebt.value;
-  }
-  get creditRelatedCosts() {
-    return this.assessmentData.creditRelatedCosts.value;
+  // ラベル定義をテンプレートで使用可能にする
+  get labels() {
+    return {
+      tableHeaders: TABLE_HEADERS,
+      accordion: ACCORDION_LABELS,
+      button: BUTTON_LABELS,
+      message: MESSAGE_LABELS,
+      aria: ARIA_LABELS,
+      field: FIELD_LABELS,
+      config: FIELD_CONFIG
+    };
   }
 
-  get agencyFee() {
-    return this.otherTransactionData.agencyFee.value;
-  }
-  get privateBond() {
-    return this.otherTransactionData.privateBond.value;
-  }
-  get principal() {
-    return this.otherTransactionData.principal.value;
-  }
-  get guarantor() {
-    return this.otherTransactionData.guarantor.value;
-  }
-  get largeRemaining() {
-    return this.otherTransactionData.largeRemaining.value;
-  }
-  get extreme() {
-    return this.otherTransactionData.extreme.value;
-  }
-  get specialContract() {
-    return this.otherTransactionData.specialContract.value;
+  // 下書き状態の取得
+  get draft() {
+    return stateService.getState().draft;
   }
 
-  get stockName() {
-    return this.stockData.stockName.value;
-  }
-  get stockQuantity() {
-    return this.stockData.stockQuantity.value;
-  }
-  get acquisitionPrice() {
-    return this.stockData.acquisitionPrice.value;
-  }
-  get stockPrice() {
-    return this.stockData.stockPrice.value;
-  }
-  get acquisitionDate() {
-    return this.stockData.acquisitionDate.value;
-  }
-  get currentPrice() {
-    return this.stockData.currentPrice.value;
-  }
-  get valuationProfitLoss() {
-    return this.stockData.valuationProfitLoss.value;
+  get hasDraft() {
+    return this.draft.size > 0;
   }
 
-  get memoValue() {
-    return this.memo.value;
-  }
-  get totalValue() {
-    return this.total.value;
+  get draftJson() {
+    return JSON.stringify(Object.fromEntries(this.draft), null, 2);
   }
 
+  connectedCallback() {
+    this._initializeData();
+  }
+
+  /**
+   * 保存処理 - HTMLから呼び出し
+   * @public
+   */
+  handleSave() {
+    stateService.getState().draft.clear();
+    this.highlightOn = true;
+    this._refreshData();
+  }
+
+  /**
+   * リセット処理 - HTMLから呼び出し
+   * @public
+   */
+  handleReset() {
+    stateService.resetState();
+    this.highlightOn = false;
+    this._refreshData();
+  }
+
+  /**
+   * ツリー展開/折りたたみ - HTMLから呼び出し
+   * @param {Event} event - クリックイベント
+   * @public
+   */
+  handleToggle(event) {
+    const { expanded } = stateService.getState();
+    const nodeId = event.currentTarget.dataset.id;
+
+    expanded.has(nodeId) ? expanded.delete(nodeId) : expanded.add(nodeId);
+    this._refreshData();
+  }
+
+  /**
+   * 編集処理 - HTMLから呼び出し
+   * @param {Event} event - 入力イベント
+   * @public
+   */
+  handleEdit(event) {
+    const nodeId = event.target.dataset.id;
+    const fieldName = event.target.dataset.field;
+    const newValue =
+      fieldName === "active" ? event.target.checked : event.target.value;
+
+    // 編集可能性チェック
+    if (this._isFieldDisabled(nodeId, fieldName)) return;
+
+    this._updateNodeData(nodeId, fieldName, newValue);
+    this._updateDraft(nodeId, fieldName, newValue);
+    this._refreshData();
+  }
+
+  /**
+   * 数値入力エラーハンドラー - HTMLから呼び出し
+   * @param {Event} event - エラーイベント
+   * @public
+   */
+  numberErrorHandler(event) {
+    // 数値入力エラー時の処理
+    console.warn('Number input error:', event.detail);
+  }
+
+  /**
+   * 保証人入力変更処理 - HTMLから呼び出し
+   * @param {Event} event - 入力変更イベント
+   * @public
+   */
   handleInputChange(event) {
-    const { id, field } = event.currentTarget.dataset;
-    const value = event.target.value;
-    this.updateData(this.bankData, id, field, value);
-    this.updateData(this.indicatorData, id, field, value);
+    const guarantorId = event.target.dataset.id;
+    const newValue = event.target.value;
+    
+    // 保証人データを更新
+    const updatedData = this.guarantorData.map(item => {
+      if (item.id === guarantorId) {
+        return { ...item, name: newValue };
+      }
+      return item;
+    });
+    this.guarantorData = updatedData;
   }
 
-  updateData(data, id, field, value) {
-    const item = data.find((row) => row.id === id);
-    if (item && !item.disable[field]) {
-      item[field] = value;
+  /* =========================================
+   * PRIVATE METHODS - 内部処理専用
+   * ======================================== */
+
+  /**
+   * データ初期化
+   * @private
+   */
+  _initializeData() {
+    stateService.initializeState();
+    const { creditSource, collateralSource } = stateService.getState();
+    this.creditRows = this._flattenTree(creditSource, false);
+    this.collateralRows = this._flattenTree(collateralSource, false);
+  }
+
+  /**
+   * データ更新
+   * @private
+   */
+  _refreshData() {
+    const { creditSource, collateralSource } = stateService.getState();
+    this.creditRows = this._flattenTree(creditSource, this.highlightOn);
+    this.collateralRows = this._flattenTree(collateralSource, this.highlightOn);
+  }
+
+  /**
+   * フィールドが無効化されているかチェック
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @returns {boolean} 無効化されているか
+   * @private
+   */
+  _isFieldDisabled(nodeId, fieldName) {
+    const creditRow = this.creditRows.find((row) => row.id === nodeId);
+    const collateralRow = this.collateralRows.find((row) => row.id === nodeId);
+
+    return (
+      (creditRow && creditRow[`${fieldName}Disabled`]) ||
+      (collateralRow && collateralRow[`${fieldName}Disabled`])
+    );
+  }
+
+  /**
+   * ノードデータ更新
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @param {*} newValue - 新しい値
+   * @private
+   */
+  _updateNodeData(nodeId, fieldName, newValue) {
+    const { creditSource, collateralSource } = stateService.getState();
+    this._updateNodeInTree(creditSource, nodeId, fieldName, newValue);
+    this._updateNodeInTree(collateralSource, nodeId, fieldName, newValue);
+  }
+
+  /**
+   * 下書きデータ更新
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @param {*} newValue - 新しい値
+   * @private
+   */
+  _updateDraft(nodeId, fieldName, newValue) {
+    const { draft } = stateService.getState();
+    const existingDraft = draft.get(nodeId) || {};
+    draft.set(nodeId, { ...existingDraft, [fieldName]: newValue });
+  }
+
+  /**
+   * ツリーをフラット配列に変換
+   * @param {Array} tree - ツリーデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {number} level - ネストレベル
+   * @returns {Array} フラット化された配列
+   * @private
+   */
+  _flattenTree(tree, shouldHighlight, level = 0) {
+    return tree.flatMap((node) => {
+      const flatNode = this._createFlatNode(node, level, shouldHighlight);
+      const children = this._shouldShowChildren(node)
+        ? this._flattenTree(node.children, shouldHighlight, level + 1)
+        : [];
+      return [flatNode, ...children];
+    });
+  }
+
+  /**
+   * フラット表示用ノード作成
+   * @param {Object} node - ノードデータ
+   * @param {number} level - ネストレベル
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @returns {Object} フラット表示用ノード
+   * @private
+   */
+  _createFlatNode(node, level, shouldHighlight) {
+    const state = stateService.getState();
+    const hasChildren = Boolean(node.children?.length);
+    const isExpanded = state.expanded.has(node.id);
+    const originalNode = this._findOriginalNode(node.id);
+    const isSpecificCredit = node.id === "l142";
+
+    return {
+      ...node,
+      level,
+      hasChildren,
+      isSpecificCredit,
+      icon: this._getNodeIcon(hasChildren, isExpanded),
+      ...this._generateFieldStyles(node, originalNode, shouldHighlight, level)
+    };
+  }
+
+  /**
+   * 子ノードを表示すべきかチェック
+   * @param {Object} node - ノードデータ
+   * @returns {boolean} 子ノードを表示するか
+   * @private
+   */
+  _shouldShowChildren(node) {
+    const { expanded } = stateService.getState();
+    return expanded.has(node.id) && node.children?.length > 0;
+  }
+
+  /**
+   * ノードアイコン取得
+   * @param {boolean} hasChildren - 子ノードを持つか
+   * @param {boolean} isExpanded - 展開されているか
+   * @returns {string} アイコン名
+   * @private
+   */
+  _getNodeIcon(hasChildren, isExpanded) {
+    if (!hasChildren) return "";
+    return isExpanded ? "utility:chevrondown" : "utility:chevronright";
+  }
+
+  /**
+   * 元のノードを検索
+   * @param {string} nodeId - ノードID
+   * @returns {Object|null} 元のノード
+   * @private
+   */
+  _findOriginalNode(nodeId) {
+    const { originalCreditSource, originalCollateralSource } =
+      stateService.getState();
+    return (
+      this._findNodeInTree(originalCreditSource, nodeId) ||
+      this._findNodeInTree(originalCollateralSource, nodeId)
+    );
+  }
+
+  /**
+   * フィールドスタイル生成
+   * @param {Object} node - ノードデータ
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {number} level - ネストレベル
+   * @returns {Object} スタイルとフラグのオブジェクト
+   * @private
+   */
+  _generateFieldStyles(node, originalNode, shouldHighlight, level) {
+    const { draft } = stateService.getState();
+    const indentClass = `indent-${Math.min(level, 3)}`;
+    const editable = node.editable || {};
+    const allFields = [
+      ...FIELD_DEFINITIONS.CREDIT,
+      ...FIELD_DEFINITIONS.COLLATERAL
+    ];
+    const result = {};
+
+    allFields.forEach((field) => {
+      const hasChanged = this._hasFieldChanged(
+        node,
+        originalNode,
+        field,
+        shouldHighlight,
+        draft
+      );
+      result[`${field}Class`] = `${indentClass} ${
+        hasChanged ? "changed-cell" : ""
+      }`.trim();
+      result[`${field}Disabled`] = !editable[field];
+    });
+
+    return result;
+  }
+
+  /**
+   * フィールドが変更されているかチェック
+   * @param {Object} node - ノードデータ
+   * @param {Object} originalNode - 元のノードデータ
+   * @param {string} field - フィールド名
+   * @param {boolean} shouldHighlight - ハイライト表示するか
+   * @param {Map} draft - 下書きデータ
+   * @returns {boolean} 変更されているか
+   * @private
+   */
+  _hasFieldChanged(node, originalNode, field, shouldHighlight, draft) {
+    return (
+      shouldHighlight &&
+      !draft.has(node.id) &&
+      originalNode &&
+      originalNode[field] !== node[field]
+    );
+  }
+
+  /**
+   * ツリー内ノード更新
+   * @param {Array} tree - ツリーデータ
+   * @param {string} nodeId - ノードID
+   * @param {string} fieldName - フィールド名
+   * @param {*} newValue - 新しい値
+   * @returns {boolean} 更新成功したか
+   * @private
+   */
+  _updateNodeInTree(tree, nodeId, fieldName, newValue) {
+    for (const node of tree) {
+      if (node.id === nodeId) {
+        node[fieldName] = newValue;
+        return true;
+      }
+      if (
+        node.children &&
+        this._updateNodeInTree(node.children, nodeId, fieldName, newValue)
+      ) {
+        return true;
+      }
     }
+    return false;
+  }
+
+  /**
+   * ツリー内ノード検索
+   * @param {Array} tree - ツリーデータ
+   * @param {string} nodeId - ノードID
+   * @returns {Object|null} 見つかったノードまたはnull
+   * @private
+   */
+  _findNodeInTree(tree, nodeId) {
+    for (const node of tree) {
+      if (node.id === nodeId) return node;
+      if (node.children) {
+        const found = this._findNodeInTree(node.children, nodeId);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 }
