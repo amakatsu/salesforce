@@ -1,0 +1,41 @@
+{
+  "name": "lwc-jest-testing",
+  "version": "1.0.0",
+  "description": "Jest testing for Lightning Web Components",
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest",
+    "test:unit:watch": "jest --watch",
+    "test:unit:debug": "jest --debug",
+    "test:unit:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0",
+    "@babel/core": "^7.20.0",
+    "@babel/preset-env": "^7.20.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "moduleNameMapping": {
+      "^c/keisu/state$": "<rootDir>/force-app/main/default/lwc/keisu/state.js",
+      "^c/keisu/data$": "<rootDir>/force-app/main/default/lwc/keisu/data.js",
+      "^c/keisu$": "<rootDir>/force-app/main/default/lwc/keisu/keisu.js",
+      "^c/(.*)$": "<rootDir>/force-app/main/default/lwc/$1/$1"
+    },
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "transform": {
+      "^.+\\.js$": "babel-jest"
+    },
+    "testMatch": ["**/__tests__/**/*.test.js"],
+    "moduleDirectories": ["node_modules", "<rootDir>/force-app/main/default/lwc"],
+    "collectCoverageFrom": [
+      "force-app/main/default/lwc/**/*.js",
+      "!force-app/main/default/lwc/**/__tests__/**",
+      "!force-app/main/default/lwc/**/__mocks__/**"
+    ]
+  },
+  "babel": {
+    "presets": [["@babel/preset-env", { "targets": { "node": "current" } }]]
+  }
+}

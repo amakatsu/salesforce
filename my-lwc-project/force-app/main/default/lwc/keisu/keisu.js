@@ -66,20 +66,21 @@ const FIELD_CONFIG = {
   DECIMAL_STEP: "0.01"
 };
 
-// フィールド定義
-const FIELD_DEFINITIONS = {
-  CREDIT: ["label", "dueDate", "rate", "balance99", "mark"],
-  COLLATERAL: [
-    "collateralType",
-    "principal",
-    "change",
-    "postBalance",
-    "actualBalance",
-    "regValue",
-    "marketValue",
-    "correction"
-  ]
-};
+// フィールド定義（簡素化）
+const EDITABLE_FIELDS = [
+  "label",
+  "dueDate",
+  "rate",
+  "balance99",
+  "principal",
+  "change",
+  "postBalance",
+  "actualBalance",
+  "regValue",
+  "marketValue",
+  "correction",
+  "collateralType"
+];
 
 /**
  * 利率情報管理コンポーネント
@@ -99,26 +100,7 @@ export default class RirituComponent extends LightningElement {
   ];
 
   highlightOn = false;
-  activeSections = [
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r"
-  ];
+  activeSections = ["d", "e"]; // 必要な2つのセクションのみ
 
   /* =========================================
    * PUBLIC METHODS - HTMLから呼び出される
@@ -213,7 +195,7 @@ export default class RirituComponent extends LightningElement {
    */
   numberErrorHandler(event) {
     // 数値入力エラー時の処理
-    console.warn('Number input error:', event.detail);
+    console.warn("Number input error:", event.detail);
   }
 
   /**
@@ -224,9 +206,9 @@ export default class RirituComponent extends LightningElement {
   handleInputChange(event) {
     const guarantorId = event.target.dataset.id;
     const newValue = event.target.value;
-    
+
     // 保証人データを更新
-    const updatedData = this.guarantorData.map(item => {
+    const updatedData = this.guarantorData.map((item) => {
       if (item.id === guarantorId) {
         return { ...item, name: newValue };
       }
@@ -395,15 +377,11 @@ export default class RirituComponent extends LightningElement {
    */
   _generateFieldStyles(node, originalNode, shouldHighlight, level) {
     const { draft } = stateService.getState();
-    const indentClass = `indent-${Math.min(level, 3)}`;
+    const indentClass = `indent-${Math.min(level, 1)}`; // 2階層のみ
     const editable = node.editable || {};
-    const allFields = [
-      ...FIELD_DEFINITIONS.CREDIT,
-      ...FIELD_DEFINITIONS.COLLATERAL
-    ];
     const result = {};
 
-    allFields.forEach((field) => {
+    EDITABLE_FIELDS.forEach((field) => {
       const hasChanged = this._hasFieldChanged(
         node,
         originalNode,
