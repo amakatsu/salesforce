@@ -1,0 +1,347 @@
+<template>
+  <lightning-card>
+    <!--スクロール有の表-->
+    <div class="table-container-sample">
+      <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+        <div
+          class="table-sticky slds-col slds-size_12-of-12 slds-var-p-right_small slds-var-m-left_small"
+        >
+          <table
+            role="grid"
+            class="slds-table table-sticky__title slds-table_fixed-layout"
+          >
+            <colgroup>
+              <col style="width: 100px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+              <col style="width: 100px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+            </colgroup>
+            <tr class="slds-line-height_reset">
+              <th
+                class="table-sticky__title table-sticky3__title01"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small"></div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small">数値1</div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small">数値2</div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small">
+                  文字列1
+                </div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small">
+                  文字列2
+                </div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small">
+                  チェックボックス
+                </div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small">
+                  審査結果
+                </div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small">科目</div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small"></div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small"></div>
+              </th>
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="col"
+              >
+                <div class="slds-truncate slds-var-p-right_x-small"></div>
+              </th>
+            </tr>
+            <tr class="slds-line-height_reset">
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="row"
+              >
+                <div class="slds-truncate">{record.l1_label}</div>
+              </th>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l1_num1"
+                    type="number"
+                    value={record.l1_num1}
+                    onblur={handleRecordValueChange}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate slds-text-align_right">
+                  <lightning-formatted-number
+                    data-id="l1_num2"
+                    value={record.l1_num2}
+                  ></lightning-formatted-number>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l1_str1"
+                    type="text"
+                    value={record.l1_str1}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-formatted-text
+                    data-id="l1_str2"
+                    value={record.l1_str2}
+                  ></lightning-formatted-text>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l1_check"
+                    type="checkbox"
+                    checked={record.l1_check}
+                    variant="label-hidden"
+                    onchange={handleRecordCheckedChange}
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <lightning-combobox
+                  value={record.l1_reviewResult}
+                  options={reviewResultOptions}
+                  data-id="l1_reviewResult"
+                  onchange={handleComboboxChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td>
+                <lightning-combobox
+                  value={record.l1_subject}
+                  options={subjectOptions}
+                  data-id="l1_subject"
+                  onchange={handleComboboxChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr class="slds-line-height_reset">
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="row"
+              >
+                <div class="slds-truncate">{record.l2_label}</div>
+              </th>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l2_num1"
+                    type="number"
+                    value={record.l2_num1}
+                    onblur={handleRecordValueChange}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate slds-text-align_right">
+                  <lightning-formatted-number
+                    data-id="l2_num2"
+                    value={record.l2_num2}
+                  ></lightning-formatted-number>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l2_str1"
+                    type="text"
+                    value={record.l2_str1}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-formatted-text
+                    data-id="l2_str2"
+                    value={record.l2_str2}
+                  ></lightning-formatted-text>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l2_check"
+                    type="checkbox"
+                    checked={record.l2_check}
+                    variant="label-hidden"
+                    onchange={handleRecordCheckedChange}
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <lightning-combobox
+                  value={record.l2_reviewResult}
+                  options={reviewResultOptions}
+                  data-id="l2_reviewResult"
+                  onchange={handleComboboxChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td>
+                <lightning-combobox
+                  value={record.l2_subject}
+                  options={subjectOptions}
+                  data-id="l2_subject"
+                  onchange={handleComboboxChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr class="slds-line-height_reset">
+              <th
+                class="table-sticky__title table-sticky3__title02"
+                scope="row"
+              >
+                <div class="slds-truncate">{record.l3_label}</div>
+              </th>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l3_num1"
+                    type="number"
+                    value={record.l3_num1}
+                    onblur={handleRecordValueChange}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate slds-text-align_right">
+                  <lightning-formatted-number
+                    data-id="l3_num2"
+                    value={record.l3_num2}
+                  ></lightning-formatted-number>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l3_date1"
+                    type="date"
+                    value={record.l3_date1}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l3_date2"
+                    type="date"
+                    value={record.l3_date2}
+                    variant="label-hidden"
+                    readonly
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <div class="slds-truncate">
+                  <lightning-input
+                    data-id="l3_check"
+                    type="checkbox"
+                    checked={record.l3_check}
+                    variant="label-hidden"
+                    onchange={handleRecordCheckedChange}
+                  ></lightning-input>
+                </div>
+              </td>
+              <td>
+                <lightning-combobox
+                  value={record.l3_reviewResult}
+                  options={reviewResultOptions}
+                  data-id="l3_reviewResult"
+                  onchange={handleComboboxChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td>
+                <lightning-combobox
+                  value={record.l3_subject}
+                  options={subjectOptions}
+                  data-id="l3_subject"
+                  onchange={handleComboboxChange}
+                  variant="label-hidden"
+                  dropdown-alignment="auto"
+                ></lightning-combobox>
+              </td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </lightning-card>
+</template>

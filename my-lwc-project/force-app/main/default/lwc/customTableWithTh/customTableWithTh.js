@@ -57,7 +57,7 @@ const SELECTION_OPTIONS = [
 /* =========================================
  * モックデータ生成関数
  * ========================================= */
-function generateMockData(count = 100) {
+function generateMockData(count = 2) {
   return Array.from({ length: count }, (_, i) => ({
     Id: `${i + 1}`.padStart(3, "0"),
     isSelected: false,
@@ -85,7 +85,7 @@ function generateMockData(count = 100) {
  * ========================================= */
 export default class CustomTableWithTh extends LightningElement {
   /* 行データ */
-  @track accounts = generateMockData(100);
+  @track accounts = generateMockData(2);
 
   /* ---------- テンプレート描画用 ---------- */
   get processedAccounts() {

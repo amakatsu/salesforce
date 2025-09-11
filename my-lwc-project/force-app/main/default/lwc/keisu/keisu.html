@@ -475,6 +475,19 @@
             </div>
           </div>
         </lightning-card>
+        <!-- 与信番号入力フィールド（自動ハイフンフォーマット機能付き） -->
+        <!-- 入力中: 12345678 → フォーカスアウト時: 1234-5678 -->
+        <lightning-input
+          type="text"
+          label="与信番号"
+          value={hyphenFieldValue}
+          placeholder="数字を入力してください（例: 12345678）"
+          max-length="12"
+          pattern="[0-9]*"
+          onfocus={handleHyphenFieldFocus}
+          onblur={handleHyphenFieldBlur}
+          onchange={handleHyphenFieldInput}
+        ></lightning-input>
       </lightning-layout-item>
     </lightning-layout>
   </lightning-accordion>

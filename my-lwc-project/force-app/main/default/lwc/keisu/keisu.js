@@ -99,6 +99,10 @@ export default class RirituComponent extends LightningElement {
     { id: "guarantor_5", name: "保証人5" }
   ];
 
+  // 与信番号入力フィールド - ハイフンフォーマット機能付き
+  @track hyphenFieldValue = "";        // 表示用の値（ハイフン付き: 1234-5678）
+  @track hyphenFieldRawValue = "";     // 保存用の値（数字のみ: 12345678）
+
   highlightOn = false;
   activeSections = ["d", "e"]; // 必要な2つのセクションのみ
 
@@ -458,5 +462,42 @@ export default class RirituComponent extends LightningElement {
       }
     }
     return null;
+  }
+
+  /**
+   * 与信番号フィールド - ハイフン自動フォーマット機能
+   * 
+   * 動作概要:
+   * - フォーカス時: ハイフンを除去し、数字のみで編集可能にする
+   * - 入力中: 数字以外の文字を自動的に除去する
+   * - フォーカスアウト時: 4桁-4桁-4桁の形式でハイフンを自動挿入（最大12桁）
+   * 
+   * 例: 123456789012 → 1234-5678-9012
+   */
+
+  // フォーカス時: ハイフンを除去して編集しやすくする
+  handleHyphenFieldFocus = (event) => {
+    // 現在の値からハイフンを除去し、数字のみを抽出
+    const digits = (event.target.value || "").replace(/\D/g, "");
+    this.hyphenFieldValue = digits;
+    this.hyphenFieldRawValue = digits; // 保存用にも数字のみを保持
+  }
+
+  // フォーカスアウト時: ハイフンフォーマットを適用
+  handleHyphenFieldBlur = (event) => {
+    // 入力値から数字のみを抽出
+    const digits = (event.target.value || "").replace(/\D/g, "");
+    this.hyphenFieldRawValue = digits; // 保存用の値を更新
+    
+    // 4桁ごとにハイフンを挿入
+    this.hyphenFieldValue = digits.replace(/(\d{4})(?=\d)/g, "$1-");
+  }
+
+  // 入力時: 数字のみ受け付け
+  handleHyphenFieldInput = (event) => {
+    // 数字以外の文字を自動的に除去
+    const digits = (event.target.value || "").replace(/\D/g, "");
+    this.hyphenFieldValue = digits;
+    this.hyphenFieldRawValue = digits; // 保存用の値も更新
   }
 }
