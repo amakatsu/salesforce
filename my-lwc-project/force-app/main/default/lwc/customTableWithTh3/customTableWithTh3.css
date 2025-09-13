@@ -1,0 +1,120 @@
+.table-sticky {
+  /*
+          slds-gridによるレイアウト制御と<table>タグはどうやら相性が悪いようで、横幅などの調整をしない場合、
+          lightning-cardの範囲を飛び越えて表示されてしまうことがある。
+  */
+  max-width: 100%;
+  /* max-width: 750px; */
+
+  /*
+          テーブルに対して、設定した縦幅を超える場合にスクロールを発生させる。
+          スクロールが発生しない範囲の場合は、スクロールバーは表示しない。
+  */
+  height: 500px;
+  overflow: auto;
+
+  /*
+  height: 500px;
+  max-width: 1300px;
+  overflow: auto;
+  */
+
+  /*
+    スクロールのない平のテーブルの場合はこちらを用いる。
+  */
+  /* overflow: visible; */
+
+  /*
+          margin-right, left:autoの設定をすると、利用可能な横幅の中でスペースを均等に配分しようとするため、
+          結果として要素が中央に配置されるようになる。
+          これはwindowのサイズを変更しても維持されるので、テーブルの中央揃えに用いている。
+       */
+  margin-right: auto;
+  margin-left: auto;
+
+  /* テーブル固定の基準点として設定（ここで設定したタグ以下に対して固定が動作するようにする）   */
+  position: relative;
+}
+
+.table-sticky__title {
+  /* このクラスを設定された要素の位置が、画面上のスクロールなどで、高さ0になったとき、もしくは左辺が0になったとき、
+      このクラスを設定された要素は、高さ0もしくは、左辺0の位置に固定される。 */
+  position: sticky;
+  top: 0;
+  left: 0;
+}
+
+table {
+  /* border: 1px solid #000066; */
+  border-spacing: 0; /* テーブル要素にのみ利用可能。テーブルのセル間の境界線を1つにまとめる設定 */
+  /* border-collapse: collapse; */
+  border-collapse: separate;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #f2f2f2;
+}
+
+th,
+td {
+  /* <td, th>タグ全体に対してボーダーを引く */
+  border-top: 1px solid #999;
+  border-left: 1px solid #999;
+}
+
+td {
+  background: #ffffff;
+}
+
+th {
+  background: #f2f2f2;
+  top: 0;
+}
+
+thead tr th[rowspan="2"] {
+  /* 行数が2行分ある<th>タグの下部に対してボーダーを引く */
+  border-bottom: 1px solid #999;
+}
+
+thead tr:nth-child(2) th {
+  /* 2行目の<th>タグの下部に対してボーダーを引く */
+  border-bottom: 1px solid #999;
+}
+
+/* 1つ目の要素の固定 */
+tr:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+/* 1つ目の要素の固定 */
+thead th:first-child {
+  z-index: 3;
+}
+
+/* ヘッダーの一番右側のセルの右罫線を設定する。 */
+tr:nth-child(1) th:last-child {
+  border-right: 1px solid #999;
+}
+
+/* データの1行目（上側の行）の右側の罫線を作成 */
+tr[data-id="1"] td:last-child {
+  border-right: 1px solid #999;
+}
+
+/* 繰り返しでデータ行が複数存在する場合、個別に指定が必要。 */
+
+/* 最終行の下の罫線を作成する(最後から1番目なので、2行目) */
+tr:nth-last-child(1) td {
+  border-bottom: 1px solid #999;
+  border-top: none; /* 1行目のbottomと被るため削除 */
+}
+
+/* 最終行の下の罫線を作成する（最後から2番目なので、1行目） */
+tr:nth-last-child(2) td {
+  border-bottom: 1px solid #999;
+}

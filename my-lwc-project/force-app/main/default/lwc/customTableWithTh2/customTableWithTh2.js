@@ -35,7 +35,7 @@ const SUBJECT_OPTIONS = [
 /* =========================================
  * モックデータ生成関数
  * ========================================= */
-function generateMockData(count = 200) {
+function generateMockData(count = 2) {
   return Array.from({ length: count }, (_, i) => ({
     Id: `${i + 1}`.padStart(3, "0"),
     label: `横ラベル${i + 1}`,
@@ -56,7 +56,7 @@ function generateMockData(count = 200) {
  * ========================================= */
 export default class CustomTableWithTh extends LightningElement {
   /* 行データ */
-  @track accounts = generateMockData(200);
+  @track accounts = generateMockData(2);
 
   /* ---------- テンプレート描画用 ---------- */
   get processedAccounts() {

@@ -1,10 +1,13 @@
 <template>
+  <!-- 
+    for:eachループ使用テーブル:
+    - 全行が同じ相対位置にあるため、カレンダーポップアップが一貫して下に表示される
+    - 動的にデータ数が変わる場合に適している
+  -->
   <lightning-card>
     <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
       <div class="table-container">
-        <table
-          class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_fixed-layout"
-        >
+        <table class="slds-table slds-table_bordered slds-table_fixed-layout">
           <thead>
             <tr class="slds-line-height_reset">
               <th
