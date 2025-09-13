@@ -35,8 +35,7 @@
         ></lightning-button>
       </lightning-button-group>
     </div>
-    
-    
+
     <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
       <div class="table-container">
         <table class="slds-table slds-table_bordered slds-table_fixed-layout">
@@ -130,12 +129,16 @@
             </tr>
           </thead>
           <tbody>
-            <template for:each={tableData} for:item="account" for:index="idx">
-              <tr key={account.Id} class="slds-hint-parent">
-                <td data-label="選択" class="slds-text-align_center" style="width: 50px">
+            <template for:each={tableData} for:item="data" for:index="idx">
+              <tr key={data.Id} class="slds-hint-parent">
+                <td
+                  data-label="選択"
+                  class="slds-text-align_center"
+                  style="width: 50px"
+                >
                   <lightning-input
                     type="checkbox"
-                    checked={account.checked}
+                    checked={data.checked}
                     data-idx={idx}
                     onchange={handleRowSelection}
                     variant="label-hidden"
@@ -146,13 +149,13 @@
                   style="width: 150px"
                   scope="row"
                 >
-                  <div class="slds-truncate">{account.label}</div>
+                  <div class="slds-truncate">{data.label}</div>
                 </th>
                 <td data-label="数値1">
                   <lightning-input
                     type="number"
-                    value={account.num1}
-                    data-id={account.Id}
+                    value={data.num1}
+                    data-id={data.Id}
                     data-field="num1"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -161,15 +164,15 @@
                 <td data-label="数値2">
                   <div class="slds-truncate slds-text-align_right">
                     <lightning-formatted-number
-                      value={account.num2}
+                      value={data.num2}
                     ></lightning-formatted-number>
                   </div>
                 </td>
                 <td data-label="文字列1">
                   <lightning-input
                     type="text"
-                    value={account.str1}
-                    data-id={account.Id}
+                    value={data.str1}
+                    data-id={data.Id}
                     data-field="str1"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -178,15 +181,15 @@
                 <td data-label="文字列2">
                   <div class="slds-truncate">
                     <lightning-formatted-text
-                      value={account.str2}
+                      value={data.str2}
                     ></lightning-formatted-text>
                   </div>
                 </td>
                 <td data-label="チェックボックス">
                   <lightning-input
                     type="checkbox"
-                    checked={account.checked}
-                    data-id={account.Id}
+                    checked={data.checked}
+                    data-id={data.Id}
                     data-field="checked"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -194,9 +197,9 @@
                 </td>
                 <td data-label="審査結果">
                   <lightning-combobox
-                    value={account.ReviewResult}
+                    value={data.ReviewResult}
                     options={reviewResultOptions}
-                    data-id={account.Id}
+                    data-id={data.Id}
                     data-field="ReviewResult"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -205,9 +208,9 @@
                 </td>
                 <td data-label="科目">
                   <lightning-combobox
-                    value={account.Subject}
+                    value={data.Subject}
                     options={subjectOptions}
-                    data-id={account.Id}
+                    data-id={data.Id}
                     data-field="Subject"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -217,8 +220,8 @@
                 <td data-label="日付1">
                   <lightning-input
                     type="date"
-                    value={account.date1}
-                    data-id={account.Id}
+                    value={data.date1}
+                    data-id={data.Id}
                     data-field="date1"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -227,8 +230,8 @@
                 <td data-label="日付2">
                   <lightning-input
                     type="date"
-                    value={account.date2}
-                    data-id={account.Id}
+                    value={data.date2}
+                    data-id={data.Id}
                     data-field="date2"
                     onchange={handleInputChange}
                     variant="label-hidden"
