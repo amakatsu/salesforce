@@ -101,6 +101,22 @@
   border-left: 1px solid #999; /* 左側の境界線 */
 }
 
+/* 2列目（横ラベル）*/
+.table-container .slds-table thead th:nth-child(2),
+.table-container .slds-table tbody th:nth-child(2) {
+  position: sticky;
+  left: 50px; /* ← 1列目の幅(例: 50px)と必ず一致させる */
+  background-color: #f3f3f3;
+  z-index: 29; /* 1列目(例: z-index:30〜40)より低く */
+  width: 150px; /* ← あなたのHTMLの2列目幅(例: 150px)と一致 */
+  border-right: 1.5px solid #999;
+}
+
+/* （任意）ヘッダーが被る場合は少しだけ前面へ */
+.table-container .slds-table thead th:nth-child(2) {
+  z-index: 39;
+}
+
 /* 1列目のヘッダーはさらに手前に */
 .table-container .slds-table thead th:first-child {
   z-index: 15; /* 一番手前に表示 */
