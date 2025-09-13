@@ -1,0 +1,248 @@
+<template>
+  <!-- 
+    for:eachループ使用テーブル:
+    - 全行が同じ相対位置にあるため、カレンダーポップアップが一貫して下に表示される
+    - 動的にデータ数が変わる場合に適している
+  -->
+  <lightning-card>
+    <!-- テスト用ボタン -->
+    <div class="slds-var-p-around_medium">
+      <lightning-button-group>
+        <lightning-button
+          variant="brand"
+          label="選択データ表示"
+          onclick={handleTestSelectedData}
+        ></lightning-button>
+        <lightning-button
+          variant="outline-brand"
+          label="全データ表示"
+          onclick={handleTestAllData}
+        ></lightning-button>
+        <lightning-button
+          variant="neutral"
+          label="全選択"
+          onclick={handleSelectAllTest}
+        ></lightning-button>
+        <lightning-button
+          variant="neutral"
+          label="全解除"
+          onclick={handleDeselectAllTest}
+        ></lightning-button>
+        <lightning-button
+          variant="success"
+          label="保存データテスト"
+          onclick={handleTestSavingData}
+        ></lightning-button>
+      </lightning-button-group>
+    </div>
+
+    <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+      <div class="table-container">
+        <table class="slds-table slds-table_bordered slds-table_fixed-layout">
+          <thead>
+            <tr class="slds-line-height_reset">
+              <th
+                class="slds-text-align_center"
+                style="width: 50px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="選択">
+                  <lightning-input
+                    type="checkbox"
+                    onchange={handleSelectFullCheck}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 150px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="横ラベル">横ラベル</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 200px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="数値1">数値1</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 200px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="数値2">数値2</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 250px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="文字列1">文字列1</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 350px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="文字列2">文字列2</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 150px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="チェックボックス">
+                  チェックボックス
+                </div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 200px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="審査結果">審査結果</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 200px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="科目">科目</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 200px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="日付1">日付1</div>
+              </th>
+              <th
+                class="slds-text-align_center"
+                style="width: 200px"
+                scope="col"
+              >
+                <div class="slds-truncate" title="日付2">日付2</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <template for:each={tableData} for:item="account" for:index="idx">
+              <tr key={account.Id} class="slds-hint-parent">
+                <td
+                  data-label="選択"
+                  class="slds-text-align_center"
+                  style="width: 50px"
+                >
+                  <lightning-input
+                    type="checkbox"
+                    checked={account.checked}
+                    data-idx={idx}
+                    onchange={handleRowSelection}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </td>
+                <th
+                  class="slds-text-align_center"
+                  style="width: 150px"
+                  scope="row"
+                >
+                  <div class="slds-truncate">{account.label}</div>
+                </th>
+                <td data-label="数値1">
+                  <lightning-input
+                    type="number"
+                    value={account.num1}
+                    data-id={account.Id}
+                    data-field="num1"
+                    onchange={handleInputChange}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </td>
+                <td data-label="数値2">
+                  <div class="slds-truncate slds-text-align_right">
+                    <lightning-formatted-number
+                      value={account.num2}
+                    ></lightning-formatted-number>
+                  </div>
+                </td>
+                <td data-label="文字列1">
+                  <lightning-input
+                    type="text"
+                    value={account.str1}
+                    data-id={account.Id}
+                    data-field="str1"
+                    onchange={handleInputChange}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </td>
+                <td data-label="文字列2">
+                  <div class="slds-truncate">
+                    <lightning-formatted-text
+                      value={account.str2}
+                    ></lightning-formatted-text>
+                  </div>
+                </td>
+                <td data-label="チェックボックス">
+                  <lightning-input
+                    type="checkbox"
+                    checked={account.checked}
+                    data-id={account.Id}
+                    data-field="checked"
+                    onchange={handleInputChange}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </td>
+                <td data-label="審査結果">
+                  <lightning-combobox
+                    value={account.ReviewResult}
+                    options={reviewResultOptions}
+                    data-id={account.Id}
+                    data-field="ReviewResult"
+                    onchange={handleInputChange}
+                    variant="label-hidden"
+                    dropdown-alignment="bottom"
+                  ></lightning-combobox>
+                </td>
+                <td data-label="科目">
+                  <lightning-combobox
+                    value={account.Subject}
+                    options={subjectOptions}
+                    data-id={account.Id}
+                    data-field="Subject"
+                    onchange={handleInputChange}
+                    variant="label-hidden"
+                    dropdown-alignment="bottom"
+                  ></lightning-combobox>
+                </td>
+                <td data-label="日付1">
+                  <lightning-input
+                    type="date"
+                    value={account.date1}
+                    data-id={account.Id}
+                    data-field="date1"
+                    onchange={handleInputChange}
+                    variant="label-hidden"
+                  ></lightning-input>
+                </td>
+                <td data-label="日付2">
+                  <lightning-input
+                    type="date"
+                    value={account.date2}
+                    data-id={account.Id}
+                    data-field="date2"
+                    onchange={handleInputChange}
+                    variant="label-hidden"
+                    readonly
+                  ></lightning-input>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </lightning-card>
+</template>

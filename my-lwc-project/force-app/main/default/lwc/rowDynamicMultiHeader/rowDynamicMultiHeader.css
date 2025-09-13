@@ -1,0 +1,107 @@
+/* 
+ * このテーブルの特徴:
+ * ✅ コンボボックスのドロップダウンが絶対に見切れない
+ * ✅ スクロール時もヘッダーが常に見える
+ * ✅ 横スクロール時も重要な列が常に見える
+
+ * 📝 このCSSの仕組み解説
+ * 
+ * 🔧 技術的なポイント:
+ * • position: sticky → 要素を部分的に固定する
+ * • z-index → 要素の重なり順序を制御する  
+ * • table-layout: fixed → HTMLで指定した列幅を厳密に適用する
+ * • max-height + overflow → 高さを柔軟に調整する
+ * 
+ * 🎯 解決している問題:
+ * • コンボボックスのドロップダウンが途中で切れる
+ * 
+ * 
+ * 🛠️ カスタマイズ方法:
+ * • 高さ制限を変えたい → max-height: 700px を変更
+ * • 列幅を変えたい → HTMLのstyle="width: XXXpx" を変更
+ */
+
+/* 
+ * 📦 メインコンテナ: テーブル全体を包む箱
+ * 
+ * 目的: コンボボックスが開いた時に、必要な分だけ高さが伸びるようにする
+ */
+.table-container {
+  max-height: 700px; /* 最大700pxまで伸びる */
+  overflow-y: auto; /* 700px超えたら縦スクロールバー表示 */
+  overflow-x: auto; /* 幅が足りない時は横スクロールバー表示 */
+  min-width: 100%; /* 親要素の幅は最低限確保 */
+}
+
+/* 
+ * 🔄 スクロール不要な場合のオプション設定:
+ * 
+ * 横・縦スクロールバーが不要な場合は、上記の.table-containerを
+ * 以下のようにmax-heightとoverflowを削除してmin-widthのみに変更する
+ */
+/*
+.table-container {
+  min-width: 100%;
+}
+*/
+
+/* 
+ * 📊 テーブル本体の設定
+ */
+.table-container .slds-table {
+  max-width: 1500px;
+  table-layout: fixed; /* 列の幅をHTMLで指定した通りに固定 */
+}
+
+/* 
+ * 📌 ヘッダー行を画面上部に固定
+ * 
+ * 目的: データが多くて縦スクロールしても、ヘッダーは常に見えるようにする
+ */
+.table-container .slds-table thead {
+  position: sticky; /* スクロールしても上に張り付く */
+  top: 0; /* 画面の一番上に固定 */
+  background-color: #f3f3f3; /* 背景色を付けて下の内容が透けないようにする */
+  z-index: 10; /* 他の要素より手前に表示 */
+}
+
+/* 
+ * 🎨 ヘッダーセルの見た目
+ */
+.table-container .slds-table thead th {
+  background-color: #f3f3f3; /* 薄いグレーの背景 */
+  border-top: 1px solid #999; /* 上に細い境界線（スクロール時も表示される） */
+  border-bottom: 1px solid #999; /* 下に細い境界線 */
+  border-right: 1px solid #999; /* 右に細い境界線 */
+  font-weight: normal; /* 太文字にしない */
+}
+
+/* 
+ * 📋 データセルの見た目
+ */
+.table-container .slds-table tbody td {
+  border-right: 1px solid #999; /* 各列の間に細い境界線 */
+}
+
+/* 
+ * 📌 左側の重要な列を固定
+ * 
+ * 目的: 横スクロールしても、常に見えるようにする
+ */
+
+/* 1列目: 横ラベル列 */
+.table-container .slds-table th:first-child,
+.table-container .slds-table td:first-child {
+  position: sticky; /* 横スクロールしても左端に張り付く */
+  left: 0; /* 画面左端から0pxの位置に固定 */
+  background-color: #f3f3f3; /* 背景色で下の内容を隠す */
+  z-index: 5; /* 普通のセルより手前に表示 */
+  width: 150px; /* 横ラベルに適した幅 */
+  border-right: 1.5px solid #999; /* 横ラベル列の右側に太い境界線 */
+  border-left: 1px solid #999; /* 左側の境界線 */
+}
+
+/* 1列目のヘッダーはさらに手前に */
+.table-container .slds-table thead th:first-child {
+  z-index: 15; /* 一番手前に表示 */
+}
