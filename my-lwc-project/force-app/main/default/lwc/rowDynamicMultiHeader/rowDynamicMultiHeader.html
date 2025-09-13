@@ -39,12 +39,41 @@
     <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
       <div class="table-container">
         <table class="slds-table slds-table_bordered slds-table_fixed-layout">
+          <!-- ★追加：colgroupで幅を確定（横スク維持のため） -->
+          <colgroup>
+            <col style="width: 50px" />
+            <!-- 1: 選択 -->
+            <col style="width: 150px" />
+            <!-- 2: 横ラベル -->
+            <col style="width: 200px" />
+            <!-- 3: 数値1 -->
+            <col style="width: 200px" />
+            <!-- 4: 数値2 -->
+            <col style="width: 250px" />
+            <!-- 5: 文字列1 -->
+            <col style="width: 350px" />
+            <!-- 6: 文字列2 -->
+            <col style="width: 150px" />
+            <!-- 7: チェックボックス -->
+            <col style="width: 200px" />
+            <!-- 8: 審査結果 -->
+            <col style="width: 200px" />
+            <!-- 9: 科目 -->
+            <col style="width: 200px" />
+            <!-- 10: 日付1 -->
+            <col style="width: 200px" />
+            <!-- 11: 日付2 -->
+          </colgroup>
+
           <thead>
-            <tr class="slds-line-height_reset">
+            <!-- ★変更：ヘッダーを2行化。先頭2セルはrowspan=2で下段をまたぐ -->
+            <!-- 上段：グループ -->
+            <tr class="slds-line-height_reset header-row-1">
               <th
-                class="slds-text-align_center"
+                class="slds-text-align_center col-select rowspan-2"
                 style="width: 50px"
                 scope="col"
+                rowspan="2"
               >
                 <div class="slds-truncate" title="選択">
                   <lightning-input
@@ -55,82 +84,71 @@
                 </div>
               </th>
               <th
-                class="slds-text-align_center"
+                class="slds-text-align_center col-yokolabel rowspan-2"
                 style="width: 150px"
                 scope="col"
+                rowspan="2"
               >
                 <div class="slds-truncate" title="横ラベル">横ラベル</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
-                <div class="slds-truncate" title="数値1">数値1</div>
+
+              <th class="slds-text-align_center" scope="col" colspan="2">
+                <div class="slds-truncate" title="数値">数値</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
-                <div class="slds-truncate" title="数値2">数値2</div>
+              <th class="slds-text-align_center" scope="col" colspan="2">
+                <div class="slds-truncate" title="文字列">文字列</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 250px"
-                scope="col"
-              >
-                <div class="slds-truncate" title="文字列1">文字列1</div>
-              </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 350px"
-                scope="col"
-              >
-                <div class="slds-truncate" title="文字列2">文字列2</div>
-              </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 150px"
-                scope="col"
-              >
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="チェックボックス">
                   チェックボックス
                 </div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+              <th class="slds-text-align_center" scope="col" colspan="2">
+                <div class="slds-truncate" title="審査・科目">審査・科目</div>
+              </th>
+              <th class="slds-text-align_center" scope="col" colspan="2">
+                <div class="slds-truncate" title="日付">日付</div>
+              </th>
+            </tr>
+
+            <!-- 下段：各列ラベル（先頭2セルはrowspanなので置かない） -->
+            <tr class="slds-line-height_reset header-row-2">
+              <th class="slds-text-align_center" scope="col">
+                <div class="slds-truncate" title="数値1">数値1</div>
+              </th>
+              <th class="slds-text-align_center" scope="col">
+                <div class="slds-truncate" title="数値2">数値2</div>
+              </th>
+              <th class="slds-text-align_center" scope="col">
+                <div class="slds-truncate" title="文字列1">文字列1</div>
+              </th>
+              <th class="slds-text-align_center" scope="col">
+                <div class="slds-truncate" title="文字列2">文字列2</div>
+              </th>
+              <th class="slds-text-align_center" scope="col">
+                <div class="slds-truncate" title="チェックボックス">
+                  チェック
+                </div>
+              </th>
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="審査結果">審査結果</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="科目">科目</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="日付1">日付1</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="日付2">日付2</div>
               </th>
             </tr>
           </thead>
+
+          <!-- 以降、tbodyは“最初のソースのまま” -->
           <tbody>
-            <template for:each={tableData} for:item="account" for:index="idx">
-              <tr key={account.Id} class="slds-hint-parent">
+            <template for:each={tableData} for:item="data" for:index="idx">
+              <tr key={data.Id} class="slds-hint-parent">
                 <td
                   data-label="選択"
                   class="slds-text-align_center"
@@ -138,7 +156,7 @@
                 >
                   <lightning-input
                     type="checkbox"
-                    checked={account.checked}
+                    checked={data.checked}
                     data-idx={idx}
                     onchange={handleRowSelection}
                     variant="label-hidden"
@@ -149,13 +167,13 @@
                   style="width: 150px"
                   scope="row"
                 >
-                  <div class="slds-truncate">{account.label}</div>
+                  <div class="slds-truncate">{data.label}</div>
                 </th>
                 <td data-label="数値1">
                   <lightning-input
                     type="number"
-                    value={account.num1}
-                    data-id={account.Id}
+                    value={data.num1}
+                    data-id={data.Id}
                     data-field="num1"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -164,15 +182,15 @@
                 <td data-label="数値2">
                   <div class="slds-truncate slds-text-align_right">
                     <lightning-formatted-number
-                      value={account.num2}
+                      value={data.num2}
                     ></lightning-formatted-number>
                   </div>
                 </td>
                 <td data-label="文字列1">
                   <lightning-input
                     type="text"
-                    value={account.str1}
-                    data-id={account.Id}
+                    value={data.str1}
+                    data-id={data.Id}
                     data-field="str1"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -181,15 +199,15 @@
                 <td data-label="文字列2">
                   <div class="slds-truncate">
                     <lightning-formatted-text
-                      value={account.str2}
+                      value={data.str2}
                     ></lightning-formatted-text>
                   </div>
                 </td>
                 <td data-label="チェックボックス">
                   <lightning-input
                     type="checkbox"
-                    checked={account.checked}
-                    data-id={account.Id}
+                    checked={data.checked}
+                    data-id={data.Id}
                     data-field="checked"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -197,9 +215,9 @@
                 </td>
                 <td data-label="審査結果">
                   <lightning-combobox
-                    value={account.ReviewResult}
+                    value={data.ReviewResult}
                     options={reviewResultOptions}
-                    data-id={account.Id}
+                    data-id={data.Id}
                     data-field="ReviewResult"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -208,9 +226,9 @@
                 </td>
                 <td data-label="科目">
                   <lightning-combobox
-                    value={account.Subject}
+                    value={data.Subject}
                     options={subjectOptions}
-                    data-id={account.Id}
+                    data-id={data.Id}
                     data-field="Subject"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -220,8 +238,8 @@
                 <td data-label="日付1">
                   <lightning-input
                     type="date"
-                    value={account.date1}
-                    data-id={account.Id}
+                    value={data.date1}
+                    data-id={data.Id}
                     data-field="date1"
                     onchange={handleInputChange}
                     variant="label-hidden"
@@ -230,8 +248,8 @@
                 <td data-label="日付2">
                   <lightning-input
                     type="date"
-                    value={account.date2}
-                    data-id={account.Id}
+                    value={data.date2}
+                    data-id={data.Id}
                     data-field="date2"
                     onchange={handleInputChange}
                     variant="label-hidden"
