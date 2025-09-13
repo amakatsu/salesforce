@@ -10,7 +10,7 @@ import { validateElement } from "c/f003GsV0000DataValidation";
 import { YUSGS5015C_E, YUSGS5016C_E } from "c/f003GsV0000MsgConst";
 // import ConfirmInfo from 'c/f003GsV0000ConfirmInfo';
 import AlertError from "c/f003GsV0000AlertError";
-export default class F003DrV0000MeisaiMockC1 extends LightningElement {
+export default class RowDynamicSample1 extends LightningElement {
   initialize = false;
   selectedRows = [];
   @track record = API_DATA;

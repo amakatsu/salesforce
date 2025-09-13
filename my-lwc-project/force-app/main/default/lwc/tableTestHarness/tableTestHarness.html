@@ -22,7 +22,7 @@
           Test Case 1: 単純なカード内配置
         </h3>
         <lightning-card title="カード内のテーブル" icon-name="utility:list">
-          <c-custom-table-with-th></c-custom-table-with-th>
+          <c-fixed-details></c-fixed-details>
         </lightning-card>
       </div>
     </template>
@@ -36,7 +36,7 @@
         <lightning-tabset active-tab-value="table-tab">
           <lightning-tab label="テーブル" value="table-tab">
             <div class="slds-p-around_medium">
-              <c-custom-table-with-th></c-custom-table-with-th>
+              <c-fixed-details></c-fixed-details>
             </div>
           </lightning-tab>
           <lightning-tab label="その他" value="other-tab">
@@ -73,7 +73,7 @@
 
         <!-- メインテーブル -->
         <lightning-card title="メインテーブル" class="slds-m-bottom_medium">
-          <c-custom-table-with-th></c-custom-table-with-th>
+          <c-fixed-details></c-fixed-details>
         </lightning-card>
 
         <!-- 下部コンポーネント -->
@@ -116,7 +116,7 @@
           <lightning-layout-item size="12">
             <lightning-card title="グリッド内のテーブル">
               <div class="nested-table-container">
-                <c-custom-table-with-th></c-custom-table-with-th>
+                <c-fixed-details></c-fixed-details>
               </div>
             </lightning-card>
           </lightning-layout-item>
@@ -150,7 +150,7 @@
         <div class="scroll-test-container">
           <lightning-card title="制限高さでのテーブル表示">
             <div class="limited-height-wrapper">
-              <c-custom-table-with-th></c-custom-table-with-th>
+              <c-fixed-details></c-fixed-details>
             </div>
           </lightning-card>
         </div>
