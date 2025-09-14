@@ -1,144 +1,193 @@
-/* 
- * このテーブルの特徴:
- * ✅ コンボボックスのドロップダウンが絶対に見切れない
- * ✅ スクロール時もヘッダーが常に見える
- * ✅ 横スクロール時も重要な列が常に見える
-
- * 📝 このCSSの仕組み解説
- * 
- * 🔧 技術的なポイント:
- * • position: sticky → 要素を部分的に固定する
- * • z-index → 要素の重なり順序を制御する  
- * • table-layout: fixed → HTMLで指定した列幅を厳密に適用する
- * • max-height + overflow → 高さを柔軟に調整する
- * 
- * 🎯 解決している問題:
- * • コンボボックスのドロップダウンが途中で切れる
- * 
- * 
- * 🛠️ カスタマイズ方法:
- * • 高さ制限を変えたい → max-height: 700px を変更
- * • 列幅を変えたい → HTMLのstyle="width: XXXpx" を変更
+/* ========================================
+ * 固定列・固定ヘッダーテーブル
+ * ========================================
+ *
+ * このCSSが実現すること:
+ * 1. 縦スクロール → ヘッダーが画面上部に貼り付いたまま
+ * 2. 横スクロール → 選択列と横ラベル列が左端に貼り付いたまま
+ * 3. ポップアップ → カレンダーやコンボボックスが正常表示
+ * 4. 2行構造 → ヘッダー2行、データ2行で表示
  */
 
-/* 
- * 📦 メインコンテナ: テーブル全体を包む箱
- * 
- * 目的: コンボボックスが開いた時に、必要な分だけ高さが伸びるようにする
- */
+/* ========================================
+ * 1. 全設定値の一元管理（修正時はここを変更）
+ * ======================================== */
+:host {
+  /* ========== テーブル全体の設定 ========== */
+  --table-max-height: 700px; /* テーブルの最大高さ */
+
+  /* ========== ヘッダーの高さ設定 ========== */
+  --hdr1: 36px; /* 1行目ヘッダーの高さ */
+  --hdr2: 36px; /* 2行目ヘッダーの高さ */
+  --hdrTotal: calc(var(--hdr1) + var(--hdr2)); /* 2行分の合計高さ */
+
+  /* ========== 全列の幅設定（HTMLと自動同期） ========== */
+  --col1-width: 50px;   /* 1: 選択（固定列） */
+  --col2-width: 150px;  /* 2: 横ラベル（固定列） */
+  --col3-width: 200px;  /* 3: 数値1 */
+  --col4-width: 200px;  /* 4: 数値2 */
+  --col5-width: 250px;  /* 5: 文字列1 */
+  --col6-width: 250px;  /* 6: 文字列2 */
+  --col7-width: 250px;  /* 7: 文字列3 */
+  --col8-width: 150px;  /* 8: チェックボックス */
+  --col9-width: 200px;  /* 9: 審査結果 */
+  --col10-width: 200px; /* 10: 科目 */
+  --col11-width: 200px; /* 11: 日付1 */
+  --col12-width: 200px; /* 12: 日付2 */
+
+  /* ========== 固定列の位置設定（自動計算） ========== */
+  --col2-left: var(--col1-width); /* 2列目の左端 = 1列目の幅 */
+
+  /* ========== 色とボーダーの設定 ========== */
+  --fixed-bg-color: #f3f3f3; /* 固定列の背景色 */
+  --border-color: #999; /* ボーダーの色 */
+  --border-thin: 1px; /* 細いボーダーの太さ */
+  --border-thick: 1.5px; /* 太いボーダーの太さ（固定列の区切り） */
+
+  /* ========== Z-indexの設定（重なり順序） ========== */
+  --z-header-fixed-1st: 30; /* ヘッダー固定列（選択） */
+  --z-header-fixed-2nd: 29; /* ヘッダー固定列（横ラベル） */
+  --z-data-fixed-1st: 20; /* データ固定列（選択） */
+  --z-data-fixed-2nd: 19; /* データ固定列（横ラベル） */
+  --z-header-normal: 10; /* 通常ヘッダー */
+  /* 通常データのz-indexは設定なし（ポップアップのため） */
+}
+
+/* ========================================
+ * 2. テーブル全体のコンテナ
+ * ======================================== */
+
+/* テーブルを囲む箱 */
 .table-container {
-  max-height: 700px; /* 最大700pxまで伸びる */
-  overflow-y: auto; /* 700px超えたら縦スクロールバー表示 */
-  overflow-x: auto; /* 幅が足りない時は横スクロールバー表示 */
+  max-height: var(--table-max-height); /* この高さを超えたら縦スクロール */
+  overflow-y: auto; /* 縦スクロールバーを表示 */
+  overflow-x: auto; /* 横スクロールバーを表示 */
   min-width: 100%; /* 親要素の幅は最低限確保 */
 }
 
-/* 
- * 📊 テーブル本体の設定
- */
+/* テーブル本体の基本設定 */
 .table-container .slds-table {
-  /* max-width を設けると横スクが出ないことがあるため、colgroupと併用で横に広げる */
-  table-layout: fixed; /* 列の幅をHTML/colgroupで指定した通りに固定 */
-  width: max-content;
-  min-width: 100%;
-  max-width: none;
+  table-layout: fixed; /* HTMLのcolgroupで指定した列幅を厳密に守る */
+  width: max-content; /* 横スクロールができるよう、必要な分だけ幅を取る */
+  min-width: 100%; /* 最低限の幅は確保 */
+  max-width: none; /* 最大幅の制限なし */
 }
 
-/* 
- * 📌 ヘッダー行を画面上部に固定
- * 
- * 目的: データが多くて縦スクロールしても、ヘッダーは常に見えるようにする
- *
- * NOTE:
- * theadを丸ごとposition: stickyにしていると、2行目のthもtop:0扱いになって1行目の下に回りません。
- * → 最小修正は「theadのstickyをやめて、“セルごと(th)”をsticky＋行ごとにtopをずらす」。
- */
-/* thead 丸ごとstickyは解除し、セル(th)ごとにsticky（2行目が下へ入らない問題の回避） */
+/* ========================================
+ * 3. ヘッダーの縦固定（sticky header）
+ * ======================================== */
+
+/* theadタグ全体の設定 */
 .table-container .slds-table thead {
-  position: static;
-  top: auto;
-  z-index: auto;
+  position: static; /* thead全体は固定しない（個別セル固定のため） */
 }
 
-/* 
- * 🎨 ヘッダーセルの見た目（セル単位でsticky）
- */
+/* ヘッダーセル共通の設定 */
 .table-container .slds-table thead th {
-  position: sticky; /* ← セル単位で固定 */
-  background-color: #f3f3f3; /* 薄いグレーの背景 */
-  border-top: 1px solid #999; /* 上に細い境界線 */
-  border-bottom: 1px solid #999; /* 下に細い境界線 */
-  border-right: 1px solid #999; /* 右に細い境界線 */
-  font-weight: normal; /* 太文字にしない */
-  z-index: 10;
+  position: sticky; /* 各ヘッダーセルを画面に固定 */
+  background-color: var(--fixed-bg-color); /* 固定時の背景色（データと区別） */
+  border-top: var(--border-thin) solid var(--border-color);
+  border-bottom: var(--border-thin) solid var(--border-color);
+  border-right: var(--border-thin) solid var(--border-color);
+  font-weight: normal;
+  z-index: var(--z-header-normal); /* 通常ヘッダーの重なり順序 */
   box-sizing: border-box;
 }
 
-/* 上段/下段の高さ＆オフセット（必要なら数値だけ調整） */
-:host {
-  --hdr1: 36px;
-  --hdr2: 36px;
-  --hdrTotal: calc(var(--hdr1) + var(--hdr2));
-}
+/* ========================================
+ * 4. ヘッダー各行の位置設定
+ * ======================================== */
+
+/* 1行目のヘッダー: 画面最上部（top: 0）に固定 */
 .table-container .slds-table thead tr.header-row-1 th {
-  top: 0;
-  height: var(--hdr1);
-  z-index: 20;
+  top: 0; /* 画面最上部 */
+  height: var(--hdr1); /* 1行目の高さ */
 }
+
+/* 2行目のヘッダー: 1行目の真下に固定 */
 .table-container .slds-table thead tr.header-row-2 th {
-  top: var(--hdr1);
-  height: var(--hdr2);
-  z-index: 19;
+  top: var(--hdr1); /* 1行目の高さ分だけ下 */
+  height: var(--hdr2); /* 2行目の高さ */
 }
 
-/* 先頭2セル（rowspan=2）は2段分の高さで固定 */
+/* rowspan=2のヘッダー: 2行分の高さで中央寄せ */
 .table-container .slds-table thead tr.header-row-1 th.rowspan-2 {
-  top: 0;
-  height: var(--hdrTotal);
-  z-index: 25;
-  vertical-align: middle;
+  top: 0; /* 画面最上部から */
+  height: var(--hdrTotal); /* 2行分の高さ */
+  vertical-align: middle; /* 文字を縦の中央に配置 */
 }
 
-/* 
- * 📋 データセルの見た目
- */
+/* ========================================
+ * 5. データセルの基本設定
+ * ======================================== */
+
+/* 通常のデータセル */
 .table-container .slds-table tbody td {
-  border-right: 1px solid #999; /* 各列の間に細い境界線 */
+  border-right: var(--border-thin) solid var(--border-color); /* 列と列の間の線 */
+  /* z-indexは設定しない → ポップアップが正常に表示される */
 }
 
-/* 
- * 📌 左側の重要な列を固定
- * 
- * 目的: 横スクロールしても、常に見えるようにする
- */
+/* ========================================
+ * 6. 横固定列（sticky columns）
+/* ----------------------------------------
+ * 選択列（1列目）の固定
+ * ---------------------------------------- */
 
-/* 1列目: 選択列（チェック） */
-.table-container .slds-table thead th:first-child,
-.table-container .slds-table tbody td:first-child {
-  position: sticky; /* 横スクロールしても左端に張り付く */
-  left: 0; /* 画面左端から0pxの位置に固定 */
-  background-color: #f3f3f3;
-  z-index: 30; /* 本文より前面 */
-  width: 50px; /* colgroupと一致 */
-  border-right: 1.5px solid #999;
-  border-left: 1px solid #999;
-}
-
-/* 2列目（横ラベル） */
-.table-container .slds-table thead th:nth-child(2),
-.table-container .slds-table tbody th:nth-child(2) {
-  position: sticky;
-  left: 50px; /* ← 1列目の幅(50px)と必ず一致させる */
-  background-color: #f3f3f3;
-  z-index: 29; /* 1列目より低く */
-  width: 150px; /* colgroupと一致 */
-  border-right: 1.5px solid #999;
-}
-
-/* ヘッダー重なりの微調整（任意） */
+/* ヘッダーの選択列 */
 .table-container .slds-table thead tr.header-row-1 th:first-child {
-  z-index: 42;
+  position: sticky;
+  left: 0; /* 画面左端に固定 */
+  background-color: var(--fixed-bg-color); /* 背景色 */
+  z-index: var(--z-header-fixed-1st); /* 一番上に表示 */
+  border-right: var(--border-thick) solid var(--border-color); /* 右側を太い線で区切り */
+  border-left: var(--border-thin) solid var(--border-color); /* 左側の線 */
 }
+
+/* データの選択列（1行目のみ、rowspan=2で2行目もカバー） */
+.table-container .slds-table tbody tr:not(.second-row) td:first-child {
+  position: sticky;
+  left: 0; /* 画面左端に固定 */
+  background-color: var(--fixed-bg-color); /* 背景色 */
+  z-index: var(--z-data-fixed-1st); /* ヘッダーより下 */
+  border-right: var(--border-thick) solid var(--border-color); /* 右側を太い線で区切り */
+  border-left: var(--border-thin) solid var(--border-color); /* 左側の線 */
+}
+
+/* ----------------------------------------
+ * 横ラベル列（2列目）の固定
+ * ---------------------------------------- */
+
+/* ヘッダーの横ラベル列 */
 .table-container .slds-table thead tr.header-row-1 th:nth-child(2) {
-  z-index: 41;
+  position: sticky;
+  left: var(--col2-left); /* 選択列の右に固定 */
+  background-color: var(--fixed-bg-color); /* 背景色 */
+  z-index: var(--z-header-fixed-2nd); /* 選択列の次に上 */
+  border-right: var(--border-thick) solid var(--border-color); /* 右側を太い線で区切り */
 }
+
+/* データの横ラベル列（1行目のみ、rowspan=2で2行目もカバー） */
+.table-container .slds-table tbody tr:not(.second-row) th:nth-child(2) {
+  position: sticky;
+  left: var(--col2-left); /* 選択列の右に固定 */
+  background-color: var(--fixed-bg-color); /* 背景色 */
+  z-index: var(--z-data-fixed-2nd); /* データ固定列 */
+  border-right: var(--border-thick) solid var(--border-color); /* 右側を太い線で区切り */
+}
+
+/* ========================================
+ * 補足説明
+ * ========================================
+ *
+ * 【なぜ tr:not(.second-row) が必要？】
+ * 2行目のデータでは、1列目と2列目がrowspanでスキップされるため、
+ * 3列目（数値3）が「first-child」として認識されてしまいます。
+ * これを防ぐため、2行目（.second-row）を除外しています。
+ *
+ * 【なぜヘッダーのz-indexが高い？】
+ * データの固定列より、ヘッダーの固定列の方が上に表示される必要があります。
+ * そうしないと、横スクロール時にデータがヘッダーを隠してしまいます。
+ *
+ * 【なぜ通常データのz-indexを設定しない？】
+ * Salesforceのポップアップ（カレンダー、コンボボックス）が正常に表示されるようにするためです。
+ */

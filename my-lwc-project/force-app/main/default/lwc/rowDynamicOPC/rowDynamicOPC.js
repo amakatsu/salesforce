@@ -77,7 +77,7 @@ export default class RowDynamicOPC extends LightningElement {
   initialize = false;
   selectedRows = [];
   /* 行データ - structuredCloneで深いコピーを作成し可変データにする */
-  @track tableData = [...structuredClone(generateMockData(3))];
+  @track tableData = [...structuredClone(generateMockData(50))];
 
   /**
    * カスタマイズテーブル・行選択処理

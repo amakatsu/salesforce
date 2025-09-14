@@ -1,11 +1,27 @@
+/* ========================================
+ * 2行ヘッダー・2行データの固定列テーブル（JavaScript）
+ * ========================================
+ *
+ * このJavaScriptが管理すること:
+ * 1. テーブルデータの管理（2行構造に対応）
+ * 2. 行選択機能（checked と dataCheck を分離）
+ * 3. データ入力の反映とバリデーション
+ * 4. テスト・デバッグ機能
+ */
+
 import { LightningElement, api, track } from "lwc";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import { getComponentDataList } from "c/f003GsV0000GetComponentDataList";
 import { validateElement } from "c/f003GsV0000DataValidation";
 
-/* =========================================
- * ピックリスト選択肢定義
- * ========================================= */
+/* ========================================
+ * 1. 設定値の一元管理（カスタマイズ時はここを変更）
+ * ======================================== */
+
+// モックデータの件数
+const MOCK_DATA_COUNT = 50;
+
+/* ピックリスト選択肢定義 */
 const REVIEW_RESULT_OPTIONS = [
   { label: "合格", value: "合格" },
   { label: "否認", value: "否認" },
@@ -34,98 +50,173 @@ const SUBJECT_OPTIONS = [
   { label: "その他金融商品", value: "その他金融商品" }
 ];
 
-/* =========================================
- * モックデータ生成関数
- * ========================================= */
-function generateMockData(count = 3) {
+const PRIORITY_OPTIONS = [
+  { label: "高", value: "高" },
+  { label: "中", value: "中" },
+  { label: "低", value: "低" }
+];
+
+const STATUS_OPTIONS = [
+  { label: "処理中", value: "処理中" },
+  { label: "完了", value: "完了" },
+  { label: "保留", value: "保留" }
+];
+
+/* 保存対象フィールド定義（2行構造対応） */
+const SAVING_FIELD_LIST = [
+  // 基本情報
+  "Id", "label",
+
+  // 1行目データ（上段）
+  "num1", "num2", "str1", "str2", "str3",
+  "dataCheck", "ReviewResult", "Subject", "date1", "date2",
+
+  // 2行目データ（下段）
+  "num3", "num4", "str4", "str5", "str6",
+  "checked2", "Priority", "Status", "date3", "date4"
+];
+
+/* ========================================
+ * 2. モックデータ生成関数
+ * ======================================== */
+
+/**
+ * テスト用のモックデータを生成
+ * @param {number} count 生成するデータ件数
+ * @return {Array} モックデータ配列
+ */
+function generateMockData(count = MOCK_DATA_COUNT) {
   return Array.from({ length: count }, (_, i) => ({
+    // 基本情報
     Id: `${i + 1}`.padStart(3, "0"),
     label: `横ラベル${i + 1}`,
-    num1: 7777777 + i * 1111111,
-    num2: -7777777 - i * 1111111,
-    str1: `サンプル参照テキスト${i + 1}`,
-    str2: `サンプル入力テキスト${i + 1}`,
-    checked: i % 2 === 0,
+    checked: false, // 行選択用（UI表示のみ）
+
+    // 1行目データ（上段）
+    num1: 1000000 + i * 100000,
+    num2: -2000000 - i * 200000,
+    str1: `入力文字列1-${i + 1}`,
+    str2: `表示文字列2-${i + 1}`,
+    str3: `入力文字列3-${i + 1}`,
+    dataCheck: i % 3 === 0, // データ用チェックボックス
     ReviewResult: REVIEW_RESULT_OPTIONS[i % REVIEW_RESULT_OPTIONS.length].value,
     Subject: SUBJECT_OPTIONS[i % SUBJECT_OPTIONS.length].value,
-    date1: new Date(2023, 8, 15 + i).toISOString().split("T")[0],
-    date2: new Date(2023, 9, 15 + i).toISOString().split("T")[0]
+    date1: new Date(2024, 0, 15 + i).toISOString().split("T")[0],
+    date2: new Date(2024, 1, 15 + i).toISOString().split("T")[0],
+
+    // 2行目データ（下段）
+    num3: 3000000 + i * 300000,
+    num4: -4000000 - i * 400000,
+    str4: `詳細情報${i + 1}`,
+    str5: `備考・メモ欄\n複数行テキスト${i + 1}`,
+    str6: `追加情報${i + 1}`,
+    checked2: i % 4 === 0,
+    Priority: PRIORITY_OPTIONS[i % PRIORITY_OPTIONS.length].value,
+    Status: STATUS_OPTIONS[i % STATUS_OPTIONS.length].value,
+    date3: new Date(2024, 2, 1 + i).toISOString().split("T")[0],
+    date4: new Date(2024, 3, 1 + i).toISOString().split("T")[0]
   }));
 }
 
-/* =========================================
- * 保存対象のフィールド定義
- * ========================================= */
-const SAVING_BTN_LIST = [
-  "Id",
-  "label",
-  "num1",
-  "num2",
-  "str1",
-  "str2",
-  "checked",
-  "ReviewResult",
-  "Subject",
-  "date1",
-  "date2"
-];
+/* ========================================
+ * 3. メインコンポーネントクラス
+ * ======================================== */
 
-/* =========================================
- * LWCコンポーネントクラス
- * ========================================= */
-export default class RowDynamicOPC extends LightningElement {
+export default class RowDynamicMultiHeader extends LightningElement {
+
+  /* ----------------------------------------
+   * プロパティ定義
+   * ---------------------------------------- */
   initialize = false;
-  selectedRows = [];
-  /* 行データ - structuredCloneで深いコピーを作成し可変データにする */
-  @track tableData = [...structuredClone(generateMockData(3))];
+  selectedRows = []; // 選択された行のインデックス配列
+
+  /* テーブルデータ（リアクティブ） */
+  @track tableData = structuredClone(generateMockData());
+
+  /* ピックリストオプション */
+  reviewResultOptions = REVIEW_RESULT_OPTIONS;
+  subjectOptions = SUBJECT_OPTIONS;
+  priorityOptions = PRIORITY_OPTIONS;
+  statusOptions = STATUS_OPTIONS;
+
+  /* ----------------------------------------
+   * 行選択関連のメソッド
+   * ---------------------------------------- */
 
   /**
-   * カスタマイズテーブル・行選択処理
+   * 個別行の選択/解除処理
+   * 注意：data.checked（行選択）と data.dataCheck（データ項目）を分離
    */
   handleRowSelection(event) {
     const checked = event.target.checked;
-    const rowidx = parseInt(event.target.dataset.idx, 10);
-    const havingFlg = this.selectedRows.includes(rowidx);
+    const rowIndex = parseInt(event.target.dataset.idx, 10);
+
+    // 選択行配列の更新
     if (checked) {
-      if (havingFlg) {
-        this.selectedRows = this.selectedRows.filter(function (selectRow) {
-          return selectRow !== rowidx;
-        });
-      } else {
-        this.selectedRows.push(rowidx);
+      if (!this.selectedRows.includes(rowIndex)) {
+        this.selectedRows.push(rowIndex);
       }
     } else {
-      this.selectedRows = this.selectedRows.filter(function (selectRow) {
-        return selectRow !== rowidx;
-      });
+      this.selectedRows = this.selectedRows.filter(idx => idx !== rowIndex);
     }
+
+    // tableData の checked フラグを更新
     this.tableData = this.tableData.map((item, idx) =>
-      idx === rowidx ? { ...item, checked: checked } : item
+      idx === rowIndex ? { ...item, checked: checked } : item
     );
   }
 
   /**
-   * カスタマイズテーブル・全選択・全選択解除処理
+   * 全選択/全解除処理
+   * ヘッダーのチェックボックス操作時に実行
    */
   handleSelectFullCheck(event) {
-    const checked = event.target.checked; // 選択行の初期化
+    const checked = event.target.checked;
+
+    // 選択行配列をリセット
     this.selectedRows = [];
+
     if (checked) {
-      // 取得した件数分のインデックス番号があればいい。
+      // 全データのインデックスを選択行配列に追加
       this.selectedRows = [...Array(this.tableData.length).keys()];
     }
-    this.tableData = this.tableData.map((item) => ({
+
+    // 全データの checked フラグを更新
+    this.tableData = this.tableData.map(item => ({
       ...item,
       checked: checked
     }));
   }
 
+  /* ----------------------------------------
+   * データ入力関連のメソッド
+   * ---------------------------------------- */
+
   /**
-   * レコード更新処理
+   * テーブル内の入力項目変更処理
+   * data-id と data-field を使用してデータを特定・更新
+   */
+  handleInputChange(event) {
+    const { id, field } = event.target.dataset;
+    const value = event.target.type === "checkbox"
+      ? event.target.checked
+      : event.target.value;
+
+    // 該当レコードのフィールドを更新
+    this.tableData = this.tableData.map(record => {
+      if (record.Id === id) {
+        return { ...record, [field]: value };
+      }
+      return record;
+    });
+  }
+
+  /**
+   * レコード一括更新処理（外部API用）
+   * @param {Object} updatedRecord 更新するレコードデータ
    */
   updateRecord(updatedRecord) {
-    // 行番号が一致しているテーブルデータを更新
-    this.tableData = this.tableData.map((item) => {
+    this.tableData = this.tableData.map(item => {
       if (item.Id === updatedRecord.Id) {
         return { ...item, ...updatedRecord };
       }
@@ -133,168 +224,172 @@ export default class RowDynamicOPC extends LightningElement {
     });
   }
 
+  /* ----------------------------------------
+   * データ保存関連のメソッド
+   * ---------------------------------------- */
+
   /**
-   * 保存ボタン押下時の処理<br>
-   *
-   * @return { Array.<Object, Array.<Element>> } APIに渡す用のリストと、単項目チェック用のリストを返却する。
+   * 保存用データ取得（API呼び出し用）
+   * @return {Array} [保存データオブジェクト, バリデーション結果]
    */
   @api
   getSavingDatas() {
     let itemList = {};
-    let valid = 0; // 可変のテーブルデータを除いたdata-idを持つ要素を取得する。
-    const notTableData = this.template.querySelectorAll("[data-id]:not(tr *)");
-    const [iList, dList] = getComponentDataList(notTableData, SAVING_BTN_LIST);
-    validateElement(dList);
-    itemList = { ...iList };
-    itemList.tableData = this.tableData; // 下については、画面に表示されているデータを直接取得し、個別に改めて単項目チェックを実施する必要があるケースにおいて利用する。     return [itemList, valid];
+    let validationResult = 0;
+
+    // 画面上の固定要素からデータを取得
+    const nonTableElements = this.template.querySelectorAll("[data-id]:not(tr *)");
+    const [fixedData, validationElements] = getComponentDataList(nonTableElements, SAVING_FIELD_LIST);
+
+    // バリデーション実行
+    validateElement(validationElements);
+
+    // 結果をまとめる
+    itemList = { ...fixedData };
+    itemList.tableData = this.tableData;
+
+    return [itemList, validationResult];
   }
 
-  /* ---------- ピックリスト ---------- */
-  reviewResultOptions = REVIEW_RESULT_OPTIONS;
-  subjectOptions = SUBJECT_OPTIONS;
-
-  /* ==========================================
-   * rowDynamicOPC固有のメソッド（テスト用など）
-   * ========================================== */
-
-  /* ---------- POC固有の入力処理メソッド ---------- */
+  /* ----------------------------------------
+   * テスト・デバッグ用メソッド
+   * ---------------------------------------- */
 
   /**
-   * テーブル内の各行データ（tableData配列）への入力値反映処理
-   * 必要な理由: POCのHTMLテンプレートがdata-id, data-fieldパターンを使用しているため
-   * Sample1とは異なるデータバインディング方式に対応
-   */
-  handleInputChange(event) {
-    const { id, field } = event.target.dataset;
-    const value =
-      event.target.type === "checkbox"
-        ? event.target.checked
-        : event.target.value;
-
-    this.tableData = this.tableData.map((account) => {
-      if (account.Id === id) {
-        return { ...account, [field]: value };
-      }
-      return account;
-    });
-  }
-
-  /* ---------- テスト用メソッド ---------- */
-
-  /**
-   * 選択されたデータの詳細表示テスト
-   * 検証対象: handleRowSelection()による selectedRows の管理と tableData の checked 状態
+   * 選択されたデータの詳細表示（開発・テスト用）
+   * 選択機能が正常に動作しているかを確認
    */
   handleTestSelectedData() {
-    const selectedAccounts = this.tableData.filter((_, idx) =>
+    const selectedData = this.tableData.filter((_, idx) =>
       this.selectedRows.includes(idx)
     );
 
-    // ポップアップで詳細なデータ表示
-    let alertMessage = `【選択されたデータ詳細】\n選択された行数: ${selectedAccounts.length}件\n\n`;
-    selectedAccounts.forEach((account, i) => {
-      alertMessage += `[${i + 1}] ID:${account.Id} ラベル:${account.label}\n`;
-      alertMessage += `   数値1:${account.num1} 数値2:${account.num2}\n`;
-      alertMessage += `   文字列1:${account.str1} 文字列2:${account.str2}\n`;
-      alertMessage += `   審査結果:${account.ReviewResult} 科目:${account.Subject}\n`;
-      alertMessage += `   チェック:${account.checked} 日付1:${account.date1} 日付2:${account.date2}\n\n`;
+    let message = `【選択データ詳細】\n選択件数: ${selectedData.length}件\n\n`;
+    selectedData.forEach((data, i) => {
+      message += `[${i + 1}] ID:${data.Id} ${data.label}\n`;
+      message += `  上段: 数値1=${data.num1} 文字列1=${data.str1}\n`;
+      message += `  下段: 数値3=${data.num3} 文字列4=${data.str4}\n`;
+      message += `  チェック: データ=${data.dataCheck} 選択=${data.checked}\n\n`;
     });
 
-    alert(alertMessage);
+    alert(message);
   }
 
   /**
-   * 全データと選択状態の詳細表示テスト
-   * 検証対象: tableData 配列の構造、selectedRows との整合性、データの入力反映状況
+   * 全データ構造の表示（開発・テスト用）
+   * データ構造と選択状態の整合性を確認
    */
   handleTestAllData() {
-    // 選択状態の確認
-    const checkedCount = this.tableData.filter((acc) => acc.checked).length;
+    const checkedCount = this.tableData.filter(data => data.checked).length;
     const selectedCount = this.selectedRows.length;
 
-    // ポップアップで全データ表示
-    let alertMessage = `【全データ表示】\n全データ数: ${this.tableData.length}件\nチェック状態: ${checkedCount}件\n選択行配列: ${selectedCount}件\n\n`;
+    let message = `【全データ構造】\n`;
+    message += `総データ数: ${this.tableData.length}件\n`;
+    message += `選択データ数: ${checkedCount}件\n`;
+    message += `選択行配列: ${selectedCount}件\n\n`;
 
-    this.tableData.forEach((account, i) => {
+    this.tableData.slice(0, 3).forEach((data, i) => {
       const isSelected = this.selectedRows.includes(i) ? "★" : "　";
-      alertMessage += `${isSelected}[${i + 1}] ID:${account.Id} ${
-        account.label
-      }\n`;
-      alertMessage += `   数値1:${account.num1} 数値2:${account.num2}\n`;
-      alertMessage += `   文字列1:${account.str1} 文字列2:${account.str2}\n`;
-      alertMessage += `   審査結果:${account.ReviewResult} 科目:${account.Subject}\n`;
-      alertMessage += `   チェック:${account.checked} 日付1:${account.date1} 日付2:${account.date2}\n\n`;
+      message += `${isSelected}[${i + 1}] ${data.label}\n`;
+      message += `  上段: ${data.str1} / 下段: ${data.str4}\n`;
+      message += `  選択=${data.checked} データ=${data.dataCheck}\n\n`;
     });
 
-    alert(alertMessage);
+    if (this.tableData.length > 3) {
+      message += `...他 ${this.tableData.length - 3}件`;
+    }
+
+    alert(message);
   }
 
   /**
-   * 全選択機能のテスト
-   * 検証対象: handleSelectFullCheck(checked: true) の動作
+   * 全選択テスト（開発・テスト用）
    */
   handleSelectAllTest() {
     const event = { target: { checked: true } };
     this.handleSelectFullCheck(event);
 
-    this.dispatchEvent(
-      new ShowToastEvent({
-        title: "全選択完了",
-        message: `${this.tableData.length}件すべて選択されました`,
-        variant: "success"
-      })
-    );
+    this.dispatchEvent(new ShowToastEvent({
+      title: "全選択完了",
+      message: `${this.tableData.length}件すべて選択されました`,
+      variant: "success"
+    }));
   }
 
   /**
-   * 全解除機能のテスト
-   * 検証対象: handleSelectFullCheck(checked: false) の動作
+   * 全解除テスト（開発・テスト用）
    */
   handleDeselectAllTest() {
     const event = { target: { checked: false } };
     this.handleSelectFullCheck(event);
 
-    this.dispatchEvent(
-      new ShowToastEvent({
-        title: "全解除完了",
-        message: "すべての選択が解除されました",
-        variant: "info"
-      })
-    );
+    this.dispatchEvent(new ShowToastEvent({
+      title: "全解除完了",
+      message: "すべての選択が解除されました",
+      variant: "info"
+    }));
   }
 
   /**
-   * 保存データ取得機能のテスト
-   * 検証対象: getSavingDatas() の動作、バリデーション処理、データ構造の確認
+   * 保存データ構造テスト（開発・テスト用）
+   * getSavingDatas()の動作と返されるデータ構造を確認
    */
   handleTestSavingData() {
     try {
-      const [itemList, valid] = this.getSavingDatas();
+      const [itemList, validation] = this.getSavingDatas();
 
-      let alertMessage = `【保存データ取得テスト】\nテーブルデータ数: ${itemList.tableData.length}件\nバリデーション結果: ${valid}\n\n`;
+      let message = `【保存データ構造】\n`;
+      message += `テーブルデータ数: ${itemList.tableData.length}件\n`;
+      message += `バリデーション結果: ${validation}\n\n`;
 
-      itemList.tableData.forEach((account, i) => {
-        alertMessage += `[${i + 1}] ID:${account.Id} ${account.label}\n`;
-        alertMessage += `   数値1:${account.num1} 文字列1:${account.str1}\n`;
-        alertMessage += `   審査結果:${account.ReviewResult} チェック:${account.checked}\n\n`;
+      message += `サンプルデータ（最初の2件）:\n`;
+      itemList.tableData.slice(0, 2).forEach((data, i) => {
+        message += `[${i + 1}] ID:${data.Id} ${data.label}\n`;
+        message += `  上段: 数値1=${data.num1} 文字列1=${data.str1}\n`;
+        message += `  下段: 数値3=${data.num3} 詳細=${data.str4}\n`;
+        message += `  選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
       });
 
-      alert(alertMessage);
+      alert(message);
     } catch (error) {
-      alert(
-        `【エラー】\n保存データ取得に失敗しました\nエラー内容: ${error.message}`
-      );
+      alert(`【エラー】\n保存データ取得に失敗\nエラー: ${error.message}`);
     }
   }
 
-  /* ---------- 保存（モック） ---------- */
+  /**
+   * 保存処理（モック実装）
+   * 実際のAPIコール処理はここに実装
+   */
   handleSave() {
-    this.dispatchEvent(
-      new ShowToastEvent({
-        title: "Success",
-        message: "Records updated successfully (mock).",
-        variant: "success"
-      })
-    );
+    this.dispatchEvent(new ShowToastEvent({
+      title: "保存完了",
+      message: "データが正常に保存されました（モック）",
+      variant: "success"
+    }));
   }
 }
+
+/* ========================================
+ * 補足説明
+ * ========================================
+ *
+ * 【2行データ構造について】
+ * 1レコードが上段・下段の2行で表示される構造。
+ * - 上段: num1, str1-3, dataCheck, ReviewResult, Subject, date1-2
+ * - 下段: num3-4, str4-6, checked2, Priority, Status, date3-4
+ *
+ * 【チェックボックスの分離】
+ * - data.checked: 行選択用（UI制御のみ）
+ * - data.dataCheck: データ項目（保存対象）
+ * この分離により、行選択とデータ項目が独立して動作。
+ *
+ * 【選択機能の仕組み】
+ * - selectedRows配列: 選択された行のインデックスを管理
+ * - data.checked: UI表示用の選択状態
+ * - 両方が同期して動作するように制御
+ *
+ * 【カスタマイズポイント】
+ * - MOCK_DATA_COUNT: テストデータの件数
+ * - ピックリストオプション: 各選択肢配列
+ * - SAVING_FIELD_LIST: 保存対象フィールド
+ */
