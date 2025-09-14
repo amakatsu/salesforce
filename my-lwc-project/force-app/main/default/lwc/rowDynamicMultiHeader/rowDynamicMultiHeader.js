@@ -106,16 +106,6 @@ export default class RowDynamicMultiHeader extends LightningElement {
   /* ----------------------------------------
    * データ入力関連のメソッド（MultiHeader固有機能）
    * ---------------------------------------- */
-
-  /**
-   * 【MultiHeader固有実装】テーブル内の入力項目変更処理
-   *
-   * Sample1との関係：handleSelectPossibilityの上位互換
-   * 実装理由：
-   * - Sample1のhandleSelectPossibilityは特定項目専用
-   * - MultiHeaderでは汎用的な入力変更処理が必要
-   * - data-idとdata-fieldで任意のフィールドを更新可能
-   */
   handleInputChange(event) {
     const { id, field } = event.target.dataset;
     const value =
@@ -133,50 +123,51 @@ export default class RowDynamicMultiHeader extends LightningElement {
   }
 
   /* ----------------------------------------
-   * テスト・デバッグ用メソッド（MultiHeader固有）
+   * テスト・デバッグ用メソッド（実装時は削除してください
    * ---------------------------------------- */
-
-  /**
-   * 【MultiHeader固有実装】全データ構造の表示（開発・テスト用）
-   *
-   * Sample1にはない機能
-   * 実装理由：
-   * - データ構造と選択状態の整合性確認用
-   * - 2行構造データの全体把握用
-   * - 開発・デバッグ時の状態確認用
-   */
   handleTestAllData() {
     const checkedCount = this.tableData.filter((data) => data.checked).length;
     const selectedCount = this.selectedRows.length;
 
-    let message = `【全データ構造】\n`;
+    let message = `【全データ詳細構造】\n`;
     message += `総データ数: ${this.tableData.length}件\n`;
     message += `選択データ数: ${checkedCount}件\n`;
-    message += `選択行配列: ${selectedCount}件\n\n`;
+    message += `選択行配列: ${selectedCount}件\n`;
+    message += `生成日時: ${new Date().toLocaleString()}\n\n`;
 
-    this.tableData.slice(0, 3).forEach((data, i) => {
+    // 全データの詳細表示
+    this.tableData.forEach((data, i) => {
       const isSelected = this.selectedRows.includes(i) ? "★" : "　";
-      message += `${isSelected}[${i + 1}] ${data.label}\n`;
-      message += `  上段: ${data.str1} / 下段: ${data.str4}\n`;
-      message += `  選択=${data.checked} データ=${data.dataCheck}\n\n`;
+      message += `${isSelected}[${i + 1}] ID:${data.Id} ${data.label}\n`;
+
+      // 上段データ（1行目）
+      message += `  ■上段: 数値1=${data.num1} 数値2=${data.num2}\n`;
+      message += `    文字列1="${data.str1}" 文字列2="${data.str2}" 文字列3="${data.str3}"\n`;
+      message += `    チェック=${data.dataCheck} 審査結果="${data.ReviewResult}" 科目="${data.Subject}"\n`;
+      message += `    日付1=${data.date1} 日付2=${data.date2}\n`;
+
+      // 下段データ（2行目）
+      message += `  ■下段: 数値3=${data.num3} 数値4=${data.num4}\n`;
+      message += `    文字列4="${data.str4}" 文字列5="${data.str5}" 文字列6="${data.str6}"\n`;
+      message += `    チェック2=${data.checked2} 優先度="${data.Priority}" ステータス="${data.Status}"\n`;
+      message += `    日付3=${data.date3} 日付4=${data.date4}\n`;
+
+      // 選択状態
+      message += `  ◆選択状態: UI選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
     });
 
-    if (this.tableData.length > 3) {
-      message += `...他 ${this.tableData.length - 3}件`;
-    }
+    // コンソールにも出力（長いデータの場合）
+    console.log("【全データ詳細】", {
+      totalCount: this.tableData.length,
+      checkedCount,
+      selectedCount,
+      selectedRows: this.selectedRows,
+      tableData: this.tableData
+    });
 
     alert(message);
   }
 
-  /**
-   * 【MultiHeader固有実装】保存データ構造テスト（開発・テスト用）
-   *
-   * Sample1にはない機能
-   * 実装理由：
-   * - getSavingDatas()の動作確認用
-   * - 返されるデータ構造の検証用
-   * - 2行構造データの保存データ確認用
-   */
   handleTestSavingData() {
     try {
       const [itemList, validation] = this.getSavingDatas();
@@ -199,22 +190,42 @@ export default class RowDynamicMultiHeader extends LightningElement {
     }
   }
 
-  /**
-   * 【MultiHeader固有実装】保存処理（モック実装）
-   *
-   * Sample1にはない機能
-   * 実装理由：
-   * - 保存機能のテスト用
-   * - 実際のAPIコール処理はここに実装予定
-   */
-  handleSave() {
-    this.dispatchEvent(
-      new ShowToastEvent({
-        title: "保存完了",
-        message: "データが正常に保存されました（モック）",
-        variant: "success"
-      })
-    );
+  async handleSave() {
+    try {
+      // 実際に保存データを取得して処理（モック実装）
+      const [itemList, validation] = this.getSavingDatas();
+
+      // モック保存処理：実際のAPIコール処理をシミュレート
+      const savingData = {
+        tableData: itemList.tableData,
+        timestamp: new Date().toISOString(),
+        recordCount: itemList.tableData.length,
+        validation: validation
+      };
+
+      // コンソールに保存データを出力（デバッグ用）
+      console.log("【モック保存実行】保存データ:", savingData);
+
+      // 短い遅延でAPI呼び出しをシミュレート
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      this.dispatchEvent(
+        new ShowToastEvent({
+          title: "保存完了（モック）",
+          message: `${itemList.tableData.length}件のデータを保存しました。コンソールで内容を確認できます。`,
+          variant: "success"
+        })
+      );
+    } catch (error) {
+      console.error("【保存エラー】", error);
+      this.dispatchEvent(
+        new ShowToastEvent({
+          title: "保存エラー",
+          message: `保存に失敗しました: ${error.message}`,
+          variant: "error"
+        })
+      );
+    }
   }
 }
 
