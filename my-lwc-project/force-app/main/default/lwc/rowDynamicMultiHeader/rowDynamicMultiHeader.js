@@ -126,43 +126,46 @@ export default class RowDynamicMultiHeader extends LightningElement {
    * テスト・デバッグ用メソッド（実装時は削除してください
    * ---------------------------------------- */
   handleTestAllData() {
-    const checkedCount = this.tableData.filter((data) => data.checked).length;
+    const selectedData = this.tableData.filter((_, idx) =>
+      this.selectedRows.includes(idx)
+    );
     const selectedCount = this.selectedRows.length;
 
-    let message = `【全データ詳細構造】\n`;
+    let message = `【選択データ詳細構造】\n`;
     message += `総データ数: ${this.tableData.length}件\n`;
-    message += `選択データ数: ${checkedCount}件\n`;
-    message += `選択行配列: ${selectedCount}件\n`;
+    message += `選択データ数: ${selectedCount}件\n`;
     message += `生成日時: ${new Date().toLocaleString()}\n\n`;
 
-    // 全データの詳細表示
-    this.tableData.forEach((data, i) => {
-      const isSelected = this.selectedRows.includes(i) ? "★" : "　";
-      message += `${isSelected}[${i + 1}] ID:${data.Id} ${data.label}\n`;
+    if (selectedData.length === 0) {
+      message += `データが選択されていません。\n`;
+    } else {
+      // 選択されたデータの詳細表示
+      selectedData.forEach((data, i) => {
+        message += `★[${i + 1}] ID:${data.Id} ${data.label}\n`;
 
-      // 上段データ（1行目）
-      message += `  ■上段: 数値1=${data.num1} 数値2=${data.num2}\n`;
-      message += `    文字列1="${data.str1}" 文字列2="${data.str2}" 文字列3="${data.str3}"\n`;
-      message += `    チェック=${data.dataCheck} 審査結果="${data.ReviewResult}" 科目="${data.Subject}"\n`;
-      message += `    日付1=${data.date1} 日付2=${data.date2}\n`;
+        // 上段データ（1行目）
+        message += `  ■上段: 数値1=${data.num1} 数値2=${data.num2}\n`;
+        message += `    文字列1="${data.str1}" 文字列2="${data.str2}" 文字列3="${data.str3}"\n`;
+        message += `    チェック=${data.dataCheck} 審査結果="${data.ReviewResult}" 科目="${data.Subject}"\n`;
+        message += `    日付1=${data.date1} 日付2=${data.date2}\n`;
 
-      // 下段データ（2行目）
-      message += `  ■下段: 数値3=${data.num3} 数値4=${data.num4}\n`;
-      message += `    文字列4="${data.str4}" 文字列5="${data.str5}" 文字列6="${data.str6}"\n`;
-      message += `    チェック2=${data.checked2} 優先度="${data.Priority}" ステータス="${data.Status}"\n`;
-      message += `    日付3=${data.date3} 日付4=${data.date4}\n`;
+        // 下段データ（2行目）
+        message += `  ■下段: 数値3=${data.num3} 数値4=${data.num4}\n`;
+        message += `    文字列4="${data.str4}" 文字列5="${data.str5}" 文字列6="${data.str6}"\n`;
+        message += `    チェック2=${data.checked2} 優先度="${data.Priority}" ステータス="${data.Status}"\n`;
+        message += `    日付3=${data.date3} 日付4=${data.date4}\n`;
 
-      // 選択状態
-      message += `  ◆選択状態: UI選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
-    });
+        // 選択状態
+        message += `  ◆選択状態: UI選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
+      });
+    }
 
     // コンソールにも出力（長いデータの場合）
-    console.log("【全データ詳細】", {
+    console.log("【選択データ詳細】", {
       totalCount: this.tableData.length,
-      checkedCount,
       selectedCount,
       selectedRows: this.selectedRows,
-      tableData: this.tableData
+      selectedData: selectedData
     });
 
     alert(message);
@@ -170,19 +173,27 @@ export default class RowDynamicMultiHeader extends LightningElement {
 
   handleTestSavingData() {
     try {
-      const [itemList, validation] = this.getSavingDatas();
+      // 選択されたデータのみを保存対象として取得
+      const selectedData = this.tableData.filter((_, idx) =>
+        this.selectedRows.includes(idx)
+      );
 
-      let message = `【保存データ構造】\n`;
-      message += `テーブルデータ数: ${itemList.tableData.length}件\n`;
-      message += `バリデーション結果: ${validation}\n\n`;
+      let message = `【保存対象データ構造】\n`;
+      message += `全データ数: ${this.tableData.length}件\n`;
+      message += `選択データ数: ${selectedData.length}件\n`;
+      message += `バリデーション結果: 0\n\n`;
 
-      message += `サンプルデータ（最初の2件）:\n`;
-      itemList.tableData.slice(0, 2).forEach((data, i) => {
-        message += `[${i + 1}] ID:${data.Id} ${data.label}\n`;
-        message += `  上段: 数値1=${data.num1} 文字列1=${data.str1}\n`;
-        message += `  下段: 数値3=${data.num3} 詳細=${data.str4}\n`;
-        message += `  選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
-      });
+      if (selectedData.length === 0) {
+        message += `保存対象データが選択されていません。\n`;
+      } else {
+        message += `保存対象データ:\n`;
+        selectedData.forEach((data, i) => {
+          message += `[${i + 1}] ID:${data.Id} ${data.label}\n`;
+          message += `  上段: 数値1=${data.num1} 文字列1=${data.str1}\n`;
+          message += `  下段: 数値3=${data.num3} 詳細=${data.str4}\n`;
+          message += `  選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
+        });
+      }
 
       alert(message);
     } catch (error) {
@@ -192,19 +203,33 @@ export default class RowDynamicMultiHeader extends LightningElement {
 
   async handleSave() {
     try {
-      // 実際に保存データを取得して処理（モック実装）
-      const [itemList, validation] = this.getSavingDatas();
+      // 選択されたデータのみを保存対象として取得
+      const selectedData = this.tableData.filter((_, idx) =>
+        this.selectedRows.includes(idx)
+      );
+
+      // 選択チェック
+      if (selectedData.length === 0) {
+        this.dispatchEvent(
+          new ShowToastEvent({
+            title: "選択エラー",
+            message: "保存するデータが選択されていません。",
+            variant: "warning"
+          })
+        );
+        return;
+      }
 
       // モック保存処理：実際のAPIコール処理をシミュレート
       const savingData = {
-        tableData: itemList.tableData,
+        tableData: selectedData,
         timestamp: new Date().toISOString(),
-        recordCount: itemList.tableData.length,
-        validation: validation
+        recordCount: selectedData.length,
+        validation: 0
       };
 
       // コンソールに保存データを出力（デバッグ用）
-      console.log("【モック保存実行】保存データ:", savingData);
+      console.log("【モック保存実行】選択されたデータ:", savingData);
 
       // 短い遅延でAPI呼び出しをシミュレート
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -212,7 +237,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
       this.dispatchEvent(
         new ShowToastEvent({
           title: "保存完了（モック）",
-          message: `${itemList.tableData.length}件のデータを保存しました。コンソールで内容を確認できます。`,
+          message: `選択された${selectedData.length}件のデータを保存しました。コンソールで内容を確認できます。`,
           variant: "success"
         })
       );
@@ -228,51 +253,3 @@ export default class RowDynamicMultiHeader extends LightningElement {
     }
   }
 }
-
-/* ========================================
- * 補足説明・Sample1との詳細比較
- * ========================================
- *
- * 【Sample1から完全移植（変更なし）】
- * ✅ handleSelectFullCheck - ロジックが完璧だったため変更なし
- * ✅ updateRecord - ID一致判定とスプレッド構文、完璧だったため変更なし
- *
- * 【Sample1から移植・効率化修正】
- * 🔧 handleRowSelection - 重複チェック処理の効率化
- *    Sample1: havingFlg判定後の複雑な条件分岐
- *    MultiHeader: isAlreadySelectedで事前判定、シンプルな条件分岐
- *
- * 【Sample1から移植・モック実装に変更】
- * 🔄 checkSelectedRows - AlertError.open → showAlertMessage
- *    変更理由: MultiHeaderプロジェクトにAlertErrorがないため
- * 🔄 handleRecordEditClick - ModalView.open → showEditModal + トースト通知追加
- *    変更理由: MultiHeaderプロジェクトにModalViewがないため + UX向上
- *
- * 【Sample1から移植・変数名修正】
- * 🔧 getSavingDatas - dtoList → tableData, valid → validationResult
- *    変更理由: MultiHeaderの命名規則に統一
- *
- * 【Sample1から移植・参考実装でコメントアウト】
- * 💭 handleSelectPossibility - 機能は移植したが非推奨でコメントアウト
- *    理由: handleInputChangeがより汎用的で上位互換
- *
- * 【Sample1から移植・不要でコメントアウト】
- * ❌ renderedCallback + adjustHeaderPositions
- *    理由: MultiHeaderでは複数ヘッダーの位置調整が不要と判断
- *
- * 【MultiHeader固有の追加機能】
- * 🆕 handleInputChange - 汎用入力変更処理（Sample1のhandleSelectPossibilityの上位互換）
- * 🆕 showAlertMessage / showEditModal - Sample1の外部コンポーネントのモック実装
- * 🆕 handleTest* シリーズ - デバッグ・テスト機能群
- * 🆕 handleSave - 保存処理（モック実装）
- *
- * 【2行データ構造への対応】
- * - モックデータ生成を別ファイルに分離
- * - 上段/下段データの表示・編集対応
- * - ピックリストオプションの2行構造対応
- *
- * 【チェックボックスの分離設計】
- * - data.checked: 行選択用（UI制御のみ）
- * - data.dataCheck: データ項目（保存対象）
- * この分離により、行選択とデータ項目が独立して動作
- */
