@@ -9,31 +9,22 @@
     * テスト用ボタン群（開発・デバッグ用）利用時は消してください
     * ======================================== -->
     <div class="slds-var-p-around_medium">
+      <!-- 【直接編集対応】必要最小限のテスト・操作ボタン -->
       <lightning-button-group>
-        <lightning-button
-          variant="brand"
-          label="選択データ表示"
-          onclick={handleTestSelectedData}
-        ></lightning-button>
         <lightning-button
           variant="outline-brand"
           label="全データ表示"
           onclick={handleTestAllData}
         ></lightning-button>
         <lightning-button
-          variant="neutral"
-          label="全選択"
-          onclick={handleSelectAllTest}
-        ></lightning-button>
-        <lightning-button
-          variant="neutral"
-          label="全解除"
-          onclick={handleDeselectAllTest}
-        ></lightning-button>
-        <lightning-button
           variant="success"
           label="保存データテスト"
           onclick={handleTestSavingData}
+        ></lightning-button>
+        <lightning-button
+          variant="destructive"
+          label="保存実行（モック）"
+          onclick={handleSave}
         ></lightning-button>
       </lightning-button-group>
     </div>
