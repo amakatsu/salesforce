@@ -1,19 +1,12 @@
 <template>
   <!-- ========================================
-  * 2行ヘッダー・2行データの固定列テーブル
+  * 明細変動＋縦横スクロール＋直接編集可能なテーブル
   * ========================================
-  *
-  * このHTMLが実現すること:
-  * 1. 2行ヘッダー構造（グループと詳細）
-  * 2. 2行データ構造（1つのレコードを2行で表示）
-  * 3. 固定列（選択・横ラベル）がrowspan=2で2行分を占有
-  * 4. CSSと連携した横・縦スクロール対応
   -->
 
   <lightning-card>
-
     <!-- ========================================
-    * テスト用ボタン群（開発・デバッグ用）
+    * テスト用ボタン群（開発・デバッグ用）利用時は消してください
     * ======================================== -->
     <div class="slds-var-p-around_medium">
       <lightning-button-group>
@@ -49,37 +42,45 @@
     * メインテーブル構造
     * ======================================== -->
     <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
-
       <!-- テーブルコンテナ（CSSでスクロール制御） -->
       <div class="table-container">
         <table class="slds-table slds-table_bordered slds-table_fixed-layout">
-
           <!-- ========================================
           * 列幅定義（CSS変数で自動同期）
           * ======================================== -->
           <colgroup>
-            <col style="width: var(--col1-width)" />   <!-- 1: 選択（固定列） -->
-            <col style="width: var(--col2-width)" />   <!-- 2: 横ラベル（固定列） -->
-            <col style="width: var(--col3-width)" />   <!-- 3: 数値1 -->
-            <col style="width: var(--col4-width)" />   <!-- 4: 数値2 -->
-            <col style="width: var(--col5-width)" />   <!-- 5: 文字列1 -->
-            <col style="width: var(--col6-width)" />   <!-- 6: 文字列2 -->
-            <col style="width: var(--col7-width)" />   <!-- 7: 文字列3 -->
-            <col style="width: var(--col8-width)" />   <!-- 8: チェックボックス -->
-            <col style="width: var(--col9-width)" />   <!-- 9: 審査結果 -->
-            <col style="width: var(--col10-width)" />  <!-- 10: 科目 -->
-            <col style="width: var(--col11-width)" />  <!-- 11: 日付1 -->
-            <col style="width: var(--col12-width)" />  <!-- 12: 日付2 -->
+            <col style="width: var(--col1-width)" />
+            <!-- 1: 選択（固定列） -->
+            <col style="width: var(--col2-width)" />
+            <!-- 2: 横ラベル（固定列） -->
+            <col style="width: var(--col3-width)" />
+            <!-- 3: 数値1 -->
+            <col style="width: var(--col4-width)" />
+            <!-- 4: 数値2 -->
+            <col style="width: var(--col5-width)" />
+            <!-- 5: 文字列1 -->
+            <col style="width: var(--col6-width)" />
+            <!-- 6: 文字列2 -->
+            <col style="width: var(--col7-width)" />
+            <!-- 7: 文字列3 -->
+            <col style="width: var(--col8-width)" />
+            <!-- 8: チェックボックス -->
+            <col style="width: var(--col9-width)" />
+            <!-- 9: 審査結果 -->
+            <col style="width: var(--col10-width)" />
+            <!-- 10: 科目 -->
+            <col style="width: var(--col11-width)" />
+            <!-- 11: 日付1 -->
+            <col style="width: var(--col12-width)" />
+            <!-- 12: 日付2 -->
           </colgroup>
 
           <!-- ========================================
           * ヘッダー構造（2行構成）
           * ======================================== -->
           <thead>
-
             <!-- 1行目：グループヘッダー -->
             <tr class="slds-line-height_reset header-row-1">
-
               <!-- 固定列1: 選択チェックボックス（2行分占有） -->
               <th
                 class="slds-text-align_center col-select rowspan-2"
@@ -150,7 +151,9 @@
                 <div class="slds-truncate" title="文字列3">文字列3</div>
               </th>
               <th class="slds-text-align_center" scope="col">
-                <div class="slds-truncate" title="チェックボックス">チェック</div>
+                <div class="slds-truncate" title="チェックボックス">
+                  チェック
+                </div>
               </th>
               <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="審査結果">審査結果</div>
@@ -172,10 +175,8 @@
           * ======================================== -->
           <tbody>
             <template for:each={tableData} for:item="data" for:index="idx">
-
               <!-- 1行目：上段データ -->
               <tr key={data.Id} class="slds-hint-parent">
-
                 <!-- 固定列1: 選択チェックボックス（2行分占有） -->
                 <td
                   data-label="選択"
@@ -192,11 +193,7 @@
                 </td>
 
                 <!-- 固定列2: 横ラベル（2行分占有） -->
-                <th
-                  class="slds-text-align_center"
-                  scope="row"
-                  rowspan="2"
-                >
+                <th class="slds-text-align_center" scope="row" rowspan="2">
                   <div class="slds-truncate">{data.label}</div>
                 </th>
 
@@ -320,7 +317,6 @@
 
               <!-- 2行目：下段データ（固定列2つはrowspanでスキップ） -->
               <tr key={data.Id} class="slds-hint-parent second-row">
-
                 <!-- 数値3（編集可能） -->
                 <td data-label="数値3">
                   <lightning-input
@@ -446,32 +442,3 @@
     </div>
   </lightning-card>
 </template>
-
-<!-- ========================================
-* 補足説明
-* ========================================
-*
-* 【rowspan="2"の仕組み】
-* 固定列（選択・横ラベル）は1行目で定義してrowspan="2"を指定。
-* これにより2行目では自動的にスキップされ、3列目から始まる。
-*
-* 【HTMLとCSSの自動同期】
-* ✅ 列幅：HTMLのcolgroupとCSSが var(--col1-width) で自動同期
-* ✅ 位置：CSS の --col2-left が --col1-width から自動計算
-* ✅ クラス：header-row-1, header-row-2, second-row でCSS制御
-*
-* 💡 列幅を変更したい場合：
-* CSS の :host セクションで --colN-width を変更するだけ！
-* HTMLは自動で追従するため、手動同期不要。
-*
-* 【data属性の役割】
-* data-id: レコード識別子（どのデータか特定）
-* data-field: 更新対象フィールド名（どの項目を更新するか）
-* → JavaScript の handleInputChange で使用
-*
-* 【3列目以降の固定列を追加する場合】
-* 1. CSS で --colN-width を定義
-* 2. CSS で --colN-left を計算式で定義
-*    例：--col3-left: calc(var(--col1-width) + var(--col2-width));
-* 3. HTML で該当セルに position: sticky の CSS クラスを追加
--->

@@ -135,8 +135,10 @@ export default class RowDynamicSample1 extends LightningElement {
     const [iList, dList] = getComponentDataList(notTableData, SAVING_BTN_LIST);
     validateElement(dList);
     itemList = { ...iList };
-    itemList.dtoList = this.tableData; // 下については、画面に表示されているデータを直接取得し、個別に改めて単項目チェックを実施する必要があるケースにおいて利用する。     return [itemList, valid];
-  } // 複数のヘッダーを固定するための設定（レンダリングの度呼び出す）
+    itemList.dtoList = this.tableData;
+  }
+  // 下については、画面に表示されているデータを直接取得し、個別に改めて単項目チェックを実施する必要があるケースにおいて利用する。     return [itemList, valid];
+  // 複数のヘッダーを固定するための設定（レンダリングの度呼び出す）
   adjustHeaderPositions() {
     const headerRows = this.template.querySelectorAll("thead tr");
     let topPosition = 0;
