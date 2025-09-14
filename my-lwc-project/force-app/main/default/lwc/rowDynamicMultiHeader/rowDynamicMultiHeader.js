@@ -19,7 +19,7 @@ import { validateElement } from "c/f003GsV0000DataValidation";
  * ======================================== */
 
 // モックデータの件数
-const MOCK_DATA_COUNT = 50;
+const MOCK_DATA_COUNT = 3;
 
 /* ピックリスト選択肢定義 */
 const REVIEW_RESULT_OPTIONS = [
@@ -65,15 +65,32 @@ const STATUS_OPTIONS = [
 /* 保存対象フィールド定義（2行構造対応） */
 const SAVING_FIELD_LIST = [
   // 基本情報
-  "Id", "label",
+  "Id",
+  "label",
 
   // 1行目データ（上段）
-  "num1", "num2", "str1", "str2", "str3",
-  "dataCheck", "ReviewResult", "Subject", "date1", "date2",
+  "num1",
+  "num2",
+  "str1",
+  "str2",
+  "str3",
+  "dataCheck",
+  "ReviewResult",
+  "Subject",
+  "date1",
+  "date2",
 
   // 2行目データ（下段）
-  "num3", "num4", "str4", "str5", "str6",
-  "checked2", "Priority", "Status", "date3", "date4"
+  "num3",
+  "num4",
+  "str4",
+  "str5",
+  "str6",
+  "checked2",
+  "Priority",
+  "Status",
+  "date3",
+  "date4"
 ];
 
 /* ========================================
@@ -123,7 +140,6 @@ function generateMockData(count = MOCK_DATA_COUNT) {
  * ======================================== */
 
 export default class RowDynamicMultiHeader extends LightningElement {
-
   /* ----------------------------------------
    * プロパティ定義
    * ---------------------------------------- */
@@ -157,7 +173,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
         this.selectedRows.push(rowIndex);
       }
     } else {
-      this.selectedRows = this.selectedRows.filter(idx => idx !== rowIndex);
+      this.selectedRows = this.selectedRows.filter((idx) => idx !== rowIndex);
     }
 
     // tableData の checked フラグを更新
@@ -182,7 +198,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
     }
 
     // 全データの checked フラグを更新
-    this.tableData = this.tableData.map(item => ({
+    this.tableData = this.tableData.map((item) => ({
       ...item,
       checked: checked
     }));
@@ -198,12 +214,13 @@ export default class RowDynamicMultiHeader extends LightningElement {
    */
   handleInputChange(event) {
     const { id, field } = event.target.dataset;
-    const value = event.target.type === "checkbox"
-      ? event.target.checked
-      : event.target.value;
+    const value =
+      event.target.type === "checkbox"
+        ? event.target.checked
+        : event.target.value;
 
     // 該当レコードのフィールドを更新
-    this.tableData = this.tableData.map(record => {
+    this.tableData = this.tableData.map((record) => {
       if (record.Id === id) {
         return { ...record, [field]: value };
       }
@@ -216,7 +233,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
    * @param {Object} updatedRecord 更新するレコードデータ
    */
   updateRecord(updatedRecord) {
-    this.tableData = this.tableData.map(item => {
+    this.tableData = this.tableData.map((item) => {
       if (item.Id === updatedRecord.Id) {
         return { ...item, ...updatedRecord };
       }
@@ -238,8 +255,13 @@ export default class RowDynamicMultiHeader extends LightningElement {
     let validationResult = 0;
 
     // 画面上の固定要素からデータを取得
-    const nonTableElements = this.template.querySelectorAll("[data-id]:not(tr *)");
-    const [fixedData, validationElements] = getComponentDataList(nonTableElements, SAVING_FIELD_LIST);
+    const nonTableElements = this.template.querySelectorAll(
+      "[data-id]:not(tr *)"
+    );
+    const [fixedData, validationElements] = getComponentDataList(
+      nonTableElements,
+      SAVING_FIELD_LIST
+    );
 
     // バリデーション実行
     validateElement(validationElements);
@@ -280,7 +302,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
    * データ構造と選択状態の整合性を確認
    */
   handleTestAllData() {
-    const checkedCount = this.tableData.filter(data => data.checked).length;
+    const checkedCount = this.tableData.filter((data) => data.checked).length;
     const selectedCount = this.selectedRows.length;
 
     let message = `【全データ構造】\n`;
@@ -309,11 +331,13 @@ export default class RowDynamicMultiHeader extends LightningElement {
     const event = { target: { checked: true } };
     this.handleSelectFullCheck(event);
 
-    this.dispatchEvent(new ShowToastEvent({
-      title: "全選択完了",
-      message: `${this.tableData.length}件すべて選択されました`,
-      variant: "success"
-    }));
+    this.dispatchEvent(
+      new ShowToastEvent({
+        title: "全選択完了",
+        message: `${this.tableData.length}件すべて選択されました`,
+        variant: "success"
+      })
+    );
   }
 
   /**
@@ -323,11 +347,13 @@ export default class RowDynamicMultiHeader extends LightningElement {
     const event = { target: { checked: false } };
     this.handleSelectFullCheck(event);
 
-    this.dispatchEvent(new ShowToastEvent({
-      title: "全解除完了",
-      message: "すべての選択が解除されました",
-      variant: "info"
-    }));
+    this.dispatchEvent(
+      new ShowToastEvent({
+        title: "全解除完了",
+        message: "すべての選択が解除されました",
+        variant: "info"
+      })
+    );
   }
 
   /**
@@ -361,11 +387,13 @@ export default class RowDynamicMultiHeader extends LightningElement {
    * 実際のAPIコール処理はここに実装
    */
   handleSave() {
-    this.dispatchEvent(new ShowToastEvent({
-      title: "保存完了",
-      message: "データが正常に保存されました（モック）",
-      variant: "success"
-    }));
+    this.dispatchEvent(
+      new ShowToastEvent({
+        title: "保存完了",
+        message: "データが正常に保存されました（モック）",
+        variant: "success"
+      })
+    );
   }
 }
 
