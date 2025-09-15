@@ -1,44 +1,81 @@
 <template>
-  <!-- 
-    for:eachループ使用テーブル:
-    - 全行が同じ相対位置にあるため、カレンダーポップアップが一貫して下に表示される
-    - 動的にデータ数が変わる場合に適している
+  <!-- ========================================
+  * 明細変動＋縦横スクロール＋直接編集可能なテーブル
+  * ========================================
   -->
   <lightning-card>
     <!-- ========================================
     * テスト用ボタン群（開発・デバッグ用）利用時は消してください
     * ======================================== -->
     <div class="slds-var-p-around_medium">
-      <!-- 【直接編集対応】必要最小限のテスト・操作ボタン -->
       <lightning-button-group>
         <lightning-button
+          variant="neutral"
+          label="全選択テスト (検証: handleSelectFullCheck)"
+          onclick={handleTestSelectAll}
+        ></lightning-button>
+        <lightning-button
+          variant="neutral"
+          label="全解除テスト (検証: handleSelectFullCheck)"
+          onclick={handleTestDeselectAll}
+        ></lightning-button>
+        <lightning-button
           variant="outline-brand"
-          label="選択データ表示"
+          label="選択内容確認 (検証: handleRowSelection)"
           onclick={handleTestAllData}
         ></lightning-button>
         <lightning-button
-          variant="success"
-          label="保存データテスト"
-          onclick={handleTestSavingData}
+          variant="brand"
+          label="保存データ確認 (検証: getSavingDatas)"
+          onclick={handleTestGetSavingDatas}
         ></lightning-button>
         <lightning-button
           variant="destructive"
-          label="保存実行（モック）"
+          label="保存実行 (検証: handleSave)"
           onclick={handleSave}
         ></lightning-button>
       </lightning-button-group>
     </div>
 
     <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+      <!-- テーブルコンテナ（CSSでスクロール制御） -->
       <div class="table-container">
         <table class="slds-table slds-table_bordered slds-table_fixed-layout">
+          <!-- ========================================
+          * 列幅定義（CSS変数で自動同期）
+          * ======================================== -->
+          <colgroup>
+            <col style="width: var(--col1-width)" />
+            <!-- 1: 選択（固定列） -->
+            <col style="width: var(--col2-width)" />
+            <!-- 2: 横ラベル（固定列） -->
+            <col style="width: var(--col3-width)" />
+            <!-- 3: 数値1 -->
+            <col style="width: var(--col4-width)" />
+            <!-- 4: 数値2 -->
+            <col style="width: var(--col5-width)" />
+            <!-- 5: 文字列1 -->
+            <col style="width: var(--col6-width)" />
+            <!-- 6: 文字列2 -->
+            <col style="width: var(--col7-width)" />
+            <!-- 7: チェックボックス -->
+            <col style="width: var(--col8-width)" />
+            <!-- 8: 審査結果 -->
+            <col style="width: var(--col9-width)" />
+            <!-- 9: 科目 -->
+            <col style="width: var(--col10-width)" />
+            <!-- 10: 日付1 -->
+            <col style="width: var(--col11-width)" />
+            <!-- 11: 日付2 -->
+          </colgroup>
+
+          <!-- ========================================
+          * ヘッダー構造（単一行構成）
+          * ======================================== -->
           <thead>
             <tr class="slds-line-height_reset">
-              <th
-                class="slds-text-align_center"
-                style="width: 50px"
-                scope="col"
-              >
+              <!-- 固定列1: 選択チェックボックス -->
+              <th class="slds-text-align_center col-select" scope="col">
                 <div class="slds-truncate" title="選択">
                   <lightning-input
                     type="checkbox"
@@ -47,88 +84,69 @@
                   ></lightning-input>
                 </div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 150px"
-                scope="col"
-              >
+
+              <!-- 固定列2: 横ラベル -->
+              <th class="slds-text-align_center col-yokolabel" scope="col">
                 <div class="slds-truncate" title="横ラベル">横ラベル</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+
+              <!-- 通常列: 数値1 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="数値1">数値1</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+
+              <!-- 通常列: 数値2 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="数値2">数値2</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 250px"
-                scope="col"
-              >
+
+              <!-- 通常列: 文字列1 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="文字列1">文字列1</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 350px"
-                scope="col"
-              >
+
+              <!-- 通常列: 文字列2 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="文字列2">文字列2</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 150px"
-                scope="col"
-              >
+
+              <!-- 通常列: チェックボックス -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="チェックボックス">
                   チェックボックス
                 </div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+
+              <!-- 通常列: 審査結果 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="審査結果">審査結果</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+
+              <!-- 通常列: 科目 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="科目">科目</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+
+              <!-- 通常列: 日付1 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="日付1">日付1</div>
               </th>
-              <th
-                class="slds-text-align_center"
-                style="width: 200px"
-                scope="col"
-              >
+
+              <!-- 通常列: 日付2 -->
+              <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="日付2">日付2</div>
               </th>
             </tr>
           </thead>
+
+          <!-- ========================================
+          * データ行構造（単一行・直接編集対応）
+          * ======================================== -->
           <tbody>
             <template for:each={tableData} for:item="data" for:index="idx">
               <tr key={data.Id} class="slds-hint-parent">
-                <td
-                  data-label="選択"
-                  class="slds-text-align_center"
-                  style="width: 50px"
-                >
+                <!-- 固定列1: 選択チェックボックス -->
+                <td data-label="選択" class="slds-text-align_center">
                   <lightning-input
                     type="checkbox"
                     checked={data.checked}
@@ -137,13 +155,12 @@
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
-                <th
-                  class="slds-text-align_center"
-                  style="width: 150px"
-                  scope="row"
-                >
+
+                <!-- 固定列2: 横ラベル -->
+                <th class="slds-text-align_center" scope="row">
                   <div class="slds-truncate">{data.label}</div>
                 </th>
+                <!-- 編集可能列: 数値1 -->
                 <td data-label="数値1">
                   <lightning-input
                     type="number"
@@ -154,6 +171,8 @@
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
+
+                <!-- 表示専用列: 数値2 -->
                 <td data-label="数値2">
                   <div class="slds-truncate slds-text-align_right">
                     <lightning-formatted-number
@@ -161,6 +180,8 @@
                     ></lightning-formatted-number>
                   </div>
                 </td>
+
+                <!-- 編集可能列: 文字列1 -->
                 <td data-label="文字列1">
                   <lightning-input
                     type="text"
@@ -171,6 +192,8 @@
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
+
+                <!-- 表示専用列: 文字列2 -->
                 <td data-label="文字列2">
                   <div class="slds-truncate">
                     <lightning-formatted-text
@@ -178,6 +201,8 @@
                     ></lightning-formatted-text>
                   </div>
                 </td>
+
+                <!-- 編集可能列: データチェックボックス -->
                 <td data-label="チェックボックス">
                   <lightning-input
                     type="checkbox"
@@ -188,6 +213,8 @@
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
+
+                <!-- 編集可能列: 審査結果（コンボボックス） -->
                 <td data-label="審査結果">
                   <lightning-combobox
                     value={data.ReviewResult}
@@ -199,6 +226,8 @@
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
                 </td>
+
+                <!-- 編集可能列: 科目（コンボボックス） -->
                 <td data-label="科目">
                   <lightning-combobox
                     value={data.Subject}
@@ -210,6 +239,8 @@
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
                 </td>
+
+                <!-- 編集可能列: 日付1 -->
                 <td data-label="日付1">
                   <lightning-input
                     type="date"
@@ -220,6 +251,8 @@
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
+
+                <!-- 読み取り専用列: 日付2 -->
                 <td data-label="日付2">
                   <lightning-input
                     type="date"

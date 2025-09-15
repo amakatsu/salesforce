@@ -10,27 +10,31 @@ import { getComponentDataList } from "c/f003GsV0000GetComponentDataList";
 import { validateElement } from "c/f003GsV0000DataValidation";
 
 /* ========================================
- * 単一行テーブル・直接編集コンポーネント
- * ========================================
- *
- * MultiHeaderの優秀な機能を単一行テーブルに適用
- * - 効率的な行選択ロジック
- * - 汎用的な直接編集機能
- * - 改良された保存処理
- */
+ * メインコンポーネントクラス
+ * ======================================== */
+
 export default class RowDynamicOPC extends LightningElement {
+  /* ----------------------------------------
+   * プロパティ定義
+   * ---------------------------------------- */
+  /* 選択された行のインデックス配列 */
   selectedRows = [];
+  /* テーブルデータ */
   @track tableData = structuredClone(generateMockData(50));
 
+  /* ピックリストオプション */
+  reviewResultOptions = REVIEW_RESULT_OPTIONS;
+  subjectOptions = SUBJECT_OPTIONS;
+
   /**
-   * 行選択処理（MultiHeaderから効率化版を移植）
+   * カスタマイズテーブル・行選択処理
    */
   handleRowSelection(event) {
     const checked = event.target.checked;
     const rowIndex = parseInt(event.target.dataset.idx, 10);
     const isAlreadySelected = this.selectedRows.includes(rowIndex);
 
-    // MultiHeaderから移植：効率化された条件分岐
+    // 事前チェックで条件分岐を簡潔に
     if (checked) {
       if (!isAlreadySelected) {
         this.selectedRows.push(rowIndex);
@@ -39,22 +43,49 @@ export default class RowDynamicOPC extends LightningElement {
       this.selectedRows = this.selectedRows.filter((idx) => idx !== rowIndex);
     }
 
-    // tableData更新処理
+    // tableData更新
+    this.tableData = this.tableData.map((item, idx) =>
+      idx === rowIndex ? { ...item, checked: checked } : item
+    );
+  }
+  /**
+   * カスタマイズテーブル・行選択処理
+   */
+  handleRowSelection(event) {
+    const checked = event.target.checked;
+    const rowIndex = parseInt(event.target.dataset.idx, 10);
+    const isAlreadySelected = this.selectedRows.includes(rowIndex);
+
+    // 事前チェックで条件分岐を簡潔に
+    if (checked) {
+      if (!isAlreadySelected) {
+        this.selectedRows.push(rowIndex);
+      }
+    } else {
+      this.selectedRows = this.selectedRows.filter((idx) => idx !== rowIndex);
+    }
+
+    // tableData更新
     this.tableData = this.tableData.map((item, idx) =>
       idx === rowIndex ? { ...item, checked: checked } : item
     );
   }
 
   /**
-   * 全選択・全解除処理
+   * カスタマイズテーブル・全選択・全選択解除処理
    */
   handleSelectFullCheck(event) {
-    const checked = event.target.checked; // 選択行の初期化
+    const checked = event.target.checked;
+
+    // 選択行配列をリセット
     this.selectedRows = [];
+
     if (checked) {
-      // 取得した件数分のインデックス番号があればいい。
+      // 全データのインデックスを選択行配列に追加
       this.selectedRows = [...Array(this.tableData.length).keys()];
     }
+
+    // 全データの checked フラグを更新
     this.tableData = this.tableData.map((item) => ({
       ...item,
       checked: checked
@@ -69,22 +100,26 @@ export default class RowDynamicOPC extends LightningElement {
   @api
   getSavingDatas() {
     let itemList = {};
-    let validationResult = 0; // MultiHeaderと統一：バリデーション結果
+    let validationResult = 0;
 
-    // 可変のテーブルデータを除いたdata-idを持つ要素を取得する。
-    const notTableData = this.template.querySelectorAll("[data-id]:not(tr *)");
-    const [iList, dList] = getComponentDataList(notTableData, SAVING_BTN_LIST);
-    validateElement(dList);
+    // 画面上の固定要素からデータを取得
+    const nonTableElements = this.template.querySelectorAll(
+      "[data-id]:not(tr *)"
+    );
+    const [fixedData, validationElements] = getComponentDataList(
+      nonTableElements,
+      SAVING_FIELD_LIST
+    );
 
-    itemList = { ...iList };
+    // バリデーション実行
+    validateElement(validationElements);
+
+    // 結果をまとめる
+    itemList = { ...fixedData };
     itemList.tableData = this.tableData;
 
     return [itemList, validationResult];
   }
-
-  /* ピックリストオプション */
-  reviewResultOptions = REVIEW_RESULT_OPTIONS;
-  subjectOptions = SUBJECT_OPTIONS;
 
   /* ----------------------------------------
    * データ入力関連のメソッド（直接編集機能）
@@ -100,7 +135,6 @@ export default class RowDynamicOPC extends LightningElement {
         ? event.target.checked
         : event.target.value;
 
-    // MultiHeaderから移植：汎用的な入力変更処理
     // 該当レコードのフィールドを更新
     this.tableData = this.tableData.map((record) => {
       if (record.Id === id) {
@@ -142,17 +176,49 @@ export default class RowDynamicOPC extends LightningElement {
     alert(message);
   }
 
-  handleTestSavingData() {
+  /**
+   * 全選択機能のテスト
+   */
+  handleTestSelectAll() {
+    const event = { target: { checked: true } };
+    this.handleSelectFullCheck(event);
+
+    const message = `【全選択テスト完了】\n全データ数: ${
+      this.tableData.length
+    }件\n選択状態: 全て選択されました\n選択行配列: [${this.selectedRows.join(
+      ", "
+    )}]`;
+    alert(message);
+  }
+
+  /**
+   * 全解除機能のテスト
+   */
+  handleTestDeselectAll() {
+    const event = { target: { checked: false } };
+    this.handleSelectFullCheck(event);
+
+    const message = `【全解除テスト完了】\n全データ数: ${
+      this.tableData.length
+    }件\n選択状態: 全て解除されました\n選択行配列: [${this.selectedRows.join(
+      ", "
+    )}]`;
+    alert(message);
+  }
+
+  /**
+   * 保存データ確認（選択されたデータのみ）
+   */
+  handleTestGetSavingDatas() {
     try {
       // 選択されたデータのみを保存対象として取得
       const selectedData = this.tableData.filter((_, idx) =>
         this.selectedRows.includes(idx)
       );
 
-      let message = `【保存対象データ構造】\n`;
+      let message = `【保存データ確認】\n`;
       message += `全データ数: ${this.tableData.length}件\n`;
-      message += `選択データ数: ${selectedData.length}件\n`;
-      message += `バリデーション結果: 0\n\n`;
+      message += `選択データ数: ${selectedData.length}件\n\n`;
 
       if (selectedData.length === 0) {
         message += `保存対象データが選択されていません。\n`;
@@ -168,7 +234,7 @@ export default class RowDynamicOPC extends LightningElement {
 
       alert(message);
     } catch (error) {
-      alert(`【エラー】\n保存データ取得に失敗\nエラー: ${error.message}`);
+      alert(`【保存データ確認エラー】\n${error.message}`);
     }
   }
 

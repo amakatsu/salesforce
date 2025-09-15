@@ -104,7 +104,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
   }
 
   /* ----------------------------------------
-   * データ入力関連のメソッド（MultiHeader固有機能）
+   * データ入力関連のメソッド（直接編集機能）
    * ---------------------------------------- */
   handleInputChange(event) {
     const { id, field } = event.target.dataset;
@@ -171,17 +171,49 @@ export default class RowDynamicMultiHeader extends LightningElement {
     alert(message);
   }
 
-  handleTestSavingData() {
+  /**
+   * 全選択機能のテスト
+   */
+  handleTestSelectAll() {
+    const event = { target: { checked: true } };
+    this.handleSelectFullCheck(event);
+
+    const message = `【全選択テスト完了】\n全データ数: ${
+      this.tableData.length
+    }件\n選択状態: 全て選択されました\n選択行配列: [${this.selectedRows.join(
+      ", "
+    )}]`;
+    alert(message);
+  }
+
+  /**
+   * 全解除機能のテスト
+   */
+  handleTestDeselectAll() {
+    const event = { target: { checked: false } };
+    this.handleSelectFullCheck(event);
+
+    const message = `【全解除テスト完了】\n全データ数: ${
+      this.tableData.length
+    }件\n選択状態: 全て解除されました\n選択行配列: [${this.selectedRows.join(
+      ", "
+    )}]`;
+    alert(message);
+  }
+
+  /**
+   * 保存データ確認（選択されたデータのみ）
+   */
+  handleTestGetSavingDatas() {
     try {
       // 選択されたデータのみを保存対象として取得
       const selectedData = this.tableData.filter((_, idx) =>
         this.selectedRows.includes(idx)
       );
 
-      let message = `【保存対象データ構造】\n`;
+      let message = `【保存データ確認】\n`;
       message += `全データ数: ${this.tableData.length}件\n`;
-      message += `選択データ数: ${selectedData.length}件\n`;
-      message += `バリデーション結果: 0\n\n`;
+      message += `選択データ数: ${selectedData.length}件\n\n`;
 
       if (selectedData.length === 0) {
         message += `保存対象データが選択されていません。\n`;
@@ -197,7 +229,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
 
       alert(message);
     } catch (error) {
-      alert(`【エラー】\n保存データ取得に失敗\nエラー: ${error.message}`);
+      alert(`【保存データ確認エラー】\n${error.message}`);
     }
   }
 
