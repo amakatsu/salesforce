@@ -1,0 +1,108 @@
+# ============================================
+# .pr-agent/configuration.toml （完成版）
+# 目的:
+#  - 生成はすべて日本語
+#  - 各ファイル/行にインラインコメント
+#  - 改善提案は suggestion としてその場コミット可能
+#  - リポ内のルールMDを前提に参照
+#  - 余計なファイル（lock/ビルド成果物）は除外
+# 使い方（ワンショット例）:
+#   docker run --rm ... \
+#     --pr_url "https://gitlab.com/<group>/<project>/-/merge_requests/<IID>" \
+#     review \
+#     -config_path=/app/.pr-agent/configuration.toml
+# 必要な環境変数（一例）:
+#   -e CONFIG__GIT_PROVIDER=gitlab
+#   -e GITLAB__URL="https://gitlab.com"
+#   -e GITLAB__PERSONAL_ACCESS_TOKEN="$GITLAB_TOKEN"   # scope: api
+#   -e GEMINI_API_KEY="$GEMINI_API_KEY"
+#   -e GOOGLE_AI_STUDIO__GEMINI_API_KEY="$GEMINI_API_KEY"
+#   -e OPENAI_API_KEY=""  # OpenAI 経路を確実に無効化したい場合
+# ============================================
+
+[config]
+# 使用モデルは Gemini（速度重視）。正確性重視なら "gemini/gemini-2.5-pro" 等に変更
+model = "gemini/gemini-2.0-flash"
+fallback_models = ["gemini/gemini-2.0-flash"]
+response_language = "ja-JP"   # 生成は常に日本語
+
+# --- GitLabのCLI/サーバ兼用メモ ---
+# 環境変数で GitLab を選択:
+#   CONFIG__GIT_PROVIDER=gitlab
+#   GITLAB__URL="https://gitlab.com"
+#   GITLAB__PERSONAL_ACCESS_TOKEN="<PAT(api)>"
+#   GITLAB__AUTH_TYPE="oauth_token"
+
+[ask]
+# リポジトリの未変更ファイル（docs/*.md など）もコンテキストとして使わせる
+allow_repo_context = true
+
+[filters]
+# ノイズになりやすいファイルを除外
+exclude_globs = [
+  "**/*.min.*",
+  "dist/**",
+  "build/**",
+  "coverage/**",
+  "**/*.svg",
+  "**/*.png",
+  "**/*.jpg",
+  "**/*.jpeg",
+  "**/*.gif",
+  "**/*.ico",
+  "**/pnpm-lock.yaml",
+  "**/package-lock.json",
+  "**/yarn.lock",
+  ".gitignore"
+]
+
+[pr_reviewer]
+# ---- /review の出力方針 ----
+inline_code_comments = true            # 可能な限り各行にインラインで指摘
+inline_comments_limit = 30             # インライン指摘の上限
+file_size_limit_kb = 200               # 大きすぎるファイルはスキップ
+extra_instructions = """
+【出力ルール】
+- すべて日本語。結論→理由→修正例の順で簡潔に。
+- 重要度ラベル [必須][推奨][任意] を先頭に付けてください。
+- 指摘は可能な限り該当行にインラインでコメントすること。
+
+【レビュー観点（TypeScript/React想定）】
+- 型安全性: any/非null断言/型ガード不足、戻り値の型曖昧さ。
+- 副作用: useEffect の依存配列漏れ、useMemo/useCallback の過不足。
+- エラーハンドリング: 例外の握りつぶし、ログの機微情報混入。
+- セキュリティ: 入力バリデーション、XSS/CSRF 対策、秘密情報の露出。
+- パフォーマンス: N+1、重い同期処理、不要な再レンダー、バンドル肥大。
+- テスト: クリティカル分岐のユニットテスト提案、リグレッション防止。
+
+【社内ルール（必ず参照）】
+- docs/DEV_CONTEXT.md
+- docs/CODING_RULES.md
+参照できない場合は冒頭で明記し、一般原則でレビューを続行してください。
+"""
+
+[pr_code_suggestions]
+# ---- /improve の出力方針 ----
+commitable_code_suggestions = true     # suggestion をそのままUIからコミット可能に
+num_code_suggestions = 10              # 提案の最大数
+extra_instructions = """
+- 1コメント=1提案。該当行にインラインで提示。
+- 完全な置換例を suggestion 形式で示す（そのままコミット可能に）。
+- 可能なら安全な小さな差分に分割し、段階的に提案してください。
+"""
+
+[pr_description]
+# ---- /describe（PRタイトル/本文生成・更新）----
+# 本文を直接上書きせず、まずはコメントとして投稿したい場合は true
+publish_description_as_comment = true
+sections = ["title", "type", "summary", "walkthrough", "risks", "labels"]
+extra_instructions = "説明は日本語で、要点を箇条書き中心に簡潔に。"
+
+# ---（任意）プッシュで/describe等を自動実行する運用にする場合（Webhook/サーバ起動向け）---
+# [github_app]  # GitLab 運用でも push→コマンド実行の思想は同じ（実装はWebhook側で）
+# handle_push_trigger = "true"
+# push_commands = ["/describe"]
+
+# ---（任意）サーバ運用で自動レビューさせたい場合（GitLabでの概念的メモ）---
+# [gitlab]
+# pr_commands = ["/describe","/review","/improve"]
