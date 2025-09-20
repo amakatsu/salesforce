@@ -40,7 +40,7 @@
     <!-- ========================================
     * メインテーブル構造
     * ======================================== -->
-    <div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+    <div class="slds-grid slds-wrap slds-var-p-top_small">
       <!-- テーブルコンテナ（CSSでスクロール制御） -->
       <div class="table-container">
         <table class="slds-table slds-table_bordered slds-table_fixed-layout">
@@ -173,7 +173,11 @@
           * データ構造（1レコード = 2行表示）
           * ======================================== -->
           <tbody>
-            <template for:each={tableData} for:item="data" for:index="idx">
+            <template
+              for:each={editableTableData}
+              for:item="data"
+              for:index="idx"
+            >
               <!-- 1行目：上段データ -->
               <tr key={data.Id} class="slds-hint-parent">
                 <!-- 固定列1: 選択チェックボックス（2行分占有） -->

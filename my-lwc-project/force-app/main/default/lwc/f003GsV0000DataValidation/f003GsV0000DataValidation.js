@@ -4,15 +4,17 @@ export function validateElement(elements) {
     // モック実装：基本的なバリデーション
     let isValid = true;
     const errors = [];
+    let errorCount = 0;
 
     if (elements && elements.length > 0) {
         elements.forEach(element => {
             const value = element.value || element.textContent || '';
             const required = element.hasAttribute('required');
-            
+
             // 必須チェック
             if (required && !value.trim()) {
                 isValid = false;
+                errorCount++;
                 errors.push({
                     element: element,
                     message: '必須項目です',
@@ -26,6 +28,7 @@ export function validateElement(elements) {
             // メールアドレス形式チェック（email type の場合）
             if (element.type === 'email' && value && !isValidEmail(value)) {
                 isValid = false;
+                errorCount++;
                 errors.push({
                     element: element,
                     message: '正しいメールアドレス形式で入力してください',
@@ -37,6 +40,7 @@ export function validateElement(elements) {
             // 数値チェック（number type の場合）
             if (element.type === 'number' && value && isNaN(value)) {
                 isValid = false;
+                errorCount++;
                 errors.push({
                     element: element,
                     message: '数値で入力してください',
@@ -47,10 +51,8 @@ export function validateElement(elements) {
         });
     }
 
-    return {
-        isValid: isValid,
-        errors: errors
-    };
+    // エラー数を直接返す（後で呼び出し元で使用）
+    return errorCount;
 }
 
 function isValidEmail(email) {

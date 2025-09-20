@@ -19,16 +19,27 @@ export default class RowDynamicMultiHeader extends LightningElement {
   /* ----------------------------------------
    * プロパティ定義
    * ---------------------------------------- */
+  /* 親コンポーネントから受領したデータ */
+  @api tableData = [];
+  /* 編集可能テーブルデータ（変更追跡用） */
+  @track editableTableData = [];
   /* 選択された行のインデックス配列*/
-  selectedRows = []; //
-  /* テーブルデータ*/
-  @track tableData = structuredClone(generateMockData());
+  selectedRows = [];
 
   /* ピックリストオプション */
   reviewResultOptions = REVIEW_RESULT_OPTIONS;
   subjectOptions = SUBJECT_OPTIONS;
   priorityOptions = PRIORITY_OPTIONS;
   statusOptions = STATUS_OPTIONS;
+
+  connectedCallback() {
+    if (!this.tableData || this.tableData.length === 0) {
+      // 本番時削除：モックデータがない場合のみ生成
+      this.editableTableData = structuredClone(generateMockData(2));
+    } else {
+      this.editableTableData = structuredClone(this.tableData);
+    }
+  }
 
   /**
    * カスタマイズテーブル・行選択処理
@@ -47,8 +58,8 @@ export default class RowDynamicMultiHeader extends LightningElement {
       this.selectedRows = this.selectedRows.filter((idx) => idx !== rowIndex);
     }
 
-    // tableData更新
-    this.tableData = this.tableData.map((item, idx) =>
+    // 内部データ更新
+    this.editableTableData = this.editableTableData.map((item, idx) =>
       idx === rowIndex ? { ...item, checked: checked } : item
     );
   }
@@ -64,11 +75,11 @@ export default class RowDynamicMultiHeader extends LightningElement {
 
     if (checked) {
       // 全データのインデックスを選択行配列に追加
-      this.selectedRows = [...Array(this.tableData.length).keys()];
+      this.selectedRows = [...Array(this.editableTableData.length).keys()];
     }
 
     // 全データの checked フラグを更新
-    this.tableData = this.tableData.map((item) => ({
+    this.editableTableData = this.editableTableData.map((item) => ({
       ...item,
       checked: checked
     }));
@@ -84,21 +95,19 @@ export default class RowDynamicMultiHeader extends LightningElement {
     let itemList = {};
     let validationResult = 0;
 
-    // 画面上の固定要素からデータを取得
-    const nonTableElements = this.template.querySelectorAll(
-      "[data-id]:not(tr *)"
-    );
+    // 画面上の全要素からデータを取得（テーブルデータも含む）
+    const allElements = this.template.querySelectorAll("[data-id]");
     const [fixedData, validationElements] = getComponentDataList(
-      nonTableElements,
+      allElements,
       SAVING_FIELD_LIST
     );
 
     // バリデーション実行
-    validateElement(validationElements);
+    validationResult = validateElement(validationElements);
 
     // 結果をまとめる
     itemList = { ...fixedData };
-    itemList.tableData = this.tableData;
+    itemList.tableData = this.editableTableData;
 
     return [itemList, validationResult];
   }
@@ -114,7 +123,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
         : event.target.value;
 
     // 該当レコードのフィールドを更新
-    this.tableData = this.tableData.map((record) => {
+    this.editableTableData = this.editableTableData.map((record) => {
       if (record.Id === id) {
         return { ...record, [field]: value };
       }
@@ -126,13 +135,13 @@ export default class RowDynamicMultiHeader extends LightningElement {
    * テスト・デバッグ用メソッド（実装時は削除してください
    * ---------------------------------------- */
   handleTestAllData() {
-    const selectedData = this.tableData.filter((_, idx) =>
+    const selectedData = this.editableTableData.filter((_, idx) =>
       this.selectedRows.includes(idx)
     );
     const selectedCount = this.selectedRows.length;
 
     let message = `【選択データ詳細構造】\n`;
-    message += `総データ数: ${this.tableData.length}件\n`;
+    message += `総データ数: ${this.editableTableData.length}件\n`;
     message += `選択データ数: ${selectedCount}件\n`;
     message += `生成日時: ${new Date().toLocaleString()}\n\n`;
 
@@ -162,7 +171,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
 
     // コンソールにも出力（長いデータの場合）
     console.log("【選択データ詳細】", {
-      totalCount: this.tableData.length,
+      totalCount: this.editableTableData.length,
       selectedCount,
       selectedRows: this.selectedRows,
       selectedData: selectedData
@@ -179,7 +188,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
     this.handleSelectFullCheck(event);
 
     const message = `【全選択テスト完了】\n全データ数: ${
-      this.tableData.length
+      this.editableTableData.length
     }件\n選択状態: 全て選択されました\n選択行配列: [${this.selectedRows.join(
       ", "
     )}]`;
@@ -194,7 +203,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
     this.handleSelectFullCheck(event);
 
     const message = `【全解除テスト完了】\n全データ数: ${
-      this.tableData.length
+      this.editableTableData.length
     }件\n選択状態: 全て解除されました\n選択行配列: [${this.selectedRows.join(
       ", "
     )}]`;
@@ -207,12 +216,12 @@ export default class RowDynamicMultiHeader extends LightningElement {
   handleTestGetSavingDatas() {
     try {
       // 選択されたデータのみを保存対象として取得
-      const selectedData = this.tableData.filter((_, idx) =>
+      const selectedData = this.editableTableData.filter((_, idx) =>
         this.selectedRows.includes(idx)
       );
 
       let message = `【保存データ確認】\n`;
-      message += `全データ数: ${this.tableData.length}件\n`;
+      message += `全データ数: ${this.editableTableData.length}件\n`;
       message += `選択データ数: ${selectedData.length}件\n\n`;
 
       if (selectedData.length === 0) {
@@ -236,7 +245,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
   async handleSave() {
     try {
       // 選択されたデータのみを保存対象として取得
-      const selectedData = this.tableData.filter((_, idx) =>
+      const selectedData = this.editableTableData.filter((_, idx) =>
         this.selectedRows.includes(idx)
       );
 
