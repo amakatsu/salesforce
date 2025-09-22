@@ -16,6 +16,7 @@ export default class RowDynamicSample1 extends LightningElement {
   selectedRows = [];
   @track record = API_DATA;
   @track tableData = [...structuredClone(API_DATA.dtoList), { checked: false }];
+
   /**
    * LWCがDOMにレンダリングされた後実行されるライフサイクルフック
    * レンダリングの度に呼び出されるため、個別の制御が必要。
@@ -24,13 +25,16 @@ export default class RowDynamicSample1 extends LightningElement {
     if (!this.initialize) this.adjustHeaderPositions();
     this.initialize = true;
   }
+
   /**
    * カスタマイズテーブル・行選択処理
    */
   handleRowSelection(event) {
     const checked = event.target.checked;
     const rowidx = parseInt(event.target.dataset.idx, 10);
+
     const havingFlg = this.selectedRows.includes(rowidx);
+
     if (checked) {
       if (havingFlg) {
         this.selectedRows = this.selectedRows.filter(function (selectRow) {
@@ -48,11 +52,13 @@ export default class RowDynamicSample1 extends LightningElement {
       idx === rowidx ? { ...item, checked: checked } : item
     );
   }
+
   /**
    * カスタマイズテーブル・全選択・全選択解除処理
    */
   handleSelectFullCheck(event) {
-    const checked = event.target.checked; // 選択行の初期化
+    const checked = event.target.checked;
+    // 選択行の初期化
     this.selectedRows = [];
     if (checked) {
       // 取得した件数分のインデックス番号があればいい。
@@ -63,13 +69,16 @@ export default class RowDynamicSample1 extends LightningElement {
       checked: checked
     }));
   }
+
   handleSelectPossibility(event) {
     const check = event.target.checked;
     const rowidx = event.target.dataset.idx;
+
     const row = { ...this.tableData[rowidx] };
     row.possibility = check;
     this.tableData[rowidx] = row;
   }
+
   /**
    * 行選択状況チェック処理
    */
@@ -80,6 +89,7 @@ export default class RowDynamicSample1 extends LightningElement {
         message: YUSGS5016C_E,
         code: "YUSGS5016C-E"
       });
+
       return result;
     } else if (this.selectedRows.length === 0) {
       const result = await AlertError.open({
@@ -87,17 +97,22 @@ export default class RowDynamicSample1 extends LightningElement {
         message: YUSGS5015C_E,
         code: "YUSGS5015C-E"
       });
+
       return result;
     }
+
     return "";
   }
+
   /**
    * レコード修正イベント
    */
   async handleRecordEditClick() {
     // 行選択チェック
     let checkResult = "";
-    checkResult = await this.checkSelectedRows(); // チェック問題なければ先進め
+    checkResult = await this.checkSelectedRows();
+
+    // チェック問題なければ先進め
     if (checkResult === "") {
       // 編集モーダル表示
       const idx = this.selectedRows[0];
@@ -105,12 +120,16 @@ export default class RowDynamicSample1 extends LightningElement {
         size: "medium",
         label: "Test Modal Title",
         record: this.tableData[idx]
-      }); // 「更新」ボタン押下の場合、レコード更新 // 最終的に保存処理などのAPI連携でDB反映する想定のため、画面上のレコードのみ更新
+      });
+
+      // 「更新」ボタン押下の場合、レコード更新
+      // 最終的に保存処理などのAPI連携でDB反映する想定のため、画面上のレコードのみ更新
       if (modalResult !== "cancel" && modalResult !== undefined) {
         this.updateRecord(modalResult);
       }
     }
   }
+
   /**
    * レコード更新処理
    */
@@ -123,6 +142,7 @@ export default class RowDynamicSample1 extends LightningElement {
       return item;
     });
   }
+
   /**
    * 保存ボタン押下時の処理<br>
    *
@@ -131,18 +151,51 @@ export default class RowDynamicSample1 extends LightningElement {
   @api
   getSavingDatas() {
     let itemList = {};
-    let valid = 0; // 可変のテーブルデータを除いたdata-idを持つ要素を取得する。
+    let valid = 0;
+
+    // 可変のテーブルデータを除いたdata-idを持つ要素を取得する。
     const notTableData = this.template.querySelectorAll("[data-id]:not(tr *)");
+
     const [iList, dList] = getComponentDataList(notTableData, SAVING_BTN_LIST);
     validateElement(dList);
     itemList = { ...iList };
     itemList.dtoList = this.tableData;
+
+    // 下については、画面に表示されているデータを直接取得し、個別に改めて単項目チェックを実施する必要があるケースにおいて利用する。
+
+    // // 可変のテーブルデータ以外の要素を取得する。
+    // const tableDataList = [];
+
+    // // 1行内のtr毎にNodeListを取得し、それぞれ処理したのち内容をマージする。
+    // // trそのものにカスタムデータ属性もしくはtrをそれぞれ特定できるクラス名を定義する。
+    // // 行内にtrタブが1つだけの場合は、trの取得のみで問題なし。
+    // const rowData1 = this.template.querySelectorAll('tr[data-id="1"]');
+    // const rowData2 = this.template.querySelectorAll('tr[data-id="2"]');
+
+    // rowData1.forEach((_, idx) => {
+    //   const dataCell1 = rowData1[idx].querySelectorAll('[data-id]');
+    //   const dataCell2 = rowData2[idx].querySelectorAll('[data-id]');
+
+    //   const [rowItemList1, rowDataList1] = getDataList(dataCell1, SAVING_BTN_LIST);
+    //   const [rowItemList2, rowDataList2] = getDataList(dataCell2, SAVING_BTN_LIST);
+
+    //   valid = checkItem(rowDataList1);
+    //   valid = checkItem(rowDataList2);
+
+    //   const mergeItemList = Object.assign(rowItemList1, rowItemList2);
+    //   tableDataList.push(mergeItemList);
+    // });
+
+    // itemList.dtoList = tableDataList;
+
+    return [itemList, valid];
   }
-  // 下については、画面に表示されているデータを直接取得し、個別に改めて単項目チェックを実施する必要があるケースにおいて利用する。     return [itemList, valid];
+
   // 複数のヘッダーを固定するための設定（レンダリングの度呼び出す）
   adjustHeaderPositions() {
     const headerRows = this.template.querySelectorAll("thead tr");
     let topPosition = 0;
+
     headerRows.forEach((row) => {
       const thElements = row.querySelectorAll("th");
       thElements.forEach((th) => {

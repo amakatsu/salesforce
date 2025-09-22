@@ -1,0 +1,152 @@
+<template>
+<div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+<div class="slds-col slds-size_2-of-12">
+<labelclass="slds-var-p-top_x-small"><legend class="slds-form-element__legend">他入力値</legend></label>
+<br />
+<div class="slds-border_bottom slds-border_left slds-border_right slds-border_top">
+<div class="slds-grid slds-gutters slds-grid_vertical-align-center slds-var-p-around_small">
+<div class="slds-col slds-size_6-of-12">
+<lightning-input type="text" label="稟査番号" data-id="kskrsno" value={record.kskrsno}></lightning-input>
+</div>
+<div class="slds-col slds-size_6-of-12">
+<lightning-input type="date" label="絞込日付" data-id="nddate" value={record.nddate}></lightning-input>
+</div>
+</div>
+</div>
+</div>
+</div>
+ 
+<div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+<div class="slds-col slds-size_12-of-12 slds-gutters">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-button name="sample" label="サンプル" onclick={handleRecordEditClick}></lightning-button>
+</div>
+</div>
+</div>
+<div class="slds-grid slds-gutters slds-wrap slds-var-p-top_small">
+<div class="table-sticky slds-col slds-size_12-of-12 slds-var-p-left_small slds-var-p-right_small">
+<!-- slds-table              見た目をlightning-tableに合わせる。  -->
+<!-- slds-table_fixed-layout テーブルの列幅固定を行う。  -->
+<tablearia-multiselectable="true" role="grid" class="slds-table slds-table_fixed-layout table-sticky__title">
+<thead>
+<tr class="slds-line-height_reset">
+<th scope="col" rowspan="2" colspan="1" style="width: 5%" class="">
+<div class="slds-truncate slds-var-p-left_x-small">
+               選択
+<lightning-input type="checkbox" checked={fullCheck} onchange={handleSelectFullCheck} variant="label-hidden"></lightning-input>
+</div>
+</th>
+<th scope="col" rowspan="2" colspan="1" style="width: 10%" class=""><divclass="slds-truncate slds-var-p-left_x-small">ユーザーID</div></th>
+<th scope="col" rowspan="1" colspan="1" style="width: 10%" class=""><divclass="slds-truncate slds-var-p-left_x-small">ユーザー名（苗字）</div></th>
+<th scope="col" rowspan="1" colspan="3" style="width: 15%" class=""><divclass="slds-truncate slds-var-p-left_x-small">日付</div></th>
+<th scope="col" rowspan="1" colspan="2" style="width: 15%" class=""><divclass="slds-truncate slds-var-p-left_x-small">金額</div></th>
+<th scope="col" rowspan="2" colspan="1" style="width: 10%" class=""><divclass="slds-truncate slds-var-p-left_x-small">判定要否</div></th>
+<th scope="col" rowspan="2" colspan="1" style="width: 10%" class=""><divclass="slds-truncate slds-var-p-left_x-small">種別</div></th>
+<th scope="col" rowspan="2" colspan="3" style="width: 25%" class=""><divclass="slds-truncate slds-var-p-left_x-small">備考</div></th>
+</tr>
+<tr class="slds-line-height_reset">
+<th scope="col" rowspan="1" colspan="1" style="width: 10%" class=""><divclass="slds-truncate slds-var-p-left_x-small">ユーザー名（名前）</div></th>
+<th scope="col" rowspan="1" colspan="1" style="width: 7%" class=""><divclass="slds-truncate slds-var-p-left_x-small">年</div></th>
+<th scope="col" rowspan="1" colspan="1" style="width: 4%" class=""><divclass="slds-truncate slds-var-p-left_x-small">月</div></th>
+<th scope="col" rowspan="1" colspan="1" style="width: 4%" class=""><divclass="slds-truncate slds-var-p-left_x-small">日</div></th>
+<th scope="col" rowspan="1" colspan="1" style="width: 5%" class=""><divclass="slds-truncate slds-var-p-left_x-small">残高</div></th>
+<th scope="col" rowspan="1" colspan="1" style="width: 10%" class=""><divclass="slds-truncate slds-var-p-left_x-small">利用金額</div></th>
+</tr>
+ 
+<!-- 横スクロール設定のため　ピクセル指定の場合（非表示領域） -->
+<!-- <tr class="slds-line-height_reset">
+             <th scope="col" rowspan="2" colspan="1" style="width: 50px" class=""><div class="slds-truncate slds-var-p-left_x-small">選択</div></th>
+             <th scope="col" rowspan="2" colspan="1" style="width: 100px" class=""><div class="slds-truncate slds-var-p-left_x-small">ユーザーID</div></th>
+             <th scope="col" rowspan="1" colspan="1" style="width: 100px" class=""><div class="slds-truncate slds-var-p-left_x-small">ユーザー名（苗字）</div></th>
+             <th scope="col" rowspan="1" colspan="3" style="width: 150px" class=""><div class="slds-truncate slds-var-p-left_x-small">日付</div></th>
+             <th scope="col" rowspan="1" colspan="2" style="width: 150px" class=""><div class="slds-truncate slds-var-p-left_x-small">金額</div></th>
+             <th scope="col" rowspan="2" colspan="1" style="width: 100px" class=""><div class="slds-truncate slds-var-p-left_x-small">判定要否</div></th>
+             <th scope="col" rowspan="2" colspan="1" style="width: 100px" class=""><div class="slds-truncate slds-var-p-left_x-small">種別</div></th>
+             <th scope="col" rowspan="2" colspan="3" style="width: 250px" class=""><div class="slds-truncate slds-var-p-left_x-small">備考</div></th>
+           </tr>
+           <tr class="slds-line-height_reset">
+             <th scope="col" rowspan="1" colspan="1" style="width: 100px" class=""><div class="slds-truncate slds-var-p-left_x-small">ユーザー名（名前）</div></th>
+             <th scope="col" rowspan="1" colspan="1" style="width: 70px" class=""><div class="slds-truncate slds-var-p-left_x-small">年</div></th>
+             <th scope="col" rowspan="1" colspan="1" style="width: 40px" class=""><div class="slds-truncate slds-var-p-left_x-small">月</div></th>
+             <th scope="col" rowspan="1" colspan="1" style="width: 40px" class=""><div class="slds-truncate slds-var-p-left_x-small">日</div></th>
+             <th scope="col" rowspan="1" colspan="1" style="width: 50px" class=""><div class="slds-truncate slds-var-p-left_x-small">残高</div></th>
+             <th scope="col" rowspan="1" colspan="1" style="width: 100px" class=""><div class="slds-truncate slds-var-p-left_x-small">利用金額</div></th>
+           </tr> -->
+</thead>
+<tbody>
+<template for:each={tableData} for:item="row" for:index="idx">
+<tr key={row.id} data-id="1">
+<td rowspan="2" colspan="1">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-input type="checkbox" class="" data-key={row.userId} checked={row.checked} data-idx={idx} onchange={handleRowSelection} variant="label-hidden"> </lightning-input>
+</div>
+</td>
+<td rowspan="2" colspan="1">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.userId}></lightning-formatted-text>
+</div>
+</td>
+<td rowspan="1" colspan="1">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.userLastName}></lightning-formatted-text>
+</div>
+</td>
+<td rowspan="1" colspan="3">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-input type="date" class="underline" data-id="date" value={row.date} readonly></lightning-input>
+</div>
+</td>
+<td rowspan="2" colspan="1">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-number value={row.balance}></lightning-formatted-number>
+</div>
+</td>
+<td rowspan="2" colspan="1">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-number value={row.usageAmount}></lightning-formatted-number>
+</div>
+</td>
+<td rowspan="2" colspan="1">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-input type="checkbox" data-id="possibility" data-idx={idx} checked={row.possibility} onchange={handleSelectPossibility} variant="label-hidden"></lightning-input>
+</div>
+</td>
+<td rowspan="2" colspan="1">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.type}></lightning-formatted-text>
+</div>
+</td>
+<td rowspan="2" colspan="3">
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.remark}></lightning-formatted-text>
+</div>
+</td>
+</tr>
+<tr key={row.id} data-id="2">
+<td>
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.userFirstName}></lightning-formatted-text>
+</div>
+</td>
+<td>
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.dateYear}></lightning-formatted-text>
+</div>
+</td>
+<td>
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.dateMonth}></lightning-formatted-text>
+</div>
+</td>
+<td>
+<div class="slds-truncate slds-var-p-left_x-small">
+<lightning-formatted-text value={row.dateDay}></lightning-formatted-text>
+</div>
+</td>
+</tr>
+</template>
+</tbody>
+</table>
+</div>
+</div>
+</template>
