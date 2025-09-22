@@ -1,4 +1,6 @@
 import { LightningElement, api, track } from 'lwc';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { validateElement } from 'c/f003GsV0000DataValidation';
 
 export default class RirituKeisuPage extends LightningElement {
     @api activeTab = 'riritu';
@@ -7,7 +9,6 @@ export default class RirituKeisuPage extends LightningElement {
 
     /* データ管理（Single Source of Truth） */
     @track multiHeaderData = [];
-    @track debugInfo = '';
 
     /* ライフサイクル・データ初期化 */
     connectedCallback() {
@@ -20,144 +21,161 @@ export default class RirituKeisuPage extends LightningElement {
         this.multiHeaderData = [];
     }
 
+    disconnectedCallback() {
+        // クリーンアップ処理（現在は不要）
+    }
+
+    /* エラーハンドリング */
+    /* 子コンポーネントからのエラー通知処理 */
+    handleValidationError(event) {
+        const { message, field, value, recordId } = event.detail;
+        
+        // より具体的なエラーメッセージを構築
+        let errorMessage = '';
+        if (field && value !== undefined) {
+            errorMessage = `「${field}」フィールドの入力値「${value}」が無効です。`;
+        } else {
+            errorMessage = message || '入力値に問題があります。';
+        }
+        
+        // コンソールに詳細ログを出力
+        console.error('Validation Error:', {
+            field,
+            value,
+            recordId,
+            message,
+            timestamp: new Date().toISOString()
+        });
+
+        // トーストでエラー表示
+        this.showValidationErrorToast('入力エラー', errorMessage);
+    }
+
+    
+
+    showValidationErrorToast(title, message) {
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title: title,
+                message: message,
+                variant: 'error'
+            })
+        );
+    }
+
     /* フィールド変更通知 */
-    handleFieldChange(event) {
-        const { recordId, fieldName, newValue } = event.detail;
-        console.log(`フィールド変更通知: ${recordId}.${fieldName} = ${newValue}`);
+    handleFieldChange() {
+        // フィールド変更の通知を受け取る（必要に応じて処理を追加）
     }
 
     /* バリデーション検証用メソッド */
-    handleValidationTest() {
-        const multiHeaderComponent = this.template.querySelector('c-row-dynamic-multi-header');
+    /**
+     * 対象コンポーネントの選択データをvalidation
+     * @param {HTMLElement} targetComponent 対象の子コンポーネント
+     * @returns {Object} {errorCount: number, errorDetails: Array}
+     */
+    validateAllInputs(targetComponent) {
+        // 選択されたレコードのIDを取得
+        const allData = targetComponent.tableData || [];
+        const selectedIds = allData
+            .filter(item => item.checked)
+            .map(item => item.Id);
 
-        if (!multiHeaderComponent) {
-            alert('コンポーネントが見つかりません。');
-            return;
+        if (selectedIds.length === 0) {
+            return { errorCount: 0, errorDetails: [] };
         }
 
-        try {
-            console.log('=== バリデーション検証開始 ===');
-            console.log('multiHeaderComponent:', multiHeaderComponent);
-            console.log('multiHeaderComponent.template:', multiHeaderComponent.template);
+        // validation実行
+        let totalErrorCount = 0;
+        const errorDetails = [];
 
-            // getSavingDatas()の呼び出しを安全にラップ
-            let itemList, validationResult;
-            try {
-                const result = multiHeaderComponent.getSavingDatas();
-                console.log('getSavingDatas() 戻り値:', result);
-
-                if (Array.isArray(result) && result.length >= 2) {
-                    [itemList, validationResult] = result;
-                } else {
-                    throw new Error(`getSavingDatas()の戻り値が不正です: ${JSON.stringify(result)}`);
+        selectedIds.forEach(recordId => {
+            const elements = targetComponent.getElementsById(recordId);
+            elements.forEach(element => {
+                const errorCount = validateElement([element], [], []);
+                if (errorCount > 0) {
+                    totalErrorCount += errorCount;
+                    errorDetails.push({
+                        field: element.dataset.field || '不明',
+                        value: element.type === 'checkbox' ? element.checked : element.value,
+                        recordId: element.dataset.id
+                    });
                 }
-            } catch (innerError) {
-                console.error('getSavingDatas()エラー:', innerError);
-                this.debugInfo = `❌ getSavingDatas()でエラーが発生しました:
-${innerError.message}
+            });
+        });
 
-スタックトレース:
-${innerError.stack}`;
-                return;
-            }
-
-            console.log('バリデーション結果:', validationResult);
-            console.log('取得データ:', itemList);
-
-            // デバッグ情報を画面に表示（コンソールログから取得）
-            this.debugInfo = `【バリデーション検証結果】
-実行日時: ${new Date().toLocaleString()}
-結果コード: ${validationResult}
-
-【バリデーション状況】
-・全data-id要素数: 34個
-・validationElements数: 34個
-・バリデーション結果: ${validationResult}
-
-【問題の確認】
-数値フィールドに文字列を入力してもvalidationResult=0となっています。
-原因を調査中...
-
-【考えられる原因】
-1. validateElement関数が数値フィールドを正しく検出していない
-2. SAVING_FIELD_LISTとdata-id属性が一致していない
-3. バリデーション対象の要素が期待通りに取得されていない
-
-コンソールログで詳細を確認してください。
-`;
-
-            if (validationResult !== 0) {
-                this.debugInfo += `⚠️ バリデーションエラーが発生しました
-エラーコード: ${validationResult}`;
-
-                console.error('❌ バリデーションエラー詳細:', {
-                    resultCode: validationResult,
-                    itemList: itemList,
-                    timestamp: new Date().toISOString()
-                });
-            } else {
-                const tableData = itemList.tableData || [];
-                const fixedDataKeys = Object.keys(itemList).filter(key => key !== 'tableData');
-
-                this.debugInfo += `✅ バリデーション成功！
-
-📊 データ概要:
-・テーブルデータ: ${tableData.length}件
-・固定要素: ${fixedDataKeys.length}項目`;
-
-                if (fixedDataKeys.length > 0) {
-                    this.debugInfo += `
-・固定要素キー: ${fixedDataKeys.join(', ')}`;
-                }
-
-                console.log('✅ バリデーション成功詳細:', {
-                    tableDataCount: tableData.length,
-                    fixedDataKeys: fixedDataKeys,
-                    fullData: itemList,
-                    timestamp: new Date().toISOString()
-                });
-            }
-
-        } catch (error) {
-            console.error('バリデーション検証エラー:', error);
-            alert(`❌ バリデーション検証に失敗しました\n\nエラー: ${error.message}\n\n詳細はコンソールを確認してください`);
-        }
+        return { errorCount: totalErrorCount, errorDetails };
     }
 
     /* 保存処理 */
-    handleSave() {
-        const multiHeaderComponent = this.template.querySelector('c-row-dynamic-multi-header');
+    handleSave(event) {
+        // クリックされたボタンのdata-component属性を取得
+        const componentType = event.target.dataset.component;
 
-        if (!multiHeaderComponent) {
+        // 対応するコンポーネントを選択
+        let targetComponent;
+        if (componentType === 'opc') {
+            targetComponent = this.template.querySelector('c-row-dynamic-o-p-c');
+        } else if (componentType === 'multi') {
+            targetComponent = this.template.querySelector('c-row-dynamic-multi-header');
+        } else {
+            // フォールバック: 両方のコンポーネントを確認
+            const multiHeaderComponent = this.template.querySelector('c-row-dynamic-multi-header');
+            const opcComponent = this.template.querySelector('c-row-dynamic-o-p-c');
+            targetComponent = multiHeaderComponent || opcComponent;
+        }
+
+        if (!targetComponent) {
             alert('コンポーネントが見つかりません。');
             return;
         }
 
         try {
-            const [itemList, validationResult] = multiHeaderComponent.getSavingDatas();
+            // tableDataプロパティから直接データを取得
+            const allData = targetComponent.tableData || [];
+            const selectedData = allData.filter(item => item.checked);
 
-            if (validationResult !== 0) {
+            if (selectedData.length === 0) {
+                alert(`保存するデータが選択されていません。\n\n詳細:\n・全データ数: ${allData.length}件\n・選択データ数: ${selectedData.length}件\n\nテーブルで行を選択してから保存してください。`);
                 return;
             }
 
-            console.log('=== 保存処理開始 ===');
-            console.log('保存データ:', itemList);
-            this.performSave(itemList);
+            // 保存前に子コンポーネントの全入力要素でvalidation実行
+            const validationResult = this.validateAllInputs(targetComponent);
+
+            if (validationResult.errorCount > 0) {
+                // 具体的なエラー詳細を含むメッセージを構築
+                let errorMessage = `入力データに${validationResult.errorCount}件のエラーがあります：\n\n`;
+
+                validationResult.errorDetails.forEach((error, index) => {
+                    errorMessage += `${index + 1}. フィールド「${error.field}」`;
+                    if (error.value !== undefined && error.value !== '') {
+                        errorMessage += `の値「${error.value}」`;
+                    }
+                    errorMessage += 'が無効です\n';
+                });
+
+                errorMessage += '\nエラーを修正してから保存してください。';
+
+                this.showValidationErrorToast('保存エラー', errorMessage);
+                return;
+            }
+
+            // 保存処理実行
+            this.performSave({ tableData: selectedData });
 
         } catch (error) {
             console.error('保存処理エラー:', error);
-            alert(`保存に失敗しました: ${error.message}`);
+            this.showValidationErrorToast('保存エラー', `保存に失敗しました: ${error.message}`);
         }
     }
 
     async performSave(itemList) {
-        console.log('保存処理実行中...');
         await new Promise(resolve => setTimeout(resolve, 500));
 
         const tableData = itemList.tableData || [];
         const selectedCount = tableData.length;
 
         alert(`${selectedCount}件のデータを保存しました。`);
-        console.log('保存完了');
     }
 }

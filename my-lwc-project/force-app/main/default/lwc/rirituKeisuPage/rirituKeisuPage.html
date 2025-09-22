@@ -12,48 +12,62 @@
     <div class="slds-card__body slds-card__body_inner">
       <lightning-tabset active-tab-value={activeTab}>
         <lightning-tab label="利率情報" value="riritu">
-          <c-riritu data={rirituData}></c-riritu>
+          <!-- 動的テーブルコンポーネント -->
+          <div class="slds-grid slds-gutters slds-wrap">
+            <!-- OPC テーブル -->
+            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+              <div class="slds-box slds-theme_default">
+                <h3
+                  class="slds-text-heading_small slds-m-bottom_small slds-text-align_center"
+                >
+                  🔧 OPC テーブル
+                </h3>
+                <c-row-dynamic-o-p-c
+                  table-data={multiHeaderData}
+                  onfieldchange={handleFieldChange}
+                  onvalidationerror={handleValidationError}
+                ></c-row-dynamic-o-p-c>
 
-          <div class="slds-m-top_medium">
-            <h3 class="slds-text-heading_small slds-m-bottom_small">サンプルコンポーネント</h3>
-            <c-fixed-details></c-fixed-details>
-            <c-row-dynamic-sample1></c-row-dynamic-sample1>
-          </div>
-
-          <div class="slds-m-top_medium">
-            <h3 class="slds-text-heading_small slds-m-bottom_small">POC コンポーネント</h3>
-            <c-row-dynamic-o-p-c></c-row-dynamic-o-p-c>
-
-            <!-- 親の検証・保存ボタン -->
-            <div class="slds-m-top_medium slds-m-bottom_medium">
-              <lightning-button-group>
-                <lightning-button
-                  variant="outline-brand"
-                  label="バリデーション検証"
-                  onclick={handleValidationTest}>
-                </lightning-button>
-                <lightning-button
-                  variant="brand"
-                  label="親から保存・バリデーション実行"
-                  onclick={handleSave}>
-                </lightning-button>
-              </lightning-button-group>
-            </div>
-
-            <c-row-dynamic-multi-header
-              table-data={multiHeaderData}
-              onfieldchange={handleFieldChange}>
-            </c-row-dynamic-multi-header>
-
-            <!-- デバッグ情報表示エリア -->
-            <template if:true={debugInfo}>
-              <div class="slds-m-top_medium">
-                <h3 class="slds-text-heading_small slds-m-bottom_small">デバッグ情報</h3>
-                <div class="slds-box slds-theme_shade">
-                  <pre class="slds-text-body_small" style="white-space: pre-wrap; font-family: monospace;">{debugInfo}</pre>
+                <!-- 保存ボタン -->
+                <div class="slds-text-align_center slds-m-top_small">
+                  <lightning-button
+                    variant="brand"
+                    label="OPC保存"
+                    data-component="opc"
+                    onclick={handleSave}
+                  >
+                  </lightning-button>
                 </div>
               </div>
-            </template>
+            </div>
+
+            <!-- マルチヘッダー テーブル -->
+            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+              <div class="slds-box slds-theme_default">
+                <h3
+                  class="slds-text-heading_small slds-m-bottom_small slds-text-align_center"
+                >
+                  📊 マルチヘッダー テーブル
+                </h3>
+                <c-row-dynamic-multi-header
+                  table-data={multiHeaderData}
+                  onfieldchange={handleFieldChange}
+                  onvalidationerror={handleValidationError}
+                >
+                </c-row-dynamic-multi-header>
+
+                <!-- 保存ボタン -->
+                <div class="slds-text-align_center slds-m-top_small">
+                  <lightning-button
+                    variant="brand"
+                    label="マルチ保存"
+                    data-component="multi"
+                    onclick={handleSave}
+                  >
+                  </lightning-button>
+                </div>
+              </div>
+            </div>
           </div>
         </lightning-tab>
         <lightning-tab label="係数情報" value="keisu">

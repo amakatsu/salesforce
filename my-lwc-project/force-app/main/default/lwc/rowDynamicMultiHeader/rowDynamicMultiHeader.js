@@ -4,11 +4,8 @@ import {
   REVIEW_RESULT_OPTIONS,
   SUBJECT_OPTIONS,
   PRIORITY_OPTIONS,
-  STATUS_OPTIONS,
-  SAVING_FIELD_LIST
+  STATUS_OPTIONS
 } from "./rowDynamicMultiHeaderMockData";
-import { ShowToastEvent } from "lightning/platformShowToastEvent";
-import { getComponentDataList } from "c/f003GsV0000GetComponentDataList";
 import { validateElement } from "c/f003GsV0000DataValidation";
 
 /* ========================================
@@ -33,11 +30,12 @@ export default class RowDynamicMultiHeader extends LightningElement {
   statusOptions = STATUS_OPTIONS;
 
   connectedCallback() {
-    if (!this.tableData || this.tableData.length === 0) {
-      // 本番時削除：モックデータがない場合のみ生成
-      this.editableTableData = structuredClone(generateMockData(2));
+    // データ初期化：親からのデータがあれば使用、なければモックデータ
+    if (this.tableData && this.tableData.length > 0) {
+      this.editableTableData = [...this.tableData];
     } else {
-      this.editableTableData = structuredClone(this.tableData);
+      this.editableTableData = generateMockData(40);
+      this.tableData = [...this.editableTableData];
     }
   }
 
@@ -62,6 +60,9 @@ export default class RowDynamicMultiHeader extends LightningElement {
     this.editableTableData = this.editableTableData.map((item, idx) =>
       idx === rowIndex ? { ...item, checked: checked } : item
     );
+
+    // tableDataも同期更新
+    this.tableData = [...this.editableTableData];
   }
 
   /**
@@ -83,214 +84,103 @@ export default class RowDynamicMultiHeader extends LightningElement {
       ...item,
       checked: checked
     }));
-  }
 
-  /**
-   * 保存ボタン押下時の処理<br>
-   *
-   * @return { Array.<Object, Array.<Element>> } APIに渡す用のリストと、単項目チェック用のリストを返却する。
-   */
-  @api
-  getSavingDatas() {
-    let itemList = {};
-    let validationResult = 0;
-
-    // 画面上の全要素からデータを取得（テーブルデータも含む）
-    const allElements = this.template.querySelectorAll("[data-id]");
-    const [fixedData, validationElements] = getComponentDataList(
-      allElements,
-      SAVING_FIELD_LIST
-    );
-
-    // バリデーション実行
-    validationResult = validateElement(validationElements);
-
-    // 結果をまとめる
-    itemList = { ...fixedData };
-    itemList.tableData = this.editableTableData;
-
-    return [itemList, validationResult];
+    // tableDataも同期更新
+    this.tableData = [...this.editableTableData];
   }
 
   /* ----------------------------------------
    * データ入力関連のメソッド（直接編集機能）
    * ---------------------------------------- */
+  /**
+   * テーブルセル内の入力値変更時の処理
+   *
+   * @param {Event} event - 変更イベント（input, combobox, checkbox等）
+   */
   handleInputChange(event) {
+    // id = どのレコード(行)を更新するか (例: "rec001")
+    // field = そのレコードのどのフィールド(列)を更新するか (例: "num1")
     const { id, field } = event.target.dataset;
     const value =
       event.target.type === "checkbox"
         ? event.target.checked
         : event.target.value;
 
-    // 該当レコードのフィールドを更新
+    // データ更新（常に実行）
     this.editableTableData = this.editableTableData.map((record) => {
       if (record.Id === id) {
         return { ...record, [field]: value };
       }
       return record;
     });
+
+    // tableDataも同期
+    this.tableData = [...this.editableTableData];
+
+    // validation実行
+    const inputElement = event.target;
+    // 固定テーブルでもvalidateElementを呼び出しているだけで結果をどうしているかは謎。（要確認）
+    validateElement([inputElement], [], []);
   }
 
   /* ----------------------------------------
-   * テスト・デバッグ用メソッド（実装時は削除してください
-   * ---------------------------------------- */
-  handleTestAllData() {
-    const selectedData = this.editableTableData.filter((_, idx) =>
-      this.selectedRows.includes(idx)
-    );
-    const selectedCount = this.selectedRows.length;
+   * 直接編集にしたため、以下の保存用データ取得メソッドは不要（既存の固定テーブルの直接編集のテーブルもデータ変更時にvalidate()関数を読んでいるだけ）
+   * ----------------------------------------
+   * 保存ボタン押下時の処理<br>
+   *
+   * @return { Array.<Object, Array.<Element>> } APIに渡す用のリストと、単項目チェック用のリストを返却する。
+   */
+  // @api
+  // getSavingDatas() {
+  //   let itemList = {};
+  //   let valid = 0;
 
-    let message = `【選択データ詳細構造】\n`;
-    message += `総データ数: ${this.editableTableData.length}件\n`;
-    message += `選択データ数: ${selectedCount}件\n`;
-    message += `生成日時: ${new Date().toLocaleString()}\n\n`;
+  //   // 可変のテーブルデータを除いたdata-idを持つ要素を取得する。
+  //   const notTableData = this.template.querySelectorAll("[data-id]:not(tr *)");
 
-    if (selectedData.length === 0) {
-      message += `データが選択されていません。\n`;
-    } else {
-      // 選択されたデータの詳細表示
-      selectedData.forEach((data, i) => {
-        message += `★[${i + 1}] ID:${data.Id} ${data.label}\n`;
+  //   const [iList, dList] = getComponentDataList(notTableData, SAVING_BTN_LIST);
+  //   validateElement(dList);
+  //   itemList = { ...iList };
+  //   itemList.dtoList = this.tableData;
 
-        // 上段データ（1行目）
-        message += `  ■上段: 数値1=${data.num1} 数値2=${data.num2}\n`;
-        message += `    文字列1="${data.str1}" 文字列2="${data.str2}" 文字列3="${data.str3}"\n`;
-        message += `    チェック=${data.dataCheck} 審査結果="${data.ReviewResult}" 科目="${data.Subject}"\n`;
-        message += `    日付1=${data.date1} 日付2=${data.date2}\n`;
+  // 下については、画面に表示されているデータを直接取得し、個別に改めて単項目チェックを実施する必要があるケースにおいて利用する。
 
-        // 下段データ（2行目）
-        message += `  ■下段: 数値3=${data.num3} 数値4=${data.num4}\n`;
-        message += `    文字列4="${data.str4}" 文字列5="${data.str5}" 文字列6="${data.str6}"\n`;
-        message += `    チェック2=${data.checked2} 優先度="${data.Priority}" ステータス="${data.Status}"\n`;
-        message += `    日付3=${data.date3} 日付4=${data.date4}\n`;
+  // // 可変のテーブルデータ以外の要素を取得する。
+  // const tableDataList = [];
 
-        // 選択状態
-        message += `  ◆選択状態: UI選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
-      });
-    }
+  // // 1行内のtr毎にNodeListを取得し、それぞれ処理したのち内容をマージする。
+  // // trそのものにカスタムデータ属性もしくはtrをそれぞれ特定できるクラス名を定義する。
+  // // 行内にtrタブが1つだけの場合は、trの取得のみで問題なし。
+  // const rowData1 = this.template.querySelectorAll('tr[data-id="1"]');
+  // const rowData2 = this.template.querySelectorAll('tr[data-id="2"]');
 
-    // コンソールにも出力（長いデータの場合）
-    console.log("【選択データ詳細】", {
-      totalCount: this.editableTableData.length,
-      selectedCount,
-      selectedRows: this.selectedRows,
-      selectedData: selectedData
-    });
+  // rowData1.forEach((_, idx) => {
+  //   const dataCell1 = rowData1[idx].querySelectorAll('[data-id]');
+  //   const dataCell2 = rowData2[idx].querySelectorAll('[data-id]');
 
-    alert(message);
-  }
+  //   const [rowItemList1, rowDataList1] = getDataList(dataCell1, SAVING_BTN_LIST);
+  //   const [rowItemList2, rowDataList2] = getDataList(dataCell2, SAVING_BTN_LIST);
+
+  //   valid = checkItem(rowDataList1);
+  //   valid = checkItem(rowDataList2);
+
+  //   const mergeItemList = Object.assign(rowItemList1, rowItemList2);
+  //   tableDataList.push(mergeItemList);
+  // });
+
+  // itemList.dtoList = tableDataList;
+
+  //   return [itemList, valid];
+  // }
 
   /**
-   * 全選択機能のテスト
+   * 親コンポーネント用：指定IDの要素を取得
+   * @param {string} recordId レコードID
+   * @returns {NodeList} 要素のリスト
    */
-  handleTestSelectAll() {
-    const event = { target: { checked: true } };
-    this.handleSelectFullCheck(event);
-
-    const message = `【全選択テスト完了】\n全データ数: ${
-      this.editableTableData.length
-    }件\n選択状態: 全て選択されました\n選択行配列: [${this.selectedRows.join(
-      ", "
-    )}]`;
-    alert(message);
+  @api
+  getElementsById(recordId) {
+    return this.template.querySelectorAll(`[data-id="${recordId}"]`);
   }
 
-  /**
-   * 全解除機能のテスト
-   */
-  handleTestDeselectAll() {
-    const event = { target: { checked: false } };
-    this.handleSelectFullCheck(event);
-
-    const message = `【全解除テスト完了】\n全データ数: ${
-      this.editableTableData.length
-    }件\n選択状態: 全て解除されました\n選択行配列: [${this.selectedRows.join(
-      ", "
-    )}]`;
-    alert(message);
-  }
-
-  /**
-   * 保存データ確認（選択されたデータのみ）
-   */
-  handleTestGetSavingDatas() {
-    try {
-      // 選択されたデータのみを保存対象として取得
-      const selectedData = this.editableTableData.filter((_, idx) =>
-        this.selectedRows.includes(idx)
-      );
-
-      let message = `【保存データ確認】\n`;
-      message += `全データ数: ${this.editableTableData.length}件\n`;
-      message += `選択データ数: ${selectedData.length}件\n\n`;
-
-      if (selectedData.length === 0) {
-        message += `保存対象データが選択されていません。\n`;
-      } else {
-        message += `保存対象データ:\n`;
-        selectedData.forEach((data, i) => {
-          message += `[${i + 1}] ID:${data.Id} ${data.label}\n`;
-          message += `  上段: 数値1=${data.num1} 文字列1=${data.str1}\n`;
-          message += `  下段: 数値3=${data.num3} 詳細=${data.str4}\n`;
-          message += `  選択=${data.checked} データチェック=${data.dataCheck}\n\n`;
-        });
-      }
-
-      alert(message);
-    } catch (error) {
-      alert(`【保存データ確認エラー】\n${error.message}`);
-    }
-  }
-
-  async handleSave() {
-    try {
-      // 選択されたデータのみを保存対象として取得
-      const selectedData = this.editableTableData.filter((_, idx) =>
-        this.selectedRows.includes(idx)
-      );
-
-      // 選択チェック
-      if (selectedData.length === 0) {
-        this.dispatchEvent(
-          new ShowToastEvent({
-            title: "選択エラー",
-            message: "保存するデータが選択されていません。",
-            variant: "warning"
-          })
-        );
-        return;
-      }
-
-      // モック保存処理：実際のAPIコール処理をシミュレート
-      const savingData = {
-        tableData: selectedData,
-        timestamp: new Date().toISOString(),
-        recordCount: selectedData.length,
-        validation: 0
-      };
-
-      // コンソールに保存データを出力（デバッグ用）
-      console.log("【モック保存実行】選択されたデータ:", savingData);
-
-      // 短い遅延でAPI呼び出しをシミュレート
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      this.dispatchEvent(
-        new ShowToastEvent({
-          title: "保存完了（モック）",
-          message: `選択された${selectedData.length}件のデータを保存しました。コンソールで内容を確認できます。`,
-          variant: "success"
-        })
-      );
-    } catch (error) {
-      console.error("【保存エラー】", error);
-      this.dispatchEvent(
-        new ShowToastEvent({
-          title: "保存エラー",
-          message: `保存に失敗しました: ${error.message}`,
-          variant: "error"
-        })
-      );
-    }
-  }
 }

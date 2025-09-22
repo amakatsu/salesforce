@@ -71,7 +71,7 @@ export function generateMockData(count = 3) {
     num2: -7777777 - i * 1111111,
     str1: `サンプル参照テキスト${i + 1}`,
     str2: `サンプル入力テキスト${i + 1}`,
-    checked: i % 2 === 0,
+    checked: false,
     dataCheck: i % 3 === 0,
     ReviewResult: REVIEW_RESULT_OPTIONS[i % REVIEW_RESULT_OPTIONS.length].value,
     Subject: SUBJECT_OPTIONS[i % SUBJECT_OPTIONS.length].value,

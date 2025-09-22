@@ -2,24 +2,52 @@
  * 処理名   ：  データチェック
  * 処理概要 ：  単項目・相関チェックに関連する処理
  ************************************************************************************************************/
-import { getErrorField } from "c/f003GsV0000ErrorObj";
-import { PATTERNS } from "c/f003GsV0000Const";
-import {
-  YUSGS5000C_E,
-  YUSGS5002C_E,
-  YUSGS5003C_E,
-  YUSGS5004C_E,
-  YUSGS5006C_E,
-  YUSGS5007C_E,
-  YUSGS5008C_E,
-  YUSGS5009C_E,
-  YUSGS5010C_E,
-  YUSGS5012C_E,
-  YUSGS5013C_E,
-  YUSGS5093C_E
-} from "c/f003GsV0000MsgConst";
-import { getMessage } from "c/f003GsV0000Utils";
-import { checkDigits } from "c/f003GsV0000HighPrecisionNumber";
+// ========================================
+// モック定数・関数（依存コンポーネントの代替）
+// ========================================
+
+// エラーメッセージ定数（モック）
+const YUSGS5000C_E = "入力値が不正です。";
+const YUSGS5002C_E = "入力形式が正しくありません。パターン: {0}";
+const YUSGS5003C_E = "最大値 {0} を超えています。";
+const YUSGS5004C_E = "最小値 {0} を下回っています。";
+const YUSGS5006C_E = "必須項目です。";
+const YUSGS5007C_E = "日付は {0} 以前で入力してください。";
+const YUSGS5008C_E = "日付は {0} 以降で入力してください。";
+const YUSGS5009C_E = "最大文字数 {0} を超えています。";
+const YUSGS5010C_E = "最小文字数 {0} 未満です。";
+const YUSGS5012C_E = "小数点以下は {0} 桁以内で入力してください。";
+const YUSGS5013C_E = "最大バイト数 {0} を超えています。";
+const YUSGS5093C_E = "文字数は {0} 桁で入力してください。";
+
+// パターン定数（モック）
+const PATTERNS = {
+  NUMBER_COMMA_SIGN: {
+    regex: "^[+-]?\\d{1,3}(,\\d{3})*(\\.\\d+)?$",
+    name: "数値（カンマ区切り）"
+  }
+};
+
+// ユーティリティ関数（モック）
+const getMessage = (template, ...args) => {
+  let message = template;
+  args.forEach((arg, index) => {
+    message = message.replace(`{${index}}`, arg);
+  });
+  return message;
+};
+
+const getErrorField = async (displayId, code) => {
+  // モック: エラーフィールド情報を返す
+  console.log("getErrorField called with:", displayId, code);
+  return [{ field: "mock", message: "モックエラー" }];
+};
+
+const checkDigits = (elm) => {
+  // モック: 高精度数値チェック
+  console.log("checkDigits called for element:", elm?.name || elm?.type);
+  return "";
+};
 
 /**
  * HTMLの要素に対して、エラーの挿入、取出しを行う。
