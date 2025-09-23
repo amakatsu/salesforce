@@ -1,181 +1,187 @@
-import { LightningElement, api, track } from 'lwc';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { validateElement } from 'c/f003GsV0000DataValidation';
+import { LightningElement, api, track } from "lwc";
+import { ShowToastEvent } from "lightning/platformShowToastEvent";
+import { validateElement } from "c/f003GsV0000DataValidation";
 
 export default class RirituKeisuPage extends LightningElement {
-    @api activeTab = 'riritu';
-    @api rirituData;
-    @api keisuData;
+  @api activeTab = "riritu";
+  @api rirituData;
+  @api keisuData;
+  @track multiHeaderData = [];
 
-    /* データ管理（Single Source of Truth） */
-    @track multiHeaderData = [];
+  /**
+   * コンポーネント初期化
+   */
+  connectedCallback() {
+    this.multiHeaderData = [];
+  }
 
-    /* ライフサイクル・データ初期化 */
-    connectedCallback() {
-        this.initializeMultiHeaderData();
+  /**
+   * 子コンポーネントからのバリデーションエラー通知処理
+   */
+  handleValidationError(event) {
+    const { message, field, value } = event.detail;
+    const errorMessage = field && value !== undefined
+      ? `「${field}」フィールドの入力値「${value}」が無効です。`
+      : message || "入力値に問題があります。";
+
+    this.showToast("入力エラー", errorMessage, "error");
+  }
+
+  handleFieldChange() {}
+
+  /**
+   * データ確認ボタン処理：選択されたデータの詳細表示
+   */
+  handleDataVerification(event) {
+    const component = this.getComponent(event.target.dataset.component);
+    if (!component?.tableData) {
+      this.showToast("エラー", "コンポーネントが見つかりません", "error");
+      return;
     }
 
-    initializeMultiHeaderData() {
-        // 本番時削除：モックデータは子コンポーネントで生成
-        // 親では空配列のまま（子が自動でモックデータを生成）
-        this.multiHeaderData = [];
+    const checkedData = component.tableData.filter(r => r.checked);
+    if (checkedData.length === 0) {
+      this.showToast("データ確認", "⚠️ チェックされたデータがありません", "warning");
+      return;
     }
 
-    disconnectedCallback() {
-        // クリーンアップ処理（現在は不要）
-    }
+    let message = `📊 ${event.target.dataset.component.toUpperCase()}テーブル (editableTableData)\n選択件数: ${checkedData.length}件\n\n`;
 
-    /* エラーハンドリング */
-    /* 子コンポーネントからのエラー通知処理 */
-    handleValidationError(event) {
-        const { message, field, value, recordId } = event.detail;
-        
-        // より具体的なエラーメッセージを構築
-        let errorMessage = '';
-        if (field && value !== undefined) {
-            errorMessage = `「${field}」フィールドの入力値「${value}」が無効です。`;
-        } else {
-            errorMessage = message || '入力値に問題があります。';
-        }
-        
-        // コンソールに詳細ログを出力
-        console.error('Validation Error:', {
-            field,
-            value,
-            recordId,
-            message,
-            timestamp: new Date().toISOString()
+    checkedData.forEach((record, index) => {
+      message += `■ レコード${index + 1}\nID: ${record.Id}\n`;
+
+      const elements = component.getElementsById(record.Id);
+      const hasError = this.checkValidationErrors(elements);
+      message += hasError ? "⚠️ バリデーションエラーあり\n" : "✅ バリデーション正常\n";
+
+      // データ値表示
+      Object.keys(record)
+        .filter(key => !['Id', 'checked'].includes(key) && !key.endsWith('Class') && !key.endsWith('Disabled'))
+        .forEach(field => {
+          message += `${field}\n└ ${record[field] || '(空)'}\n`;
         });
 
-        // トーストでエラー表示
-        this.showValidationErrorToast('入力エラー', errorMessage);
-    }
-
-    
-
-    showValidationErrorToast(title, message) {
-        this.dispatchEvent(
-            new ShowToastEvent({
-                title: title,
-                message: message,
-                variant: 'error'
-            })
-        );
-    }
-
-    /* フィールド変更通知 */
-    handleFieldChange() {
-        // フィールド変更の通知を受け取る（必要に応じて処理を追加）
-    }
-
-    /* バリデーション検証用メソッド */
-    /**
-     * 対象コンポーネントの選択データをvalidation
-     * @param {HTMLElement} targetComponent 対象の子コンポーネント
-     * @returns {Object} {errorCount: number, errorDetails: Array}
-     */
-    validateAllInputs(targetComponent) {
-        // 選択されたレコードのIDを取得
-        const allData = targetComponent.tableData || [];
-        const selectedIds = allData
-            .filter(item => item.checked)
-            .map(item => item.Id);
-
-        if (selectedIds.length === 0) {
-            return { errorCount: 0, errorDetails: [] };
-        }
-
-        // validation実行
-        let totalErrorCount = 0;
-        const errorDetails = [];
-
-        selectedIds.forEach(recordId => {
-            const elements = targetComponent.getElementsById(recordId);
-            elements.forEach(element => {
-                const errorCount = validateElement([element], [], []);
-                if (errorCount > 0) {
-                    totalErrorCount += errorCount;
-                    errorDetails.push({
-                        field: element.dataset.field || '不明',
-                        value: element.type === 'checkbox' ? element.checked : element.value,
-                        recordId: element.dataset.id
-                    });
-                }
-            });
+      // DOM値表示
+      if (elements?.length > 0) {
+        message += "--- DOM実際値 ---\n";
+        Array.from(elements).forEach(el => {
+          const field = el.dataset.field;
+          if (field) {
+            const domValue = this.getDomValue(el);
+            const isMatch = String(domValue) === String(record[field]);
+            message += `${field} ${isMatch ? '✅' : '❌'}\n└ DOM: ${domValue}\n`;
+          }
         });
+      }
+      message += '\n';
+    });
 
-        return { errorCount: totalErrorCount, errorDetails };
+    this.showToast("選択データ詳細", message, "info");
+  }
+
+  /**
+   * 保存ボタン処理：選択データのバリデーション・保存実行
+   */
+  handleSave(event) {
+    const component = this.getComponent(event.target.dataset.component);
+    if (!component) {
+      this.showToast("エラー", "コンポーネントが見つかりません", "error");
+      return;
     }
 
-    /* 保存処理 */
-    handleSave(event) {
-        // クリックされたボタンのdata-component属性を取得
-        const componentType = event.target.dataset.component;
-
-        // 対応するコンポーネントを選択
-        let targetComponent;
-        if (componentType === 'opc') {
-            targetComponent = this.template.querySelector('c-row-dynamic-o-p-c');
-        } else if (componentType === 'multi') {
-            targetComponent = this.template.querySelector('c-row-dynamic-multi-header');
-        } else {
-            // フォールバック: 両方のコンポーネントを確認
-            const multiHeaderComponent = this.template.querySelector('c-row-dynamic-multi-header');
-            const opcComponent = this.template.querySelector('c-row-dynamic-o-p-c');
-            targetComponent = multiHeaderComponent || opcComponent;
-        }
-
-        if (!targetComponent) {
-            alert('コンポーネントが見つかりません。');
-            return;
-        }
-
-        try {
-            // tableDataプロパティから直接データを取得
-            const allData = targetComponent.tableData || [];
-            const selectedData = allData.filter(item => item.checked);
-
-            if (selectedData.length === 0) {
-                alert(`保存するデータが選択されていません。\n\n詳細:\n・全データ数: ${allData.length}件\n・選択データ数: ${selectedData.length}件\n\nテーブルで行を選択してから保存してください。`);
-                return;
-            }
-
-            // 保存前に子コンポーネントの全入力要素でvalidation実行
-            const validationResult = this.validateAllInputs(targetComponent);
-
-            if (validationResult.errorCount > 0) {
-                // 具体的なエラー詳細を含むメッセージを構築
-                let errorMessage = `入力データに${validationResult.errorCount}件のエラーがあります：\n\n`;
-
-                validationResult.errorDetails.forEach((error, index) => {
-                    errorMessage += `${index + 1}. フィールド「${error.field}」`;
-                    if (error.value !== undefined && error.value !== '') {
-                        errorMessage += `の値「${error.value}」`;
-                    }
-                    errorMessage += 'が無効です\n';
-                });
-
-                errorMessage += '\nエラーを修正してから保存してください。';
-
-                this.showValidationErrorToast('保存エラー', errorMessage);
-                return;
-            }
-
-            // 保存処理実行
-            this.performSave({ tableData: selectedData });
-
-        } catch (error) {
-            console.error('保存処理エラー:', error);
-            this.showValidationErrorToast('保存エラー', `保存に失敗しました: ${error.message}`);
-        }
+    const selectedData = component.tableData?.filter(item => item.checked) || [];
+    if (selectedData.length === 0) {
+      this.showToast("保存エラー", "保存するデータが選択されていません", "warning");
+      return;
     }
 
-    async performSave(itemList) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        const tableData = itemList.tableData || [];
-        const selectedCount = tableData.length;
-
-        alert(`${selectedCount}件のデータを保存しました。`);
+    const validationResult = this.validateSelectedData(component, selectedData);
+    if (validationResult.errorCount > 0) {
+      let errorMessage = `入力データに${validationResult.errorCount}件のエラーがあります：\n\n`;
+      validationResult.errorDetails.forEach((error, index) => {
+        errorMessage += `${index + 1}. フィールド「${error.field}」`;
+        if (error.value) errorMessage += `の値「${error.value}」`;
+        errorMessage += "が無効です\n";
+      });
+      this.showToast("保存エラー", errorMessage + "\nエラーを修正してから保存してください。", "error");
+      return;
     }
+
+    this.performSave(selectedData);
+  }
+
+  /**
+   * 保存処理実行
+   */
+  async performSave(selectedData) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    this.showToast("保存完了", `${selectedData.length}件のデータを保存しました。`, "success");
+  }
+
+  // ========== ヘルパーメソッド ==========
+
+  /**
+   * コンポーネント取得
+   */
+  getComponent(type) {
+    return this.template.querySelector(
+      type === 'opc' ? 'c-row-dynamic-o-p-c' : 'c-row-dynamic-multi-header'
+    );
+  }
+
+  /**
+   * バリデーションエラー確認（既存のvalidateElement準拠）
+   */
+  checkValidationErrors(elements) {
+    if (!elements?.length) return false;
+    return Array.from(elements).some(el =>
+      el.classList.contains('slds-has-error') ||
+      el.getAttribute('aria-invalid') === 'true' ||
+      el.classList.contains('error') ||
+      !el.validity.valid
+    );
+  }
+
+
+  /**
+   * DOM要素から値を取得（数値エラー対応）
+   */
+  getDomValue(el) {
+    if (el.type === 'number' && el.validity?.badInput) {
+      return '(無効な数値入力)';
+    }
+    return el.type === 'checkbox' ? el.checked : el.value;
+  }
+
+  /**
+   * 選択データのバリデーション実行
+   */
+  validateSelectedData(component, selectedData) {
+    let errorCount = 0;
+    const errorDetails = [];
+
+    selectedData.forEach(record => {
+      const elements = component.getElementsById(record.Id);
+      Array.from(elements).forEach(element => {
+        const errors = validateElement([element], [], []);
+        if (errors > 0) {
+          errorCount += errors;
+          errorDetails.push({
+            field: element.dataset.field || "不明",
+            value: element.type === "checkbox" ? element.checked : element.value,
+            recordId: element.dataset.id
+          });
+        }
+      });
+    });
+
+    return { errorCount, errorDetails };
+  }
+
+  /**
+   * トースト表示
+   */
+  showToast(title, message, variant) {
+    this.dispatchEvent(new ShowToastEvent({ title, message, variant, mode: "sticky" }));
+  }
 }

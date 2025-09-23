@@ -28,13 +28,21 @@
                   onvalidationerror={handleValidationError}
                 ></c-row-dynamic-o-p-c>
 
-                <!-- 保存ボタン -->
+                <!-- 保存・確認ボタン -->
                 <div class="slds-text-align_center slds-m-top_small">
                   <lightning-button
                     variant="brand"
-                    label="保存"
+                    label="親から保存"
                     data-component="opc"
                     onclick={handleSave}
+                    class="slds-m-right_x-small"
+                  >
+                  </lightning-button>
+                  <lightning-button
+                    variant="neutral"
+                    label="🔍 確認"
+                    data-component="opc"
+                    onclick={handleDataVerification}
                   >
                   </lightning-button>
                 </div>
@@ -56,19 +64,28 @@
                 >
                 </c-row-dynamic-multi-header>
 
-                <!-- 保存ボタン -->
+                <!-- 保存・確認ボタン -->
                 <div class="slds-text-align_center slds-m-top_small">
                   <lightning-button
                     variant="brand"
-                    label="保存"
+                    label="親から保存"
                     data-component="multi"
                     onclick={handleSave}
+                    class="slds-m-right_x-small"
+                  >
+                  </lightning-button>
+                  <lightning-button
+                    variant="neutral"
+                    label="🔍 確認"
+                    data-component="multi"
+                    onclick={handleDataVerification}
                   >
                   </lightning-button>
                 </div>
               </div>
             </div>
           </div>
+
         </lightning-tab>
         <lightning-tab label="係数情報" value="keisu">
           <c-keisu data={keisuData}></c-keisu>

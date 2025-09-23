@@ -60,7 +60,7 @@
 
               <!-- 通常列: 数値1 -->
               <th class="slds-text-align_center" scope="col">
-                <div class="slds-truncate" title="数値1">数値1</div>
+                <div class="slds-truncate" title="数値1（必須）">数値1 <span style="color: red;">*</span></div>
               </th>
 
               <!-- 通常列: 数値2 -->
@@ -70,7 +70,7 @@
 
               <!-- 通常列: 文字列1 -->
               <th class="slds-text-align_center" scope="col">
-                <div class="slds-truncate" title="文字列1">文字列1</div>
+                <div class="slds-truncate" title="文字列1（必須）">文字列1 <span style="color: red;">*</span></div>
               </th>
 
               <!-- 通常列: 文字列2 -->
@@ -137,6 +137,7 @@
                     data-field="num1"
                     onchange={handleInputChange}
                     variant="label-hidden"
+                    required
                   ></lightning-input>
                 </td>
 
@@ -158,6 +159,7 @@
                     data-field="str1"
                     onchange={handleInputChange}
                     variant="label-hidden"
+                    required
                   ></lightning-input>
                 </td>
 
