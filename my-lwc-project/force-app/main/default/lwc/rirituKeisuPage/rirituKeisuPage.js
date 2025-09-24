@@ -7,6 +7,7 @@ export default class RirituKeisuPage extends LightningElement {
   @api rirituData;
   @api keisuData;
   @track multiHeaderData = [];
+  @track isSpinnerVisible = false;
 
   /**
    * コンポーネント初期化
@@ -20,9 +21,10 @@ export default class RirituKeisuPage extends LightningElement {
    */
   handleValidationError(event) {
     const { message, field, value } = event.detail;
-    const errorMessage = field && value !== undefined
-      ? `「${field}」フィールドの入力値「${value}」が無効です。`
-      : message || "入力値に問題があります。";
+    const errorMessage =
+      field && value !== undefined
+        ? `「${field}」フィールドの入力値「${value}」が無効です。`
+        : message || "入力値に問題があります。";
 
     this.showToast("入力エラー", errorMessage, "error");
   }
@@ -39,41 +41,56 @@ export default class RirituKeisuPage extends LightningElement {
       return;
     }
 
-    const checkedData = component.tableData.filter(r => r.checked);
+    const checkedData = component.tableData.filter((r) => r.checked);
     if (checkedData.length === 0) {
-      this.showToast("データ確認", "⚠️ チェックされたデータがありません", "warning");
+      this.showToast(
+        "データ確認",
+        "⚠️ チェックされたデータがありません",
+        "warning"
+      );
       return;
     }
 
-    let message = `📊 ${event.target.dataset.component.toUpperCase()}テーブル (editableTableData)\n選択件数: ${checkedData.length}件\n\n`;
+    let message = `📊 ${event.target.dataset.component.toUpperCase()}テーブル (editableTableData)\n選択件数: ${
+      checkedData.length
+    }件\n\n`;
 
     checkedData.forEach((record, index) => {
       message += `■ レコード${index + 1}\nID: ${record.Id}\n`;
 
       const elements = component.getElementsById(record.Id);
       const hasError = this.checkValidationErrors(elements);
-      message += hasError ? "⚠️ バリデーションエラーあり\n" : "✅ バリデーション正常\n";
+      message += hasError
+        ? "⚠️ バリデーションエラーあり\n"
+        : "✅ バリデーション正常\n";
 
       // データ値表示
       Object.keys(record)
-        .filter(key => !['Id', 'checked'].includes(key) && !key.endsWith('Class') && !key.endsWith('Disabled'))
-        .forEach(field => {
-          message += `${field}\n└ ${record[field] || '(空)'}\n`;
+        .filter(
+          (key) =>
+            !["Id", "checked"].includes(key) &&
+            !key.endsWith("Class") &&
+            !key.endsWith("Disabled")
+        )
+        .forEach((field) => {
+          message += `${field}\n└ ${record[field] || "(空)"}\n`;
         });
 
       // DOM値表示
       if (elements?.length > 0) {
         message += "--- DOM実際値 ---\n";
-        Array.from(elements).forEach(el => {
+        Array.from(elements).forEach((el) => {
           const field = el.dataset.field;
           if (field) {
             const domValue = this.getDomValue(el);
             const isMatch = String(domValue) === String(record[field]);
-            message += `${field} ${isMatch ? '✅' : '❌'}\n└ DOM: ${domValue}\n`;
+            message += `${field} ${
+              isMatch ? "✅" : "❌"
+            }\n└ DOM: ${domValue}\n`;
           }
         });
       }
-      message += '\n';
+      message += "\n";
     });
 
     this.showToast("選択データ詳細", message, "info");
@@ -83,39 +100,79 @@ export default class RirituKeisuPage extends LightningElement {
    * 保存ボタン処理：選択データのバリデーション・保存実行
    */
   handleSave(event) {
-    const component = this.getComponent(event.target.dataset.component);
-    if (!component) {
-      this.showToast("エラー", "コンポーネントが見つかりません", "error");
-      return;
-    }
+    const componentType = event.target.dataset.component;
+    this.handleApiSave(componentType);
+  }
 
-    const selectedData = component.tableData?.filter(item => item.checked) || [];
-    if (selectedData.length === 0) {
-      this.showToast("保存エラー", "保存するデータが選択されていません", "warning");
-      return;
-    }
+  /**
+   * API連携（正常・連携1回）イベント
+   */
+  async handleApiSave(componentType) {
+    try {
+      // 変数初期化
+      this.isSpinnerVisible = true;
+      let isValid = 0;
 
-    const validationResult = this.validateSelectedData(component, selectedData);
-    if (validationResult.errorCount > 0) {
-      let errorMessage = `入力データに${validationResult.errorCount}件のエラーがあります：\n\n`;
-      validationResult.errorDetails.forEach((error, index) => {
-        errorMessage += `${index + 1}. フィールド「${error.field}」`;
-        if (error.value) errorMessage += `の値「${error.value}」`;
-        errorMessage += "が無効です\n";
-      });
-      this.showToast("保存エラー", errorMessage + "\nエラーを修正してから保存してください。", "error");
-      return;
-    }
+      // 子コンポーネントからデータ抽出・単項目チェック
+      const component = this.getComponent(componentType);
+      // getApiDataList戻り値: [itemList, valid]
+      // itemList: { tableData: [...], selectedCount: 数値, componentName: 文字列, apiType: 文字列 }
+      // valid: バリデーションエラー数（0=正常、1以上=エラーあり）
+      const [itemList, valid] = component.getApiDataList();
+      isValid += valid;
 
-    this.performSave(selectedData);
+      if (isValid > 0) {
+        // エラー時 - 単項目チェックエラー表示共通処理に連携
+        this.validateErrorHandler();
+        return;
+      }
+
+      // 保存処理実行
+      this.performSave(itemList.tableData);
+
+    } catch (error) {
+      this.systemErrorHandler(error, 'SAVE_OPERATION');
+    }
+  }
+
+  /**
+   * 単項目チェックエラー表示共通処理
+   */
+  validateErrorHandler() {
+    // 共通トーストエラー表示
+    this.showToast(
+      "バリデーションエラー",
+      "入力内容に誤りがあります。赤枠の項目を確認してください。",
+      "error"
+    );
+    // スピナーを非表示
+    this.isSpinnerVisible = false;
+  }
+
+  /**
+   * システムエラー表示共通処理
+   */
+  systemErrorHandler(error, operation) {
+    console.error(`System Error in ${operation}:`, error);
+    this.showToast(
+      "システムエラー",
+      `システムエラーが発生しました。管理者に連絡してください。\n操作: ${operation}`,
+      "error"
+    );
+    this.isSpinnerVisible = false;
   }
 
   /**
    * 保存処理実行
    */
   async performSave(selectedData) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    this.showToast("保存完了", `${selectedData.length}件のデータを保存しました。`, "success");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    this.showToast(
+      "保存完了",
+      `${selectedData.length}件のデータを保存しました。`,
+      "success"
+    );
+    this.isSpinnerVisible = false;
   }
 
   // ========== ヘルパーメソッド ==========
@@ -125,7 +182,7 @@ export default class RirituKeisuPage extends LightningElement {
    */
   getComponent(type) {
     return this.template.querySelector(
-      type === 'opc' ? 'c-row-dynamic-o-p-c' : 'c-row-dynamic-multi-header'
+      type === "opc" ? "c-row-dynamic-o-p-c" : "c-row-dynamic-multi-header"
     );
   }
 
@@ -134,54 +191,31 @@ export default class RirituKeisuPage extends LightningElement {
    */
   checkValidationErrors(elements) {
     if (!elements?.length) return false;
-    return Array.from(elements).some(el =>
-      el.classList.contains('slds-has-error') ||
-      el.getAttribute('aria-invalid') === 'true' ||
-      el.classList.contains('error') ||
-      !el.validity.valid
+    return Array.from(elements).some(
+      (el) =>
+        el.classList.contains("slds-has-error") ||
+        el.getAttribute("aria-invalid") === "true" ||
+        el.classList.contains("error") ||
+        !el.validity.valid
     );
   }
-
 
   /**
    * DOM要素から値を取得（数値エラー対応）
    */
   getDomValue(el) {
-    if (el.type === 'number' && el.validity?.badInput) {
-      return '(無効な数値入力)';
+    if (el.type === "number" && el.validity?.badInput) {
+      return "(無効な数値入力)";
     }
-    return el.type === 'checkbox' ? el.checked : el.value;
-  }
-
-  /**
-   * 選択データのバリデーション実行
-   */
-  validateSelectedData(component, selectedData) {
-    let errorCount = 0;
-    const errorDetails = [];
-
-    selectedData.forEach(record => {
-      const elements = component.getElementsById(record.Id);
-      Array.from(elements).forEach(element => {
-        const errors = validateElement([element], [], []);
-        if (errors > 0) {
-          errorCount += errors;
-          errorDetails.push({
-            field: element.dataset.field || "不明",
-            value: element.type === "checkbox" ? element.checked : element.value,
-            recordId: element.dataset.id
-          });
-        }
-      });
-    });
-
-    return { errorCount, errorDetails };
+    return el.type === "checkbox" ? el.checked : el.value;
   }
 
   /**
    * トースト表示
    */
   showToast(title, message, variant) {
-    this.dispatchEvent(new ShowToastEvent({ title, message, variant, mode: "sticky" }));
+    this.dispatchEvent(
+      new ShowToastEvent({ title, message, variant, mode: "sticky" })
+    );
   }
 }

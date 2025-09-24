@@ -8,29 +8,68 @@ import {
 } from "./rowDynamicMultiHeaderMockData";
 import { validateElement } from "c/f003GsV0000DataValidation";
 
+// ========================================
+// API連携用定数定義（ガイドライン準拠）
+// ========================================
+
+/** API連携（正常・連携1回）用項目リスト */
+export const MULTI_API_SUCCESS1_LIST = [
+  "num1",
+  "num2",
+  "str1",
+  "str2",
+  "str3",
+  "str4",
+  "str5",
+  "str6",
+  "dataCheck",
+  "checked2",
+  "ReviewResult",
+  "Subject",
+  "Priority",
+  "Status",
+  "date1",
+  "date2",
+  "date3",
+  "date4"
+];
+
+/** API連携（正常・連携1回）用必須項目リスト */
+export const MULTI_API_SUCCESS1_REQ_LIST = ["num1", "str1"];
+
 /* ========================================
  * メインコンポーネントクラス
  * ======================================== */
 
 export default class RowDynamicMultiHeader extends LightningElement {
-  /* ----------------------------------------
-   * プロパティ定義
-   * ---------------------------------------- */
-  /* 親コンポーネントから受領したデータ */
+  // ========================================
+  // プロパティ定義
+  // ========================================
+
+  /** 親コンポーネントから受領したデータ */
   @api tableData = [];
-  /* 編集可能テーブルデータ（変更追跡用） */
+
+  /** 編集可能テーブルデータ（変更追跡用） */
   @track editableTableData = [];
-  /* 選択された行のインデックス配列*/
+
+  /** 選択された行のインデックス配列 */
   selectedRows = [];
 
-  /* ピックリストオプション */
+  /** ピックリストオプション */
   reviewResultOptions = REVIEW_RESULT_OPTIONS;
   subjectOptions = SUBJECT_OPTIONS;
   priorityOptions = PRIORITY_OPTIONS;
   statusOptions = STATUS_OPTIONS;
 
+  // ========================================
+  // ライフサイクルメソッド
+  // ========================================
+
+  /**
+   * コンポーネント初期化
+   * データ初期化：親からのデータがあれば使用、なければモックデータ
+   */
   connectedCallback() {
-    // データ初期化：親からのデータがあれば使用、なければモックデータ
     if (this.tableData && this.tableData.length > 0) {
       this.editableTableData = [...this.tableData];
     } else {
@@ -39,15 +78,20 @@ export default class RowDynamicMultiHeader extends LightningElement {
     }
   }
 
+  // ========================================
+  // テーブル操作イベントハンドラー
+  // ========================================
+
   /**
-   * カスタマイズテーブル・行選択処理
+   * 個別行選択処理
+   * @param {Event} event チェックボックス変更イベント
    */
   handleRowSelection(event) {
     const checked = event.target.checked;
     const rowIndex = parseInt(event.target.dataset.idx, 10);
     const isAlreadySelected = this.selectedRows.includes(rowIndex);
 
-    // 事前チェックで条件分岐を簡潔に
+    // 選択状態の更新
     if (checked) {
       if (!isAlreadySelected) {
         this.selectedRows.push(rowIndex);
@@ -56,17 +100,16 @@ export default class RowDynamicMultiHeader extends LightningElement {
       this.selectedRows = this.selectedRows.filter((idx) => idx !== rowIndex);
     }
 
-    // 内部データ更新
+    // データ同期更新
     this.editableTableData = this.editableTableData.map((item, idx) =>
       idx === rowIndex ? { ...item, checked: checked } : item
     );
-
-    // tableDataも同期更新
     this.tableData = [...this.editableTableData];
   }
 
   /**
-   * カスタマイズテーブル・全選択・全選択解除処理
+   * 全行選択・全選択解除処理
+   * @param {Event} event 全選択チェックボックス変更イベント
    */
   handleSelectFullCheck(event) {
     const checked = event.target.checked;
@@ -79,25 +122,24 @@ export default class RowDynamicMultiHeader extends LightningElement {
       this.selectedRows = [...Array(this.editableTableData.length).keys()];
     }
 
-    // 全データの checked フラグを更新
+    // 全データのcheckedフラグを更新
     this.editableTableData = this.editableTableData.map((item) => ({
       ...item,
       checked: checked
     }));
-
-    // tableDataも同期更新
     this.tableData = [...this.editableTableData];
   }
 
-  /* ----------------------------------------
-   * データ入力関連のメソッド（直接編集機能）
-   * ---------------------------------------- */
+  // ========================================
+  // データ入力・編集処理
+  // ========================================
+
   /**
    * テーブルセル内の入力値変更時の処理
-   *
-   * @param {Event} event - 変更イベント（input, combobox, checkbox等）
+   * @param {Event} event 変更イベント（input, combobox, checkbox等）
    */
   handleInputChange(event) {
+    // データ識別用の属性取得
     // id = どのレコード(行)を更新するか (例: "rec001")
     // field = そのレコードのどのフィールド(列)を更新するか (例: "num1")
     const { id, field } = event.target.dataset;
@@ -106,7 +148,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
         ? event.target.checked
         : event.target.value;
 
-    // データ更新（常に実行）
+    // データ更新（該当レコードの該当フィールドを更新）
     this.editableTableData = this.editableTableData.map((record) => {
       if (record.Id === id) {
         return { ...record, [field]: value };
@@ -114,73 +156,78 @@ export default class RowDynamicMultiHeader extends LightningElement {
       return record;
     });
 
-    // tableDataも同期
+    // データ同期
     this.tableData = [...this.editableTableData];
 
-    // validation実行
+    // 入力時バリデーション実行
     const inputElement = event.target;
-    // 固定テーブルでもvalidateElementを呼び出しているだけで結果をどうしているかは謎。（要確認）
     validateElement([inputElement], [], []);
   }
 
-  /* ----------------------------------------
-   * 直接編集にしたため、以下の保存用データ取得メソッドは不要（既存の固定テーブルの直接編集のテーブルもデータ変更時にvalidate()関数を読んでいるだけ）
-   * ----------------------------------------
-   * 保存ボタン押下時の処理<br>
-   *
-   * @return { Array.<Object, Array.<Element>> } APIに渡す用のリストと、単項目チェック用のリストを返却する。
-   */
-  // @api
-  // getSavingDatas() {
-  //   let itemList = {};
-  //   let valid = 0;
-
-  //   // 可変のテーブルデータを除いたdata-idを持つ要素を取得する。
-  //   const notTableData = this.template.querySelectorAll("[data-id]:not(tr *)");
-
-  //   const [iList, dList] = getComponentDataList(notTableData, SAVING_BTN_LIST);
-  //   validateElement(dList);
-  //   itemList = { ...iList };
-  //   itemList.dtoList = this.tableData;
-
-  // 下については、画面に表示されているデータを直接取得し、個別に改めて単項目チェックを実施する必要があるケースにおいて利用する。
-
-  // // 可変のテーブルデータ以外の要素を取得する。
-  // const tableDataList = [];
-
-  // // 1行内のtr毎にNodeListを取得し、それぞれ処理したのち内容をマージする。
-  // // trそのものにカスタムデータ属性もしくはtrをそれぞれ特定できるクラス名を定義する。
-  // // 行内にtrタブが1つだけの場合は、trの取得のみで問題なし。
-  // const rowData1 = this.template.querySelectorAll('tr[data-id="1"]');
-  // const rowData2 = this.template.querySelectorAll('tr[data-id="2"]');
-
-  // rowData1.forEach((_, idx) => {
-  //   const dataCell1 = rowData1[idx].querySelectorAll('[data-id]');
-  //   const dataCell2 = rowData2[idx].querySelectorAll('[data-id]');
-
-  //   const [rowItemList1, rowDataList1] = getDataList(dataCell1, SAVING_BTN_LIST);
-  //   const [rowItemList2, rowDataList2] = getDataList(dataCell2, SAVING_BTN_LIST);
-
-  //   valid = checkItem(rowDataList1);
-  //   valid = checkItem(rowDataList2);
-
-  //   const mergeItemList = Object.assign(rowItemList1, rowItemList2);
-  //   tableDataList.push(mergeItemList);
-  // });
-
-  // itemList.dtoList = tableDataList;
-
-  //   return [itemList, valid];
-  // }
+  // ========================================
+  // 親コンポーネント向けAPIメソッド
+  // ========================================
 
   /**
-   * 親コンポーネント用：指定IDの要素を取得
+   * DOM要素取得API
+   * 用途：親コンポーネントのhandleDataVerificationで使用
    * @param {string} recordId レコードID
-   * @returns {NodeList} 要素のリスト
+   * @returns {NodeList} 指定IDの要素リスト
    */
   @api
   getElementsById(recordId) {
     return this.template.querySelectorAll(`[data-id="${recordId}"]`);
   }
 
+  /**
+   * データ取得・バリデーションAPI
+   * 用途：親コンポーネントのhandleApiSaveで使用
+   * @param {boolean} selectedOnly 選択データのみか全データか（デフォルト: true）
+   * @param {Array} reqList 必須項目リスト（デフォルト: ['num1', 'str1']）
+   * @returns {Array} [itemList, validationErrorCount]
+   */
+  @api
+  getApiDataList(selectedOnly = true, reqList = MULTI_API_SUCCESS1_REQ_LIST) {
+    let validationErrorCount = 0;
+
+    try {
+      // 対象データを決定
+      const targetData = selectedOnly
+        ? this.editableTableData.filter((item) => item.checked)
+        : this.editableTableData;
+
+      // データが空の場合の処理
+      if (targetData.length === 0) {
+        return [{ tableData: [] }, selectedOnly ? 0 : 1];
+      }
+
+      // 各レコードのバリデーション処理
+      targetData.forEach((record) => {
+        const elements = this.getElementsById(record.Id);
+
+        if (elements.length > 0) {
+          // validateElement関数を呼び出し、バリデーション結果を取得
+          const validationResult = validateElement(
+            Array.from(elements),
+            reqList,
+            []
+          );
+          validationErrorCount += validationResult;
+        }
+      });
+
+      // レスポンス用データオブジェクト生成
+      const itemList = {
+        tableData: targetData,
+        [selectedOnly ? "selectedCount" : "totalCount"]: targetData.length,
+        componentName: "rowDynamicMultiHeader",
+        apiType: selectedOnly ? "success" : "error"
+      };
+
+      return [itemList, validationErrorCount];
+    } catch (error) {
+      console.error("Error in getApiDataList:", error);
+      throw error;
+    }
+  }
 }
