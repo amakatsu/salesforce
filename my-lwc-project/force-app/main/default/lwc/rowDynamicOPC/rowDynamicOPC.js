@@ -169,7 +169,17 @@ export default class RowDynamicOPC extends LightningElement {
     let validationErrorCount = 0;
 
     try {
-      // 対象データを決定
+      // 【データ取得方法の選択理由】
+      // ガイドライン方式: this.template.querySelectorAll('[data-id]') で全DOM要素を一括取得
+      // 現在の方式: editableTableDataから対象レコードを絞り込み → 各レコードのDOM要素を個別取得
+      // 
+      // 現在の方式を採用する理由：
+      // 1. 選択データのみ処理する機能が必要（selectedOnly パラメータ）
+      // 2. メモリ上のデータとDOM要素の整合性を保ちやすい
+      // 3. レコード単位での処理により、エラー発生時の特定が容易
+      // 4. 大量データでも選択分のみ処理するため効率的
+
+      // 対象データを決定（選択データのみ or 全データ）
       const targetData = selectedOnly
         ? this.editableTableData.filter((item) => item.checked)
         : this.editableTableData;
@@ -180,11 +190,14 @@ export default class RowDynamicOPC extends LightningElement {
       }
 
       // 各レコードのバリデーション処理
+      // ガイドラインとは異なり、レコード単位で個別にDOM要素を取得
+      // これにより選択されたデータのみを効率的に処理可能
       targetData.forEach((record) => {
         const elements = this.getElementsById(record.Id);
 
         if (elements.length > 0) {
           // validateElement関数を呼び出し、バリデーション結果を取得
+          // ガイドライン準拠: validateElement(dataList, reqList, data) の形式
           const validationResult = validateElement(
             Array.from(elements),
             reqList,
