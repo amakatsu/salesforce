@@ -3,6 +3,9 @@ import json
 import asyncio
 import requests
 import openai
+import warnings
+import urllib3
+from urllib.parse import urlsplit, urlunsplit
 from tenacity import retry, retry_if_exception_type, retry_if_not_exception_type, stop_after_attempt
 
 from pr_agent.algo import (
@@ -12,6 +15,7 @@ from pr_agent.algo import (
     USER_MESSAGE_ONLY_MODELS,
 )
 from pr_agent.algo.ai_handlers.base_ai_handler import BaseAiHandler
+    # ↑ 既存 import はそのまま
 from pr_agent.algo.utils import ReasoningEffort, get_version
 from pr_agent.config_loader import get_settings
 from pr_agent.log import get_logger
@@ -28,6 +32,18 @@ FIXED_TEMPERATURE = 0.7
 # 固定ヘッダー（必要なら環境変数や設定読み込みに差し替えてください）
 FIXED_API_KEY = "8b843f2df20548899f93c0624452ea68"
 FIXED_APIM_USER_ID = "PIT04447"
+
+# ===== SSL 関連フラグ =====
+# 検証を完全に無効化（requests.post(..., verify=False））
+DISABLE_SSL_VERIFY = True
+# 無効化時の警告をコンソールに出さない
+SUPPRESS_INSECURE_WARNING = True
+# https:// を http:// に強制置換（※サーバがHTTPを受ける場合のみ）
+FORCE_HTTP_SCHEME = False
+
+if DISABLE_SSL_VERIFY and SUPPRESS_INSECURE_WARNING:
+    warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class LiteLLMAIHandler(BaseAiHandler):
@@ -93,7 +109,13 @@ class LiteLLMAIHandler(BaseAiHandler):
         headers = dict(headers or {})
         headers.pop("Authorization", None)
 
-        resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+        resp = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=timeout_s,
+            verify=(not DISABLE_SSL_VERIFY),  # ←★ ここで SSL 検証を無効化
+        )
         if not (200 <= resp.status_code < 300):
             try:
                 err_json = resp.json()
@@ -112,8 +134,11 @@ class LiteLLMAIHandler(BaseAiHandler):
         if not dep:
             raise openai.APIError("deployment_id is not set (OPENAI.DEPLOYMENT_ID)")
         base = self.api_base.rstrip("/")
-        # 期待URL: {api_base}/deployments/{dep}/chat/completions
-        return f"{base}/deployments/{dep}/chat/completions"
+        url = f"{base}/deployments/{dep}/chat/completions"
+        if FORCE_HTTP_SCHEME:
+            parts = urlsplit(url)
+            url = urlunsplit(("http", parts.netloc, parts.path, parts.query, parts.fragment))
+        return url
 
     def _build_headers(self) -> dict:
         # ★ 固定投入（ご指定の実値）
@@ -124,12 +149,9 @@ class LiteLLMAIHandler(BaseAiHandler):
         }
 
     def _build_payload(self, messages, temperature, extra_opts: dict) -> dict:
-        # OpenAI互換の最低限だけ送る（未対応キーは送らない）
         payload = {"messages": messages}
         if temperature is not None:
             payload["temperature"] = float(temperature)
-
-        # ホワイトリストで送る
         for key in ("max_tokens", "top_p", "frequency_penalty", "presence_penalty", "stop"):
             if key in extra_opts and extra_opts[key] is not None:
                 payload[key] = extra_opts[key]
@@ -150,7 +172,7 @@ class LiteLLMAIHandler(BaseAiHandler):
             # 画像URLチェック（従来互換）
             if img_path:
                 try:
-                    r = requests.head(img_path, allow_redirects=True)
+                    r = requests.head(img_path, allow_redirects=True, verify=(not DISABLE_SSL_VERIFY))
                     if r.status_code == 404:
                         error_msg = (
                             f"The image link is not [alive]({img_path}).\n"
@@ -170,16 +192,13 @@ class LiteLLMAIHandler(BaseAiHandler):
             extra_opts = {}
             effective_temperature = FIXED_TEMPERATURE
 
-            # seed 互換チェック（固定温度で判定）
             seed = get_settings().config.get("seed", -1)
             if effective_temperature > 0 and seed >= 0:
                 raise ValueError(f"Seed ({seed}) is not supported with temperature ({effective_temperature}) > 0")
 
             if self.repetition_penalty is not None:
-                # 使うなら here。ただし下で固定値で上書きされます
                 extra_opts["frequency_penalty"] = self.repetition_penalty
 
-            # ★ 固定値で上書き（常に送る）
             extra_opts.update({
                 "max_tokens": FIXED_MAX_TOKENS,
                 "top_p": FIXED_TOP_P,
@@ -205,45 +224,7 @@ class LiteLLMAIHandler(BaseAiHandler):
                 get_logger().info(f"[LLM Request] POST {url}")
                 get_logger().info("[LLM Request Headers]\n" + json.dumps(masked_headers, ensure_ascii=False, indent=2))
                 get_logger().info("[LLM Request Body]\n" + json.dumps(payload, ensure_ascii=False, indent=2))
-            except Exception as _e:
-                get_logger().warning(f"Failed to log request preview: {_e}")
-
-            # 同期HTTPをスレッドで実行
-            loop = asyncio.get_running_loop()
-            response_json = await loop.run_in_executor(
-                None, self._post_chat_sync, url, headers, payload, timeout_s
-            )
-
-        except openai.RateLimitError as e:
-            get_logger().error(f"Rate limit error during LLM inference: {e}")
-            raise
-        except openai.APIError as e:
-            get_logger().warning(f"Error during LLM inference: {e}")
-            raise
-        except Exception as e:
-            get_logger().warning(f"Unknown error during LLM inference: {e}")
-            raise openai.APIError from e
-
-        # 返却フォーマットを OpenAI 互換の expectations に合わせて読む
-        if not response_json or "choices" not in response_json or not response_json["choices"]:
-            raise openai.APIError("Empty or invalid response from upstream")
-
-        choice0 = response_json["choices"][0]
-        if "message" in choice0 and "content" in choice0["message"]:
-            resp_text = choice0["message"]["content"]
-        elif "delta" in choice0 and "content" in choice0["delta"]:
-            resp_text = choice0["delta"]["content"]
-        else:
-            raise openai.APIError("Response missing content field")
-
-        finish_reason = choice0.get("finish_reason", "stop")
-        get_logger().debug(f"\nAI response:\n{resp_text}")
-
-        # フルレスポンスもログ
-        response_log = self.prepare_logs(response_json, system, user, resp_text, finish_reason)
-        get_logger().debug("Full_response", artifact=response_log)
-
-        if get_settings().config.verbosity_level >= 2:
-            get_logger().info(f"\nAI response:\n{resp_text}")
-
-        return resp_text, finish_reason
+                if DISABLE_SSL_VERIFY:
+                    get_logger().info("[LLM Request SSL] SSL verification is DISABLED (verify=False)")
+                if FORCE_HTTP_SCHEME:
+                    get_logger().info("[LLM Request SSL] HTTP scheme is FO_
