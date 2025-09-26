@@ -1,139 +1,59 @@
 import os
-import litellm
-import openai
+import json
+import asyncio
 import requests
-from litellm import acompletion
+import openai
 from tenacity import retry, retry_if_exception_type, retry_if_not_exception_type, stop_after_attempt
 
-from pr_agent.algo import CLAUDE_EXTENDED_THINKING_MODELS, NO_SUPPORT_TEMPERATURE_MODELS, SUPPORT_REASONING_EFFORT_MODELS, USER_MESSAGE_ONLY_MODELS
+from pr_agent.algo import (
+    CLAUDE_EXTENDED_THINKING_MODELS,
+    NO_SUPPORT_TEMPERATURE_MODELS,
+    SUPPORT_REASONING_EFFORT_MODELS,
+    USER_MESSAGE_ONLY_MODELS,
+)
 from pr_agent.algo.ai_handlers.base_ai_handler import BaseAiHandler
 from pr_agent.algo.utils import ReasoningEffort, get_version
 from pr_agent.config_loader import get_settings
 from pr_agent.log import get_logger
-import json
 
 OPENAI_RETRIES = 5
 
 
 class LiteLLMAIHandler(BaseAiHandler):
     """
-    Handles interactions with the OpenAI-compatible Chat Completions API via LiteLLM.
+    Requests only: send OpenAI-compatible Chat Completions to Azure APIM directly.
     """
 
     def __init__(self):
         self.azure = False
         self.api_base = None
         self.repetition_penalty = None
-        
-        if get_settings().get("OPENAI.KEY", None):
-            openai.api_key = get_settings().openai.key
-            litellm.openai_key = get_settings().openai.key
-        elif 'OPENAI_API_KEY' not in os.environ:
-            litellm.api_key = "dummy_key"
-        if get_settings().get("aws.AWS_ACCESS_KEY_ID"):
-            assert get_settings().aws.AWS_SECRET_ACCESS_KEY and get_settings().aws.AWS_REGION_NAME, "AWS credentials are incomplete"
-            os.environ["AWS_ACCESS_KEY_ID"] = get_settings().aws.AWS_ACCESS_KEY_ID
-            os.environ["AWS_SECRET_ACCESS_KEY"] = get_settings().aws.AWS_SECRET_ACCESS_KEY
-            os.environ["AWS_REGION_NAME"] = get_settings().aws.AWS_REGION_NAME
-        if get_settings().get("LITELLM.DROP_PARAMS", None):
-            litellm.drop_params = get_settings().litellm.drop_params
-        if get_settings().get("LITELLM.SUCCESS_CALLBACK", None):
-            litellm.success_callback = get_settings().litellm.success_callback
-        if get_settings().get("LITELLM.FAILURE_CALLBACK", None):
-            litellm.failure_callback = get_settings().litellm.failure_callback
-        if get_settings().get("LITELLM.SERVICE_CALLBACK", None):
-            litellm.service_callback = get_settings().litellm.service_callback
-        if get_settings().get("OPENAI.ORG", None):
-            litellm.organization = get_settings().openai.org
-        if get_settings().get("OPENAI.API_TYPE", None):
-            if get_settings().openai.api_type == "azure":
-                self.azure = True
-                litellm.azure_key = get_settings().openai.key
-        if get_settings().get("OPENAI.API_VERSION", None):
-            litellm.api_version = get_settings().openai.api_version
+
+        # ====== 既存の設定引き回しは最小限維持（必要に応じて削ってもOK） ======
         if get_settings().get("OPENAI.API_BASE", None):
-            litellm.api_base = get_settings().openai.api_base
             self.api_base = get_settings().openai.api_base
-        if get_settings().get("ANTHROPIC.KEY", None):
-            litellm.anthropic_key = get_settings().anthropic.key
-        if get_settings().get("COHERE.KEY", None):
-            litellm.cohere_key = get_settings().cohere.key
-        if get_settings().get("GROQ.KEY", None):
-            litellm.api_key = get_settings().groq.key
-        if get_settings().get("REPLICATE.KEY", None):
-            litellm.replicate_key = get_settings().replicate.key
-        if get_settings().get("XAI.KEY", None):
-            litellm.api_key = get_settings().xai.key
-        if get_settings().get("HUGGINGFACE.KEY", None):
-            litellm.huggingface_key = get_settings().huggingface.key
+
+        # Azure AD 経由を使っていた場合でも、今回は Authorization は付けない運用にする
+        if get_settings().get("AZURE_AD.CLIENT_ID", None):
+            # api_base は Azure AD セットの値を優先
+            self.api_base = get_settings().azure_ad.api_base
+
+        # OpenRouter/HuggingFace/Ollama等の分岐は無視しても良いが、api_base が設定されていれば尊重
         if get_settings().get("HUGGINGFACE.API_BASE", None) and 'huggingface' in get_settings().config.model:
-            litellm.api_base = get_settings().huggingface.api_base
             self.api_base = get_settings().huggingface.api_base
         if get_settings().get("OLLAMA.API_BASE", None):
-            litellm.api_base = get_settings().ollama.api_base
             self.api_base = get_settings().ollama.api_base
-        if get_settings().get("HUGGINGFACE.REPETITION_PENALTY", None):
-            self.repetition_penalty = float(get_settings().huggingface.repetition_penalty)
-        if get_settings().get("VERTEXAI.VERTEX_PROJECT", None):
-            litellm.vertex_project = get_settings().vertexai.vertex_project
-            litellm.vertex_location = get_settings().get("VERTEXAI.VERTEX_LOCATION", None)
-
-        # Google AI Studio (Gemini)
-        if get_settings().get("GOOGLE_AI_STUDIO.GEMINI_API_KEY", None):
-            os.environ["GEMINI_API_KEY"] = get_settings().google_ai_studio.gemini_api_key
-
-        # Deepseek / Deepinfra / Mistral / Codestral
-        if get_settings().get("DEEPSEEK.KEY", None):
-            os.environ['DEEPSEEK_API_KEY'] = get_settings().get("DEEPSEEK.KEY")
-        if get_settings().get("DEEPINFRA.KEY", None):
-            os.environ['DEEPINFRA_API_KEY'] = get_settings().get("DEEPINFRA.KEY")
-        if get_settings().get("MISTRAL.KEY", None):
-            os.environ["MISTRAL_API_KEY"] = get_settings().get("MISTRAL.KEY")
-        if get_settings().get("CODESTRAL.KEY", None):
-            os.environ["CODESTRAL_API_KEY"] = get_settings().get("CODESTRAL.KEY")
-
-        # Azure AD token flow
-        if get_settings().get("AZURE_AD.CLIENT_ID", None):
-            self.azure = True
-            access_token = self._get_azure_ad_token()
-            litellm.api_key = access_token
-            openai.api_key = access_token
-            self.api_base = get_settings().azure_ad.api_base
-            litellm.api_base = self.api_base
-            openai.api_base = self.api_base
-
-        # OpenRouter
-        if get_settings().get("OPENROUTER.KEY", None):
-            openrouter_api_key = get_settings().get("OPENROUTER.KEY", None)
-            os.environ["OPENROUTER_API_KEY"] = openrouter_api_key
-            litellm.api_key = openrouter_api_key
-            openai.api_key = openrouter_api_key
-            openrouter_api_base = get_settings().get("OPENROUTER.API_BASE", "https://openrouter.ai/api/v1")
-            os.environ["OPENROUTER_API_BASE"] = openrouter_api_base
-            self.api_base = openrouter_api_base
-            litellm.api_base = openrouter_api_base
+        if get_settings().get("OPENROUTER.API_BASE", None):
+            self.api_base = get_settings().get("OPENROUTER.API_BASE")
 
         self.user_message_only_models = USER_MESSAGE_ONLY_MODELS
         self.no_support_temperature_models = NO_SUPPORT_TEMPERATURE_MODELS
         self.support_reasoning_models = SUPPORT_REASONING_EFFORT_MODELS
         self.claude_extended_thinking_models = CLAUDE_EXTENDED_THINKING_MODELS
 
-    def _get_azure_ad_token(self):
-        from azure.identity import ClientSecretCredential
-        try:
-            credential = ClientSecretCredential(
-                tenant_id=get_settings().azure_ad.tenant_id,
-                client_id=get_settings().azure_ad.client_id,
-                client_secret=get_settings().azure_ad.client_secret
-            )
-            token = credential.get_token("https://cognitiveservices.azure.com/.default")
-            return token.token
-        except Exception as e:
-            get_logger().error(f"Failed to get Azure AD token: {e}")
-            raise
-
-    def prepare_logs(self, response, system, user, resp, finish_reason):
-        response_log = response.dict().copy()
+    def prepare_logs(self, response_json, system, user, resp, finish_reason):
+        # response_json は dict 前提
+        response_log = dict(response_json) if isinstance(response_json, dict) else {"raw": response_json}
         response_log['system'] = system
         response_log['user'] = user
         response_log['output'] = resp
@@ -141,66 +61,64 @@ class LiteLLMAIHandler(BaseAiHandler):
         response_log['main_pr_language'] = getattr(self, 'main_pr_language', 'unknown')
         return response_log
 
-    def _configure_claude_extended_thinking(self, model: str, kwargs: dict) -> dict:
-        extended_thinking_budget_tokens = get_settings().config.get("extended_thinking_budget_tokens", 2048)
-        extended_thinking_max_output_tokens = get_settings().config.get("extended_thinking_max_output_tokens", 4096)
-        if not isinstance(extended_thinking_budget_tokens, int) or extended_thinking_budget_tokens <= 0:
-            raise ValueError("extended_thinking_budget_tokens must be a positive integer")
-        if not isinstance(extended_thinking_max_output_tokens, int) or extended_thinking_max_output_tokens <= 0:
-            raise ValueError("extended_thinking_max_output_tokens must be a positive integer")
-        if extended_thinking_max_output_tokens < extended_thinking_budget_tokens:
-            raise ValueError("extended_thinking_max_output_tokens must be >= extended_thinking_budget_tokens")
-
-        kwargs["thinking"] = {"type": "enabled", "budget_tokens": extended_thinking_budget_tokens}
-        if get_settings().config.verbosity_level >= 2:
-            get_logger().info(f"Adding max output tokens {extended_thinking_max_output_tokens} to model {model}, "
-                              f"extended thinking budget tokens: {extended_thinking_budget_tokens}")
-        kwargs["max_tokens"] = extended_thinking_max_output_tokens
-        if get_settings().config.verbosity_level >= 2:
-            get_logger().info("Temperature may only be set to 1 when thinking is enabled with claude models.")
-        kwargs["temperature"] = 1
-        return kwargs
-
-    def add_litellm_callbacks(self, kwargs) -> dict:
-        captured_extra = []
-        def capture_logs(message):
-            record = message.record
-            log_entry = {}
-            if record.get('extra', None).get('command', None) is not None:
-                log_entry.update({"command": record['extra']["command"]})
-            if record.get('extra', {}).get('pr_url', None) is not None:
-                log_entry.update({"pr_url": record['extra']["pr_url"]})
-            captured_extra.append(log_entry)
-
-        handler_id = get_logger().add(capture_logs)
-        get_logger().debug("Capturing logs for litellm callbacks")
-        get_logger().remove(handler_id)
-
-        context = captured_extra[0] if len(captured_extra) > 0 else {}
-        command = context.get("command", "unknown")
-        pr_url = context.get("pr_url", "unknown")
-        git_provider = get_settings().config.git_provider
-
-        metadata = dict()
-        callbacks = litellm.success_callback + litellm.failure_callback + litellm.service_callback
-        if "langfuse" in callbacks:
-            metadata.update({
-                "trace_name": command,
-                "tags": [git_provider, command, f'version:{get_version()}'],
-                "trace_metadata": {"command": command, "pr_url": pr_url},
-            })
-        if "langsmith" in callbacks:
-            metadata.update({
-                "run_name": command,
-                "tags": [git_provider, command, f'version:{get_version()}'],
-                "extra": {"metadata": {"command": command, "pr_url": pr_url}},
-            })
-        kwargs["metadata"] = metadata
-        return kwargs
-
     @property
     def deployment_id(self):
         return get_settings().get("OPENAI.DEPLOYMENT_ID", None)
+
+    # ====== 同期HTTPをスレッドで呼ぶヘルパ ======
+    def _post_chat_sync(self, url: str, headers: dict, payload: dict, timeout_s: int):
+        # Authorizationは入れない（入っていたら潰す）
+        headers = dict(headers or {})
+        headers.pop("Authorization", None)
+
+        resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+        if resp.status_code < 200 or resp.status_code >= 300:
+            # Azure系は detail を返すことがあるので握りつぶさずに入れる
+            try:
+                err_json = resp.json()
+            except Exception:
+                err_json = {"text": resp.text}
+            raise openai.APIError(f"Upstream error {resp.status_code}: {err_json}")
+        try:
+            return resp.json()
+        except Exception as e:
+            raise openai.APIError(f"Invalid JSON from upstream: {e}")
+
+    def _build_url(self) -> str:
+        if not self.api_base:
+            raise openai.APIError("api_base is not set")
+        dep = self.deployment_id
+        if not dep:
+            raise openai.APIError("deployment_id is not set (OPENAI.DEPLOYMENT_ID)")
+        base = self.api_base.rstrip("/")
+        # 期待URL: {api_base}/deployments/{dep}/chat/completions
+        return f"{base}/deployments/{dep}/chat/completions"
+
+    def _build_headers(self) -> dict:
+        # ★ 固定投入（ご指定の実値）
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": "8b843f2df20548899f93c0624452ea68",
+            "apim-user-id": "PIT04447",
+        }
+        return headers
+
+    def _build_payload(self, messages, temperature, extra_opts: dict) -> dict:
+        # OpenAI互換の最低限だけ送る（未対応キーは送らない）
+        payload = {
+            "messages": messages,
+        }
+        if temperature is not None:
+            payload["temperature"] = float(temperature)
+
+        # max_tokens / top_p / frequency_penalty / presence_penalty だけ安全に拾う
+        for key in ("max_tokens", "top_p", "frequency_penalty", "presence_penalty"):
+            if key in extra_opts and extra_opts[key] is not None:
+                payload[key] = extra_opts[key]
+
+        # 必要なら stop / response_format / tools / tool_choice 等をここでホワイトリスト追加
+
+        return payload
 
     @retry(
         retry=retry_if_exception_type(openai.APIError) & retry_if_not_exception_type(openai.RateLimitError),
@@ -208,128 +126,78 @@ class LiteLLMAIHandler(BaseAiHandler):
     )
     async def chat_completion(self, model: str, system: str, user: str, temperature: float = 0.2, img_path: str = None):
         try:
-            resp, finish_reason = None, None
-            deployment_id = self.deployment_id
-            if self.azure:
-                model = 'azure/' + model
             if 'claude' in model and not system:
                 system = "No system prompt provided"
-                get_logger().warning("Empty system prompt for claude model. Adding a newline character to prevent OpenAI API error.")
+                get_logger().warning("Empty system prompt for claude model; injecting placeholder.")
+
             messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
+            # 画像URLが来たときの生存チェック（従来動作を維持）
             if img_path:
                 try:
                     r = requests.head(img_path, allow_redirects=True)
                     if r.status_code == 404:
-                        error_msg = f"The image link is not [alive](img_path).\nPlease repost the original image as a comment, and send the question again with 'quote reply'."
+                        error_msg = (
+                            f"The image link is not [alive]({img_path}).\n"
+                            "Please repost the original image as a comment, and send the question again with 'quote reply'."
+                        )
                         get_logger().error(error_msg)
                         return f"{error_msg}", "error"
                 except Exception as e:
-                    get_logger().error(f"Error fetching image: {img_path}", e)
+                    get_logger().error(f"Error fetching image: {img_path} {e}")
                     return f"Error fetching image: {img_path}", "error"
+                # Azure/OpenAIのimage_url形式に合わせる
                 messages[1]["content"] = [
                     {"type": "text", "text": messages[1]["content"]},
-                    {"type": "image_url", "image_url": {"url": img_path}}
+                    {"type": "image_url", "image_url": {"url": img_path}},
                 ]
 
-            if model in self.user_message_only_models or get_settings().config.custom_reasoning_model:
-                user = f"{system}\n\n\n{user}"
-                system = ""
-                get_logger().info(f"Using model {model}, combining system and user prompts")
-                messages = [{"role": "user", "content": user}]
-                kwargs = {
-                    "model": model,
-                    "deployment_id": deployment_id,
-                    "messages": messages,
-                    "timeout": get_settings().config.ai_timeout,
-                    "api_base": self.api_base,
-                }
-            else:
-                kwargs = {
-                    "model": model,
-                    "deployment_id": deployment_id,
-                    "messages": messages,
-                    "timeout": get_settings().config.ai_timeout,
-                    "api_base": self.api_base,
-                }
-
+            # user_message_only / reasoning などの従来分岐は維持するが、未対応キーはpayloadに入れない
+            extra_opts = {}
             if model not in self.no_support_temperature_models and not get_settings().config.custom_reasoning_model:
-                kwargs["temperature"] = temperature
+                pass  # temperatureはそのまま引数で渡す
 
             if model in self.support_reasoning_models:
-                supported = [ReasoningEffort.HIGH.value, ReasoningEffort.MEDIUM.value, ReasoningEffort.LOW.value]
-                reasoning_effort = get_settings().config.reasoning_effort if (get_settings().config.reasoning_effort in supported) else ReasoningEffort.MEDIUM.value
-                get_logger().info(f"Adding reasoning_effort with value {reasoning_effort} to model {model}.")
-                kwargs["reasoning_effort"] = reasoning_effort
+                # reasoning_effort 自体は OpenAI 互換の微妙な差があるので payload には入れない（必要ならここで入れる）
+                _ = get_settings().config.reasoning_effort
+                get_logger().info(f"reasoning_effort configured: {_} (not sent)")
 
             if (model in self.claude_extended_thinking_models) and get_settings().config.get("enable_claude_extended_thinking", False):
-                kwargs = self._configure_claude_extended_thinking(model, kwargs)
+                # thinking/max_tokens= の特殊パラメータは送らない（Azure互換で齟齬が出やすい）
+                get_logger().info("Claude extended thinking requested (not sent in raw payload).")
 
-            if get_settings().litellm.get("enable_callbacks", False):
-                kwargs = self.add_litellm_callbacks(kwargs)
-
+            # seed は OpenAI 互換で未サポートなことが多いので送らない
             seed = get_settings().config.get("seed", -1)
             if temperature > 0 and seed >= 0:
                 raise ValueError(f"Seed ({seed}) is not supported with temperature ({temperature}) > 0")
-            elif seed >= 0:
-                get_logger().info(f"Using fixed seed of {seed}")
-                kwargs["seed"] = seed
 
-            if self.repetition_penalty:
-                kwargs["repetition_penalty"] = self.repetition_penalty
+            if self.repetition_penalty is not None:
+                extra_opts["frequency_penalty"] = self.repetition_penalty  # 近い意味の項目に寄せる（あるいは presence_penalty）
 
-            # --------- 最小パッチ: 余計な混入防止 & ヘッダー正規化 -----------
-            kwargs.pop("extra_body", None)
-            kwargs.pop("extra_headers", None)
+            # URL / Headers / Payload 構築
+            url = self._build_url()
+            headers = self._build_headers()
+            timeout_s = int(get_settings().config.ai_timeout or 60)
 
-            def _normalize_headers(conf) -> dict:
-                """設定値からヘッダー dict を生成（JSON文字列/辞書、extra_headers/headers ラップを許容しフラット化）"""
-                if not conf:
-                    return {}
-                if isinstance(conf, str):
-                    try:
-                        conf = json.loads(conf)
-                    except Exception:
-                        return {}
-                if not isinstance(conf, dict):
-                    return {}
-                for wrap in ("extra_headers", "headers"):
-                    if wrap in conf and isinstance(conf[wrap], dict):
-                        conf = conf[wrap]
-                        break
-                flat = {}
-                for k, v in conf.items():
-                    if isinstance(v, dict):
-                        for kk, vv in v.items():
-                            flat[f"{k}-{kk}".replace("_", "-").replace(".", "-")] = vv
-                    else:
-                        flat[k.replace("_", "-").replace(".", "-")] = v
-                return flat
+            # user_only モデルは system と user を結合
+            if model in self.user_message_only_models or get_settings().config.custom_reasoning_model:
+                user_merged = f"{system}\n\n\n{user}" if system else user
+                messages = [{"role": "user", "content": user_merged}]
 
-            normalized_headers = _normalize_headers(get_settings().get("LITELLM.EXTRA_HEADERS", None))
+            payload = self._build_payload(messages, temperature, extra_opts)
 
-            # ★ 固定投入するヘッダー値（ご指定の実値）
-            if normalized_headers is None:
-                normalized_headers = {}
-            normalized_headers.update({
-                "api-key": "8b843f2df20548899f93c0624452ea68",
-                "apim-user-id": "PIT04447",
-            })
-
-            if get_settings().get("LITELLM.DROP_AUTHORIZATION", False):
-                normalized_headers["Authorization"] = ""
-
-            kwargs["headers"] = normalized_headers
-            kwargs["drop_params"] = True
-            # --------- 最小パッチ ここまで ---------
-
+            # デバッグ出力（プロンプト）
             get_logger().debug("Prompts", artifact={"system": system, "user": user})
-
             if get_settings().config.verbosity_level >= 2:
                 get_logger().info(f"\nSystem prompt:\n{system}")
                 get_logger().info(f"\nUser prompt:\n{user}")
 
-            response = await acompletion(**kwargs)
+            # 同期HTTPをスレッドで実行
+            loop = asyncio.get_running_loop()
+            response_json = await loop.run_in_executor(
+                None, self._post_chat_sync, url, headers, payload, timeout_s
+            )
+
         except openai.RateLimitError as e:
             get_logger().error(f"Rate limit error during LLM inference: {e}")
             raise
@@ -340,16 +208,27 @@ class LiteLLMAIHandler(BaseAiHandler):
             get_logger().warning(f"Unknown error during LLM inference: {e}")
             raise openai.APIError from e
 
-        if response is None or len(response["choices"]) == 0:
-            raise openai.APIError
+        # 返却フォーマットを OpenAI 互換の expectations に合わせて読む
+        if not response_json or "choices" not in response_json or not response_json["choices"]:
+            raise openai.APIError("Empty or invalid response from upstream")
+
+        choice0 = response_json["choices"][0]
+        # message.content or delta.content（stream しないので message 想定）
+        if "message" in choice0 and "content" in choice0["message"]:
+            resp_text = choice0["message"]["content"]
+        elif "delta" in choice0 and "content" in choice0["delta"]:
+            resp_text = choice0["delta"]["content"]
         else:
-            resp = response["choices"][0]['message']['content']
-            finish_reason = response["choices"][0]["finish_reason"]
-            get_logger().debug(f"\nAI response:\n{resp}")
-            response_log = self.prepare_logs(response, system, user, resp, finish_reason)
-            get_logger().debug("Full_response", artifact=response_log)
+            raise openai.APIError("Response missing content field")
 
-            if get_settings().config.verbosity_level >= 2:
-                get_logger().info(f"\nAI response:\n{resp}")
+        finish_reason = choice0.get("finish_reason", "stop")
+        get_logger().debug(f"\nAI response:\n{resp_text}")
 
-        return resp, finish_reason
+        # フルレスポンスもログ
+        response_log = self.prepare_logs(response_json, system, user, resp_text, finish_reason)
+        get_logger().debug("Full_response", artifact=response_log)
+
+        if get_settings().config.verbosity_level >= 2:
+            get_logger().info(f"\nAI response:\n{resp_text}")
+
+        return resp_text, finish_reason
