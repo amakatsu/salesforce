@@ -18,6 +18,17 @@ from pr_agent.log import get_logger
 
 OPENAI_RETRIES = 5
 
+# ===== 固定値（ソース直書き） =====
+FIXED_MAX_TOKENS = 800
+FIXED_TOP_P = 0.95
+FIXED_FREQUENCY_PENALTY = 0
+FIXED_PRESENCE_PENALTY = 0
+FIXED_TEMPERATURE = 0.7
+
+# 固定ヘッダー（必要なら環境変数や設定読み込みに差し替えてください）
+FIXED_API_KEY = "8b843f2df20548899f93c0624452ea68"
+FIXED_APIM_USER_ID = "PIT04447"
+
 
 class LiteLLMAIHandler(BaseAiHandler):
     """
@@ -29,16 +40,11 @@ class LiteLLMAIHandler(BaseAiHandler):
         self.api_base = None
         self.repetition_penalty = None
 
-        # ====== 既存の設定引き回しは最小限維持（必要に応じて削ってもOK） ======
+        # api_base の決定（既存の設定を尊重）
         if get_settings().get("OPENAI.API_BASE", None):
             self.api_base = get_settings().openai.api_base
-
-        # Azure AD 経由を使っていた場合でも、今回は Authorization は付けない運用にする
         if get_settings().get("AZURE_AD.CLIENT_ID", None):
-            # api_base は Azure AD セットの値を優先
             self.api_base = get_settings().azure_ad.api_base
-
-        # OpenRouter/HuggingFace/Ollama等の分岐は無視しても良いが、api_base が設定されていれば尊重
         if get_settings().get("HUGGINGFACE.API_BASE", None) and 'huggingface' in get_settings().config.model:
             self.api_base = get_settings().huggingface.api_base
         if get_settings().get("OLLAMA.API_BASE", None):
@@ -52,7 +58,6 @@ class LiteLLMAIHandler(BaseAiHandler):
         self.claude_extended_thinking_models = CLAUDE_EXTENDED_THINKING_MODELS
 
     def prepare_logs(self, response_json, system, user, resp, finish_reason):
-        # response_json は dict 前提
         response_log = dict(response_json) if isinstance(response_json, dict) else {"raw": response_json}
         response_log['system'] = system
         response_log['user'] = user
@@ -65,15 +70,31 @@ class LiteLLMAIHandler(BaseAiHandler):
     def deployment_id(self):
         return get_settings().get("OPENAI.DEPLOYMENT_ID", None)
 
-    # ====== 同期HTTPをスレッドで呼ぶヘルパ ======
+    # ========= 送信前ログ用：機微ヘッダーをマスク =========
+    def _mask_headers(self, headers: dict) -> dict:
+        def _mask(v: str) -> str:
+            if not isinstance(v, str):
+                return v
+            if len(v) <= 8:
+                return "****"
+            return f"{'*' * (len(v) - 4)}{v[-4:]}"
+        masked = {}
+        for k, v in (headers or {}).items():
+            kl = k.lower()
+            if kl in ("api-key", "authorization", "x-api-key", "proxy-authorization"):
+                masked[k] = _mask(v)
+            else:
+                masked[k] = v
+        return masked
+
+    # ========= 同期HTTPをスレッドで呼ぶヘルパ =========
     def _post_chat_sync(self, url: str, headers: dict, payload: dict, timeout_s: int):
-        # Authorizationは入れない（入っていたら潰す）
+        # Authorization は送らない（混入していても削除）
         headers = dict(headers or {})
         headers.pop("Authorization", None)
 
         resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
-        if resp.status_code < 200 or resp.status_code >= 300:
-            # Azure系は detail を返すことがあるので握りつぶさずに入れる
+        if not (200 <= resp.status_code < 300):
             try:
                 err_json = resp.json()
             except Exception:
@@ -96,28 +117,22 @@ class LiteLLMAIHandler(BaseAiHandler):
 
     def _build_headers(self) -> dict:
         # ★ 固定投入（ご指定の実値）
-        headers = {
+        return {
             "Content-Type": "application/json",
-            "api-key": "8b843f2df20548899f93c0624452ea68",
-            "apim-user-id": "PIT04447",
+            "api-key": FIXED_API_KEY,
+            "apim-user-id": FIXED_APIM_USER_ID,
         }
-        return headers
 
     def _build_payload(self, messages, temperature, extra_opts: dict) -> dict:
         # OpenAI互換の最低限だけ送る（未対応キーは送らない）
-        payload = {
-            "messages": messages,
-        }
+        payload = {"messages": messages}
         if temperature is not None:
             payload["temperature"] = float(temperature)
 
-        # max_tokens / top_p / frequency_penalty / presence_penalty だけ安全に拾う
-        for key in ("max_tokens", "top_p", "frequency_penalty", "presence_penalty"):
+        # ホワイトリストで送る
+        for key in ("max_tokens", "top_p", "frequency_penalty", "presence_penalty", "stop"):
             if key in extra_opts and extra_opts[key] is not None:
                 payload[key] = extra_opts[key]
-
-        # 必要なら stop / response_format / tools / tool_choice 等をここでホワイトリスト追加
-
         return payload
 
     @retry(
@@ -132,7 +147,7 @@ class LiteLLMAIHandler(BaseAiHandler):
 
             messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
-            # 画像URLが来たときの生存チェック（従来動作を維持）
+            # 画像URLチェック（従来互換）
             if img_path:
                 try:
                     r = requests.head(img_path, allow_redirects=True)
@@ -146,33 +161,31 @@ class LiteLLMAIHandler(BaseAiHandler):
                 except Exception as e:
                     get_logger().error(f"Error fetching image: {img_path} {e}")
                     return f"Error fetching image: {img_path}", "error"
-                # Azure/OpenAIのimage_url形式に合わせる
                 messages[1]["content"] = [
                     {"type": "text", "text": messages[1]["content"]},
                     {"type": "image_url", "image_url": {"url": img_path}},
                 ]
 
-            # user_message_only / reasoning などの従来分岐は維持するが、未対応キーはpayloadに入れない
+            # ---- 固定値を優先して送る ----
             extra_opts = {}
-            if model not in self.no_support_temperature_models and not get_settings().config.custom_reasoning_model:
-                pass  # temperatureはそのまま引数で渡す
+            effective_temperature = FIXED_TEMPERATURE
 
-            if model in self.support_reasoning_models:
-                # reasoning_effort 自体は OpenAI 互換の微妙な差があるので payload には入れない（必要ならここで入れる）
-                _ = get_settings().config.reasoning_effort
-                get_logger().info(f"reasoning_effort configured: {_} (not sent)")
-
-            if (model in self.claude_extended_thinking_models) and get_settings().config.get("enable_claude_extended_thinking", False):
-                # thinking/max_tokens= の特殊パラメータは送らない（Azure互換で齟齬が出やすい）
-                get_logger().info("Claude extended thinking requested (not sent in raw payload).")
-
-            # seed は OpenAI 互換で未サポートなことが多いので送らない
+            # seed 互換チェック（固定温度で判定）
             seed = get_settings().config.get("seed", -1)
-            if temperature > 0 and seed >= 0:
-                raise ValueError(f"Seed ({seed}) is not supported with temperature ({temperature}) > 0")
+            if effective_temperature > 0 and seed >= 0:
+                raise ValueError(f"Seed ({seed}) is not supported with temperature ({effective_temperature}) > 0")
 
             if self.repetition_penalty is not None:
-                extra_opts["frequency_penalty"] = self.repetition_penalty  # 近い意味の項目に寄せる（あるいは presence_penalty）
+                # 使うなら here。ただし下で固定値で上書きされます
+                extra_opts["frequency_penalty"] = self.repetition_penalty
+
+            # ★ 固定値で上書き（常に送る）
+            extra_opts.update({
+                "max_tokens": FIXED_MAX_TOKENS,
+                "top_p": FIXED_TOP_P,
+                "frequency_penalty": FIXED_FREQUENCY_PENALTY,
+                "presence_penalty": FIXED_PRESENCE_PENALTY,
+            })
 
             # URL / Headers / Payload 構築
             url = self._build_url()
@@ -184,13 +197,16 @@ class LiteLLMAIHandler(BaseAiHandler):
                 user_merged = f"{system}\n\n\n{user}" if system else user
                 messages = [{"role": "user", "content": user_merged}]
 
-            payload = self._build_payload(messages, temperature, extra_opts)
+            payload = self._build_payload(messages, effective_temperature, extra_opts)
 
-            # デバッグ出力（プロンプト）
-            get_logger().debug("Prompts", artifact={"system": system, "user": user})
-            if get_settings().config.verbosity_level >= 2:
-                get_logger().info(f"\nSystem prompt:\n{system}")
-                get_logger().info(f"\nUser prompt:\n{user}")
+            # === 送信直前ログ（情報レベル、機微はマスク）===
+            try:
+                masked_headers = self._mask_headers(headers)
+                get_logger().info(f"[LLM Request] POST {url}")
+                get_logger().info("[LLM Request Headers]\n" + json.dumps(masked_headers, ensure_ascii=False, indent=2))
+                get_logger().info("[LLM Request Body]\n" + json.dumps(payload, ensure_ascii=False, indent=2))
+            except Exception as _e:
+                get_logger().warning(f"Failed to log request preview: {_e}")
 
             # 同期HTTPをスレッドで実行
             loop = asyncio.get_running_loop()
@@ -213,7 +229,6 @@ class LiteLLMAIHandler(BaseAiHandler):
             raise openai.APIError("Empty or invalid response from upstream")
 
         choice0 = response_json["choices"][0]
-        # message.content or delta.content（stream しないので message 想定）
         if "message" in choice0 and "content" in choice0["message"]:
             resp_text = choice0["message"]["content"]
         elif "delta" in choice0 and "content" in choice0["delta"]:
