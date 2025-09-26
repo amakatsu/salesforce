@@ -1,106 +1,40 @@
-# pr_agent/algo/ai_handlers/litellm_ai_handler.py
 import os
-import json
-import shlex
-import subprocess
-import requests
-
 import litellm
 import openai
+import requests
 from litellm import acompletion
 from tenacity import retry, retry_if_exception_type, retry_if_not_exception_type, stop_after_attempt
 
-from pr_agent.algo import (
-    CLAUDE_EXTENDED_THINKING_MODELS,
-    NO_SUPPORT_TEMPERATURE_MODELS,
-    SUPPORT_REASONING_EFFORT_MODELS,
-    USER_MESSAGE_ONLY_MODELS,
-    STREAMING_REQUIRED_MODELS,
-)
+from pr_agent.algo import CLAUDE_EXTENDED_THINKING_MODELS, NO_SUPPORT_TEMPERATURE_MODELS, SUPPORT_REASONING_EFFORT_MODELS, USER_MESSAGE_ONLY_MODELS
 from pr_agent.algo.ai_handlers.base_ai_handler import BaseAiHandler
-from pr_agent.algo.ai_handlers.litellm_helpers import (
-    _handle_streaming_response,
-    MockResponse,
-    _get_azure_ad_token,
-    _process_litellm_extra_body,
-)
 from pr_agent.algo.utils import ReasoningEffort, get_version
 from pr_agent.config_loader import get_settings
 from pr_agent.log import get_logger
+import json
 
-MODEL_RETRIES = 2
+OPENAI_RETRIES = 5
 
 
 class LiteLLMAIHandler(BaseAiHandler):
     """
-    LiteLLM を既存のまま利用しつつ、設定で APIM(=Azure OpenAI chat/completions) 直叩きに切替可能。
-    - EMIT_CURL=True のとき: LLMルートを使わず APIM に POST して結果を返す（requests or 実コマンドcurl）
-    - すべての経路で _normalize_chat_response に通し、同一形式で返却
+    Handles interactions with the OpenAI-compatible Chat Completions API via LiteLLM.
     """
-
-    DEFAULTS = {
-        # トグル/デフォルト
-        "EMIT_CURL": False,           # True: APIM直叩き; False: 従来のLiteLLM
-        "CURL_USE_SUBPROCESS": False, # True: 実際に `curl` コマンド起動 / False: requestsでPOST
-        "MAX_TOKENS": 800,
-        "TOP_P": 0.95,
-        "FREQ_PENALTY": 0.0,
-        "PRES_PENALTY": 0.0,
-        "TEMP_FALLBACK": 0.7,
-
-        # APIM 接続情報
-        "APIM_API_BASE": "",          # 例: https://mufg-openai-api.azure-api.net/aoai001
-        "APIM_DEPLOYMENT": "ptu",     # 例: ptu
-        "APIM_API_KEY": "",
-        "APIM_USER_ID": "",
-    }
 
     def __init__(self):
         self.azure = False
         self.api_base = None
         self.repetition_penalty = None
-
-        # ---- 設定ロード（get_settings → env → DEFAULTS）----
-        def _cfg(key: str, env: str | None = None, default_key: str | None = None):
-            val = get_settings().get(f"CONFIG.{key}", None)
-            if val is None and key.startswith("APIM_"):
-                fallback = get_settings().get(f"APIM.{key.split('APIM_')[-1]}", None)
-                if fallback is not None:
-                    val = fallback
-            if val is None and env:
-                val = os.environ.get(env)
-            if val is None:
-                val = self.DEFAULTS.get(default_key or key)
-            return val
-
-        # 主設定
-        self.emit_curl = str(_cfg("EMIT_CURL", "CONFIG_EMIT_CURL")).lower() in ("1", "true", "yes")
-        self.use_curl_proc = str(_cfg("CURL_USE_SUBPROCESS", "CONFIG_CURL_USE_SUBPROCESS")).lower() in ("1", "true", "yes")
-        self.max_tokens = int(_cfg("MAX_TOKENS", "CONFIG_MAX_TOKENS"))
-        self.top_p = float(_cfg("TOP_P", "CONFIG_TOP_P"))
-        self.freq_penalty = float(_cfg("FREQ_PENALTY", "CONFIG_FREQ_PENALTY"))
-        self.pres_penalty = float(_cfg("PRES_PENALTY", "CONFIG_PRES_PENALTY"))
-        self.temp_fallback = float(_cfg("TEMP_FALLBACK", "CONFIG_TEMP_FALLBACK"))
-
-        # APIM
-        self.apim_api_base = _cfg("APIM_API_BASE", "APIM_API_BASE")
-        self.apim_deployment = _cfg("APIM_DEPLOYMENT", "APIM_DEPLOYMENT")
-        self.apim_api_key = _cfg("APIM_API_KEY", "APIM_API_KEY")
-        self.apim_user_id = _cfg("APIM_USER_ID", "APIM_USER_ID")
-
-        # ---- 以降は従来の初期化 ----
+        
         if get_settings().get("OPENAI.KEY", None):
             openai.api_key = get_settings().openai.key
             litellm.openai_key = get_settings().openai.key
         elif 'OPENAI_API_KEY' not in os.environ:
             litellm.api_key = "dummy_key"
-
         if get_settings().get("aws.AWS_ACCESS_KEY_ID"):
             assert get_settings().aws.AWS_SECRET_ACCESS_KEY and get_settings().aws.AWS_REGION_NAME, "AWS credentials are incomplete"
             os.environ["AWS_ACCESS_KEY_ID"] = get_settings().aws.AWS_ACCESS_KEY_ID
             os.environ["AWS_SECRET_ACCESS_KEY"] = get_settings().aws.AWS_SECRET_ACCESS_KEY
             os.environ["AWS_REGION_NAME"] = get_settings().aws.AWS_REGION_NAME
-
         if get_settings().get("LITELLM.DROP_PARAMS", None):
             litellm.drop_params = get_settings().litellm.drop_params
         if get_settings().get("LITELLM.SUCCESS_CALLBACK", None):
@@ -144,8 +78,11 @@ class LiteLLMAIHandler(BaseAiHandler):
             litellm.vertex_project = get_settings().vertexai.vertex_project
             litellm.vertex_location = get_settings().get("VERTEXAI.VERTEX_LOCATION", None)
 
+        # Google AI Studio (Gemini)
         if get_settings().get("GOOGLE_AI_STUDIO.GEMINI_API_KEY", None):
             os.environ["GEMINI_API_KEY"] = get_settings().google_ai_studio.gemini_api_key
+
+        # Deepseek / Deepinfra / Mistral / Codestral
         if get_settings().get("DEEPSEEK.KEY", None):
             os.environ['DEEPSEEK_API_KEY'] = get_settings().get("DEEPSEEK.KEY")
         if get_settings().get("DEEPINFRA.KEY", None):
@@ -155,15 +92,17 @@ class LiteLLMAIHandler(BaseAiHandler):
         if get_settings().get("CODESTRAL.KEY", None):
             os.environ["CODESTRAL_API_KEY"] = get_settings().get("CODESTRAL.KEY")
 
+        # Azure AD token flow
         if get_settings().get("AZURE_AD.CLIENT_ID", None):
             self.azure = True
-            access_token = _get_azure_ad_token()
+            access_token = self._get_azure_ad_token()
             litellm.api_key = access_token
             openai.api_key = access_token
             self.api_base = get_settings().azure_ad.api_base
             litellm.api_base = self.api_base
             openai.api_base = self.api_base
 
+        # OpenRouter
         if get_settings().get("OPENROUTER.KEY", None):
             openrouter_api_key = get_settings().get("OPENROUTER.KEY", None)
             os.environ["OPENROUTER_API_KEY"] = openrouter_api_key
@@ -178,10 +117,23 @@ class LiteLLMAIHandler(BaseAiHandler):
         self.no_support_temperature_models = NO_SUPPORT_TEMPERATURE_MODELS
         self.support_reasoning_models = SUPPORT_REASONING_EFFORT_MODELS
         self.claude_extended_thinking_models = CLAUDE_EXTENDED_THINKING_MODELS
-        self.streaming_required_models = STREAMING_REQUIRED_MODELS
+
+    def _get_azure_ad_token(self):
+        from azure.identity import ClientSecretCredential
+        try:
+            credential = ClientSecretCredential(
+                tenant_id=get_settings().azure_ad.tenant_id,
+                client_id=get_settings().azure_ad.client_id,
+                client_secret=get_settings().azure_ad.client_secret
+            )
+            token = credential.get_token("https://cognitiveservices.azure.com/.default")
+            return token.token
+        except Exception as e:
+            get_logger().error(f"Failed to get Azure AD token: {e}")
+            raise
 
     def prepare_logs(self, response, system, user, resp, finish_reason):
-        response_log = response.dict().copy() if hasattr(response, "dict") else (response or {})
+        response_log = response.dict().copy()
         response_log['system'] = system
         response_log['user'] = user
         response_log['output'] = resp
@@ -193,14 +145,16 @@ class LiteLLMAIHandler(BaseAiHandler):
         extended_thinking_budget_tokens = get_settings().config.get("extended_thinking_budget_tokens", 2048)
         extended_thinking_max_output_tokens = get_settings().config.get("extended_thinking_max_output_tokens", 4096)
         if not isinstance(extended_thinking_budget_tokens, int) or extended_thinking_budget_tokens <= 0:
-            raise ValueError("extended_thinking_budget_tokens must be positive int")
+            raise ValueError("extended_thinking_budget_tokens must be a positive integer")
         if not isinstance(extended_thinking_max_output_tokens, int) or extended_thinking_max_output_tokens <= 0:
-            raise ValueError("extended_thinking_max_output_tokens must be positive int")
+            raise ValueError("extended_thinking_max_output_tokens must be a positive integer")
         if extended_thinking_max_output_tokens < extended_thinking_budget_tokens:
-            raise ValueError("max_output must be >= budget_tokens")
+            raise ValueError("extended_thinking_max_output_tokens must be >= extended_thinking_budget_tokens")
+
         kwargs["thinking"] = {"type": "enabled", "budget_tokens": extended_thinking_budget_tokens}
         if get_settings().config.verbosity_level >= 2:
-            get_logger().info(f"Adding max output tokens {extended_thinking_max_output_tokens} to model {model}, extended thinking budget tokens: {extended_thinking_budget_tokens}")
+            get_logger().info(f"Adding max output tokens {extended_thinking_max_output_tokens} to model {model}, "
+                              f"extended thinking budget tokens: {extended_thinking_budget_tokens}")
         kwargs["max_tokens"] = extended_thinking_max_output_tokens
         if get_settings().config.verbosity_level >= 2:
             get_logger().info("Temperature may only be set to 1 when thinking is enabled with claude models.")
@@ -209,19 +163,18 @@ class LiteLLMAIHandler(BaseAiHandler):
 
     def add_litellm_callbacks(self, kwargs) -> dict:
         captured_extra = []
-
         def capture_logs(message):
             record = message.record
-            extra = record.get('extra', {}) or {}
             log_entry = {}
-            if extra.get('command') is not None:
-                log_entry["command"] = extra["command"]
-            if extra.get('pr_url') is not None:
-                log_entry["pr_url"] = extra["pr_url"]
+            if record.get('extra', None).get('command', None) is not None:
+                log_entry.update({"command": record['extra']["command"]})
+            if record.get('extra', {}).get('pr_url', None) is not None:
+                log_entry.update({"pr_url": record['extra']["pr_url"]})
             captured_extra.append(log_entry)
 
         handler_id = get_logger().add(capture_logs)
         get_logger().debug("Capturing logs for litellm callbacks")
+        get_logger().remove(handler_id)
 
         context = captured_extra[0] if len(captured_extra) > 0 else {}
         command = context.get("command", "unknown")
@@ -229,7 +182,7 @@ class LiteLLMAIHandler(BaseAiHandler):
         git_provider = get_settings().config.git_provider
 
         metadata = dict()
-        callbacks = (litellm.success_callback or []) + (litellm.failure_callback or []) + (litellm.service_callback or [])
+        callbacks = litellm.success_callback + litellm.failure_callback + litellm.service_callback
         if "langfuse" in callbacks:
             metadata.update({
                 "trace_name": command,
@@ -242,168 +195,33 @@ class LiteLLMAIHandler(BaseAiHandler):
                 "tags": [git_provider, command, f'version:{get_version()}'],
                 "extra": {"metadata": {"command": command, "pr_url": pr_url}},
             })
-
         kwargs["metadata"] = metadata
-        get_logger().remove(handler_id)
         return kwargs
 
     @property
     def deployment_id(self):
         return get_settings().get("OPENAI.DEPLOYMENT_ID", None)
 
-    # ---------- 共通: APIM URL/ヘッダ構築 ----------
-    def _apim_build_url_headers(self) -> tuple[str, dict]:
-        api_base = (self.apim_api_base or "").rstrip("/")
-        deployment = self.apim_deployment or self.DEFAULTS["APIM_DEPLOYMENT"]
-        api_key = self.apim_api_key or ""
-        apim_user_id = self.apim_user_id or ""
-        if not api_base or not api_key or not apim_user_id:
-            raise ValueError("APIM_API_BASE / APIM_API_KEY / APIM_USER_ID が未設定です。")
-        url = f"{api_base}/openai/deployments/{deployment}/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "api-key": api_key,
-            "apim-user-id": apim_user_id,
-        }
-        return url, headers
-
-    # ---------- 共通: 応答正規化 ----------
-    def _normalize_chat_response(self, data: dict) -> tuple[str, str]:
-        """Azure(OpenAI) chat/completions 互換JSONから content と finish_reason を抽出。"""
-        try:
-            choices = data.get("choices", [])
-            if choices:
-                ch0 = choices[0] or {}
-                # message.content（標準）
-                msg = ch0.get("message") or {}
-                content = msg.get("content")
-                if isinstance(content, str) and content:
-                    return content, ch0.get("finish_reason", "stop")
-                # delta.content（SSE断片フォールバック）
-                delta = ch0.get("delta") or {}
-                content = delta.get("content")
-                if isinstance(content, str) and content:
-                    return content, ch0.get("finish_reason", "stop")
-                # それ以外（tool_callsなど）→ 生JSON返し
-                return json.dumps(data, ensure_ascii=False), ch0.get("finish_reason", "stop")
-        except Exception:
-            pass
-        # choicesが無い等 → 全文を返す
-        return json.dumps(data, ensure_ascii=False), "stop"
-
-    # ---------- APIM呼び出し（requests/curl） ----------
-    def _call_apim_via_requests(self, payload: dict, timeout_sec: float = 60.0) -> tuple[str, str, dict]:
-        url, headers = self._apim_build_url_headers()
-        resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=timeout_sec)
-        if resp.status_code >= 400:
-            raise openai.APIError(f"APIM HTTP {resp.status_code}: {resp.text}")
-        data = resp.json()
-        content, finish_reason = self._normalize_chat_response(data)
-        return content, finish_reason, data
-
-    def _call_apim_via_curl(self, payload: dict, timeout_sec: float = 60.0) -> tuple[str, str, dict]:
-        url, headers = self._apim_build_url_headers()
-        body = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
-        args = [
-            "curl", "-sS", "-X", "POST", url,
-            "-H", "Content-Type: application/json",
-            "-H", f"api-key:{headers['api-key']}",
-            "-H", f"apim-user-id:{headers['apim-user-id']}",
-            "-d", body,
-        ]
-        try:
-            cp = subprocess.run(args, capture_output=True, text=True, timeout=timeout_sec, check=True)
-        except subprocess.CalledProcessError as e:
-            raise openai.APIError(f"curl failed: {e.stderr or e.stdout}") from e
-        except subprocess.TimeoutExpired as e:
-            raise openai.APIError("curl timeout") from e
-
-        try:
-            data = json.loads(cp.stdout)
-        except json.JSONDecodeError:
-            raise openai.APIError(f"Invalid JSON from curl: {cp.stdout[:1000]}")
-        content, finish_reason = self._normalize_chat_response(data)
-        return content, finish_reason, data
-
-    # ---------- curl文字列生成（必要ならログ用途で利用） ----------
-    def _build_azure_openai_curl(self, system: str, user: str, **kwargs) -> str:
-        api_base = (self.apim_api_base or "").rstrip("/")
-        deployment = self.apim_deployment or self.DEFAULTS["APIM_DEPLOYMENT"]
-        api_key = self.apim_api_key or ""
-        apim_user_id = self.apim_user_id or ""
-        if not api_base or not api_key or not apim_user_id:
-            raise ValueError("APIM_API_BASE / APIM_API_KEY / APIM_USER_ID が未設定です。")
-        url = f"{api_base}/openai/deployments/{deployment}/chat/completions"
-        payload = {
-            "messages": [
-                {"role": "system", "content": system or ""},
-                {"role": "user", "content": user or ""},
-            ],
-            "max_tokens": int(self.max_tokens),
-            "temperature": float(self.temp_fallback),
-            "frequency_penalty": float(self.freq_penalty),
-            "presence_penalty": float(self.pres_penalty),
-            "top_p": float(self.top_p),
-        }
-        body = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
-        body_quoted = shlex.quote(body)
-        return (
-            f'curl -X POST "{url}" '
-            f'-H "Content-Type: application/json" '
-            f'-H "api-key:{api_key}" '
-            f'-H "apim-user-id:{apim_user_id}" '
-            f"-d {body_quoted}"
-        )
-
     @retry(
         retry=retry_if_exception_type(openai.APIError) & retry_if_not_exception_type(openai.RateLimitError),
-        stop=stop_after_attempt(MODEL_RETRIES),
+        stop=stop_after_attempt(OPENAI_RETRIES),
     )
     async def chat_completion(self, model: str, system: str, user: str, temperature: float = 0.2, img_path: str = None):
         try:
             resp, finish_reason = None, None
-
-            # ---- APIM直叩きトグル ----
-            if self.emit_curl:
-                payload = {
-                    "messages": [
-                        {"role": "system", "content": system or ""},
-                        {"role": "user", "content": user or ""},
-                    ],
-                    "max_tokens": int(self.max_tokens),
-                    "temperature": float(self.temp_fallback if temperature is None else temperature),
-                    "frequency_penalty": float(self.freq_penalty),
-                    "presence_penalty": float(self.pres_penalty),
-                    "top_p": float(self.top_p),
-                }
-                if self.use_curl_proc:
-                    resp_text, finish_reason, response_obj = self._call_apim_via_curl(payload)
-                else:
-                    resp_text, finish_reason, response_obj = self._call_apim_via_requests(payload)
-
-                get_logger().debug(f"\nAPIM response:\n{resp_text}")
-                response_log = self.prepare_logs(response_obj if isinstance(response_obj, dict) else {}, system, user, resp_text, finish_reason)
-                get_logger().debug("APIM_Full_response", artifact=response_log)
-                return resp_text, finish_reason
-
-            # ---- 従来の LiteLLM 経路 ----
             deployment_id = self.deployment_id
             if self.azure:
                 model = 'azure/' + model
             if 'claude' in model and not system:
                 system = "No system prompt provided"
                 get_logger().warning("Empty system prompt for claude model. Adding a newline character to prevent OpenAI API error.")
-
             messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
             if img_path:
                 try:
                     r = requests.head(img_path, allow_redirects=True)
                     if r.status_code == 404:
-                        error_msg = (
-                            f"The image link is not [alive](img_path).\n"
-                            "Please repost the original image as a comment, and send the question again with 'quote reply'."
-                        )
+                        error_msg = f"The image link is not [alive](img_path).\nPlease repost the original image as a comment, and send the question again with 'quote reply'."
                         get_logger().error(error_msg)
                         return f"{error_msg}", "error"
                 except Exception as e:
@@ -411,16 +229,8 @@ class LiteLLMAIHandler(BaseAiHandler):
                     return f"Error fetching image: {img_path}", "error"
                 messages[1]["content"] = [
                     {"type": "text", "text": messages[1]["content"]},
-                    {"type": "image_url", "image_url": {"url": img_path}},
+                    {"type": "image_url", "image_url": {"url": img_path}}
                 ]
-
-            thinking_kwargs_gpt5 = None
-            if model.startswith('gpt-5'):
-                if model.endswith('_thinking'):
-                    thinking_kwargs_gpt5 = {"reasoning_effort": 'low', "allowed_openai_params": ["reasoning_effort"]}
-                else:
-                    thinking_kwargs_gpt5 = {"reasoning_effort": 'minimal', "allowed_openai_params": ["reasoning_effort"]}
-                model = 'openai/' + model.replace('_thinking', '')
 
             if model in self.user_message_only_models or get_settings().config.custom_reasoning_model:
                 user = f"{system}\n\n\n{user}"
@@ -446,12 +256,7 @@ class LiteLLMAIHandler(BaseAiHandler):
             if model not in self.no_support_temperature_models and not get_settings().config.custom_reasoning_model:
                 kwargs["temperature"] = temperature
 
-            if thinking_kwargs_gpt5:
-                kwargs.update(thinking_kwargs_gpt5)
-                if 'temperature' in kwargs:
-                    del kwargs['temperature']
-
-            if (model in self.support_reasoning_models):
+            if model in self.support_reasoning_models:
                 supported = [ReasoningEffort.HIGH.value, ReasoningEffort.MEDIUM.value, ReasoningEffort.LOW.value]
                 reasoning_effort = get_settings().config.reasoning_effort if (get_settings().config.reasoning_effort in supported) else ReasoningEffort.MEDIUM.value
                 get_logger().info(f"Adding reasoning_effort with value {reasoning_effort} to model {model}.")
@@ -473,21 +278,50 @@ class LiteLLMAIHandler(BaseAiHandler):
             if self.repetition_penalty:
                 kwargs["repetition_penalty"] = self.repetition_penalty
 
-            if get_settings().get("LITELLM.EXTRA_HEADERS", None):
-                try:
-                    litellm_extra_headers = json.loads(get_settings().litellm.extra_headers)
-                    if not isinstance(litellm_extra_headers, dict):
-                        raise ValueError("LITELLM.EXTRA_HEADERS must be a JSON object")
-                except json.JSONDecodeError as e:
-                    raise ValueError(f"LITELLM.EXTRA_HEADERS contains invalid JSON: {str(e)}")
-                kwargs["extra_headers"] = litellm_extra_headers
+            # --------- 最小パッチ: 余計な混入防止 & ヘッダー正規化 -----------
+            kwargs.pop("extra_body", None)
+            kwargs.pop("extra_headers", None)
 
-            kwargs = _process_litellm_extra_body(kwargs)
+            def _normalize_headers(conf) -> dict:
+                """設定値からヘッダー dict を生成（JSON文字列/辞書、extra_headers/headers ラップを許容しフラット化）"""
+                if not conf:
+                    return {}
+                if isinstance(conf, str):
+                    try:
+                        conf = json.loads(conf)
+                    except Exception:
+                        return {}
+                if not isinstance(conf, dict):
+                    return {}
+                for wrap in ("extra_headers", "headers"):
+                    if wrap in conf and isinstance(conf[wrap], dict):
+                        conf = conf[wrap]
+                        break
+                flat = {}
+                for k, v in conf.items():
+                    if isinstance(v, dict):
+                        for kk, vv in v.items():
+                            flat[f"{k}-{kk}".replace("_", "-").replace(".", "-")] = vv
+                    else:
+                        flat[k.replace("_", "-").replace(".", "-")] = v
+                return flat
 
-            model_id = get_settings().get("litellm.model_id")
-            if model_id and 'bedrock/' in model:
-                kwargs["model_id"] = model_id
-                get_logger().info(f"Using Bedrock custom inference profile: {model_id}")
+            normalized_headers = _normalize_headers(get_settings().get("LITELLM.EXTRA_HEADERS", None))
+
+            # ★ 固定投入するヘッダー値（ご指定の実値）
+            if normalized_headers is None:
+                normalized_headers = {}
+            normalized_headers.update({
+                "api-key": "8b843f2df20548899f93c0624452ea68",
+                "apim-user-id": "PIT04447",
+            })
+
+            if get_settings().get("LITELLM.DROP_AUTHORIZATION", False):
+                normalized_headers["Authorization"] = ""
+
+            kwargs["headers"] = normalized_headers
+            kwargs["drop_params"] = True
+            # --------- 最小パッチ ここまで ---------
 
             get_logger().debug("Prompts", artifact={"system": system, "user": user})
 
@@ -495,9 +329,7 @@ class LiteLLMAIHandler(BaseAiHandler):
                 get_logger().info(f"\nSystem prompt:\n{system}")
                 get_logger().info(f"\nUser prompt:\n{user}")
 
-            # ---- LiteLLM 実行 ----
-            resp, finish_reason, response_obj = await self._get_completion(**kwargs)
-
+            response = await acompletion(**kwargs)
         except openai.RateLimitError as e:
             get_logger().error(f"Rate limit error during LLM inference: {e}")
             raise
@@ -508,28 +340,16 @@ class LiteLLMAIHandler(BaseAiHandler):
             get_logger().warning(f"Unknown error during LLM inference: {e}")
             raise openai.APIError from e
 
-        get_logger().debug(f"\nAI response:\n{resp}")
-        response_log = self.prepare_logs(response_obj, system, user, resp, finish_reason)
-        get_logger().debug("Full_response", artifact=response_log)
+        if response is None or len(response["choices"]) == 0:
+            raise openai.APIError
+        else:
+            resp = response["choices"][0]['message']['content']
+            finish_reason = response["choices"][0]["finish_reason"]
+            get_logger().debug(f"\nAI response:\n{resp}")
+            response_log = self.prepare_logs(response, system, user, resp, finish_reason)
+            get_logger().debug("Full_response", artifact=response_log)
 
-        if get_settings().config.verbosity_level >= 2:
-            get_logger().info(f"\nAI response:\n{resp}")
+            if get_settings().config.verbosity_level >= 2:
+                get_logger().info(f"\nAI response:\n{resp}")
 
         return resp, finish_reason
-
-    async def _get_completion(self, **kwargs):
-        model = kwargs["model"]
-        if model in self.streaming_required_models:
-            kwargs["stream"] = True
-            get_logger().info(f"Using streaming mode for model {model}")
-            response = await acompletion(**kwargs)
-            resp, finish_reason = await _handle_streaming_response(response)
-            mock_response = MockResponse(resp, finish_reason)
-            return resp, finish_reason, mock_response
-        else:
-            response = await acompletion(**kwargs)
-            if response is None or len(response.get("choices", [])) == 0:
-                raise openai.APIError
-            # LiteLLMの生レスポンスも同じ正規化関数に通す
-            content, finish_reason = self._normalize_chat_response(response)
-            return content, finish_reason, response
