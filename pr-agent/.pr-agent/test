@@ -227,4 +227,45 @@ class LiteLLMAIHandler(BaseAiHandler):
                 if DISABLE_SSL_VERIFY:
                     get_logger().info("[LLM Request SSL] SSL verification is DISABLED (verify=False)")
                 if FORCE_HTTP_SCHEME:
-                    get_logger().info("[LLM Request SSL] HTTP scheme is FO_
+                    get_logger().info("[LLM Request SSL] HTTP scheme is FORCED (https->http)")
+            except Exception as _e:
+                get_logger().warning(f"Failed to log request preview: {_e}")
+
+            # 同期HTTPをスレッドで実行
+            loop = asyncio.get_running_loop()
+            response_json = await loop.run_in_executor(
+                None, self._post_chat_sync, url, headers, payload, timeout_s
+            )
+
+        except openai.RateLimitError as e:
+            get_logger().error(f"Rate limit error during LLM inference: {e}")
+            raise
+        except openai.APIError as e:
+            get_logger().warning(f"Error during LLM inference: {e}")
+            raise
+        except Exception as e:
+            get_logger().warning(f"Unknown error during LLM inference: {e}")
+            raise openai.APIError from e
+
+        # 返却フォーマット処理
+        if not response_json or "choices" not in response_json or not response_json["choices"]:
+            raise openai.APIError("Empty or invalid response from upstream")
+
+        choice0 = response_json["choices"][0]
+        if "message" in choice0 and "content" in choice0["message"]:
+            resp_text = choice0["message"]["content"]
+        elif "delta" in choice0 and "content" in choice0["delta"]:
+            resp_text = choice0["delta"]["content"]
+        else:
+            raise openai.APIError("Response missing content field")
+
+        finish_reason = choice0.get("finish_reason", "stop")
+        get_logger().debug(f"\nAI response:\n{resp_text}")
+
+        response_log = self.prepare_logs(response_json, system, user, resp_text, finish_reason)
+        get_logger().debug("Full_response", artifact=response_log)
+
+        if get_settings().config.verbosity_level >= 2:
+            get_logger().info(f"\nAI response:\n{resp_text}")
+
+        return resp_text, finish_reason
