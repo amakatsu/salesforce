@@ -48,6 +48,9 @@ import concurrent.futures as cf
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+import sys
+import tkinter as tk
+from tkinter import filedialog, messagebox
 
 # =============================================================
 # CONFIG（必要に応じて .env で上書き）
@@ -623,30 +626,82 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]):
     print(f"保存: {xlsx}")
 
 # =============================================================
-# CLI
+# CLI（対話入力対応：引数が無ければフォルダ選択ダイアログ）
 # =============================================================
+
+def app_root() -> Path:
+    if getattr(sys, "frozen", False):  # PyInstaller onefile
+        return Path(sys.executable).parent
+    return Path(__file__).parent
+
+
+def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        path = filedialog.askdirectory(title=title, initialdir=initial or str(app_root()))
+        root.destroy()
+        return path if path else None
+    except Exception:
+        return None
+
 
 def main():
     load_dotenv()  # .env の読み込み（あれば）
 
+    # EXE と同じ場所を作業ディレクトリに（ダブルクリック起動のズレ防止）
+    try:
+        os.chdir(app_root())
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(description="Excel 用語照合（LLM 補助）")
-    parser.add_argument("--dir", required=True, help="Excel を置いたディレクトリ")
+    parser.add_argument("--dir", help="入力ディレクトリ（画面項目定義・単語帳）")
+    parser.add_argument("--in-dir", help="上と同じ（--dir と同義。後方互換）")
+    parser.add_argument("--out-dir", help="出力ディレクトリ（既定: out）")
     parser.add_argument("--screen-col", help="画面項目定義の列名（デフォルト: 項目名）")
     parser.add_argument("--vocab-col", help="単語帳の列名（デフォルト: 用語）")
     args = parser.parse_args()
 
     cfg = DEFAULT_CONFIG.copy()
 
-    # バリデーション（最低限）
+    # 認証ヘッダにBearerを付ける設定だがキーがない場合の注意
     if cfg.get("OPENAI_SEND_AUTH") and not cfg.get("OPENAI_API_KEY"):
         print("[警告] OPENAI_SEND_AUTH=true ですが OPENAI_API_KEY が未設定です。Authorization は送信されません。")
 
-    dir_path = Path(args.dir)
+    # 入力ディレクトリの解決（引数→ダイアログ→コンソール）
+    in_dir = args.in_dir or args.dir
+    if not in_dir:
+        in_dir = ask_directory("入力ディレクトリ（画面項目定義・単語帳）を選択")
+        if not in_dir:
+            try:
+                in_dir = input("入力ディレクトリのパスを入力してください: ").strip()
+            except Exception:
+                in_dir = None
+
+    if not in_dir:
+        raise FileNotFoundError("入力ディレクトリが指定されていません。--dir かダイアログで指定してください。")
+
+    # 出力ディレクトリの解決（引数優先。無ければ既定 'out'。ユーザーが選ぶ場合はダイアログで上書き可）
+    if args.out_dir:
+        cfg["OUT_DIR"] = args.out_dir
+    else:
+        # 任意：ダイアログで明示選択したい場合のみ選ばせる（キャンセルなら既定 'out' 維持）
+        chosen = ask_directory("出力ディレクトリ（保存先）を選択（キャンセルで既定の out）")
+        if chosen:
+            cfg["OUT_DIR"] = chosen
+
+    dir_path = Path(in_dir)
     if not dir_path.exists():
         raise FileNotFoundError(f"ディレクトリが存在しません: {dir_path}")
 
     df = process(dir_path, args.screen_col, args.vocab_col, cfg)
     save_outputs(df, cfg)
+    try:
+        messagebox.showinfo("完了", f"出力が完了しました。
+保存先: {Path(cfg['OUT_DIR']).resolve()}\match_result.xlsx")
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
