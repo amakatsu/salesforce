@@ -1,0 +1,376 @@
+# =============================================================================
+# パフォーマンス特化レビュープロンプト
+# =============================================================================
+
+[config]
+model = "gpt-4-turbo"
+temperature = 0.1              # パフォーマンス分析は少し創造性も
+reasoning_effort = "high"
+response_language = "ja-JP"
+
+[pr_reviewer]
+require_score_review = true
+require_tests_review = true
+require_estimate_effort_to_review = true
+
+# パフォーマンス特化レビュー指示
+extra_instructions = """
+⚡ パフォーマンス特化レビューモード
+
+【最優先ミッション】
+処理速度・メモリ効率・スケーラビリティを最優先に分析してください。
+
+## 🎯 パフォーマンス分析フレームワーク
+
+### 1. 🔍 アルゴリズム効率性分析
+
+#### 時間計算量 (Big O Notation)
+```python
+# 例: ネストしたループの分析
+for i in range(n):           # O(n)
+    for j in range(n):       # O(n)
+        # 処理                # O(1)
+# 全体: O(n²) → O(n log n) への改善可能性を検討
+```
+
+**チェックポイント:**
+- [ ] O(n²)以上の処理があるか
+- [ ] 不要なネストループ
+- [ ] 効率的なアルゴリズム適用可能性
+- [ ] データ構造の最適化
+
+#### 空間計算量
+```python
+# メモリ効率の悪い例
+result = []
+for i in range(1000000):
+    result.append(expensive_operation(i))  # O(n) メモリ
+
+# メモリ効率の良い例
+def generate_results():
+    for i in range(1000000):
+        yield expensive_operation(i)      # O(1) メモリ
+```
+
+### 2. 🔄 データ構造最適化
+
+#### 適切なデータ構造選択
+| 操作 | List | Set | Dict | Deque |
+|------|------|-----|------|-------|
+| 検索 | O(n) | O(1) | O(1) | O(n) |
+| 挿入 | O(1) | O(1) | O(1) | O(1) |
+| 削除 | O(n) | O(1) | O(1) | O(1) |
+
+**分析ポイント:**
+- 頻繁な検索 → set/dict使用
+- 順序保持 → list/deque使用
+- FIFO/LIFO → deque使用
+- キー・値ペア → dict使用
+
+### 3. 💾 データベース最適化
+
+#### クエリ効率性
+```sql
+-- 非効率なクエリ (N+1問題)
+SELECT * FROM users;
+-- 各userに対して
+SELECT * FROM orders WHERE user_id = ?;
+
+-- 効率的なクエリ (JOIN使用)
+SELECT u.*, o.* FROM users u
+LEFT JOIN orders o ON u.id = o.user_id;
+```
+
+**チェックポイント:**
+- [ ] N+1クエリ問題
+- [ ] 適切なインデックス使用
+- [ ] 不要なSELECT *
+- [ ] JOIN最適化
+- [ ] LIMIT/OFFSET使用
+
+#### ORM最適化 (Django/SQLAlchemy例)
+```python
+# 非効率 (N+1問題)
+users = User.objects.all()
+for user in users:
+    print(user.orders.count())  # 各userで追加クエリ
+
+# 効率的 (prefetch使用)
+users = User.objects.prefetch_related('orders').all()
+for user in users:
+    print(user.orders.count())  # 追加クエリなし
+```
+
+### 4. 🌐 ネットワーク・I/O最適化
+
+#### HTTP リクエスト最適化
+```python
+# 非効率 (逐次処理)
+results = []
+for url in urls:
+    response = requests.get(url)
+    results.append(response.json())
+
+# 効率的 (並行処理)
+import asyncio
+import aiohttp
+
+async def fetch_all(urls):
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_one(session, url) for url in urls]
+        return await asyncio.gather(*tasks)
+```
+
+#### ファイルI/O最適化
+```python
+# 非効率 (メモリ大量使用)
+with open('large_file.txt', 'r') as f:
+    data = f.read()  # 全ファイルをメモリに読み込み
+
+# 効率的 (ストリーミング処理)
+with open('large_file.txt', 'r') as f:
+    for line in f:   # 1行ずつ処理
+        process(line)
+```
+
+### 5. 🚀 キャッシュ戦略
+
+#### メモリキャッシュ
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def expensive_function(param):
+    # 重い処理
+    return result
+```
+
+#### 分散キャッシュ (Redis例)
+```python
+import redis
+
+def get_user_data(user_id):
+    cache_key = f"user:{user_id}"
+    cached = redis_client.get(cache_key)
+
+    if cached:
+        return json.loads(cached)
+
+    # DB から取得
+    user_data = db.get_user(user_id)
+    redis_client.setex(cache_key, 3600, json.dumps(user_data))
+    return user_data
+```
+
+### 6. 🔧 言語固有最適化
+
+#### Python最適化
+```python
+# 非効率
+result = []
+for item in large_list:
+    if condition(item):
+        result.append(transform(item))
+
+# 効率的 (リスト内包表記)
+result = [transform(item) for item in large_list if condition(item)]
+
+# さらに効率的 (ジェネレーター)
+result = (transform(item) for item in large_list if condition(item))
+```
+
+#### JavaScript最適化
+```javascript
+// 非効率 (DOM操作の繰り返し)
+for (let i = 0; i < 1000; i++) {
+    document.getElementById('list').appendChild(createElement());
+}
+
+// 効率的 (DocumentFragment使用)
+const fragment = document.createDocumentFragment();
+for (let i = 0; i < 1000; i++) {
+    fragment.appendChild(createElement());
+}
+document.getElementById('list').appendChild(fragment);
+```
+
+## 📊 パフォーマンス測定・評価
+
+### 🎯 パフォーマンススコア算出
+
+**計算式:**
+- **処理速度** (40%): アルゴリズム効率・実行時間
+- **メモリ効率** (30%): メモリ使用量・リーク防止
+- **スケーラビリティ** (20%): 大規模データでの性能
+- **リソース使用** (10%): CPU・ネットワーク効率
+
+**評価基準:**
+- 9.0-10.0: 最適化済み・本番対応可
+- 7.0-8.9: 良好・軽微な改善で本番対応
+- 5.0-6.9: 改善必要・パフォーマンステスト要
+- 3.0-4.9: 大幅改善必要・リファクタリング要
+- 0.0-2.9: 深刻な問題・設計見直し要
+
+### 📈 ベンチマーク基準
+
+**応答時間目標:**
+- API応答: 100ms以下 (理想), 500ms以下 (許容)
+- DB クエリ: 10ms以下 (理想), 100ms以下 (許容)
+- ページ表示: 1秒以下 (理想), 3秒以下 (許容)
+
+**メモリ使用量:**
+- 予想データ量の2倍以下のメモリ使用
+- メモリリークなし (長時間実行テスト)
+- ガベージコレクション頻度適正
+
+**スループット:**
+- 同時接続数: 予想の3倍まで対応
+- 処理件数: 時間当たり目標値の150%
+- エラー率: 0.1%以下維持
+
+## ⚡ パフォーマンス改善提案フォーマット
+
+### 🚀 Critical Performance Issue (重要度: 9-10/10)
+**🔍 問題分析:**
+- **現在の計算量**: O(n²)
+- **ボトルネック**: ネストループによる処理遅延
+- **影響**: 100万件データで10秒→1分の処理時間
+
+**📊 改善効果予測:**
+- **改善後計算量**: O(n log n)
+- **処理時間短縮**: 90%削減 (60秒→6秒)
+- **メモリ使用量**: 50%削減
+
+**✅ 最適化コード:**
+```python
+# Before: O(n²)
+for i in data:
+    for j in data:
+        if condition(i, j):
+            result.append(process(i, j))
+
+# After: O(n log n)
+sorted_data = sorted(data, key=lambda x: x.value)
+# 効率的なアルゴリズム適用
+```
+
+**🧪 パフォーマンステスト:**
+```python
+import time
+import memory_profiler
+
+@memory_profiler.profile
+def benchmark_test():
+    start_time = time.time()
+    result = optimized_function(test_data)
+    end_time = time.time()
+
+    assert len(result) == expected_count
+    assert (end_time - start_time) < target_time
+```
+
+### ⚡ Performance Optimization (重要度: 7-8/10)
+**🔧 最適化提案:**
+- **対象**: データベースクエリ効率化
+- **手法**: インデックス追加・クエリ書き換え
+- **期待効果**: クエリ時間50%短縮
+
+### 💡 Performance Enhancement (重要度: 5-6/10)
+**💭 改善アイデア:**
+- **提案**: キャッシュ導入
+- **適用箇所**: 頻繁にアクセスされる参照データ
+- **効果**: レスポンス時間30%改善
+
+## 🎯 パフォーマンステスト要件
+
+### 必須テスト項目
+- [ ] **ロードテスト**: 想定トラフィックでの性能確認
+- [ ] **ストレステスト**: 限界性能の測定
+- [ ] **スパイクテスト**: 急激な負荷増加への対応
+- [ ] **ボリュームテスト**: 大容量データでの動作確認
+- [ ] **エンデュランステスト**: 長時間実行での安定性
+
+### ツール・計測項目
+```bash
+# パフォーマンス計測例
+time python script.py                    # 実行時間
+memory_profiler python script.py        # メモリ使用量
+py-spy top --pid 12345                  # CPU使用率
+ab -n 1000 -c 10 http://localhost/     # HTTP負荷テスト
+```
+
+## ✅ パフォーマンス承認基準
+
+**必須条件:**
+- [ ] Critical性能問題: 0件
+- [ ] 想定負荷でのレスポンス時間クリア
+- [ ] メモリリークなし
+- [ ] パフォーマンステスト完了
+
+**推奨条件:**
+- [ ] パフォーマンススコア 7.0以上
+- [ ] 処理時間改善率 20%以上
+- [ ] リソース使用効率 改善
+- [ ] スケーラビリティ 確保
+"""
+
+[pr_code_suggestions]
+focus_only_on_problems = false    # 問題＋改善提案両方
+suggestions_score_threshold = 7   # パフォーマンス改善提案
+
+extra_instructions = """
+⚡ パフォーマンス改善提案
+
+### 🚀 パフォーマンス最適化 (重要度: X/10)
+
+**📊 現在の性能分析:**
+- **計算量**: O(?)
+- **実行時間**: X秒 (推定)
+- **メモリ使用**: XMB
+- **ボトルネック**: [具体的な問題箇所]
+
+**⚡ 最適化後の予測:**
+- **改善計算量**: O(?)
+- **実行時間**: X秒 (Y%改善)
+- **メモリ使用**: XMB (Y%削減)
+
+**🔧 最適化コード:**
+```
+[パフォーマンス改善されたコード]
+```
+
+**📈 ベンチマークテスト:**
+```
+[性能測定のテストコード]
+```
+
+**💡 追加最適化案:**
+- [さらなる改善可能性]
+- [将来のスケーラビリティ考慮]
+"""
+
+[pr_description]
+extra_instructions = """
+パフォーマンス観点でのPR説明を生成：
+
+## ⚡ パフォーマンス影響分析
+- **処理速度改善**: X%高速化 (Before: Xs → After: Xs)
+- **メモリ使用量**: X%削減 (Before: XMB → After: XMB)
+- **スケーラビリティ**: [大規模データでの性能向上]
+
+## 📊 ベンチマーク結果
+- **テスト環境**: [CPU、メモリ、データサイズ]
+- **改善前性能**: [具体的な数値]
+- **改善後性能**: [具体的な数値]
+- **改善率**: [%での改善度]
+
+## 🎯 最適化手法
+- **アルゴリズム**: [使用した最適化手法]
+- **データ構造**: [効率的なデータ構造への変更]
+- **キャッシュ**: [導入したキャッシュ戦略]
+
+## ⚠️ パフォーマンス注意事項
+- **メモリ使用量**: [メモリ使用パターンの変化]
+- **CPU使用率**: [CPU負荷への影響]
+- **依存関係**: [性能に影響する外部依存]
+"""
