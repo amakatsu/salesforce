@@ -687,108 +687,65 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
  
     items = df_screen[["_screen", "_src_file", "_src_sheet"]].astype(str).values.tolist()
 
-    # 1件ずつ個別処理
-    failed_items = []
-    print(f"処理開始: 全{len(items)}件を個別処理します")
-
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
+        cands_broad = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
+        cands_direct = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
+        merged_map: Dict[str, float] = {}
+        for c in cands_broad + cands_direct:
+            merged_map[c.term] = max(merged_map.get(c.term, 0.0), c.score)
+        merged = [Candidate(t, s) for t, s in merged_map.items()]
+        merged.sort(key=lambda c: c.score, reverse=True)
+        merged = merged[: max(cfg["TOP_K"], 10)]
+
+        llm = call_llm(screen_name, merged, cfg, api_client, term_meta)
+
+        cov = llm.get("coverage_ratio")
         try:
-            cands_broad = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
-            cands_direct = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-            merged_map: Dict[str, float] = {}
-            for c in cands_broad + cands_direct:
-                merged_map[c.term] = max(merged_map.get(c.term, 0.0), c.score)
-            merged = [Candidate(t, s) for t, s in merged_map.items()]
-            merged.sort(key=lambda c: c.score, reverse=True)
-            merged = merged[: max(cfg["TOP_K"], 10)]
+            cov = float(cov) if cov is not None else None
+        except Exception:
+            cov = None
 
-            try:
-                llm = call_llm(screen_name, merged, cfg, api_client, term_meta)
-            except Exception as api_e:
-                print(f"API失敗 '{screen_name}': {str(api_e)[:50]}... → フォールバック使用")
-                llm = fallback_reason(screen_name, merged)
-                failed_items.append({
-                    "screen_item": screen_name,
-                    "error": str(api_e),
-                    "fallback_used": True
-                })
+        top = merged[0].term if merged else None
+        top_score = merged[0].score if merged else None
 
-            cov = llm.get("coverage_ratio")
-            try:
-                cov = float(cov) if cov is not None else None
-            except Exception:
-                cov = None
+        def meta_of(term: Optional[str]):
+            if not term:
+                return {"no": None, "phys": None, "phys_abbr": None}
+            m = term_meta.get(str(term)) or {}
+            return {"no": m.get("_no"), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
 
-            top = merged[0].term if merged else None
-            top_score = merged[0].score if merged else None
+        mt = llm.get("matched_term")
+        mts = llm.get("matched_terms") or []
+        mt_meta = meta_of(mt)
+        mts_meta = [meta_of(t) for t in mts]
 
-            def meta_of(term: Optional[str]):
-                if not term:
-                    return {"no": None, "phys": None, "phys_abbr": None}
-                m = term_meta.get(str(term)) or {}
-                return {"no": m.get("_no"), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
+        # すべての場合でLLMの提案を使用
+        proposed_name = llm.get("proposed_name")
 
-            mt = llm.get("matched_term")
-            mts = llm.get("matched_terms") or []
-            mt_meta = meta_of(mt)
-            mts_meta = [meta_of(t) for t in mts]
+        return {
+            "source_file": src_file,
+            "source_sheet": src_sheet,
+            "screen_item": screen_name,
+            "match_type": llm.get("match_type"),
+            "matched_term": mt or None,
+            "matched_term_no": mt_meta["no"],
+            "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
+            "matched_terms": ", ".join(mts) or None,
+            "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_meta if m.get("no")]) or None,
+            "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_meta if (m.get("phys_abbr") or m.get("phys"))]) or None,
+            "local_top_term": top,
+            "local_top_term_no": (term_meta.get(top) or {}).get("_no") if top else None,
+            "local_top_term_phys": ((term_meta.get(top) or {}).get("_phys_abbr") or (term_meta.get(top) or {}).get("_phys")) if top else None,
+            "local_top_score": top_score,
+            "coverage_ratio": cov,
+            "reason": llm.get("reason"),
+            "proposed_name": proposed_name,
+        }
 
-            proposed_name = llm.get("proposed_name")
-
-            return {
-                "source_file": src_file,
-                "source_sheet": src_sheet,
-                "screen_item": screen_name,
-                "match_type": llm.get("match_type"),
-                "matched_term": mt or None,
-                "matched_term_no": mt_meta["no"],
-                "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
-                "matched_terms": ", ".join(mts) or None,
-                "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_meta if m.get("no")]) or None,
-                "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_meta if (m.get("phys_abbr") or m.get("phys"))]) or None,
-                "local_top_term": top,
-                "local_top_term_no": (term_meta.get(top) or {}).get("_no") if top else None,
-                "local_top_term_phys": ((term_meta.get(top) or {}).get("_phys_abbr") or (term_meta.get(top) or {}).get("_phys")) if top else None,
-                "local_top_score": top_score,
-                "coverage_ratio": cov,
-                "reason": llm.get("reason"),
-                "proposed_name": proposed_name,
-            }
-        except Exception as e:
-            print(f"処理完全失敗 '{screen_name}': {e}")
-            fallback_result = fallback_reason(screen_name, [])
-            failed_items.append({
-                "screen_item": screen_name,
-                "error": str(e),
-                "fallback_used": True
-            })
-            return {
-                "source_file": src_file,
-                "source_sheet": src_sheet,
-                "screen_item": screen_name,
-                "match_type": fallback_result.get("match_type"),
-                "matched_term": fallback_result.get("matched_term"),
-                "matched_term_no": None,
-                "matched_term_phys": None,
-                "matched_terms": None,
-                "matched_terms_nos": None,
-                "matched_terms_phys": None,
-                "local_top_term": None,
-                "local_top_term_no": None,
-                "local_top_term_phys": None,
-                "local_top_score": None,
-                "coverage_ratio": None,
-                "reason": fallback_result.get("reason"),
-                "proposed_name": fallback_result.get("proposed_name"),
-            }
-
-    # 順次処理（進捗表示付き）
-    for i, (screen_name, src_file, src_sheet) in enumerate(items):
-        if i % 50 == 0 or i == len(items) - 1:
-            print(f"進捗: {i + 1}/{len(items)} 件処理済み")
-
-        result = worker(screen_name, src_file, src_sheet)
-        rows.append(result)
+    with cf.ThreadPoolExecutor(max_workers=cfg["MAX_WORKERS"]) as ex:
+        futures = [ex.submit(worker, it[0], it[1], it[2]) for it in items]
+        for fut in cf.as_completed(futures):
+            rows.append(fut.result())
  
     df = pd.DataFrame(rows).reset_index(drop=True)
 
