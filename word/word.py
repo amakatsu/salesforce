@@ -687,91 +687,40 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
  
     items = df_screen[["_screen", "_src_file", "_src_sheet"]].astype(str).values.tolist()
 
-    # バッチ処理でAPI呼び出しを効率化
-    batch_size = cfg["BATCH_SIZE"]
-    total_batches = (len(items) - 1) // batch_size + 1
+    # 1件ずつ個別処理
     failed_items = []
+    print(f"処理開始: 全{len(items)}件を個別処理します")
 
-    print(f"処理開始: 全{len(items)}件を{total_batches}バッチで処理します")
-
-    for batch_idx, i in enumerate(range(0, len(items), batch_size)):
-        batch = items[i:i+batch_size]
-        screen_names = [item[0] for item in batch]
-
-        print(f"バッチ {batch_idx + 1}/{total_batches} 処理中... ({len(batch)}件)")
-
-        # バッチ全体の候補を集約
-        all_candidates_map: Dict[str, float] = {}
-        for screen_name in screen_names:
-            cands = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-            for c in cands:
-                all_candidates_map[c.term] = max(all_candidates_map.get(c.term, 0.0), c.score)
-
-        all_candidates = [Candidate(t, s) for t, s in all_candidates_map.items()]
-        all_candidates.sort(key=lambda c: c.score, reverse=True)
-        all_candidates = all_candidates[:100]  # バッチ用候補数制限
-
-        # バッチでLLM呼び出し
-        batch_success = False
+    def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         try:
-            batch_results = call_llm_batch(screen_names, all_candidates, cfg, api_client, term_meta)
-            batch_success = True
-            print(f"  → API呼び出し成功 ({len(batch_results)}件の結果取得)")
+            cands_broad = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
+            cands_direct = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
+            merged_map: Dict[str, float] = {}
+            for c in cands_broad + cands_direct:
+                merged_map[c.term] = max(merged_map.get(c.term, 0.0), c.score)
+            merged = [Candidate(t, s) for t, s in merged_map.items()]
+            merged.sort(key=lambda c: c.score, reverse=True)
+            merged = merged[: max(cfg["TOP_K"], 10)]
 
-            # デバッグ: 結果の最初の3件を表示
-            if len(batch_results) > 0:
-                for i, result in enumerate(batch_results[:3]):
-                    item_name = result.get("screen_item", "不明")[:20]
-                    match_type = result.get("match_type", "不明")
-                    print(f"    結果{i+1}: {item_name} → {match_type}")
-        except Exception as e:
-            print(f"  → バッチAPI失敗: {str(e)[:100]}...")
-            print(f"  → 個別処理にフォールバック中...")
-            batch_results = []
-            individual_failures = 0
-            for j, screen_name in enumerate(screen_names):
-                try:
-                    cands = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-                    result = call_llm(screen_name, cands, cfg, api_client, term_meta)
-                    # screen_itemフィールドを追加（個別処理の場合）
-                    result["screen_item"] = screen_name
-                    batch_results.append(result)
-                except Exception as individual_e:
-                    print(f"    項目'{screen_name}'も個別処理失敗: {individual_e}")
-                    fallback_result = fallback_reason(screen_name, [])
-                    fallback_result["screen_item"] = screen_name
-                    batch_results.append(fallback_result)
-                    individual_failures += 1
-                    failed_items.append({
-                        "screen_item": screen_name,
-                        "error": str(individual_e),
-                        "batch": batch_idx + 1
-                    })
+            try:
+                llm = call_llm(screen_name, merged, cfg, api_client, term_meta)
+            except Exception as api_e:
+                print(f"API失敗 '{screen_name}': {str(api_e)[:50]}... → フォールバック使用")
+                llm = fallback_reason(screen_name, merged)
+                failed_items.append({
+                    "screen_item": screen_name,
+                    "error": str(api_e),
+                    "fallback_used": True
+                })
 
-            if individual_failures > 0:
-                print(f"  → 個別処理でも{individual_failures}件失敗（フォールバック適用）")
+            cov = llm.get("coverage_ratio")
+            try:
+                cov = float(cov) if cov is not None else None
+            except Exception:
+                cov = None
 
-        # 結果をrows配列に追加（screen_itemでマッチング）
-        for j, (screen_name, src_file, src_sheet) in enumerate(batch):
-            # LLM結果から該当項目を検索
-            llm = None
-            if j < len(batch_results):
-                # まずインデックスで試す
-                result = batch_results[j]
-                if result.get("screen_item") == screen_name:
-                    llm = result
-                else:
-                    # インデックスが合わない場合は名前で検索
-                    for result in batch_results:
-                        if result.get("screen_item") == screen_name:
-                            llm = result
-                            break
-
-            # 見つからない場合はフォールバック
-            if llm is None:
-                print(f"  警告: '{screen_name}' の結果が見つかりません。フォールバック使用。")
-                llm = fallback_reason(screen_name, [])
-                llm["screen_item"] = screen_name
+            top = merged[0].term if merged else None
+            top_score = merged[0].score if merged else None
 
             def meta_of(term: Optional[str]):
                 if not term:
@@ -784,17 +733,9 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             mt_meta = meta_of(mt)
             mts_meta = [meta_of(t) for t in mts]
 
-            local_cands = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-            top = local_cands[0].term if local_cands else None
-            top_score = local_cands[0].score if local_cands else None
+            proposed_name = llm.get("proposed_name")
 
-            cov = llm.get("coverage_ratio")
-            try:
-                cov = float(cov) if cov is not None else None
-            except Exception:
-                cov = None
-
-            rows.append({
+            return {
                 "source_file": src_file,
                 "source_sheet": src_sheet,
                 "screen_item": screen_name,
@@ -811,8 +752,43 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "local_top_score": top_score,
                 "coverage_ratio": cov,
                 "reason": llm.get("reason"),
-                "proposed_name": llm.get("proposed_name"),
+                "proposed_name": proposed_name,
+            }
+        except Exception as e:
+            print(f"処理完全失敗 '{screen_name}': {e}")
+            fallback_result = fallback_reason(screen_name, [])
+            failed_items.append({
+                "screen_item": screen_name,
+                "error": str(e),
+                "fallback_used": True
             })
+            return {
+                "source_file": src_file,
+                "source_sheet": src_sheet,
+                "screen_item": screen_name,
+                "match_type": fallback_result.get("match_type"),
+                "matched_term": fallback_result.get("matched_term"),
+                "matched_term_no": None,
+                "matched_term_phys": None,
+                "matched_terms": None,
+                "matched_terms_nos": None,
+                "matched_terms_phys": None,
+                "local_top_term": None,
+                "local_top_term_no": None,
+                "local_top_term_phys": None,
+                "local_top_score": None,
+                "coverage_ratio": None,
+                "reason": fallback_result.get("reason"),
+                "proposed_name": fallback_result.get("proposed_name"),
+            }
+
+    # 順次処理（進捗表示付き）
+    for i, (screen_name, src_file, src_sheet) in enumerate(items):
+        if i % 50 == 0 or i == len(items) - 1:
+            print(f"進捗: {i + 1}/{len(items)} 件処理済み")
+
+        result = worker(screen_name, src_file, src_sheet)
+        rows.append(result)
  
     df = pd.DataFrame(rows).reset_index(drop=True)
 
