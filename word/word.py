@@ -378,33 +378,99 @@ class ApiClient:
 # =============================================================
 # LLM 呼び出し
 # =============================================================
-# 統合されたシャープなプロンプトに移行済み
+LLM_SYSTEM = (
+    "あなたは業務システムの画面設計と用語統一の専門家です。"
+    "与えられた『画面項目名』と『単語帳候補（上位スコア順）』を比較して、"
+    "「完全一致 / 部分一致 / 一致なし」を厳密に判定し、理由を日本語で簡潔に述べてください。"
+    "複合語（複数の用語を組み合わせた項目名）の可能性も必ず検討し、"
+    "複数用語の組み合わせで項目名を構成できる場合は、対応する用語リストを返してください。"
+    "全ての一致タイプに対して、以下のネーミングルールに従った物理名（8文字程度のローワーキャメルケース）を1つ提案してください。"
+    ""
+    "【ネーミングルール】"
+    "・原則英単語を使用、日本人に馴染みの薄い場合のみ日本語ローマ字（ヘボン式）"
+    "・ローワーキャメルケース（例：shinseiDate）"
+    "・略語は9文字以上の場合のみ使用"
+    "・複合語は単語を組み合わせて命名"
+    "・誰が見ても意味が容易にわかる名称"
+    ""
+    "JSON だけを返し、余計な文章は付けないでください。"
+)
  
  
-# =============================================================
-# 段階的一致判定システム - 定数
-# =============================================================
-
-# 一致判定の閾値
-PERFECT_MATCH_THRESHOLD = 0.95
-HIGH_CONFIDENCE_THRESHOLD = 0.9
-COMPOUND_MATCH_THRESHOLD = 0.8
-MIN_COMPOUND_COVERAGE = 0.7
-MIN_TOKEN_LENGTH = 2
-
-# LLM設定
-MAX_CANDIDATES_FOR_LLM = 5
-LLM_MAX_TOKENS = 400
-LLM_TEMPERATURE = 0.3
-
-# 一致タイプ
-MATCH_TYPE_PERFECT = "完全一致"
-MATCH_TYPE_PARTIAL = "一部一致"
-MATCH_TYPE_NONE = "一致なし"
-
-# =============================================================
-# 段階的一致判定システム - 処理関数
-# =============================================================
+LLM_USER_TEMPLATE = (
+    """
+    # 画面項目名
+    {screen_name}
+ 
+    # 単語帳候補（上位スコア順）
+    {candidates_json}
+ 
+    # 厳密 JSON 仕様（複合語対応）
+    {{
+      "match_type": "完全一致" | "一部一致" | "一致なし",
+      "matched_term": string | null,            // 単一語で最も適合する場合のみ
+      "matched_terms": string[] | null,         // 複数語の組み合わせで構成できる場合
+      "reason": string,
+      "proposed_name": string,                      // 必須: 推奨物理名（ローワーキャメルケース、8文字程度）
+      "coverage_ratio": number | null           // 0.0~1.0: 原文の語がどれだけ用語でカバーされたか
+    }}
+ 
+    制約:
+    - 完全一致 は意味も表記も等しい場合のみ。
+    - 一部一致 は略語違い、語順違い、同義近似などで採用余地がある場合。
+    - 複合語が適切な場合は matched_terms を優先し、matched_term は null。
+    - 一致なし は候補が不適切な場合。簡潔で具体的な理由を出すこと。
+    - proposed_name は全ての一致タイプで必須。ネーミングルールに従った物理名（8文字程度のローワーキャメルケース）。
+    - 完全一致: 一致用語に基づく物理名、部分一致: 組み合わせ最適化物理名、一致なし: 新規物理名
+    - coverage_ratio は推定でよいが 0.0~1.0 の数値で返すこと。
+    - 返答は JSON のみ。説明文やマークダウンは出力しない。
+    """
+)
+ 
+ 
+def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    cand_payload = [
+        {"term": c.term, "local_score": round(c.score, 4)} for c in candidates
+    ]
+    return {
+        "model": cfg["OPENAI_MODEL"],
+        "max_tokens": cfg.get("MAX_TOKENS"),
+        "temperature": cfg.get("TEMPERATURE", 0.7),
+        "top_p": cfg.get("TOP_P", 0.95),
+        "presence_penalty": cfg.get("PRESENCE_PENALTY", 0.0),
+        "frequency_penalty": cfg.get("FREQUENCY_PENALTY", 0.0),
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": LLM_SYSTEM},
+            {
+                "role": "user",
+                "content": LLM_USER_TEMPLATE.format(
+                    screen_name=screen_name,
+                    candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
+                ),
+            },
+        ],
+    }
+ 
+ 
+def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client: Optional[ApiClient] = None) -> Dict[str, Any]:
+    client = client or ApiClient(cfg)
+    payload = build_llm_payload(screen_name, candidates, cfg)
+    for attempt in range(cfg["RETRY"] + 1):
+        try:
+            data = client.post_json(payload)
+            content = data["choices"][0]["message"]["content"]
+            result = json.loads(content)
+            if not set(["match_type", "matched_term", "reason", "proposed_name"]).issubset(result):
+                raise ValueError("LLM JSON schema mismatch")
+            return result
+        except Exception:
+            if attempt < cfg["RETRY"]:
+                time.sleep(1.2 * (attempt + 1))
+                continue
+            return fallback_reason(screen_name, candidates)
+ 
+ 
  
 def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, Any]:
     if not candidates:
@@ -415,235 +481,21 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
             "proposed_name": simple_proposal(screen_name),
         }
     top = candidates[0]
-    if top.score >= PERFECT_MATCH_THRESHOLD:
-        return create_match_result(
-            match_type=MATCH_TYPE_PERFECT,
-            matched_term=top.term,
-            reason=f"ローカル完全一致（score={top.score:.2f}）",
-            physical_name=simple_proposal(top.term),
-            coverage_ratio=1.0
-        )
-    return create_match_result(
-        match_type=MATCH_TYPE_PARTIAL,
-        matched_term=top.term,
-        reason=f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
-        physical_name=simple_proposal(top.term),
-        coverage_ratio=top.score
-    )
- 
- 
-def detect_perfect_match(screen_name: str, candidates: List[Candidate], term_meta: Dict) -> Optional[Dict[str, Any]]:
-    """完全一致を検出"""
-    screen_norm = zenkaku_hankaku_norm(screen_name)
-
-    for c in candidates:
-        term_norm = zenkaku_hankaku_norm(c.term)
-        if screen_norm == term_norm and c.score >= PERFECT_MATCH_THRESHOLD:
-            return create_match_result(
-                match_type=MATCH_TYPE_PERFECT,
-                matched_term=c.term,
-                reason=f"正規化後文字列完全一致（score={c.score:.2f}）",
-                physical_name=get_physical_name(c.term, term_meta),
-                coverage_ratio=1.0
-            )
-    return None
-
-
-def create_match_result(match_type: str, matched_term: str = None, matched_terms: List[str] = None,
-                       reason: str = "", physical_name: str = "", coverage_ratio: float = 0.0) -> Dict[str, Any]:
-    """一致結果を作成"""
-    return {
-        "match_type": match_type,
-        "matched_term": matched_term,
-        "matched_terms": matched_terms,
-        "reason": reason,
-        "proposed_name": physical_name,
-        "coverage_ratio": coverage_ratio
-    }
-
-
-def get_physical_name(term: str, term_meta: Dict) -> str:
-    """用語の物理名を取得（略称優先）"""
-    if not term or not term_meta:
-        return term or ""
-
-    meta = term_meta.get(term) or {}
-    return meta.get("_phys_abbr") or meta.get("_phys") or term
-
-
-def create_compound_physical_name(matched_terms: List[str], term_meta: Dict, fallback_name: str) -> str:
-    """複合語の物理名を作成"""
-    phys_parts = []
-    for term in matched_terms:
-        phys = get_physical_name(term, term_meta)
-        if phys:
-            phys_parts.append(phys)
-
-    return simple_proposal(" ".join(phys_parts)) if phys_parts else simple_proposal(fallback_name)
-
-
-def enhanced_match_detection(screen_name: str, candidates: List[Candidate], term_meta: Dict, cfg: Dict[str, Any], api_client: ApiClient) -> Dict[str, Any]:
-    """段階的な一致判定：Python事前処理 + LLM最終判定"""
-    if not candidates:
+    if top.score >= 0.95:
         return {
-            "match_type": "一致なし",
-            "matched_term": None,
-            "matched_terms": None,
-            "reason": "候補なし",
-            "proposed_name": simple_proposal(screen_name),
-            "coverage_ratio": 0.0
+            "match_type": "完全一致",
+            "matched_term": top.term,
+            "reason": f"ローカル完全一致（score={top.score:.2f}）",
+            "proposed_name": simple_proposal(top.term),
         }
-
-    screen_norm = zenkaku_hankaku_norm(screen_name)
-    screen_tokens = set(screen_norm.split())
-
-    # 段階1: 完全一致の検出
-    perfect_match = detect_perfect_match(screen_name, candidates, term_meta)
-    if perfect_match:
-        return perfect_match
-
-    # 段階2: 高精度部分一致の検出
-    high_confidence_match = detect_high_confidence_partial_match(screen_name, candidates, term_meta)
-    if high_confidence_match:
-        return high_confidence_match
-
-    # 段階3: LLMによる複雑な判定（トークン最適化済み）
-    return optimized_llm_call(screen_name, candidates, term_meta, cfg, api_client)
-
-
-def detect_high_confidence_partial_match(screen_name: str, candidates: List[Candidate], term_meta: Dict) -> Optional[Dict[str, Any]]:
-    """高精度な部分一致をPythonで検出"""
-    screen_norm = zenkaku_hankaku_norm(screen_name)
-    screen_tokens = set(screen_norm.split())
-
-    # 包含関係による部分一致（高スコア）
-    for c in candidates:
-        if c.score >= HIGH_CONFIDENCE_THRESHOLD:
-            term_norm = zenkaku_hankaku_norm(c.term)
-            # 完全包含パターン
-            if (screen_norm in term_norm or term_norm in screen_norm) and len(screen_norm) >= MIN_TOKEN_LENGTH + 1:
-                coverage = min(len(term_norm), len(screen_norm)) / max(len(term_norm), len(screen_norm))
-                return create_match_result(
-                    match_type=MATCH_TYPE_PARTIAL,
-                    matched_term=c.term,
-                    reason=f"文字列包含による部分一致（score={c.score:.2f}）",
-                    physical_name=get_physical_name(c.term, term_meta),
-                    coverage_ratio=coverage
-                )
-
-    # 複合語の単純パターン検出
-    compound_match = detect_simple_compound_match(screen_name, candidates, term_meta)
-    if compound_match:
-        return compound_match
-
-    return None
-
-
-def detect_simple_compound_match(screen_name: str, candidates: List[Candidate], term_meta: Dict) -> Optional[Dict[str, Any]]:
-    """単純な複合語パターンをPythonで検出"""
-    screen_norm = zenkaku_hankaku_norm(screen_name)
-    screen_tokens = [t for t in screen_norm.split() if len(t) >= MIN_TOKEN_LENGTH]
-
-    if len(screen_tokens) < 2:
-        return None
-
-    # 各トークンに対応する候補を探す
-    matched_terms = []
-    total_coverage = 0
-
-    for token in screen_tokens:
-        best_match = None
-        best_score = 0
-        for c in candidates:
-            term_norm = zenkaku_hankaku_norm(c.term)
-            if token in term_norm or term_norm in token:
-                score = local_similarity(token, term_norm)
-                if score > best_score and score >= COMPOUND_MATCH_THRESHOLD:
-                    best_match = c.term
-                    best_score = score
-        if best_match:
-            matched_terms.append(best_match)
-            total_coverage += best_score
-
-    # 複数用語の組み合わせで高カバレッジの場合
-    if len(matched_terms) >= 2 and total_coverage / len(screen_tokens) >= MIN_COMPOUND_COVERAGE:
-        # 複合語の物理名提案を作成
-        compound_physical_name = create_compound_physical_name(matched_terms, term_meta, screen_name)
-        coverage_ratio = total_coverage / len(screen_tokens)
-
-        return create_match_result(
-            match_type=MATCH_TYPE_PARTIAL,
-            matched_terms=matched_terms,
-            reason=f"複数用語の組み合わせ（{len(matched_terms)}語、カバレッジ={coverage_ratio:.2f}）",
-            physical_name=compound_physical_name,
-            coverage_ratio=coverage_ratio
-        )
-
-    return None
-
-
-def optimized_llm_call(screen_name: str, candidates: List[Candidate], term_meta: Dict, cfg: Dict[str, Any], api_client: ApiClient) -> Dict[str, Any]:
-    """トークン最適化されたLLM呼び出し"""
-    # 候補を絞り込み
-    top_candidates = candidates[:MAX_CANDIDATES_FOR_LLM]
-
-    # シャープで集中的なプロンプト
-    sharp_system = (
-        "用語統一の専門家として判定してください。\n\n"
-        "判定:\n"
-        "完全一致→意味・表記が等しい\n"
-        "部分一致→略語・語順・同義語・複合語の一部\n"
-        "一致なし→適切な候補なし\n\n"
-        "物理名:\n"
-        "完全一致→候補physをそのまま使用\n"
-        "その他→ローワーキャメル8文字程度で新規作成（英語優先、わかりやすく）\n\n"
-        "JSONのみ。"
-    )
-
-    # 最小限の候補情報
-    cand_payload = []
-    for c in top_candidates:
-        meta = term_meta.get(c.term) or {}
-        phys = meta.get("_phys_abbr") or meta.get("_phys")
-        cand_payload.append({
-            "term": c.term,
-            "phys": phys,
-            "score": round(c.score, 2)
-        })
-
-    payload = {
-        "model": cfg["OPENAI_MODEL"],
-        "max_tokens": min(cfg.get("MAX_TOKENS", LLM_MAX_TOKENS), LLM_MAX_TOKENS),
-        "temperature": LLM_TEMPERATURE,
-        "messages": [
-            {"role": "system", "content": sharp_system},
-            {
-                "role": "user",
-                "content": f"""項目名: {screen_name}
-候補: {json.dumps(cand_payload, ensure_ascii=False)}
-
-複合語→matched_terms、単一語→matched_term
-
-{{"match_type": "", "matched_term": null, "matched_terms": [], "reason": "", "proposed_name": "", "coverage_ratio": 0.0}}"""
-            }
-        ]
+    return {
+        "match_type": "一部一致",
+        "matched_term": top.term,
+        "reason": f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
+        "proposed_name": simple_proposal(top.term),
     }
-
-    # LLM呼び出し（失敗時はフォールバック）
-    try:
-        data = api_client.post_json(payload)
-        content = data["choices"][0]["message"]["content"]
-        result = json.loads(content)
-
-        # 物理名の最終調整
-        if result.get("match_type") == MATCH_TYPE_PERFECT and result.get("matched_term"):
-            result["proposed_name"] = get_physical_name(result["matched_term"], term_meta)
-
-        return result
-    except Exception:
-        return fallback_reason(screen_name, candidates)
-
-
+ 
+ 
 def simple_proposal(screen_name: str) -> str:
     """ローワーキャメルケースの物理名を簡易生成"""
     s = zenkaku_hankaku_norm(screen_name)
@@ -651,27 +503,27 @@ def simple_proposal(screen_name: str) -> str:
     tokens = [t for t in s.split(" ") if t]
     if not tokens:
         return "newItem"
-
+ 
     # 代表 2–3 語まで
     core = tokens[:3]
     # よくある冗長語の削り（例）
     stop = {"コード", "番号", "名称名", "名称名称"}
     core = [w for w in core if w not in stop]
-
+ 
     if not core:
         return "newItem"
-
+ 
     # ローワーキャメルケースに変換（簡易版）
     # 最初の語は小文字、以降は最初の文字を大文字に
     result = core[0].lower()
     for word in core[1:]:
         if word:
             result += word.capitalize()
-
+ 
     # 8文字程度に制限
     if len(result) > 10:
         result = result[:8]
-
+ 
     return result or "newItem"
  
  
@@ -703,8 +555,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         merged.sort(key=lambda c: c.score, reverse=True)
         merged = merged[: max(cfg["TOP_K"], 10)]
  
-        # より精密な事前処理と段階的判定
-        llm = enhanced_match_detection(screen_name, merged, term_meta, cfg, api_client)
+        llm = call_llm(screen_name, merged, cfg, api_client)
  
         cov = llm.get("coverage_ratio")
         try:
