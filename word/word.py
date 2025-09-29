@@ -381,10 +381,18 @@ class ApiClient:
 LLM_SYSTEM = (
     "あなたは業務システムの画面設計と用語統一の専門家です。"
     "与えられた『画面項目名』と『単語帳候補（上位スコア順）』を比較して、"
-    "“完全一致 / 部分一致 / 一致なし” を厳密に判定し、理由を日本語で簡潔に述べてください。"
+    "「完全一致 / 部分一致 / 一致なし」を厳密に判定し、理由を日本語で簡潔に述べてください。"
     "複合語（複数の用語を組み合わせた項目名）の可能性も必ず検討し、"
     "複数用語の組み合わせで項目名を構成できる場合は、対応する用語リストを返してください。"
-    "一致なしの場合は、ドメインの命名規約に沿って *新しい推奨項目名* を1つ提案してください。"
+    "全ての一致タイプに対して、以下のネーミングルールに従った物理名（8文字程度のローワーキャメルケース）を1つ提案してください。"
+    ""
+    "【ネーミングルール】"
+    "・原則英単語を使用、日本人に馴染みの薄い場合のみ日本語ローマ字（ヘボン式）"
+    "・ローワーキャメルケース（例：shinseiDate）"
+    "・略語は9文字以上の場合のみ使用"
+    "・複合語は単語を組み合わせて命名"
+    "・誰が見ても意味が容易にわかる名称"
+    ""
     "JSON だけを返し、余計な文章は付けないでください。"
 )
  
@@ -403,7 +411,7 @@ LLM_USER_TEMPLATE = (
       "matched_term": string | null,            // 単一語で最も適合する場合のみ
       "matched_terms": string[] | null,         // 複数語の組み合わせで構成できる場合
       "reason": string,
-      "proposed_name": string | null,
+      "proposed_name": string,                      // 必須: 推奨物理名（ローワーキャメルケース、8文字程度）
       "coverage_ratio": number | null           // 0.0~1.0: 原文の語がどれだけ用語でカバーされたか
     }}
  
@@ -411,8 +419,9 @@ LLM_USER_TEMPLATE = (
     - 完全一致 は意味も表記も等しい場合のみ。
     - 一部一致 は略語違い、語順違い、同義近似などで採用余地がある場合。
     - 複合語が適切な場合は matched_terms を優先し、matched_term は null。
-    - none は候補が不適切な場合。簡潔で具体的な理由を出すこと。
-    - proposed_name は none のときのみ非 null。命名規則: 日本語で簡潔、重複語を避け、一般的・説明的。
+    - 一致なし は候補が不適切な場合。簡潔で具体的な理由を出すこと。
+    - proposed_name は全ての一致タイプで必須。ネーミングルールに従った物理名（8文字程度のローワーキャメルケース）。
+    - 完全一致: 一致用語に基づく物理名、部分一致: 組み合わせ最適化物理名、一致なし: 新規物理名
     - coverage_ratio は推定でよいが 0.0~1.0 の数値で返すこと。
     - 返答は JSON のみ。説明文やマークダウンは出力しない。
     """
@@ -477,29 +486,45 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
             "match_type": "完全一致",
             "matched_term": top.term,
             "reason": f"ローカル完全一致（score={top.score:.2f}）",
-            "proposed_name": None,
+            "proposed_name": simple_proposal(top.term),
         }
     return {
         "match_type": "一部一致",
         "matched_term": top.term,
         "reason": f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
-        "proposed_name": None,
+        "proposed_name": simple_proposal(top.term),
     }
  
  
 def simple_proposal(screen_name: str) -> str:
-    # 乱暴だが、記号を落として語を連結し、末尾の『名』や『フラグ』などを過度に重複させない
+    """ローワーキャメルケースの物理名を簡易生成"""
     s = zenkaku_hankaku_norm(screen_name)
     s = re.sub(r"\s+", " ", s)
     tokens = [t for t in s.split(" ") if t]
     if not tokens:
-        return "新規項目"
+        return "newItem"
+
     # 代表 2–3 語まで
     core = tokens[:3]
     # よくある冗長語の削り（例）
     stop = {"コード", "番号", "名称名", "名称名称"}
     core = [w for w in core if w not in stop]
-    return "".join(core) or "新規項目"
+
+    if not core:
+        return "newItem"
+
+    # ローワーキャメルケースに変換（簡易版）
+    # 最初の語は小文字、以降は最初の文字を大文字に
+    result = core[0].lower()
+    for word in core[1:]:
+        if word:
+            result += word.capitalize()
+
+    # 8文字程度に制限
+    if len(result) > 10:
+        result = result[:8]
+
+    return result or "newItem"
  
  
 # =============================================================
@@ -600,18 +625,18 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]):
             df[c] = None
     df = df[cols]
  
-    # 列名を日本語に変更
+    # 列名を業務ユーザーにとって分かりやすく変更
     df.columns = [
-        "元ファイル", "元シート",
-        "画面項目名", "単語帳との一致タイプ",
-        "一致した単語", "一致した単語No", "一致した単語物理名",
-        "一致した単語（単語分割ごとに）", "一致した単語群No（単語分割ごとに）", "一致した単語群物理名（単語分割ごとに）",
-        "ローカルトップ用語", "ローカルトップ用語No", "ローカルトップ用語物理名", "ローカルトップスコア",
-        "カバレッジ率", "提案名", "理由",
+        "読み込み元ファイル", "読み込み元シート",
+        "画面項目名", "単語帳との一致状況",
+        "単語帳で一致した用語", "一致用語の番号", "一致用語のシステム名",
+        "複数用語での一致", "複数用語の番号", "複数用語のシステム名",
+        "最も近い用語", "最も近い用語の番号", "最も近い用語のシステム名", "類似度スコア",
+        "単語帳カバー率", "推奨物理名", "判定理由",
     ]
  
     # 件数サマリ
-    cnt = df["単語帳との一致タイプ"].value_counts(dropna=False).to_dict()
+    cnt = df["単語帳との一致状況"].value_counts(dropna=False).to_dict()
     summary_df = pd.DataFrame([
         {"メトリクス": "完全一致", "件数": cnt.get("完全一致", 0)},
         {"メトリクス": "部分一致", "件数": cnt.get("一部一致", 0)},
@@ -621,7 +646,7 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]):
  
     # ファイル別サマリ
     by_file_df = (
-        df.groupby(["元ファイル", "元シート"])['画面項目名']
+        df.groupby(["読み込み元ファイル", "読み込み元シート"])['画面項目名']
           .agg(項目数='count', 項目名サンプル=lambda s: ", ".join(map(str, s.head(50))))
           .reset_index()
     )
