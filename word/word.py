@@ -382,7 +382,7 @@ class ApiClient:
 LLM_SYSTEM = (
     "あなたは業務システムの画面設計と用語統一の専門家です。"
     "与えられた『画面項目名』と『単語帳候補（上位スコア順）』を比較して、"
-    ""完全一致 / 部分一致 / 一致なし" を厳密に判定し、理由を日本語で簡潔に述べてください。"
+    "「完全一致 / 部分一致 / 一致なし」を厳密に判定し、理由を日本語で簡潔に述べてください。"
     "複合語（複数の用語を組み合わせた項目名）の可能性も必ず検討し、"
     "複数用語の組み合わせで項目名を構成できる場合は、対応する用語リストを返してください。"
     "すべての場合で推奨項目名を提案してください：完全一致なら一致用語名、一部一致なら組み合わせ用語名、一致なしなら新規提案名。"
@@ -716,7 +716,14 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         try:
             batch_results = call_llm_batch(screen_names, all_candidates, cfg, api_client, term_meta)
             batch_success = True
-            print(f"  → API呼び出し成功")
+            print(f"  → API呼び出し成功 ({len(batch_results)}件の結果取得)")
+
+            # デバッグ: 結果の最初の3件を表示
+            if len(batch_results) > 0:
+                for i, result in enumerate(batch_results[:3]):
+                    item_name = result.get("screen_item", "不明")[:20]
+                    match_type = result.get("match_type", "不明")
+                    print(f"    結果{i+1}: {item_name} → {match_type}")
         except Exception as e:
             print(f"  → バッチAPI失敗: {str(e)[:100]}...")
             print(f"  → 個別処理にフォールバック中...")
@@ -726,10 +733,14 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 try:
                     cands = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
                     result = call_llm(screen_name, cands, cfg, api_client, term_meta)
+                    # screen_itemフィールドを追加（個別処理の場合）
+                    result["screen_item"] = screen_name
                     batch_results.append(result)
                 except Exception as individual_e:
                     print(f"    項目'{screen_name}'も個別処理失敗: {individual_e}")
-                    batch_results.append(fallback_reason(screen_name, []))
+                    fallback_result = fallback_reason(screen_name, [])
+                    fallback_result["screen_item"] = screen_name
+                    batch_results.append(fallback_result)
                     individual_failures += 1
                     failed_items.append({
                         "screen_item": screen_name,
@@ -740,9 +751,27 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             if individual_failures > 0:
                 print(f"  → 個別処理でも{individual_failures}件失敗（フォールバック適用）")
 
-        # 結果をrows配列に追加
+        # 結果をrows配列に追加（screen_itemでマッチング）
         for j, (screen_name, src_file, src_sheet) in enumerate(batch):
-            llm = batch_results[j] if j < len(batch_results) else fallback_reason(screen_name, [])
+            # LLM結果から該当項目を検索
+            llm = None
+            if j < len(batch_results):
+                # まずインデックスで試す
+                result = batch_results[j]
+                if result.get("screen_item") == screen_name:
+                    llm = result
+                else:
+                    # インデックスが合わない場合は名前で検索
+                    for result in batch_results:
+                        if result.get("screen_item") == screen_name:
+                            llm = result
+                            break
+
+            # 見つからない場合はフォールバック
+            if llm is None:
+                print(f"  警告: '{screen_name}' の結果が見つかりません。フォールバック使用。")
+                llm = fallback_reason(screen_name, [])
+                llm["screen_item"] = screen_name
 
             def meta_of(term: Optional[str]):
                 if not term:
