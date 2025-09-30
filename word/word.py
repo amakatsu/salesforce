@@ -644,93 +644,67 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
 # ====== 出力 ================================================================
  
 def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
-    """結果をExcel/CSV/JSONLで保存。"""
+    from pathlib import Path
+    import pandas as pd
+
     out_dir = Path(cfg["OUT_DIR"]).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     xlsx_path = out_dir / "match_result.xlsx"
- 
-    # 列の並び（ロジカルな順序：元情報→照合対象→結果→マッチ詳細→提案→補足→参考）
+
+    # 1) まず一次元カラムで整える（まだ MultiIndex にしない）
     ordered_cols = [
-        # 1. データの出所
-        "source_file",           # 元ファイル
-        "source_sheet",          # 元シート
-
-        # 2. 照合対象
-        "screen_item",           # 画面項目名
-
-        # 3. 照合結果
-        "match_type",            # 一致タイプ（完全/一部/なし）
-
-        # 4. マッチした単語の詳細（主要な結果）
-        "matched_term",          # 一致した論理名
-        "matched_term_no",       # 一致した単語No
-        "matched_term_phys",     # 一致した物理名
-
-        # 5. システムからの提案
-        "proposed_name",         # 提案名称
-
-        # 6. 補足情報（複数一致の場合）
-        "matched_terms",         # 複数一致（論理名）
-        "matched_terms_nos",     # 複数一致（No）
-        "matched_terms_phys",    # 複数一致（物理名）
-
-        # 7. 判定の詳細
-        "coverage_ratio",        # カバー率
-        "reason",                # 判定理由
-
-        # 8. 参考情報（ローカル候補）
-        "local_top_term",        # ローカル最高候補
-        "local_top_term_no",     # ローカル最高候補（No）
-        "local_top_term_phys",   # ローカル最高候補（物理名）
-        "local_top_score",       # ローカル最高スコア
+        "source_file","source_sheet","screen_item","match_type",
+        "matched_term","matched_term_no","matched_term_phys",
+        "proposed_name",
+        "matched_terms","matched_terms_nos","matched_terms_phys",
+        "coverage_ratio","reason",
+        "local_top_term","local_top_term_no","local_top_term_phys","local_top_score",
     ]
     for c in ordered_cols:
         if c not in df.columns:
             df[c] = None
-    df = df[ordered_cols]
- 
-    # 注意書き列を追加
-    def add_warning_note(row):
-        match_type = row.get("match_type", "")
-        if match_type == "一部一致":
+
+    # 注意事項列（一次元のまま作る）
+    def _warn(row):
+        mt = (row.get("match_type") or "")
+        if mt == "一部一致":
             return "⚠️ 部分一致：内容を確認の上、必要に応じて単語帳を追加・修正してください"
-        elif match_type == "一致なし":
+        if mt == "一致なし":
             return "⚠️ 一致なし：単語帳への追加を検討してください"
-        else:
-            return ""
+        return ""
+    df["注意事項"] = df.apply(_warn, axis=1)
 
-    df["注意事項"] = df.apply(add_warning_note, axis=1)
+    # 一次元名で並び替え（ここまでは MultiIndex にしない）
+    keep = ordered_cols + ["注意事項"]
+    df = df[keep]
 
-    # 列の並び替え（注意事項を追加）
-    ordered_cols_with_warning = ordered_cols + ["注意事項"]
-    df = df[ordered_cols_with_warning]
+    # 2) 一括で MultiIndex 化（長さを必ず一致させる）
+    header_map = {
+        "source_file": ("【元情報】", "読み込み元ファイル"),
+        "source_sheet": ("【元情報】", "読み込み元シート"),
+        "screen_item": ("【照合対象】", "画面項目名"),
+        "match_type": ("【結果】", "一致状況"),
+        "matched_term": ("【一致した単語】", "論理名"),
+        "matched_term_no": ("【一致した単語】", "列番号"),
+        "matched_term_phys": ("【一致した単語】", "物理名"),
+        "proposed_name": ("【提案】", "推奨物理名"),
+        "matched_terms": ("【複数一致】", "論理名"),
+        "matched_terms_nos": ("【複数一致】", "列番号"),
+        "matched_terms_phys": ("【複数一致】", "物理名"),
+        "coverage_ratio": ("【判定詳細】", "カバー率"),
+        "reason": ("【判定詳細】", "理由"),
+        "local_top_term": ("【参考:ローカル候補】", "論理名"),
+        "local_top_term_no": ("【参考:ローカル候補】", "列番号"),
+        "local_top_term_phys": ("【参考:ローカル候補】", "物理名"),
+        "local_top_score": ("【参考:ローカル候補】", "スコア"),
+        "注意事項": ("【注意】", "注意事項"),
+    }
 
-    # 列名マッピング（グループヘッダー付き）
-    column_mapping = [
-        ("【元情報】", "読み込み元ファイル"),
-        ("【元情報】", "読み込み元シート"),
-        ("【照合対象】", "画面項目名"),
-        ("【結果】", "一致状況"),
-        ("【一致した単語】", "論理名"),
-        ("【一致した単語】", "列番号"),
-        ("【一致した単語】", "物理名"),
-        ("【提案】", "推奨物理名"),
-        ("【複数一致】", "論理名"),
-        ("【複数一致】", "列番号"),
-        ("【複数一致】", "物理名"),
-        ("【判定詳細】", "カバー率"),
-        ("【判定詳細】", "理由"),
-        ("【参考:ローカル候補】", "論理名"),
-        ("【参考:ローカル候補】", "列番号"),
-        ("【参考:ローカル候補】", "物理名"),
-        ("【参考:ローカル候補】", "スコア"),
-        ("【注意】", "注意事項"),
-    ]
+    tuples = [header_map[c] for c in df.columns]  # 必ず列数と同じ長さ
+    df.columns = pd.MultiIndex.from_tuples(tuples)
+    df.columns.names = [None, None]  # ← これで "names の長さ不一致" を回避
 
-    # 2段階の列名を設定
-    df.columns = pd.MultiIndex.from_tuples(column_mapping)
- 
-    # サマリ・ファイル別統計（MultiIndexに対応）
+    # 3) 以降はタプルでアクセス
     status_counts = df[("【結果】", "一致状況")].value_counts(dropna=False).to_dict()
     summary_df = pd.DataFrame([
         {"メトリクス": "完全一致", "件数": status_counts.get("完全一致", 0)},
@@ -738,22 +712,21 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         {"メトリクス": "一致なし", "件数": status_counts.get("一致なし", 0)},
         {"メトリクス": "合計", "件数": len(df)},
     ])
+
+    group_cols = [("【元情報】","読み込み元ファイル"), ("【元情報】","読み込み元シート")]
     by_file_df = (
-        df.groupby([("【元情報】", "読み込み元ファイル"), ("【元情報】", "読み込み元シート")])[("【照合対象】", "画面項目名")]
-          .agg(項目数='count', 項目名サンプル=lambda s: ", ".join(map(str, s.head(50))))
+        df.groupby(group_cols)[("【照合対象】","画面項目名")]
+          .agg(項目数="count", 項目名サンプル=lambda s: ", ".join(map(str, s.head(50))))
           .reset_index()
     )
- 
-    # Excel保存
-    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
-        df.to_excel(writer, sheet_name="結果", index=False)
-        summary_df.to_excel(writer, sheet_name="サマリ", index=False)
-        by_file_df.to_excel(writer, sheet_name="ファイル別サマリ", index=False)
- 
-    # 連携用（色は付かない）
- 
+
+    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as w:
+        df.to_excel(w, sheet_name="結果", index=False)
+        summary_df.to_excel(w, sheet_name="サマリ", index=False)
+        by_file_df.to_excel(w, sheet_name="ファイル別サマリ", index=False)
+
     print(f"保存: {xlsx_path}")
- 
+
 # ====== CLI ================================================================
  
 def app_root() -> Path:
@@ -833,4 +806,5 @@ def main() -> None:
  
  
 if __name__ == "__main__":
+
     main()
