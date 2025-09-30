@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 追加改修すること
+# ①列名を修正
+# ②分割の方針を・とか_とか()でも区切れるようにする
+# ③100明細以上あったら、リクエストのタイミングを集中しないようにしたい
 """
-Excel→用語照合→レポート生成（LLM補助）
-
+Excel→単語照合→レポート生成（LLM補助）
+ 
 読みやすさ改善版：
 - 変数名の明確化、関数の目的を短いdocstringで明示
 - インラインコメントを要所（複雑ロジック／境界値）だけ厚めに
@@ -11,7 +15,7 @@ Excel→用語照合→レポート生成（LLM補助）
 - 既存仕様は維持（**単一 --dir に画面項目定義と単語帳の両方**を置く構成）
 """
 from __future__ import annotations
-
+ 
 import argparse
 import concurrent.futures as cf
 import difflib
@@ -24,11 +28,11 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
+ 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-
+ 
 # ====== GUI（任意） ===========================================================
 try:
     import tkinter as tk
@@ -36,13 +40,13 @@ try:
     TK_AVAILABLE = True
 except Exception:
     TK_AVAILABLE = False
-
+ 
 # ====== 定数（読みやすさのため一箇所に集約） ===============================
 # 「事実上の完全一致」と見なすスコア（difflibは1.0に非常に近づく）
 HARD_EXACT_SCORE = 0.999
 # LLMフォールバック時に"完全一致"扱いにする安全側の下限
 FALLBACK_EXACT_FLOOR = 0.95
-
+ 
 # ====== 設定（.envで上書き可） =============================================
 DEFAULT_CONFIG: Dict[str, Any] = {
     # --- API（OpenAI互換）
@@ -56,18 +60,18 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
     "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
     "VERIFY_SSL": os.getenv("VERIFY_SSL", "false").lower() != "false",
-
+ 
     # --- 生成パラメタ
     "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
     "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.7")),
     "TOP_P": float(os.getenv("TOP_P", "0.95")),
     "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
     "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
-
+ 
     # --- 入力検出
     "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
     "VOCAB_GLOB": os.getenv("VOCAB_GLOB", "*単語帳*.xlsx"),
-
+ 
     # --- シート/列（必要に応じて引数で上書き）
     "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "画面項目定義"),
     "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "単語"),
@@ -76,22 +80,22 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）"),
     "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
     "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No"),
-
+ 
     # --- 類似度設定
     "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
     "TOP_K": int(os.getenv("TOP_K", "3")),  # 直接候補の上位件数
-
+ 
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
-
+ 
     # --- 実行制御
     "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
     "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
     "RETRY": int(os.getenv("RETRY", "2")),
 }
-
+ 
 # ====== 文字列正規化／類似度 =================================================
-
+ 
 def zenkaku_hankaku_norm(text: str) -> str:
     """NFKC正規化 + 小文字化 + 記号/空白の正規化で**照合の土台**を整える。"""
     if text is None:
@@ -100,8 +104,8 @@ def zenkaku_hankaku_norm(text: str) -> str:
     s = re.sub(r"[\u3000\s]+", " ", s)          # 全角/半角スペースを単一化
     s = re.sub(r"[\-/・,()\[\]_]+", " ", s)    # 区切り記号はスペースへ
     return re.sub(r"\s+", " ", s)
-
-
+ 
+ 
 def local_similarity(a: str, b: str) -> float:
     """簡易類似度：完全一致=1.0 / 片包含=0.9 / それ以外はdifflibのratio。"""
     a_n, b_n = zenkaku_hankaku_norm(a), zenkaku_hankaku_norm(b)
@@ -112,27 +116,27 @@ def local_similarity(a: str, b: str) -> float:
     if a_n in b_n or b_n in a_n:
         return 0.9
     return difflib.SequenceMatcher(None, a_n, b_n).ratio()
-
+ 
 @dataclass
 class Candidate:
     term: str
     score: float
-
+ 
 # ====== Excel I/O =============================================================
-
+ 
 def _int_env(name: str) -> Optional[int]:
     v = os.getenv(name, "")
     try:
         return int(v) if v else None
     except Exception:
         return None
-
+ 
 HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
 HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
 SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
 VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW")
-
-
+ 
+ 
 def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
     """優先シートが無ければ先頭。NFKCで厳密同名も考慮。"""
     if preferred and preferred in xls.sheet_names:
@@ -144,8 +148,8 @@ def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
             if norm(name) == want:
                 return name
     return xls.sheet_names[0]
-
-
+ 
+ 
 def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
     """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。"""
     head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
@@ -155,8 +159,8 @@ def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], sc
         if req.issubset(row_vals):
             return i
     raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
-
-
+ 
+ 
 def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
                                      explicit_header_row_1based: Optional[int] = None,
                                      scan_rows: int = 10) -> Tuple[pd.DataFrame, int]:
@@ -169,8 +173,8 @@ def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], requ
     # ヘッダ行の自動検出
     header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
-
-
+ 
+ 
 def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
                           screen_col_override: Optional[str] = None,
                           vocab_col_override: Optional[str] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -181,13 +185,13 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
         raise FileNotFoundError(f"画面項目定義ファイルが見つかりません: {dir_path}/{cfg['SCREEN_GLOB']}")
     if not vocab_files:
         raise FileNotFoundError(f"単語帳ファイルが見つかりません: {dir_path}/{cfg['VOCAB_GLOB']}")
-
+ 
     screen_col = screen_col_override or cfg["SCREEN_COL"]
     term_col = vocab_col_override or cfg["VOCAB_TERM_COL"]
     phys_col = cfg["VOCAB_PHYS_COL"]
     phys_abbr_col = cfg["VOCAB_PHYS_ABBR_COL"]
     no_col = cfg["VOCAB_NO_COL"]
-
+ 
     # --- 画面項目定義を縦結合
     screen_frames: List[pd.DataFrame] = []
     for path in screen_files:
@@ -198,7 +202,7 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
             raise KeyError(f"{path.name}（{sheet_used}）: 必須列 '{screen_col}' が存在しません")
         df_s["__source_file"], df_s["__source_sheet"] = path.name, sheet_used
         screen_frames.append(df_s)
-
+ 
     # --- 単語帳を縦結合
     vocab_frames: List[pd.DataFrame] = []
     for path in vocab_files:
@@ -211,33 +215,33 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
         if phys_abbr_col not in df_v.columns:
             df_v[phys_abbr_col] = ""  # 任意列は空で補完
         vocab_frames.append(df_v)
-
+ 
     df_screen = pd.concat(screen_frames, ignore_index=True)
     df_vocab = pd.concat(vocab_frames, ignore_index=True)
-
+ 
     # --- 欠損・空行の整理
     df_screen[screen_col] = df_screen[screen_col].fillna("")
     for c in [term_col, phys_col, no_col, phys_abbr_col]:
         df_vocab[c] = df_vocab[c].fillna("")
     df_screen = df_screen[df_screen[screen_col].astype(str).str.strip() != ""].copy()
     df_vocab = df_vocab[df_vocab[term_col].astype(str).str.strip() != ""].copy()
-
+ 
     # --- 照合キー追加・列名整理
     df_vocab["__term_norm"] = df_vocab[term_col].astype(str).map(zenkaku_hankaku_norm)
     df_vocab = df_vocab.rename(columns={term_col: "_term", phys_col: "_phys", phys_abbr_col: "_phys_abbr", no_col: "_no"})
     df_screen = df_screen.rename(columns={screen_col: "_screen", "__source_file": "_src_file", "__source_sheet": "_src_sheet"})
-
+ 
     return df_screen, df_vocab
-
+ 
 # ====== 候補生成（ローカル） ==================================================
-
+ 
 def top_k_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
-    """画面項目 vs 用語帳の**直接照合**で上位k件を返却。"""
+    """画面項目 vs 単語帳の**直接照合**で上位k件を返却。"""
     scored = [Candidate(term, local_similarity(screen_name, term)) for term in vocab_terms]
     scored.sort(key=lambda c: c.score, reverse=True)
     return [c for c in scored[:k] if c.score >= threshold]
-
-
+ 
+ 
 def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
     """複合語対策：unigram/bigram に分解してパーツ単位で候補を拾う。"""
     tokens = [t for t in zenkaku_hankaku_norm(screen_name).split(" ") if t]
@@ -250,14 +254,14 @@ def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshol
             s = local_similarity(g, vt)
             if s >= threshold:
                 pool.append(Candidate(vt, s))
-    # 同一用語は最大スコアを採用
+    # 同一単語は最大スコアを採用
     best_by_term: Dict[str, float] = {}
     for cand in pool:
         best_by_term[cand.term] = max(best_by_term.get(cand.term, 0.0), cand.score)
     merged = [Candidate(t, sc) for t, sc in best_by_term.items()]
     merged.sort(key=lambda c: c.score, reverse=True)
     return merged[: max(k, 10)]
-
+ 
 # ====== APIクライアント =======================================================
 class ApiClient:
     """OpenAI互換APIへの最小ラッパ（ヘッダ/プロキシ/SSL検証対応）。"""
@@ -288,31 +292,32 @@ class ApiClient:
             except Exception:
                 pass
         self.headers = headers
-
+ 
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
         resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
         resp.raise_for_status()
         return resp.json()
-
+ 
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = (
-    "あなたは業務システムの画面設計と用語統一の専門家です。"
+    "あなたは業務システムの画面設計と単語統一の専門家です。"
     "与えられた『画面項目名』と『単語帳候補（上位スコア順）』を比較して、"
-    "「完全一致 / 部分一致 / 一致なし」を厳密に判定し、理由を日本語で簡潔に述べてください。"
-    "複合語の可能性を検討し、必要なら組み合わせ用語を返す。"
+    "「完全一致 / 一部一致 / 一致なし」を厳密に判定し、理由を日本語で簡潔に述べてください。"
+    "複合語の可能性を検討し、必要なら組み合わせ単語を返す。"
     "全一致タイプでローワーキャメルの物理名を1つ提案。"
     "JSONのみを返すこと。"
+    "禀はrinと読むこと"
 )
-
+ 
 LLM_USER_TEMPLATE = (
     """
     # 画面項目名
     {screen_name}
-
+ 
     # 単語帳候補（上位スコア順）
     {candidates_json}
-
+ 
     # 厳密 JSON 仕様（複合語対応）
     {{
       "match_type": "完全一致" | "一部一致" | "一致なし",
@@ -322,7 +327,7 @@ LLM_USER_TEMPLATE = (
       "proposed_name": string,
       "coverage_ratio": number | null
     }}
-
+ 
     制約:
     - 完全一致 は意味も表記も等しい場合のみ。
     - 一部一致 は略語/語順違い/同義近似など採用余地がある場合。
@@ -332,8 +337,8 @@ LLM_USER_TEMPLATE = (
     - 返答は JSON のみ。
     """
 )
-
-
+ 
+ 
 def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any]) -> Dict[str, Any]:
     """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
     cand_payload = [{"term": c.term, "local_score": round(c.score, 4)} for c in candidates]
@@ -353,8 +358,8 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
             )},
         ],
     }
-
-
+ 
+ 
 def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client: Optional[ApiClient] = None) -> Dict[str, Any]:
     """LLM呼び出し。失敗時はフォールバック。"""
     client = client or ApiClient(cfg)
@@ -373,8 +378,8 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
                 time.sleep(1.2 * (attempt + 1))  # バックオフ
                 continue
             return fallback_reason(screen_name, candidates)
-
-
+ 
+ 
 def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, Any]:
     """ネットワーク障害や破損時の**最小限の結論**。"""
     if not candidates:
@@ -398,9 +403,9 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
         "reason": f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
         "proposed_name": simple_proposal(top.term),
     }
-
+ 
 # ====== 簡易物理名生成 =======================================================
-
+ 
 def simple_proposal(text: str) -> str:
     """ローワーキャメルの簡易物理名を生成（8〜10文字程度）。"""
     s = zenkaku_hankaku_norm(text)
@@ -414,13 +419,13 @@ def simple_proposal(text: str) -> str:
     name = core[0].lower() + "".join(w.capitalize() for w in core[1:])
     # 長さ制御（長すぎると読みにくい）
     return (name[:8] if len(name) > 10 else name) or "newItem"
-
+ 
 # ====== メイン処理 ============================================================
-
+ 
 def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any]) -> pd.DataFrame:
     """全体フロー：入力→候補生成→（完全一致なら即決）→LLM判定→集計DataFrame。"""
     df_screen, df_vocab = load_screen_and_vocab(dir_path, cfg, screen_col, vocab_col)
-
+ 
     vocab_terms = df_vocab["_term"].astype(str).tolist()
     term_meta = (
         df_vocab[["_term", "_phys", "_phys_abbr", "_no"]]
@@ -431,16 +436,16 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         df_vocab[["__term_norm", "_term"]]
         .drop_duplicates("__term_norm").set_index("__term_norm")["_term"].to_dict()
     )
-
+ 
     rows: List[Dict[str, Any]] = []
     api_client = ApiClient(cfg)
-
+ 
     def meta_of(term: Optional[str]) -> Dict[str, Any]:
         if not term:
             return {"no": None, "phys": None, "phys_abbr": None}
         m = term_meta.get(str(term)) or {}
         return {"no": m.get("_no"), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
-
+ 
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         """1件の画面項目に対する判定ワーカー（スレッドで実行）。"""
         # --- 0) 正規化ベースの完全一致 → LLMスキップ
@@ -467,18 +472,18 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(exact_term)),
                 "reason": "正規化完全一致（LLM未呼び出し）",
             }
-
+ 
         # --- 1) ローカル候補生成（複合語＋ダイレクト）
         broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
         direct_candidates = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-        # 用語単位で最高スコアを取り、上位だけ残す
+        # 単語単位で最高スコアを取り、上位だけ残す
         merged_scores: Dict[str, float] = {}
         for c in broad_candidates + direct_candidates:
             merged_scores[c.term] = max(merged_scores.get(c.term, 0.0), c.score)
         merged: List[Candidate] = [Candidate(t, s) for t, s in merged_scores.items()]
         merged.sort(key=lambda c: c.score, reverse=True)
         merged = merged[: max(cfg["TOP_K"], 10)]
-
+ 
         # --- 2) ローカル最高スコアがほぼ1.0 → 実質完全一致として即決
         if merged and merged[0].score >= HARD_EXACT_SCORE:
             top = merged[0]
@@ -502,10 +507,10 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(top.term)),
                 "reason": f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）",
             }
-
-        # --- 3) LLMに最終判定を委譲（部分一致/一致なし）
+ 
+        # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
         llm = call_llm(screen_name, merged, cfg, api_client)
-
+ 
         # 値の整形
         cov_raw = llm.get("coverage_ratio")
         try:
@@ -516,7 +521,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         mt_meta = meta_of(mt)
         matched_terms = llm.get("matched_terms") or []
         mts_metas = [meta_of(t) for t in matched_terms]
-
+ 
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
@@ -536,7 +541,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "reason": llm.get("reason"),
             "proposed_name": llm.get("proposed_name"),
         }
-
+ 
     # 並列実行（小規模時は自動で縮退）
     items = df_screen[["_screen", "_src_file", "_src_sheet"]].astype(str).values.tolist()
     max_workers = min(cfg["MAX_WORKERS"], max(1, len(items)))
@@ -551,17 +556,17 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                     "source_file": "<error>", "source_sheet": "-", "screen_item": "-",
                     "match_type": "一致なし", "reason": f"worker error: {e}", "proposed_name": None,
                 })
-
+ 
     return pd.DataFrame(rows).reset_index(drop=True)
-
+ 
 # ====== 出力 ================================================================
-
+ 
 def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
     """結果をExcel/CSV/JSONLで保存。"""
     out_dir = Path(cfg["OUT_DIR"]).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     xlsx_path = out_dir / "match_result.xlsx"
-
+ 
     # 列の並び（不足列は空で補完）
     ordered_cols = [
         "source_file", "source_sheet",
@@ -575,22 +580,22 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         if c not in df.columns:
             df[c] = None
     df = df[ordered_cols]
-
+ 
     # 表示名（日本語）
     df.columns = [
         "読み込み元ファイル", "読み込み元シート",
         "画面項目名", "単語帳との一致状況",
-        "単語帳で一致した用語", "一致用語の番号", "一致用語のシステム名",
-        "複数用語での一致", "複数用語の番号", "複数用語のシステム名",
-        "最も近い用語", "最も近い用語の番号", "最も近い用語のシステム名", "類似度スコア",
+        "単語帳で一致した単語", "一致した単語の列番号", "一致単語の物理名",
+        "複数単語での一致", "複数単語の列番号", "複数単語の物理名",
+        "最も近い単語", "最も近い単語の番号", "最も近い単語の物理名", "類似度スコア",
         "単語帳カバー率", "推奨物理名", "判定理由",
     ]
-
+ 
     # サマリ・ファイル別統計
     status_counts = df["単語帳との一致状況"].value_counts(dropna=False).to_dict()
     summary_df = pd.DataFrame([
         {"メトリクス": "完全一致", "件数": status_counts.get("完全一致", 0)},
-        {"メトリクス": "部分一致", "件数": status_counts.get("一部一致", 0)},
+        {"メトリクス": "一部一致", "件数": status_counts.get("一部一致", 0)},
         {"メトリクス": "一致なし", "件数": status_counts.get("一致なし", 0)},
         {"メトリクス": "合計", "件数": len(df)},
     ])
@@ -599,27 +604,27 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
           .agg(項目数='count', 項目名サンプル=lambda s: ", ".join(map(str, s.head(50))))
           .reset_index()
     )
-
+ 
     # Excel保存
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="結果", index=False)
         summary_df.to_excel(writer, sheet_name="サマリ", index=False)
         by_file_df.to_excel(writer, sheet_name="ファイル別サマリ", index=False)
-
+ 
     # 連携用（色は付かない）
     df.to_csv(out_dir / "match_result.csv", index=False)
     df.to_json(out_dir / "match_result.jsonl", force_ascii=False, orient="records", lines=True)
-
+ 
     print(f"保存: {xlsx_path}")
-
+ 
 # ====== CLI ================================================================
-
+ 
 def app_root() -> Path:
     if getattr(sys, "frozen", False):  # PyInstaller
         return Path(sys.executable).parent
     return Path(__file__).parent
-
-
+ 
+ 
 def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
     if not TK_AVAILABLE:
         return None
@@ -630,8 +635,8 @@ def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
         return path or None
     except Exception:
         return None
-
-
+ 
+ 
 def main() -> None:
     load_dotenv()
     # ダブルクリック実行時のカレントずれ防止
@@ -639,8 +644,8 @@ def main() -> None:
         os.chdir(app_root())
     except Exception:
         pass
-
-    parser = argparse.ArgumentParser(description="Excel 用語照合（LLM 補助）")
+ 
+    parser = argparse.ArgumentParser(description="Excel 単語照合（LLM 補助）")
     parser.add_argument("--dir", help="入力ディレクトリ（画面項目定義・単語帳）")
     parser.add_argument("--in-dir", help="上と同じ（--dir と同義。後方互換）")
     parser.add_argument("--out-dir", help="出力ディレクトリ（既定: out）")
@@ -648,12 +653,12 @@ def main() -> None:
     parser.add_argument("--vocab-col", help="単語帳の列名（デフォルト: 論理名）")
     parser.add_argument("--no-gui", action="store_true", help="ダイアログを使わない（サーバ/CI向け）")
     args = parser.parse_args()
-
+ 
     cfg = DEFAULT_CONFIG.copy()
-
+ 
     if cfg.get("OPENAI_SEND_AUTH") and not cfg.get("OPENAI_API_KEY"):
         print("[警告] OPENAI_SEND_AUTH=true ですが OPENAI_API_KEY が未設定です。Authorization は送信されません。")
-
+ 
     # 入力ディレクトリの解決
     in_dir = args.in_dir or args.dir
     if not in_dir and not args.no_gui:
@@ -665,7 +670,7 @@ def main() -> None:
                 in_dir = None
     if not in_dir:
         raise FileNotFoundError("入力ディレクトリが指定されていません。--dir かダイアログで指定してください。")
-
+ 
     # 出力先の解決
     if args.out_dir:
         cfg["OUT_DIR"] = args.out_dir
@@ -674,21 +679,21 @@ def main() -> None:
             chosen = ask_directory("出力ディレクトリ（保存先）を選択（キャンセルで既定の out）")
             if chosen:
                 cfg["OUT_DIR"] = chosen
-
+ 
     # 実行
     root_dir = Path(in_dir)
     if not root_dir.exists():
         raise FileNotFoundError(f"ディレクトリが存在しません: {root_dir}")
-
+ 
     df = process(root_dir, args.screen_col, args.vocab_col, cfg)
     save_outputs(df, cfg)
-
+ 
     if TK_AVAILABLE and not args.no_gui:
         try:
             messagebox.showinfo("完了", f"出力が完了しました。保存先: {Path(cfg['OUT_DIR']).resolve()}\\match_result.xlsx")
         except Exception:
             pass
-
-
+ 
+ 
 if __name__ == "__main__":
     main()
