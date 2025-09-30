@@ -644,27 +644,41 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
 # ====== 出力 ================================================================
  
 def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
+    """結果をExcel/CSV/JSONLで保存（MultiIndex対応・条件付き色付け付き）"""
     from pathlib import Path
     import pandas as pd
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import PatternFill
+    from openpyxl.formatting.rule import FormulaRule
 
     out_dir = Path(cfg["OUT_DIR"]).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     xlsx_path = out_dir / "match_result.xlsx"
 
-    # 1) まず一次元カラムで整える（まだ MultiIndex にしない）
+    # --- 1) まず一次元カラムで整える（この段階では MultiIndex にしない）
     ordered_cols = [
-        "source_file","source_sheet","screen_item","match_type",
+        # 元情報
+        "source_file","source_sheet",
+        # 照合対象
+        "screen_item",
+        # 結果
+        "match_type",
+        # 一致した単語（主要）
         "matched_term","matched_term_no","matched_term_phys",
+        # 提案
         "proposed_name",
+        # 複数一致（補足）
         "matched_terms","matched_terms_nos","matched_terms_phys",
+        # 判定詳細
         "coverage_ratio","reason",
+        # 参考（ローカル候補）
         "local_top_term","local_top_term_no","local_top_term_phys","local_top_score",
     ]
     for c in ordered_cols:
         if c not in df.columns:
             df[c] = None
 
-    # 注意事項列（一次元のまま作る）
+    # 注意事項列
     def _warn(row):
         mt = (row.get("match_type") or "")
         if mt == "一部一致":
@@ -674,11 +688,10 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         return ""
     df["注意事項"] = df.apply(_warn, axis=1)
 
-    # 一次元名で並び替え（ここまでは MultiIndex にしない）
-    keep = ordered_cols + ["注意事項"]
-    df = df[keep]
+    # 一次元で並べ替え
+    df = df[ordered_cols + ["注意事項"]]
 
-    # 2) 一括で MultiIndex 化（長さを必ず一致させる）
+    # --- 2) 一括で MultiIndex 化（列数とタプル数を一致させる）
     header_map = {
         "source_file": ("【元情報】", "読み込み元ファイル"),
         "source_sheet": ("【元情報】", "読み込み元シート"),
@@ -699,12 +712,10 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         "local_top_score": ("【参考:ローカル候補】", "スコア"),
         "注意事項": ("【注意】", "注意事項"),
     }
+    df.columns = pd.MultiIndex.from_tuples([header_map[c] for c in df.columns])
+    df.columns.names = [None, None]  # ← "Length of names must match..." 回避
 
-    tuples = [header_map[c] for c in df.columns]  # 必ず列数と同じ長さ
-    df.columns = pd.MultiIndex.from_tuples(tuples)
-    df.columns.names = [None, None]  # ← これで "names の長さ不一致" を回避
-
-    # 3) 以降はタプルでアクセス
+    # --- 3) サマリ/ファイル別サマリ
     status_counts = df[("【結果】", "一致状況")].value_counts(dropna=False).to_dict()
     summary_df = pd.DataFrame([
         {"メトリクス": "完全一致", "件数": status_counts.get("完全一致", 0)},
@@ -713,19 +724,69 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         {"メトリクス": "合計", "件数": len(df)},
     ])
 
-    group_cols = [("【元情報】","読み込み元ファイル"), ("【元情報】","読み込み元シート")]
+    group_keys = [("【元情報】", "読み込み元ファイル"),
+                  ("【元情報】", "読み込み元シート")]
+    target_col = ("【照合対象】", "画面項目名")
     by_file_df = (
-        df.groupby(group_cols)[("【照合対象】","画面項目名")]
-          .agg(項目数="count", 項目名サンプル=lambda s: ", ".join(map(str, s.head(50))))
+        df.groupby(group_keys)
+          .agg(
+              項目数=(target_col, "count"),
+              項目名サンプル=(target_col, lambda s: ", ".join(map(str, s.dropna().head(50))))
+          )
           .reset_index()
     )
 
+    # --- 4) Excel へ保存
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as w:
         df.to_excel(w, sheet_name="結果", index=False)
         summary_df.to_excel(w, sheet_name="サマリ", index=False)
         by_file_df.to_excel(w, sheet_name="ファイル別サマリ", index=False)
 
+        # --- 5) 条件付き書式（「一部一致」「一致なし」を色付け）
+        if len(df) > 0:
+            ws = w.sheets["結果"]
+
+            # 2段見出しなのでデータ開始行は 3 行目
+            start_row = 3
+            end_row = start_row + len(df) - 1
+
+            # 列インデックス（1始まり）を取得
+            col_index = {col: i+1 for i, col in enumerate(df.columns)}
+            mt_idx = col_index[("【結果】", "一致状況")]
+            si_idx = col_index[("【照合対象】", "画面項目名")]
+
+            mt_col = get_column_letter(mt_idx)
+            si_col = get_column_letter(si_idx)
+
+            # 塗り色
+            fill_yellow = PatternFill(start_color="FFF3B3", end_color="FFF3B3", fill_type="solid")
+            fill_red = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
+
+            # 一部一致（match_type 列自体）
+            rng_mt = f"{mt_col}{start_row}:{mt_col}{end_row}"
+            ws.conditional_formatting.add(
+                rng_mt,
+                FormulaRule(formula=[f'{mt_col}{start_row}="一部一致"'], fill=fill_yellow)
+            )
+            # 一致なし（match_type 列自体）
+            ws.conditional_formatting.add(
+                rng_mt,
+                FormulaRule(formula=[f'{mt_col}{start_row}="一致なし"'], fill=fill_red)
+            )
+
+            # 画面項目名列も同じ条件で色付け（列は固定、行は相対）
+            rng_si = f"{si_col}{start_row}:{si_col}{end_row}"
+            ws.conditional_formatting.add(
+                rng_si,
+                FormulaRule(formula=[f'${mt_col}{start_row}="一部一致"'], fill=fill_yellow)
+            )
+            ws.conditional_formatting.add(
+                rng_si,
+                FormulaRule(formula=[f'${mt_col}{start_row}="一致なし"'], fill=fill_red)
+            )
+
     print(f"保存: {xlsx_path}")
+
 
 # ====== CLI ================================================================
  
@@ -808,3 +869,4 @@ def main() -> None:
 if __name__ == "__main__":
 
     main()
+
