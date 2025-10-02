@@ -841,9 +841,9 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         {"メトリクス": "合計", "件数": len(df)},
     ])
  
-    group_keys = [("【元情報】", "読み込み元ファイル"),
-                  ("【元情報】", "読み込み元シート")]
-    target_col = ("【照合対象】", "画面項目名")
+    group_keys = [("【元情報】", "ファイル名"),
+                  ("【元情報】", "シート名")]
+    target_col = ("【対象項目】", "項目名")
     by_file_df = (
         df.groupby(group_keys)
           .agg(
