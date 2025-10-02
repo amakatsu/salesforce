@@ -351,9 +351,21 @@ class ApiClient:
  
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
-        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.RequestException as e:
+            print(f"[エラー] HTTP リクエスト失敗: {url}")
+            print(f"[エラー] エラー種別: {type(e).__name__}")
+            print(f"[エラー] 詳細: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"[エラー] ステータスコード: {e.response.status_code}")
+                print(f"[エラー] レスポンス本文: {e.response.text[:500]}")
+            raise
+        except Exception as e:
+            print(f"[エラー] 予期しないエラー: {type(e).__name__}: {e}")
+            raise
  
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = (
@@ -474,21 +486,25 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
     """LLM呼び出しペイロードを構築（厳密JSON指定）。物理名情報も含める。"""
     cand_payload = []
     for c in candidates:
-        meta = term_meta.get(c.term, {})
+        # 候補用語を文字列として正規化
+        term_str = str(c.term)
+        meta = term_meta.get(term_str, {})
         phys_abbr = meta.get("_phys_abbr")
         phys = meta.get("_phys")
+
         # NaN や None を空文字列に正規化
         phys_name = ""
-        if phys_abbr and str(phys_abbr) != "nan":
+        if phys_abbr is not None and str(phys_abbr).lower() != "nan":
             phys_name = str(phys_abbr)
-        elif phys and str(phys) != "nan":
+        elif phys is not None and str(phys).lower() != "nan":
             phys_name = str(phys)
 
         cand_payload.append({
-            "term": c.term,
+            "term": term_str,
             "physical_name": phys_name,
-            "local_score": round(c.score, 4)
+            "local_score": round(float(c.score), 4)
         })
+
     return {
         "model": cfg["OPENAI_MODEL"],
         "max_tokens": cfg["MAX_TOKENS"],
@@ -500,7 +516,7 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
         "messages": [
             {"role": "system", "content": LLM_SYSTEM},
             {"role": "user", "content": LLM_USER_TEMPLATE.format(
-                screen_name=screen_name,
+                screen_name=str(screen_name),
                 candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
             )},
         ],
@@ -535,10 +551,20 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
                 if not {"match_type", "matched_term", "reason", "proposed_name"}.issubset(result):
                     raise ValueError("LLM JSON schema mismatch")
                 return result
-            except Exception:
+            except Exception as e:
+                print(f"[エラー] LLM呼び出し失敗 (試行 {attempt + 1}/{cfg['RETRY'] + 1}): {type(e).__name__}: {e}")
+                if attempt == 0:
+                    # 初回エラー時のみペイロード詳細を出力（デバッグ用）
+                    print(f"[デバッグ] 画面項目名: {screen_name}")
+                    print(f"[デバッグ] 候補数: {len(candidates)}")
+                    try:
+                        print(f"[デバッグ] ペイロードサイズ: {len(json.dumps(payload, ensure_ascii=False))} 文字")
+                    except Exception:
+                        print("[デバッグ] ペイロードのJSON化に失敗")
                 if attempt < cfg["RETRY"]:
                     time.sleep(1.2 * (attempt + 1))  # バックオフ
                     continue
+                print(f"[警告] リトライ上限到達。フォールバック処理を使用します: {screen_name}")
                 return fallback_reason(screen_name, candidates)
     finally:
         if api_semaphore:
@@ -721,10 +747,14 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             llm_unmatched_terms = llm.get("unmatched_terms") or []
             llm_unmatched_notes = llm.get("unmatched_notes") or []
             if llm_unmatched_terms and llm_unmatched_notes:
-                unmatched_terms = ", ".join(llm_unmatched_terms)
-                unmatched_note = " / ".join(llm_unmatched_notes)
+                unmatched_terms = ", ".join(str(t) for t in llm_unmatched_terms)
+                unmatched_note = " / ".join(str(n) for n in llm_unmatched_notes)
         except Exception:
             pass
+
+        # ローカル最高候補のメタ情報取得
+        local_top_term = merged[0].term if merged else None
+        local_top_meta = term_meta.get(local_top_term, {}) if local_top_term else {}
 
         return {
             "source_file": src_file,
@@ -732,14 +762,14 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "screen_item": screen_name,
             "match_type": llm.get("match_type"),
             "matched_term": mt or None,
-            "matched_term_no": mt_meta["no"],
+            "matched_term_no": mt_meta.get("no"),
             "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
-            "matched_terms": ", ".join(matched_terms) or None,
+            "matched_terms": ", ".join(str(t) for t in matched_terms) if matched_terms else None,
             "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_metas if m.get("no")]) or None,
             "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_metas if (m.get("phys_abbr") or m.get("phys"))]) or None,
-            "local_top_term": (merged[0].term if merged else None),
-            "local_top_term_no": (term_meta.get(merged[0].term) or {}).get("_no") if merged else None,
-            "local_top_term_phys": ((term_meta.get(merged[0].term) or {}).get("_phys_abbr") or (term_meta.get(merged[0].term) or {}).get("_phys")) if merged else None,
+            "local_top_term": local_top_term,
+            "local_top_term_no": local_top_meta.get("_no"),
+            "local_top_term_phys": (local_top_meta.get("_phys_abbr") or local_top_meta.get("_phys")),
             "local_top_score": (merged[0].score if merged else None),
             "coverage_ratio": coverage_ratio,
             "reason": llm.get("reason"),
