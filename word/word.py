@@ -50,7 +50,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
     "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
     "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
-    "VERIFY_SSL": os.getenv("VERIFY_SSL", "false").lower() != "false",
+    "VERIFY_SSL": os.getenv("VERIFY_SSL", "true").lower() != "false",
  
     # --- 生成パラメタ
     "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
@@ -427,8 +427,11 @@ LLM_USER_TEMPLATE = (
     # 単語帳候補（類似度順、local_scoreが高いほど類似）
     {candidates_json}
 
-    注意: 候補リストには画面項目名を構成する可能性のある語が複数含まれています。
-    複合語の場合、これらを組み合わせて画面項目名の意味を表現できるか検討してください。
+    注意:
+    - 候補リストには画面項目名を構成する可能性のある語が複数含まれています
+    - 各候補には physical_name（物理名）が含まれています
+    - **一部一致の場合、proposed_name は必ず候補の physical_name を組み合わせて作成してください**
+    - 複合語の場合、これらを組み合わせて画面項目名の意味を表現できるか検討してください
  
     # 厳密 JSON 仕様（複合語対応）
     {{
@@ -451,11 +454,14 @@ LLM_USER_TEMPLATE = (
     - 候補は local_score の高い順に並んでいます。
     - **完全一致**の場合: 候補リストの単語の物理名をそのまま使用してください。
     - **一部一致**の場合:
-      1. 候補リストにある語の物理名を組み合わせる
+      1. 候補リストにある語の physical_name（物理名）を**必ず**使用して組み合わせる
       2. 候補リストにない語は適切な英語名を考えて追加する
       3. すべてを lowerCamelCase で結合して proposed_name を作成
-      例: 画面項目名「顧客担当者名」で候補に「顧客(customer)」「名(Name)」がある場合
-      → matched_terms: ["顧客", "名"], unmatched_terms: ["担当者"], proposed_name: "customerPersonInChargeName"
+      例: 画面項目名「顧客担当者名」
+          候補: [{"term": "顧客", "physical_name": "customer"}, {"term": "名", "physical_name": "name"}]
+      → matched_terms: ["顧客", "名"]
+      → unmatched_terms: ["担当者"]
+      → proposed_name: "customerPersonInChargeName" (customer + personInCharge + Name)
     - 一部一致の場合、画面項目名の中で候補リストに存在しない語を unmatched_terms に列挙し、各語の意味や用途を unmatched_notes に記載してください（単語帳への登録提案として）。
     - 一致なしの場合、画面項目名を構成する語を分解して unmatched_terms に列挙し、各語の意味や用途を unmatched_notes に記載してください（単語帳への登録提案として）。
     - unmatched_terms と unmatched_notes は配列で、要素数は一致させてください。各要素は対応する未登録語とその説明です。
@@ -464,9 +470,17 @@ LLM_USER_TEMPLATE = (
 )
  
  
-def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any]) -> Dict[str, Any]:
-    """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
-    cand_payload = [{"term": c.term, "local_score": round(c.score, 4)} for c in candidates]
+def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], term_meta: Dict[str, Any]) -> Dict[str, Any]:
+    """LLM呼び出しペイロードを構築（厳密JSON指定）。物理名情報も含める。"""
+    cand_payload = []
+    for c in candidates:
+        meta = term_meta.get(c.term) or {}
+        phys_name = meta.get("_phys_abbr") or meta.get("_phys") or ""
+        cand_payload.append({
+            "term": c.term,
+            "physical_name": phys_name,
+            "local_score": round(c.score, 4)
+        })
     return {
         "model": cfg["OPENAI_MODEL"],
         "max_tokens": cfg["MAX_TOKENS"],
@@ -485,7 +499,7 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
     }
  
  
-def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client: Optional[ApiClient] = None, api_semaphore: Optional[threading.Semaphore] = None) -> Dict[str, Any]:
+def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], term_meta: Dict[str, Any], client: Optional[ApiClient] = None, api_semaphore: Optional[threading.Semaphore] = None) -> Dict[str, Any]:
     """LLM呼び出し。失敗時はフォールバック。"""
     # テストモード判定
     if cfg.get("TEST_MODE", False) or os.getenv("WORD_MATCHING_TEST_MODE", "false").lower() == "true":
@@ -497,7 +511,7 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
             return fallback_reason(screen_name, candidates)
  
     client = client or ApiClient(cfg)
-    payload = build_llm_payload(screen_name, candidates, cfg)
+    payload = build_llm_payload(screen_name, candidates, cfg, term_meta)
  
     # サーバー負荷対策：セマフォで同時実行API数を制限
     if api_semaphore:
@@ -667,7 +681,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 }
  
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
-        llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore)
+        llm = call_llm(screen_name, merged, cfg, term_meta, api_client, api_semaphore)
  
         # 値の整形
         cov_raw = llm.get("coverage_ratio")
