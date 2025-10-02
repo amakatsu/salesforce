@@ -875,7 +875,7 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
             # 列インデックス（1始まり）を取得
             col_index = {col: i+1 for i, col in enumerate(df.columns)}
             mt_idx = col_index[("【結果】", "一致状況")]
-            si_idx = col_index[("【照合対象】", "画面項目名")]
+            si_idx = col_index[("【対象項目】", "項目名")]
  
             mt_col = get_column_letter(mt_idx)
             si_col = get_column_letter(si_idx)
