@@ -474,8 +474,16 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
     """LLM呼び出しペイロードを構築（厳密JSON指定）。物理名情報も含める。"""
     cand_payload = []
     for c in candidates:
-        meta = term_meta.get(c.term) or {}
-        phys_name = meta.get("_phys_abbr") or meta.get("_phys") or ""
+        meta = term_meta.get(c.term, {})
+        phys_abbr = meta.get("_phys_abbr")
+        phys = meta.get("_phys")
+        # NaN や None を空文字列に正規化
+        phys_name = ""
+        if phys_abbr and str(phys_abbr) != "nan":
+            phys_name = str(phys_abbr)
+        elif phys and str(phys) != "nan":
+            phys_name = str(phys)
+
         cand_payload.append({
             "term": c.term,
             "physical_name": phys_name,
@@ -543,22 +551,34 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
         return {
             "match_type": "一致なし",
             "matched_term": None,
+            "matched_terms": None,
             "reason": "API不達/候補なし。後日、単語帳の拡充を検討してください。",
             "proposed_name": simple_proposal(screen_name),
+            "coverage_ratio": None,
+            "unmatched_terms": None,
+            "unmatched_notes": None,
         }
     top = candidates[0]
     if top.score >= FALLBACK_EXACT_FLOOR:
         return {
             "match_type": "完全一致",
             "matched_term": top.term,
+            "matched_terms": None,
             "reason": f"ローカル完全一致（score={top.score:.2f}）",
             "proposed_name": simple_proposal(top.term),
+            "coverage_ratio": 1.0,
+            "unmatched_terms": None,
+            "unmatched_notes": None,
         }
     return {
         "match_type": "一部一致",
         "matched_term": top.term,
+        "matched_terms": None,
         "reason": f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
         "proposed_name": simple_proposal(top.term),
+        "coverage_ratio": None,
+        "unmatched_terms": None,
+        "unmatched_notes": None,
     }
  
 # ====== 簡易物理名生成 =======================================================
