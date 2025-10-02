@@ -357,13 +357,66 @@ class ApiClient:
  
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = (
-    "あなたは業務システムの画面設計と単語統一の専門家です。"
-    "与えられた『画面項目名』と『単語帳候補（上位スコア順）』を比較して、"
-    "「完全一致 / 一部一致 / 一致なし」を厳密に判定し、理由を日本語で簡潔に述べてください。"
-    "複合語の可能性を検討し、必要なら組み合わせ単語を返す。"
-    "全一致タイプでローワーキャメルの物理名を1つ提案。"
-    "JSONのみを返すこと。"
-    "禀はrinと読むこと"
+    "あなたはプロのシステムエンジニアであり、業務システムの画面設計と単語統一の専門家です。\n"
+    "\n"
+    "# 役割\n"
+    "画面項目名と単語帳候補を比較し、適切な一致判定と物理名提案を行います。\n"
+    "\n"
+    "# 判定基準\n"
+    "- **完全一致**: 意味・表記が完全に等しい（表記揺れ・語順違いは許容）\n"
+    "- **一部一致**: 単語帳の語を組み合わせることで画面項目名の意味を表現できる場合\n"
+    "- **一致なし**: 単語帳に適切な語が存在せず、新規登録が必要な場合\n"
+    "\n"
+    "# ネーミングルール（厳格に遵守）\n"
+    "\n"
+    "## 基本原則\n"
+    "1. **lowerCamelCase形式**: 必ず小文字始まり（例: ○ shinseiDate / × ShinseiDate）\n"
+    "2. **推奨文字数**: 8文字程度を目安とする（最大15文字まで許容）\n"
+    "3. **誰が見ても意味が容易にわかる名称**にする\n"
+    "\n"
+    "## 言語選択ルール\n"
+    "1. **原則: 英単語を使用**\n"
+    "2. **例外: 以下の場合のみ日本語ローマ字表記（ヘボン式）を使用**\n"
+    "   - 日本人にとって極端に馴染みの薄い英単語の場合（例: 稟議 → ringi, 禀 → rin）\n"
+    "   - 行内・融資内で一般的に用いられている単語（例: 案件番号 → lcNo）\n"
+    "   - 別名をつけたほうが望ましいもの（例: 当行 → mufgBank）\n"
+    "3. **ヘボン式ローマ字の詳細**\n"
+    "   - し→shi, ち→chi, つ→tsu, ふ→fu, じ→ji, ず→zu\n"
+    "   - しゃ→sha, しゅ→shu, しょ→sho, ちゃ→cha, ちゅ→chu, ちょ→cho\n"
+    "   - じゃ→ja, じゅ→ju, じょ→jo\n"
+    "   - 撥音「ん」: b,m,p の前は m、それ以外は n（例: 申込→moushikomi, 案件→anken）\n"
+    "   - 長音: 母音を重ねる（例: 交付→kofu, 照会→shokai）\n"
+    "4. **混在ルール**\n"
+    "   - **原則: 英語と日本語ローマ字の混在は禁止**（例: NG customerRingi）\n"
+    "   - **例外**: 行内で一般的に用いられている場合のみ許可（例: lcNo = loanCase + Number）\n"
+    "   - 1つの物理名はすべて英語、またはすべて日本語ローマ字に統一することを推奨\n"
+    "\n"
+    "## 略語使用ルール\n"
+    "1. **原則: 略語は使用しない**\n"
+    "2. **例外: 以下の条件を両方満たす場合のみ許可**\n"
+    "   - 名称が9文字以上となる場合\n"
+    "   - 略語を用いたほうがわかりやすい場合\n"
+    "3. 略語を使用する場合も、誰が見ても意味がわかること\n"
+    "\n"
+    "## 複合語ルール\n"
+    "1. 原則: 単語レベルで定義し、複合語は単語帳の単語を組み合わせる\n"
+    "2. 例外: 単語を組み合わせて違和感がある場合のみ複合語での定義を認める\n"
+    "   - 例: 案件番号 → case + no だと違和感 → lcNo として定義可\n"
+    "\n"
+    "## 表記揺れの考慮\n"
+    "- コード = CD = code\n"
+    "- 番号 = No = number\n"
+    "- 名称 = 名 = name\n"
+    "- フラグ = flag\n"
+    "\n"
+    "# 重要な注意事項\n"
+    "1. 候補リストは local_score 順（類似度が高い順）に並んでいます\n"
+    "2. 複合語の場合、単語帳にある語の組み合わせを優先してください\n"
+    "3. 対象の単語に余計なワードを付け加えずに端的に命名する\n"
+    "4. 主にプログラミングの変数定義やメソッド定義のネーミングに使用することを意識する\n"
+    "\n"
+    "# 出力形式\n"
+    "厳密なJSONのみを返してください。説明文は不要です。"
 )
  
 LLM_USER_TEMPLATE = (
@@ -371,8 +424,11 @@ LLM_USER_TEMPLATE = (
     # 画面項目名
     {screen_name}
  
-    # 単語帳候補（上位スコア順）
+    # 単語帳候補（類似度順、local_scoreが高いほど類似）
     {candidates_json}
+
+    注意: 候補リストには画面項目名を構成する可能性のある語が複数含まれています。
+    複合語の場合、これらを組み合わせて画面項目名の意味を表現できるか検討してください。
  
     # 厳密 JSON 仕様（複合語対応）
     {{
@@ -381,7 +437,9 @@ LLM_USER_TEMPLATE = (
       "matched_terms": string[] | null,
       "reason": string,
       "proposed_name": string,
-      "coverage_ratio": number | null
+      "coverage_ratio": number | null,
+      "unmatched_terms": string[] | null,
+      "unmatched_notes": string[] | null
     }}
  
     制約:
@@ -390,6 +448,17 @@ LLM_USER_TEMPLATE = (
     - 複合語が適切なら matched_terms を優先。
     - 一致なし は候補が不適切な場合。簡潔かつ具体的に。
     - proposed_name は必須。coverage_ratio は 0.0~1.0。
+    - 候補は local_score の高い順に並んでいます。
+    - **完全一致**の場合: 候補リストの単語の物理名をそのまま使用してください。
+    - **一部一致**の場合:
+      1. 候補リストにある語の物理名を組み合わせる
+      2. 候補リストにない語は適切な英語名を考えて追加する
+      3. すべてを lowerCamelCase で結合して proposed_name を作成
+      例: 画面項目名「顧客担当者名」で候補に「顧客(customer)」「名(Name)」がある場合
+      → matched_terms: ["顧客", "名"], unmatched_terms: ["担当者"], proposed_name: "customerPersonInChargeName"
+    - 一部一致の場合、画面項目名の中で候補リストに存在しない語を unmatched_terms に列挙し、各語の意味や用途を unmatched_notes に記載してください（単語帳への登録提案として）。
+    - 一致なしの場合、画面項目名を構成する語を分解して unmatched_terms に列挙し、各語の意味や用途を unmatched_notes に記載してください（単語帳への登録提案として）。
+    - unmatched_terms と unmatched_notes は配列で、要素数は一致させてください。各要素は対応する未登録語とその説明です。
     - 返答は JSON のみ。
     """
 )
@@ -499,6 +568,9 @@ def simple_proposal(text: str) -> str:
 def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any]) -> pd.DataFrame:
     """全体フロー：入力→候補生成→（完全一致なら即決）→LLM判定→集計DataFrame。"""
     df_screen, df_vocab = load_screen_and_vocab(dir_path, cfg, screen_col, vocab_col)
+    # 全体件数（進捗ログ用）
+    total_items = len(df_screen)
+    processed_count = 0
  
     vocab_terms = df_vocab["_term"].astype(str).tolist()
     term_meta = (
@@ -549,6 +621,8 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "coverage_ratio": 1.0,
                 "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(exact_term)),
                 "reason": "正規化完全一致（LLM未呼び出し）",
+                "unmatched_terms": None,
+                "unmatched_note": None,
             }
  
         # --- 1) ローカル候補生成（複合語＋ダイレクト）
@@ -588,6 +662,8 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                     "coverage_ratio": 1.0,
                     "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(top.term)),
                     "reason": f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）",
+                    "unmatched_terms": None,
+                    "unmatched_note": None,
                 }
  
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
@@ -603,7 +679,19 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         mt_meta = meta_of(mt)
         matched_terms = llm.get("matched_terms") or []
         mts_metas = [meta_of(t) for t in matched_terms]
- 
+
+        # 未登録語の整形（配列→文字列変換）
+        unmatched_terms = None
+        unmatched_note = None
+        try:
+            llm_unmatched_terms = llm.get("unmatched_terms") or []
+            llm_unmatched_notes = llm.get("unmatched_notes") or []
+            if llm_unmatched_terms and llm_unmatched_notes:
+                unmatched_terms = ", ".join(llm_unmatched_terms)
+                unmatched_note = " / ".join(llm_unmatched_notes)
+        except Exception:
+            pass
+
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
@@ -622,6 +710,8 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "coverage_ratio": coverage_ratio,
             "reason": llm.get("reason"),
             "proposed_name": llm.get("proposed_name"),
+            "unmatched_terms": unmatched_terms,
+            "unmatched_note": unmatched_note,
         }
  
     # 並列実行（小規模時は自動で縮退）
@@ -631,13 +721,25 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         futures = [ex.submit(worker, it[0], it[1], it[2]) for it in items]
         for fut in cf.as_completed(futures):
             try:
-                rows.append(fut.result())
+                row = fut.result()
+                rows.append(row)
+                processed_count += 1
+                # 進捗ログ: 10件ごとに出力
+                if processed_count % 10 == 0 or processed_count == total_items:
+                    pct = processed_count * 100 / total_items if total_items else 0
+                    print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
             except Exception as e:
                 # ワーカー失敗時も処理を止めない
-                rows.append({
+                error_row = {
                     "source_file": "<error>", "source_sheet": "-", "screen_item": "-",
                     "match_type": "一致なし", "reason": f"worker error: {e}", "proposed_name": None,
-                })
+                }
+                rows.append(error_row)
+                processed_count += 1
+                # エラー行でも進捗ログ
+                if processed_count % 10 == 0 or processed_count == total_items:
+                    pct = processed_count * 100 / total_items if total_items else 0
+                    print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
  
     return pd.DataFrame(rows).reset_index(drop=True)
  
@@ -656,6 +758,7 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
     xlsx_path = out_dir / "match_result.xlsx"
  
     # --- 1) まず一次元カラムで整える（この段階では MultiIndex にしない）
+    # 列順を変更: 一致した単語の後に複数一致した単語群を配置し、提案列をその後ろに移動
     ordered_cols = [
         # 元情報
         "source_file","source_sheet",
@@ -665,14 +768,16 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         "match_type",
         # 一致した単語（主要）
         "matched_term","matched_term_no","matched_term_phys",
-        # 提案
-        "proposed_name",
-        # 複数一致（補足）
+        # 複数一致（補足）を先に配置
         "matched_terms","matched_terms_nos","matched_terms_phys",
+        # 提案を後ろに移動
+        "proposed_name",
         # 判定詳細
         "coverage_ratio","reason",
         # 参考（ローカル候補）
         "local_top_term","local_top_term_no","local_top_term_phys","local_top_score",
+        # 登録候補
+        "unmatched_terms","unmatched_note",
     ]
     for c in ordered_cols:
         if c not in df.columns:
@@ -693,24 +798,36 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
  
     # --- 2) 一括で MultiIndex 化（列数とタプル数を一致させる）
     header_map = {
-        "source_file": ("【元情報】", "読み込み元ファイル"),
-        "source_sheet": ("【元情報】", "読み込み元シート"),
-        "screen_item": ("【照合対象】", "画面項目名"),
+        # 元情報
+        "source_file": ("【元情報】", "ファイル名"),
+        "source_sheet": ("【元情報】", "シート名"),
+        # 照合対象
+        "screen_item": ("【対象項目】", "項目名"),
+        # 結果
         "match_type": ("【結果】", "一致状況"),
+        # 一致した単語（主要）
         "matched_term": ("【一致した単語】", "論理名"),
         "matched_term_no": ("【一致した単語】", "列番号"),
         "matched_term_phys": ("【一致した単語】", "物理名"),
+        # 複数一致した単語群
+        "matched_terms": ("【複数一致した単語群】", "論理名"),
+        "matched_terms_nos": ("【複数一致した単語群】", "列番号"),
+        "matched_terms_phys": ("【複数一致した単語群】", "物理名"),
+        # 提案
         "proposed_name": ("【提案】", "推奨物理名"),
-        "matched_terms": ("【複数一致】", "論理名"),
-        "matched_terms_nos": ("【複数一致】", "列番号"),
-        "matched_terms_phys": ("【複数一致】", "物理名"),
+        # 判定詳細
         "coverage_ratio": ("【判定詳細】", "カバー率"),
         "reason": ("【判定詳細】", "理由"),
-        "local_top_term": ("【参考:ローカル候補】", "論理名"),
-        "local_top_term_no": ("【参考:ローカル候補】", "列番号"),
-        "local_top_term_phys": ("【参考:ローカル候補】", "物理名"),
-        "local_top_score": ("【参考:ローカル候補】", "スコア"),
-        "注意事項": ("【注意】", "注意事項"),
+        # ローカル候補
+        "local_top_term": ("【ローカル候補】", "論理名"),
+        "local_top_term_no": ("【ローカル候補】", "列番号"),
+        "local_top_term_phys": ("【ローカル候補】", "物理名"),
+        "local_top_score": ("【ローカル候補】", "スコア"),
+        # 注意事項
+        "注意事項": ("【注意事項】", "注意事項"),
+        # 登録候補
+        "unmatched_terms": ("【登録候補】", "未登録語"),
+        "unmatched_note": ("【登録候補】", "コメント"),
     }
     df.columns = pd.MultiIndex.from_tuples([header_map[c] for c in df.columns])
     df.columns.names = [None, None]  # ← "Length of names must match..." 回避
@@ -738,7 +855,12 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
  
     # --- 4) Excel へ保存
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as w:
-        df.to_excel(w, sheet_name="結果", index=True)
+        # MultiIndex列はExcel保存時にヘッダーとデータの間に空白行が入る問題があるため、
+        # ヘッダーとデータを分けて書き込むことで余分な空白行を回避する。
+        # 最初にヘッダーのみ（データなし）を書き込み
+        df.drop(df.index).to_excel(w, sheet_name="結果", index=True)
+        # 次に実際のデータをヘッダーなしで1行下から追記
+        df.to_excel(w, sheet_name="結果", startrow=1, header=False, index=True)
         summary_df.to_excel(w, sheet_name="サマリ", index=True)
         by_file_df.to_excel(w, sheet_name="ファイル別サマリ", index=True)
  
