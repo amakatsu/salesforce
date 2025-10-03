@@ -85,7 +85,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # --- 実行制御
     "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
     "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
-    "RETRY": int(os.getenv("RETRY", "2")),
+    "RETRY": int(os.getenv("RETRY", "30")),
  
     # --- レート制限（サーバー負荷対策）
     # 同時実行するAPI呼び出しの最大数（MAX_WORKERSより小さい値にするとAPI負荷を抑制）
@@ -367,10 +367,13 @@ LLM_SYSTEM = (
     "3. 不足する語は自分で補完して完全な物理名を構築\n"
     "\n"
     "# 判定基準（厳密に適用）\n"
-    "- **完全一致**: 画面項目名と候補の意味・表記が完全に等しい（表記揺れは許容）\n"
-    "  例: 「顧客名」vs「顧客名」、「顧客コード」vs「顧客CD」\n"
-    "- **一部一致**: 画面項目名の一部の語が単語帳にある（組み合わせて構成可能）\n"
-    "  例: 「顧客担当者名」で「顧客」と「名」が候補にあり、「担当者」は未登録\n"
+    "- **完全一致**: 画面項目名が単一の候補と過不足なく一致する場合のみ（表記揺れは許容）\n"
+    "  ○ 完全一致の例: 「顧客名」vs「顧客名」、「顧客コード」vs「顧客CD」\n"
+    "  × 完全一致ではない例: 「回収稟議番号」vs「稟議番号」（「回収」が余分）\n"
+    "  重要: 画面項目名を分解した時、候補1つだけで全ての意味を表現できる場合のみ完全一致\n"
+    "- **一部一致**: 画面項目名を複数の語に分解でき、その一部が単語帳にある場合\n"
+    "  例1: 「顧客担当者名」で「顧客」と「名」が候補にあり、「担当者」は未登録\n"
+    "  例2: 「回収稟議番号」で「回収」と「稟議番号」が別々の候補としてある\n"
     "- **一致なし**: 画面項目名のどの語も単語帳に存在しない、または候補が全て不適切\n"
     "  例: 「稟議承認日」で「稟議」「承認」「日」全てが候補にない\n"
     "\n"
@@ -426,9 +429,12 @@ LLM_SYSTEM = (
     "以下の手順で分析してください:\n"
     "1. 画面項目名を意味のある語に分解（例: 「顧客担当者名」→「顧客」「担当者」「名」）\n"
     "2. 各語が候補リストにあるか確認\n"
-    "3. 候補にある語はその physical_name を使用、ない語は自分で考案\n"
-    "4. 適切な語順で lowerCamelCase に結合\n"
-    "5. 一致状況を判定: 全部あれば完全一致、一部なら一部一致、ほぼない or 不適切なら一致なし\n"
+    "3. 一致状況を判定:\n"
+    "   - 完全一致: 画面項目名全体が候補1つと過不足なく一致（分解不要）\n"
+    "   - 一部一致: 分解した語の一部が候補にある（複数候補の組み合わせ含む）\n"
+    "   - 一致なし: どの語も候補にない\n"
+    "4. 候補にある語はその physical_name を使用、ない語は自分で考案\n"
+    "5. 適切な語順で lowerCamelCase に結合\n"
     "\n"
     "# 出力\n"
     "- JSON形式のみ出力（説明文・前置き・後置きは一切不要）\n"
@@ -538,9 +544,6 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
                 data = client.post_json(payload)
                 content = data["choices"][0]["message"]["content"]
                 result = json.loads(content)
-                # ざっくり必須キーを確認
-                if not {"match_type", "matched_term", "reason", "proposed_name"}.issubset(result):
-                    raise ValueError("LLM JSON schema mismatch")
                 return result
             except Exception:
                 if attempt < cfg["RETRY"]:
