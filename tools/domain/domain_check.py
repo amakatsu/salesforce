@@ -200,11 +200,8 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
         sheets = _pick_matching_sheets(xls, cfg["DOMAIN_SHEET"])
         for sheet in sheets:
             try:
-                df, header_row = read_excel_with_header_detection(
-                    path, sheet,
-                    [cfg["DOMAIN_NAME_COL"], cfg["DOMAIN_TYPE_COL"]],
-                    None, 30
-                )
+                header_row = _detect_header_row(path, sheet, [cfg["DOMAIN_NAME_COL"], cfg["DOMAIN_TYPE_COL"]], HEADER_SCAN_ROWS)
+                df = pd.read_excel(path, sheet_name=sheet, header=header_row)
                 for idx, row in df.iterrows():
                     name = str(row.get(cfg["DOMAIN_NAME_COL"], "")).strip()
                     if name:
@@ -236,11 +233,8 @@ def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, TableDef]:
         sheets = _pick_matching_sheets(xls, cfg["TABLE_SHEET"])
         for sheet in sheets:
             try:
-                df, header_row = read_excel_with_header_detection(
-                    path, sheet,
-                    [cfg["TABLE_NAME_COL"], cfg["TABLE_ITEM_COL"], cfg["TABLE_COLUMN_COL"]],
-                    None, 30
-                )
+                header_row = _detect_header_row(path, sheet, [cfg["TABLE_NAME_COL"], cfg["TABLE_ITEM_COL"], cfg["TABLE_COLUMN_COL"]], HEADER_SCAN_ROWS)
+                df = pd.read_excel(path, sheet_name=sheet, header=header_row)
                 for idx, row in df.iterrows():
                     table_name = str(row.get(cfg["TABLE_NAME_COL"], "")).strip()
                     item_name = str(row.get(cfg["TABLE_ITEM_COL"], "")).strip()
@@ -277,11 +271,8 @@ def load_targets(dir_path: Path, cfg: Dict[str, Any]) -> List[TargetItem]:
         sheets = _pick_matching_sheets(xls, cfg["TARGET_SHEET"])
         for sheet in sheets:
             try:
-                df, header_row = read_excel_with_header_detection(
-                    path, sheet,
-                    [cfg["TARGET_ITEM_COL"]],
-                    None, 30
-                )
+                header_row = _detect_header_row(path, sheet, [cfg["TARGET_ITEM_COL"]], HEADER_SCAN_ROWS)
+                df = pd.read_excel(path, sheet_name=sheet, header=header_row)
                 for idx, row in df.iterrows():
                     item_name = str(row.get(cfg["TARGET_ITEM_COL"], "")).strip()
                     if item_name:

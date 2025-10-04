@@ -10,9 +10,10 @@ import tempfile
 from pathlib import Path
 import streamlit as st
 
-# 親ディレクトリのwordモジュールをインポート
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from word.word import process, save_outputs, DEFAULT_CONFIG
+# tools/wordモジュールをインポート
+tools_dir = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(tools_dir))
+from tools.word.word import process, save_outputs, DEFAULT_CONFIG
 
 # ページ設定
 st.set_page_config(
