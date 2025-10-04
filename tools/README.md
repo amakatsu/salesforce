@@ -43,8 +43,10 @@ tools/
 ├── domain/                 # ドメインチェックロジック
 │   └── domain_check.py
 ├── pr-agent/              # PR-Agentロジック
-│   ├── pr.sh
-│   └── prg/
+│   ├── pr_agent.py
+│   ├── configs/
+│   ├── docs/
+│   └── tools/
 └── docker-compose.yml     # Docker構成
 ```
 
@@ -127,6 +129,19 @@ pip install -r web/requirements.txt
 - openpyxl
 - requests
 - rapidfuzz
+- pr-agent-pro
+
+## 🔧 PR-Agent カスタマイズ
+
+PR-AgentのLLMハンドラーをカスタマイズする場合は、以下のディレクトリにファイルを配置してください：
+
+```
+tools/pr-agent/custom/
+└── litellm_ai_handler.py  # カスタムLLMハンドラー
+```
+
+Dockerビルド時に自動的にPR-Agentのデフォルトハンドラーを上書きします。
+詳細は `tools/pr-agent/custom/README.md` を参照してください。
 
 ## 🎯 各ツールの使い方
 
@@ -156,6 +171,26 @@ pip install -r web/requirements.txt
 4. マージリクエストURLを入力
 5. 「PR-Agent実行」ボタンをクリック
 6. 結果がGitLabのMRページに投稿されます
+
+## 🎨 カスタマイズ
+
+### PR-Agent LLMハンドラーのカスタマイズ
+
+PR-AgentのLLM処理をカスタマイズする場合：
+
+1. カスタムハンドラーファイルを作成
+   ```bash
+   # カスタムハンドラーを配置
+   vi pr-agent/custom/litellm_ai_handler.py
+   ```
+
+2. Dockerビルド時に自動で上書きされます
+   ```bash
+   docker build -t dev-tools-web -f web/Dockerfile .
+   # ビルドログで "✅ カスタムLLMハンドラーを適用しました" を確認
+   ```
+
+詳細は `pr-agent/custom/README.md` を参照してください。
 
 ## 🔧 トラブルシューティング
 

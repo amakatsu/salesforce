@@ -12,7 +12,7 @@ from pathlib import Path
 
 # tools/pr-agentモジュールのパスを追加
 tools_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(tools_dir / "tools" / "pr-agent" / "prg"))
+sys.path.insert(0, str(tools_dir / "pr-agent"))
 
 # ページ設定
 st.set_page_config(
@@ -123,7 +123,7 @@ with st.sidebar:
     st.subheader("⚙️ コンテキスト設定")
 
     # 利用可能な設定ファイルを取得
-    configs_dir = tools_dir / "tools" / "pr-agent" / "prg" / "configs"
+    configs_dir = tools_dir / "pr-agent" / "configs"
 
     config_options = {"デフォルト": None}
 
@@ -220,46 +220,62 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
     else:
         try:
             import subprocess
-            import tempfile
+            import toml
 
             progress_bar = st.progress(0)
             status_text = st.empty()
 
-            status_text.text(f"🔄 設定ファイルを準備中...")
+            status_text.text(f"🔄 設定ファイルを読み込み中...")
             progress_bar.progress(10)
 
-            # 一時的な設定ファイルを作成
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.toml', delete=False, encoding='utf-8') as tmp_config:
-                if config_path:
-                    # 選択された設定ファイルをベースにする
-                    with open(config_path, 'r', encoding='utf-8') as f:
-                        config_content = f.read()
-                else:
-                    # デフォルト設定
-                    config_content = f"""
-[config]
-model = "{model}"
-git_provider = "gitlab"
-response_language = "ja-JP"
-"""
+            # 設定を読み込んでコマンドライン引数に変換
+            config_args = []
 
-                # カスタムプロンプトを追加
-                if custom_prompt:
-                    if '[pr_reviewer]' in config_content:
-                        config_content = config_content.replace(
-                            '[pr_reviewer]',
-                            f'[pr_reviewer]\nextra_instructions = """\n{custom_prompt}\n"""\n'
-                        )
-                    else:
-                        config_content += f'\n[pr_reviewer]\nextra_instructions = """\n{custom_prompt}\n"""\n'
+            if config_path:
+                # 選択された設定ファイルを読み込み
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config_data = toml.load(f)
 
-                # コマンド別の設定
-                if pr_command == "improve" and 'num_suggestions' in locals():
-                    if '[pr_code_suggestions]' not in config_content:
-                        config_content += f'\n[pr_code_suggestions]\nnum_code_suggestions = {num_suggestions}\n'
+                # config セクション
+                if 'config' in config_data:
+                    for key, value in config_data['config'].items():
+                        if key != 'model':  # modelは別で指定
+                            config_args.extend([f"--config.{key}", str(value)])
 
-                tmp_config.write(config_content)
-                tmp_config_path = tmp_config.name
+                # pr_reviewer セクション
+                if 'pr_reviewer' in config_data:
+                    for key, value in config_data['pr_reviewer'].items():
+                        if isinstance(value, bool):
+                            config_args.extend([f"--pr_reviewer.{key}", "true" if value else "false"])
+                        else:
+                            config_args.extend([f"--pr_reviewer.{key}", str(value)])
+
+                # pr_code_suggestions セクション
+                if 'pr_code_suggestions' in config_data:
+                    for key, value in config_data['pr_code_suggestions'].items():
+                        if isinstance(value, bool):
+                            config_args.extend([f"--pr_code_suggestions.{key}", "true" if value else "false"])
+                        else:
+                            config_args.extend([f"--pr_code_suggestions.{key}", str(value)])
+
+                # pr_description セクション
+                if 'pr_description' in config_data:
+                    for key, value in config_data['pr_description'].items():
+                        if isinstance(value, bool):
+                            config_args.extend([f"--pr_description.{key}", "true" if value else "false"])
+                        else:
+                            config_args.extend([f"--pr_description.{key}", str(value)])
+
+            # カスタムプロンプトを追加
+            if custom_prompt:
+                config_args.extend(["--pr_reviewer.extra_instructions", custom_prompt])
+
+            # コマンド別の設定
+            if pr_command == "improve" and 'num_suggestions' in locals():
+                config_args.extend(["--pr_code_suggestions.num_code_suggestions", str(num_suggestions)])
+
+            if pr_command == "review" and 'inline_limit' in locals():
+                config_args.extend(["--pr_reviewer.inline_comments_limit", str(inline_limit)])
 
             status_text.text(f"🔄 PR-Agent {pr_command} コマンドを実行中...")
             progress_bar.progress(25)
@@ -278,7 +294,7 @@ response_language = "ja-JP"
             env["GITLAB__AUTH_TYPE"] = "oauth_token"
 
             # PR-Agent実行スクリプト
-            pr_agent_dir = tools_dir / "tools" / "pr-agent" / "prg"
+            pr_agent_dir = tools_dir / "pr-agent"
             runner_script = pr_agent_dir / "tools" / "pr_agent_runner.py"
 
             cmd = [
@@ -286,8 +302,13 @@ response_language = "ja-JP"
                 str(runner_script),
                 "-u", mr_url,
                 "--command", pr_command,
-                "-c", tmp_config_path
+                "--config.model", model,
+                "--config.git_provider", "gitlab",
+                "--config.response_language", "ja-JP"
             ]
+
+            # 設定ファイルから読み込んだ引数を追加
+            cmd.extend(config_args)
 
             if pr_command == "ask" and question:
                 cmd.extend(["--question", question])
@@ -304,12 +325,6 @@ response_language = "ja-JP"
                     timeout=600,  # 10分タイムアウト
                     cwd=str(pr_agent_dir)
                 )
-
-            # 一時ファイルを削除
-            try:
-                os.unlink(tmp_config_path)
-            except:
-                pass
 
             progress_bar.progress(100)
             status_text.text("✅ 実行完了！")

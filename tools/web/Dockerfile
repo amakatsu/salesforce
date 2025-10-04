@@ -29,11 +29,21 @@ COPY pr-agent /app/pr-agent
 
 # PR-Agent設定ファイルをホームディレクトリにコピー
 RUN mkdir -p /root/.pr_agent
-COPY pr-agent/prg/configs /root/.pr_agent/configs
+COPY pr-agent/configs /root/.pr_agent/configs
 COPY .pr_agent.toml /root/.pr_agent.toml
 
+# カスタムLLMハンドラーをコピー（存在する場合のみ）
+COPY pr-agent/custom /app/pr-agent/custom
+
+# カスタムLLMハンドラーが存在する場合は上書き
+RUN if [ -f /app/pr-agent/custom/litellm_ai_handler.py ]; then \
+    HANDLER_PATH=$(python -c "import site; print(site.getsitepackages()[0])")/pr_agent/algo/ai_handlers/litellm_ai_handler.py; \
+    cp /app/pr-agent/custom/litellm_ai_handler.py "$HANDLER_PATH"; \
+    echo "✅ カスタムLLMハンドラーを適用しました: $HANDLER_PATH"; \
+fi
+
 # Pythonパスを設定（tools/配下からインポートできるように）
-ENV PYTHONPATH=/app:/app/pr-agent/prg:$PYTHONPATH
+ENV PYTHONPATH=/app:/app/pr-agent:$PYTHONPATH
 
 # PR-Agent環境変数
 ENV PR_AGENT_CONFIG_PATH=/root/.pr_agent/configs
