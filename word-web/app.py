@@ -234,8 +234,9 @@ if 'processing_done' not in st.session_state:
     st.session_state.processing_done = False
     st.session_state.result_df = None
 
-# 実行ボタン
-if st.button("🚀 照合実行", type="primary", use_container_width=True):
+# 実行ボタン（APIキーとユーザIDが入力されている場合のみ有効）
+button_disabled = not (api_key and user_id)
+if st.button("🚀 照合実行", type="primary", use_container_width=True, disabled=button_disabled):
     # 前回の結果をクリア
     st.session_state.processing_done = False
     st.session_state.result_df = None
@@ -292,7 +293,16 @@ if st.button("🚀 照合実行", type="primary", use_container_width=True):
                     status_text.text(f"🔄 照合処理を実行中... ({current}/{total}件 処理済み)")
 
                 with st.spinner("照合処理中... (数分かかる場合があります)"):
-                    df = process(tmpdir, screen_col, vocab_col, config, progress_callback=update_progress)
+                    try:
+                        df = process(tmpdir, screen_col, vocab_col, config, progress_callback=update_progress)
+                    except Exception as api_error:
+                        # API認証エラーなどをキャッチ
+                        error_msg = str(api_error)
+                        if "401" in error_msg or "Unauthorized" in error_msg or "api-key" in error_msg.lower():
+                            st.error("❌ API認証に失敗しました。APIキーまたはユーザIDを確認してください。")
+                        else:
+                            st.error(f"❌ 処理中にエラーが発生しました: {error_msg}")
+                        raise
 
                 progress_bar.progress(70)
 

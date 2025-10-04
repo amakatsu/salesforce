@@ -599,7 +599,15 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
                 content = data["choices"][0]["message"]["content"]
                 result = json.loads(content)
                 return result
-            except Exception:
+            except Exception as e:
+                # API認証エラーの場合はリトライせずに即座に例外を投げる
+                error_msg = str(e)
+                if hasattr(e, 'response') and e.response is not None:
+                    status_code = e.response.status_code
+                    if status_code in [401, 403]:
+                        raise Exception(f"API認証エラー (HTTP {status_code}): APIキーまたはユーザIDが無効です") from e
+
+                # その他のエラーの場合はリトライ
                 if attempt < cfg["RETRY"]:
                     time.sleep(1.2 * (attempt + 1))  # バックオフ
                     continue
