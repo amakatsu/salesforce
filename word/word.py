@@ -651,7 +651,7 @@ def simple_proposal(text: str) -> str:
  
 # ====== メイン処理 ============================================================
  
-def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any]) -> pd.DataFrame:
+def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any], progress_callback=None) -> pd.DataFrame:
     """全体フロー：入力→候補生成→（完全一致なら即決）→LLM判定→集計DataFrame。"""
     df_screen, df_vocab = load_screen_and_vocab(dir_path, cfg, screen_col, vocab_col)
     # 全体件数（進捗ログ用）
@@ -811,9 +811,12 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 rows.append(row)
                 processed_count += 1
                 # 進捗ログ: 10件ごとに出力
+                pct = processed_count * 100 / total_items if total_items else 0
                 if processed_count % 10 == 0 or processed_count == total_items:
-                    pct = processed_count * 100 / total_items if total_items else 0
                     print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
+                # コールバック呼び出し（リアルタイム進捗）
+                if progress_callback:
+                    progress_callback(processed_count, total_items)
             except Exception as e:
                 # ワーカー失敗時も処理を止めない
                 error_row = {
@@ -823,9 +826,12 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 rows.append(error_row)
                 processed_count += 1
                 # エラー行でも進捗ログ
+                pct = processed_count * 100 / total_items if total_items else 0
                 if processed_count % 10 == 0 or processed_count == total_items:
-                    pct = processed_count * 100 / total_items if total_items else 0
                     print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
+                # コールバック呼び出し（リアルタイム進捗）
+                if progress_callback:
+                    progress_callback(processed_count, total_items)
  
     return pd.DataFrame(rows).reset_index(drop=True)
  
