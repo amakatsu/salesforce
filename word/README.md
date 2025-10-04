@@ -1,45 +1,67 @@
-# Excel用語照合ツール（LLM補助版）
+# Excel単語照合ツール（LLM補助版）
 
-業務システムの画面項目名と単語帳を照合し、用語統一を支援するPythonツールです。
+業務システムの画面項目名と単語帳を照合し、lowerCamelCase形式の物理名を提案するPythonツールです。
 
 ## 🚀 主な機能
 
 - **自動用語照合**: 画面項目定義と単語帳を自動で読み込み、類似度を計算
 - **LLM判定**: OpenAI互換APIを使用して精密な一致判定と提案名生成
-- **バッチ処理**: 100件ずつまとめて処理し、API呼び出しを効率化
+- **社内プロキシ対応**: プロキシ設定の自動検出とEXE対応
 - **Excel出力**: 色分け・フィルター機能付きの見やすいレポート生成
 - **エラー処理**: API失敗時の自動フォールバック機能
 
 ## 📋 必要なライブラリ
 
+### 基本実行用
+
 ```bash
-pip install pandas openpyxl python-dotenv requests
+pip install pandas openpyxl python-dotenv requests certifi
+```
+
+### EXEビルド用（追加）
+
+```bash
+pip install pyinstaller win-inet-pton
 ```
 
 ## 🔧 設定
 
-### 1. APIキー設定（.env ファイル）
+### 1. 環境設定ファイル（.env）の準備
+
+初回実行時に自動的に`.env`ファイルが作成され、**社内プロキシ設定が自動検出**されます。
+
+手動で設定する場合は、`.env`ファイルを作成：
 
 ```bash
 # OpenAI互換API設定
-OPENAI_BASE_URL=https://your-api-endpoint.com
-OPENAI_API_KEY=your-api-key-here
+OPENAI_BASE_URL=https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu
+OPENAI_API_KEY=your-api-key
 OPENAI_MODEL=gpt-4o-mini
+OPENAI_HEADERS_JSON={"api-key":"your-key","apim-user-id":"your-id"}
+
+# プロキシ設定（自動検出されます。手動設定も可能）
+HTTP_PROXY=http://proxy.company.local:8080
+HTTPS_PROXY=http://proxy.company.local:8080
 
 # 処理設定
-BATCH_SIZE=100          # バッチ処理サイズ
 FUZZY_THRESHOLD=0.72    # 類似度閾値
-MAX_WORKERS=6           # 並列処理数
+TOP_K=3                 # 候補の上位件数
+MAX_WORKERS=6           # 並列処理スレッド数
+MAX_CONCURRENT_API=5    # 同時API呼び出し数
 ```
 
-### 2. ファイル配置
+### 2. 入力ファイルの配置
 
 ```
 入力フォルダ/
-├── 画面項目定義_システムA.xlsx
-├── 単語帳_2024.xlsx
+├── *画面項目定義*.xlsx    ← 画面項目定義ファイル
+├── *単語名一覧*.xlsx      ← 単語帳ファイル
 └── ...
 ```
+
+**必須列**：
+- 画面項目定義: `項目名称`
+- 単語帳: `論理名`, `物理名（正式名称）`, `No`
 
 ## 🎯 使い方
 
@@ -61,6 +83,75 @@ python word.py --dir ./data \
 ### GUI起動（ダブルクリック）
 
 引数なしで実行すると、フォルダ選択ダイアログが開きます。
+
+### オプション一覧
+
+- `--dir <パス>`: 入力ディレクトリ（画面項目定義・単語帳が入ったフォルダ）
+- `--out-dir <パス>`: 出力ディレクトリ（デフォルト: `out`）
+- `--screen-col <列名>`: 画面項目定義の列名（デフォルト: `項目名称`）
+- `--vocab-col <列名>`: 単語帳の列名（デフォルト: `論理名`）
+- `--no-gui`: GUIダイアログを使わない（サーバー/CI向け）
+
+## 🔨 EXEファイルのビルド方法
+
+### ステップ1: プロキシ設定の自動検出
+
+まず通常のPython実行で、**社内プロキシ設定を`.env`ファイルに保存**します：
+
+```cmd
+python word.py --dir <テスト用ディレクトリ>
+```
+
+以下のようなメッセージが表示されます：
+```
+[INFO] 検出されたHTTPプロキシ: http://proxy.company.local:8080
+[INFO] 検出されたHTTPSプロキシ: http://proxy.company.local:8080
+[INFO] プロキシ設定を .env に保存しました
+```
+
+### ステップ2: 依存パッケージのインストール
+
+```cmd
+pip install pyinstaller certifi win-inet-pton
+```
+
+### ステップ3: EXEファイルのビルド
+
+`.spec`ファイルを使ってビルドします：
+
+```cmd
+pyinstaller word.spec
+```
+
+ビルドが完了すると、`dist`フォルダに`word.exe`が生成されます。
+
+### ステップ4: EXEファイルの配布
+
+以下のファイルを配布します：
+
+```
+dist/
+  ├── word.exe      ← 実行ファイル
+  └── .env          ← 環境設定ファイル（プロキシ設定含む）
+```
+
+**重要**: `.env`ファイルを`word.exe`と同じフォルダに配置してください。
+
+### トラブルシューティング（EXE実行時）
+
+#### ホスト名が解決できない
+
+**原因**: 社内DNS・プロキシ設定が正しく読み込まれていない
+
+**解決策**:
+
+1. `.env`ファイルが`word.exe`と同じフォルダにあるか確認
+2. `.env`に正しいプロキシ設定があるか確認：
+   ```bash
+   HTTP_PROXY=http://proxy.company.local:8080
+   HTTPS_PROXY=http://proxy.company.local:8080
+   ```
+3. 通常のPython実行（`python word.py`）で動作確認してから再ビルド
 
 ## 📊 処理フロー
 
@@ -250,32 +341,46 @@ python word.py --dir ./data \
 
 ## ⚠️ トラブルシューティング
 
-### 1. API失敗時
-
-```
-❌ バッチAPI失敗: Connection timeout...
-→ 個別処理にフォールバック中...
-→ 個別処理でも3件失敗（フォールバック適用）
-```
-
-→ エラーログシートで詳細確認可能
-
-### 2. Excel保存エラー
-
-```
-❌ ファイルが開かれています: match_result.xlsx
-   ファイルを閉じてから Enter を押してください... (試行 1/3)
-```
-
-→ ファイルを閉じて Enter キーで再試行
-
-### 3. ヘッダー検出失敗
+### 1. ヘッダー検出失敗
 
 ```
 KeyError: 必須列 ['項目名称'] を含むヘッダー行が見つかりませんでした。
 ```
 
-→ `--screen-col` オプションで正しい列名を指定
+**解決策**:
+- `--screen-col` オプションで正しい列名を指定
+- または環境変数で指定：
+  ```bash
+  SCREEN_COL=項目名称
+  VOCAB_TERM_COL=論理名
+  SCREEN_HEADER_ROW=3  # ヘッダー行を手動指定（3行目の場合）
+  ```
+
+### 2. API接続エラー
+
+```
+❌ DNS解決失敗: [Errno 11001] getaddrinfo failed
+```
+
+**解決策**:
+1. プロキシ設定を確認：
+   ```bash
+   # .envファイルに追加
+   HTTP_PROXY=http://proxy.company.local:8080
+   HTTPS_PROXY=http://proxy.company.local:8080
+   ```
+2. 通常のPython実行で自動検出：
+   ```cmd
+   python word.py --dir <ディレクトリ>
+   ```
+
+### 3. Excel保存エラー
+
+```
+❌ ファイルが開かれています: match_result.xlsx
+```
+
+**解決策**: 出力先のExcelファイルを閉じてから再実行
 
 ## 📚 技術詳細
 

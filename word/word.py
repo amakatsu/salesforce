@@ -23,6 +23,28 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+
+# PyInstallerビルド時のSSL証明書対応
+try:
+    import certifi
+    CA_BUNDLE = certifi.where()
+except ImportError:
+    CA_BUNDLE = True  # デフォルトの証明書検証を使用
+
+# PyInstallerビルド時のDNS解決対応（Windows）
+if sys.platform == 'win32':
+    try:
+        import win_inet_pton
+    except ImportError:
+        pass
+
+    # socket初期化を強制実行
+    import socket
+    try:
+        socket.setdefaulttimeout(30)
+        socket.getaddrinfo('localhost', 80)
+    except Exception:
+        pass
  
 # ====== GUI（任意） ===========================================================
 try:
@@ -325,7 +347,11 @@ class ApiClient:
         self.base_url = cfg["OPENAI_BASE_URL"].rstrip("/")
         self.path = cfg["OPENAI_PATH"]
         self.timeout = cfg["TIMEOUT_SEC"]
-        self.verify = cfg["VERIFY_SSL"]
+        # PyInstallerビルド時の証明書検証対応
+        if cfg["VERIFY_SSL"]:
+            self.verify = CA_BUNDLE
+        else:
+            self.verify = False
         self.session = requests.Session()  # ThreadPool内ではスレッド毎の生成を推奨
         # プロキシ
         proxies: Dict[str, str] = {}
@@ -351,6 +377,22 @@ class ApiClient:
  
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
+
+        # デバッグ用：DNS解決テスト
+        import socket
+        from urllib.parse import urlparse
+        try:
+            hostname = urlparse(self.base_url).hostname
+            if hostname:
+                print(f"[DEBUG] DNS解決テスト: {hostname}")
+                ip = socket.gethostbyname(hostname)
+                print(f"[DEBUG] 解決成功: {hostname} -> {ip}")
+        except Exception as e:
+            print(f"[ERROR] DNS解決失敗: {e}")
+            print(f"[DEBUG] プロキシ設定: {self.session.proxies}")
+            print(f"[DEBUG] 環境変数HTTP_PROXY: {os.getenv('HTTP_PROXY')}")
+            print(f"[DEBUG] 環境変数HTTPS_PROXY: {os.getenv('HTTPS_PROXY')}")
+
         resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
         resp.raise_for_status()
         return resp.json()
@@ -974,8 +1016,76 @@ def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
         return None
  
  
+def detect_and_save_proxy() -> None:
+    """システムのプロキシ設定を検出して.envに保存"""
+    import urllib.request
+
+    # 既に.envにプロキシ設定がある場合はスキップ
+    if os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY"):
+        return
+
+    # システムプロキシを自動検出
+    proxies = urllib.request.getproxies()
+
+    if proxies:
+        env_path = app_root() / ".env"
+        env_lines = []
+
+        # 既存の.envを読み込み
+        if env_path.exists():
+            with open(env_path, "r", encoding="utf-8") as f:
+                env_lines = f.readlines()
+
+        # プロキシ設定を追加
+        proxy_settings = []
+        if "http" in proxies:
+            proxy_settings.append(f"HTTP_PROXY={proxies['http']}\n")
+            print(f"[INFO] 検出されたHTTPプロキシ: {proxies['http']}")
+        if "https" in proxies:
+            proxy_settings.append(f"HTTPS_PROXY={proxies['https']}\n")
+            print(f"[INFO] 検出されたHTTPSプロキシ: {proxies['https']}")
+
+        if proxy_settings:
+            # 既存のプロキシ設定行を削除
+            env_lines = [line for line in env_lines if not line.startswith("HTTP_PROXY=") and not line.startswith("HTTPS_PROXY=")]
+
+            # 新しいプロキシ設定を追加
+            env_lines.extend(["\n# 自動検出されたプロキシ設定\n"] + proxy_settings)
+
+            # .envに書き込み
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.writelines(env_lines)
+
+            print(f"[INFO] プロキシ設定を {env_path} に保存しました")
+
+            # 環境変数に即座に反映
+            for key, value in proxies.items():
+                if key == "http":
+                    os.environ["HTTP_PROXY"] = value
+                elif key == "https":
+                    os.environ["HTTPS_PROXY"] = value
+
+
 def main() -> None:
-    load_dotenv()
+    # PyInstallerでビルドされたEXEの場合、.envファイルを明示的に読み込む
+    if getattr(sys, "frozen", False):
+        # EXEの場合: 実行ファイルと同じディレクトリ or 一時展開先の.envを探す
+        exe_dir = Path(sys.executable).parent
+        env_candidates = [
+            exe_dir / ".env",  # EXEと同じフォルダ
+            Path(sys._MEIPASS) / ".env" if hasattr(sys, "_MEIPASS") else None,  # 一時展開先
+            app_root() / ".env",  # 元のディレクトリ
+        ]
+        for env_path in env_candidates:
+            if env_path and env_path.exists():
+                load_dotenv(env_path)
+                print(f"[INFO] .envファイルを読み込みました: {env_path}")
+                break
+    else:
+        # 通常のPython実行時
+        load_dotenv()
+        detect_and_save_proxy()
+
     # ダブルクリック実行時のカレントずれ防止
     try:
         os.chdir(app_root())
