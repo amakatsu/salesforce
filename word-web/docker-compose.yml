@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  word-web:
+    build:
+      context: ..
+      dockerfile: word-web/Dockerfile
+    container_name: word-matcher-web
+    ports:
+      - "8501:8501"
+    environment:
+      # OpenAI API設定（.envファイルから読み込み）
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_PATH=${OPENAI_PATH:-/chat/completions}
+      - OPENAI_HEADERS_JSON=${OPENAI_HEADERS_JSON}
+      - OPENAI_SEND_AUTH=${OPENAI_SEND_AUTH:-false}
+      - OPENAI_ORG_ID=${OPENAI_ORG_ID}
+
+      # プロキシ設定
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - VERIFY_SSL=${VERIFY_SSL:-true}
+
+      # 生成パラメタ
+      - MAX_TOKENS=${MAX_TOKENS:-800}
+      - TEMPERATURE=${TEMPERATURE:-0.7}
+      - TOP_P=${TOP_P:-0.95}
+      - FUZZY_THRESHOLD=${FUZZY_THRESHOLD:-0.72}
+      - MAX_WORKERS=${MAX_WORKERS:-6}
+      - MAX_CONCURRENT_API=${MAX_CONCURRENT_API:-5}
+
+      # Streamlit設定
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+    volumes:
+      # 永続化が必要な場合は以下をアンコメント
+      # - ./data:/app/data
+      # - ./out:/app/out
+      pass:
+
+    restart: unless-stopped
+
+    # ヘルスチェック
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
