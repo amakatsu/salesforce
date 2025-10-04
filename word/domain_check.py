@@ -62,25 +62,21 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "DOMAIN_SHEET": os.getenv("DOMAIN_SHEET", "*"),
     "TABLE_SHEET": os.getenv("TABLE_SHEET", "*"),
 
+    # 対象一覧（項目名のみ）
     "TARGET_ITEM_COL": os.getenv("TARGET_ITEM_COL", "項目名"),
-    "TARGET_DOMAIN_COL": os.getenv("TARGET_DOMAIN_COL", "ドメイン"),
-    "TARGET_TABLE_COL": os.getenv("TARGET_TABLE_COL", "テーブル名"),
-    "TARGET_COLUMN_COL": os.getenv("TARGET_COLUMN_COL", "カラム名"),
 
+    # ドメイン定義（ドメイン名、データ型、桁数、バリデーション）
     "DOMAIN_NAME_COL": os.getenv("DOMAIN_NAME_COL", "ドメイン名"),
     "DOMAIN_TYPE_COL": os.getenv("DOMAIN_TYPE_COL", "データ型"),
     "DOMAIN_LENGTH_COL": os.getenv("DOMAIN_LENGTH_COL", "桁数"),
-    "DOMAIN_PRECISION_COL": os.getenv("DOMAIN_PRECISION_COL", "精度"),
-    "DOMAIN_SCALE_COL": os.getenv("DOMAIN_SCALE_COL", "スケール"),
-    "DOMAIN_DESC_COL": os.getenv("DOMAIN_DESC_COL", "説明"),
+    "DOMAIN_VALIDATION_COL": os.getenv("DOMAIN_VALIDATION_COL", "単項目チェック"),
 
+    # テーブル定義（テーブル名、項目名、カラム名、データ型、桁数）
     "TABLE_NAME_COL": os.getenv("TABLE_NAME_COL", "テーブル名"),
+    "TABLE_ITEM_COL": os.getenv("TABLE_ITEM_COL", "項目名"),
     "TABLE_COLUMN_COL": os.getenv("TABLE_COLUMN_COL", "カラム名"),
-    "TABLE_DOMAIN_COL": os.getenv("TABLE_DOMAIN_COL", "ドメイン"),
     "TABLE_TYPE_COL": os.getenv("TABLE_TYPE_COL", "データ型"),
     "TABLE_LENGTH_COL": os.getenv("TABLE_LENGTH_COL", "桁数"),
-    "TABLE_PRECISION_COL": os.getenv("TABLE_PRECISION_COL", "精度"),
-    "TABLE_SCALE_COL": os.getenv("TABLE_SCALE_COL", "スケール"),
 
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
@@ -92,7 +88,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5")),
 
     # --- 機能制御
-    "CHECK_MODE": os.getenv("CHECK_MODE", "both")  # both, suggestion, validation
+    "CHECK_MODE": os.getenv("CHECK_MODE", "suggestion")  # suggestion, validation, both
 }
 
 # ====== 正規化関数 ============================================================
@@ -127,28 +123,28 @@ class DomainDef:
     name: str
     data_type: str
     length: Optional[str]
-    precision: Optional[str]
-    scale: Optional[str]
-    description: str
+    validation: str  # 単項目チェック（バリデーション内容）
+    row_number: int  # Excel行番号
+    source_file: str
+    source_sheet: str
 
 @dataclass
 class TableDef:
     """テーブル定義"""
     table_name: str
-    column_name: str
-    domain: str
+    item_name: str      # 項目名（論理名）
+    column_name: str    # カラム名（物理名）
     data_type: str
     length: Optional[str]
-    precision: Optional[str]
-    scale: Optional[str]
+    row_number: int     # Excel行番号
+    source_file: str
+    source_sheet: str
 
 @dataclass
 class TargetItem:
     """対象項目"""
-    item_name: str
-    domain: str
-    table_name: str
-    column_name: str
+    item_name: str      # 項目名（論理名）のみ
+    row_number: int     # Excel行番号
     source_file: str
     source_sheet: str
 
@@ -194,6 +190,7 @@ def read_excel_auto(path: Path, sheet_name: Optional[str], required_cols: List[s
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row)
 
 def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
+    """ドメイン定義を読み込み（行番号付き）"""
     files = sorted(dir_path.glob(cfg["DOMAIN_GLOB"]))
     if not files:
         raise FileNotFoundError(f"ドメイン定義ファイルが見つかりません")
@@ -203,17 +200,24 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
         sheets = _pick_matching_sheets(xls, cfg["DOMAIN_SHEET"])
         for sheet in sheets:
             try:
-                df = read_excel_auto(path, sheet, [cfg["DOMAIN_NAME_COL"], cfg["DOMAIN_TYPE_COL"]])
-                for _, row in df.iterrows():
+                df, header_row = read_excel_with_header_detection(
+                    path, sheet,
+                    [cfg["DOMAIN_NAME_COL"], cfg["DOMAIN_TYPE_COL"]],
+                    None, 30
+                )
+                for idx, row in df.iterrows():
                     name = str(row.get(cfg["DOMAIN_NAME_COL"], "")).strip()
                     if name:
+                        # 行番号 = ヘッダー行 + データ行インデックス + 2（1始まり、ヘッダーの次の行）
+                        row_number = header_row + idx + 2
                         domains[normalize_text(name)] = DomainDef(
                             name=name,
                             data_type=str(row.get(cfg["DOMAIN_TYPE_COL"], "")).strip(),
                             length=str(row.get(cfg["DOMAIN_LENGTH_COL"], "")).strip() if cfg["DOMAIN_LENGTH_COL"] in df.columns else None,
-                            precision=str(row.get(cfg["DOMAIN_PRECISION_COL"], "")).strip() if cfg["DOMAIN_PRECISION_COL"] in df.columns else None,
-                            scale=str(row.get(cfg["DOMAIN_SCALE_COL"], "")).strip() if cfg["DOMAIN_SCALE_COL"] in df.columns else None,
-                            description=str(row.get(cfg["DOMAIN_DESC_COL"], "")).strip() if cfg["DOMAIN_DESC_COL"] in df.columns else ""
+                            validation=str(row.get(cfg["DOMAIN_VALIDATION_COL"], "")).strip() if cfg["DOMAIN_VALIDATION_COL"] in df.columns else "",
+                            row_number=row_number,
+                            source_file=path.name,
+                            source_sheet=sheet
                         )
                 print(f"[INFO] ドメイン定義読み込み: {path.name}/{sheet} ({len(domains)}件)")
             except Exception as e:
@@ -221,7 +225,8 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
     print(f"[INFO] 合計ドメイン定義: {len(domains)}件")
     return domains
 
-def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[Tuple[str, str], TableDef]:
+def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, TableDef]:
+    """テーブル定義を読み込み（項目名でキー、行番号付き）"""
     files = sorted(dir_path.glob(cfg["TABLE_GLOB"]))
     if not files:
         raise FileNotFoundError(f"テーブル定義ファイルが見つかりません")
@@ -231,20 +236,28 @@ def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[Tuple[str, str], Ta
         sheets = _pick_matching_sheets(xls, cfg["TABLE_SHEET"])
         for sheet in sheets:
             try:
-                df = read_excel_auto(path, sheet, [cfg["TABLE_NAME_COL"], cfg["TABLE_COLUMN_COL"]])
-                for _, row in df.iterrows():
+                df, header_row = read_excel_with_header_detection(
+                    path, sheet,
+                    [cfg["TABLE_NAME_COL"], cfg["TABLE_ITEM_COL"], cfg["TABLE_COLUMN_COL"]],
+                    None, 30
+                )
+                for idx, row in df.iterrows():
                     table_name = str(row.get(cfg["TABLE_NAME_COL"], "")).strip()
+                    item_name = str(row.get(cfg["TABLE_ITEM_COL"], "")).strip()
                     column_name = str(row.get(cfg["TABLE_COLUMN_COL"], "")).strip()
-                    if table_name and column_name:
-                        key = (normalize_text(table_name), normalize_text(column_name))
+                    if table_name and item_name and column_name:
+                        row_number = header_row + idx + 2
+                        # キーは項目名（論理名）のみ
+                        key = normalize_text(item_name)
                         tables[key] = TableDef(
                             table_name=table_name,
+                            item_name=item_name,
                             column_name=column_name,
-                            domain=str(row.get(cfg["TABLE_DOMAIN_COL"], "")).strip() if cfg["TABLE_DOMAIN_COL"] in df.columns else "",
                             data_type=str(row.get(cfg["TABLE_TYPE_COL"], "")).strip() if cfg["TABLE_TYPE_COL"] in df.columns else "",
                             length=str(row.get(cfg["TABLE_LENGTH_COL"], "")).strip() if cfg["TABLE_LENGTH_COL"] in df.columns else None,
-                            precision=str(row.get(cfg["TABLE_PRECISION_COL"], "")).strip() if cfg["TABLE_PRECISION_COL"] in df.columns else None,
-                            scale=str(row.get(cfg["TABLE_SCALE_COL"], "")).strip() if cfg["TABLE_SCALE_COL"] in df.columns else None
+                            row_number=row_number,
+                            source_file=path.name,
+                            source_sheet=sheet
                         )
                 print(f"[INFO] テーブル定義読み込み: {path.name}/{sheet}")
             except Exception as e:
@@ -253,9 +266,10 @@ def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[Tuple[str, str], Ta
     return tables
 
 def load_targets(dir_path: Path, cfg: Dict[str, Any]) -> List[TargetItem]:
+    """対象一覧を読み込み（項目名のみ、行番号付き）"""
     files = sorted(dir_path.glob(cfg["TARGET_GLOB"]))
     if not files:
-        print(f"[警告] 対象一覧ファイルが見つかりません（機能1はスキップ）")
+        print(f"[警告] 対象一覧ファイルが見つかりません")
         return []
     items = []
     for path in files:
@@ -263,18 +277,21 @@ def load_targets(dir_path: Path, cfg: Dict[str, Any]) -> List[TargetItem]:
         sheets = _pick_matching_sheets(xls, cfg["TARGET_SHEET"])
         for sheet in sheets:
             try:
-                df = read_excel_auto(path, sheet, [cfg["TARGET_ITEM_COL"], cfg["TARGET_TABLE_COL"]])
-                for _, row in df.iterrows():
-                    item = TargetItem(
-                        item_name=str(row.get(cfg["TARGET_ITEM_COL"], "")).strip(),
-                        domain=str(row.get(cfg["TARGET_DOMAIN_COL"], "")).strip() if cfg["TARGET_DOMAIN_COL"] in df.columns else "",
-                        table_name=str(row.get(cfg["TARGET_TABLE_COL"], "")).strip(),
-                        column_name=str(row.get(cfg["TARGET_COLUMN_COL"], "")).strip(),
-                        source_file=path.name,
-                        source_sheet=sheet
-                    )
-                    if item.item_name:
-                        items.append(item)
+                df, header_row = read_excel_with_header_detection(
+                    path, sheet,
+                    [cfg["TARGET_ITEM_COL"]],
+                    None, 30
+                )
+                for idx, row in df.iterrows():
+                    item_name = str(row.get(cfg["TARGET_ITEM_COL"], "")).strip()
+                    if item_name:
+                        row_number = header_row + idx + 2
+                        items.append(TargetItem(
+                            item_name=item_name,
+                            row_number=row_number,
+                            source_file=path.name,
+                            source_sheet=sheet
+                        ))
                 print(f"[INFO] 対象一覧読み込み: {path.name}/{sheet}")
             except Exception as e:
                 print(f"[警告] {path.name}({sheet}) エラー: {e}")
@@ -316,29 +333,56 @@ class ApiClient:
 # ====== LLMプロンプト（機能1: ドメイン提案） ==================================
 LLM_SUGGESTION_SYSTEM = (
     "あなたはデータベース設計の専門家です。\n"
-    "テーブル定義とドメイン候補から、適切なドメインを提案します。\n"
-    "ドメインが不要な技術的カラムも見分けます。\n"
+    "項目名の業務的意味を分析し、判断材料を提供します（推奨はしません）。\n"
+    "\n"
+    "重要な分析視点:\n"
+    "1. 業務的意味: 項目名が表す業務上の概念を特定\n"
+    "2. 技術的項目の判定: 業務的意味を持たない技術的カラムかどうか\n"
+    "3. 類似性分析: 既存ドメインとの意味的な類似性を評価\n"
+    "4. 特性分析: この項目に必要な特性（バリデーション、制約等）を抽出\n"
+    "\n"
+    "技術的項目の例:\n"
+    "- id, created_at, updated_at, version, seq_no\n"
+    "- delete_flag, is_active, enabled\n"
+    "- lock_version, row_version\n"
+    "\n"
+    "注意: 同じデータ型・桁数でも、意味が異なれば別ドメイン（例: 顧客コード vs 商品コード）\n"
 )
 
 LLM_SUGGESTION_USER = """対象項目: {item_name}
 テーブル: {table_name}.{column_name}
 テーブル定義: データ型={table_type}, 桁数={table_length}
 
-ドメイン候補:
+既存ドメイン定義一覧:
 {domain_candidates}
+
+タスク:
+以下の分析を実施し、人間が判断するための材料を提供してください。
+
+1. 業務的意味の分析
+2. 技術的項目かどうかの判定
+3. 既存ドメインとの類似性分析（意味的な類似性）
+4. この項目に必要な特性の抽出
 
 出力JSON:
 {{
-  "domain_required": true | false,
-  "reason": string,
-  "recommended_domain": string | null,
-  "confidence": "high" | "medium" | "low"
+  "business_meaning": string,
+  "is_technical": boolean,
+  "similar_domains": [string],
+  "required_characteristics": string,
+  "notes": string
 }}
 
-判定基準:
-- domain_required: 業務意味を持つならtrue、技術的カラム(ID自動採番等)ならfalse
-- recommended_domain: domain_required=trueなら候補から選択、falseならnull
-- confidence: high=完全一致、medium=型一致、low=推測
+フィールド説明:
+- business_meaning: 項目の業務的意味を簡潔に説明（例: "顧客を一意に識別するコード"）
+  技術的項目の場合も説明を記載（例: "レコードの作成日時を保持する技術的カラム"）
+- is_technical: 技術的項目=true、業務的項目=false
+- similar_domains: 既存ドメインの中で意味的に類似するものをリスト（最大3件）
+  完全一致がなくても、関連性があるものを含める
+  例: ["顧客コード", "取引先コード"]
+- required_characteristics: この項目に必要と思われる特性（バリデーション、制約等）
+  例: "英数字8桁固定、ユニーク制約"
+- notes: その他の補足情報や注意点
 
 JSON以外出力禁止。
 """
@@ -427,62 +471,161 @@ def compare_spec(domain: DomainDef, table: TableDef) -> Tuple[bool, List[str]]:
 
     return (type_match and len(diffs) == 0), diffs
 
+
+def analyze_compatibility(table_def: TableDef, domains: Dict[str, DomainDef]) -> Tuple[List[str], str]:
+    """テーブル定義と各ドメインの整合性を分析（提案時の参考情報）"""
+    domain_list = []
+    analysis_notes = []
+
+    table_dtype_norm = normalize_data_type(table_def.data_type)
+
+    # データ型一致のドメインを優先、その後は全ドメイン
+    type_matched = []
+    type_mismatched = []
+
+    for domain_name, domain in domains.items():
+        domain_dtype_norm = normalize_data_type(domain.data_type)
+        is_match, diffs = compare_spec(domain, table_def)
+
+        domain_info = f"{domain.name} ({domain.data_type}"
+        if domain.length:
+            domain_info += f", {domain.length}桁"
+        domain_info += ")"
+
+        if domain_dtype_norm == table_dtype_norm:
+            # データ型一致
+            if is_match:
+                # 完全一致
+                domain_info += " - 完全一致 ✓"
+                analysis_notes.append(f"✓ {domain.name}: データ型・桁数完全一致")
+                type_matched.insert(0, domain_info)  # 先頭に追加
+            elif len(diffs) == 1 and "桁数" in diffs[0]:
+                # 型一致、桁数のみ差異
+                domain_info += " - 型一致、桁数差異"
+                analysis_notes.append(f"△ {domain.name}: 型一致、{diffs[0]}")
+                type_matched.append(domain_info)
+            else:
+                # 型一致、その他差異
+                domain_info += " - 型一致"
+                type_matched.append(domain_info)
+        else:
+            # データ型不一致（参考として含める）
+            domain_info += " - 型不一致"
+            type_mismatched.append(domain_info)
+
+    # データ型一致を優先、その後全ドメイン
+    domain_list = type_matched + type_mismatched
+
+    # 上位候補のみ返却（LLMへの入力を減らす）
+    top_domains = domain_list[:30]  # 上位30件（意味重視なので多めに）
+    analysis_text = "\n".join(analysis_notes[:15]) if analysis_notes else "データ型が一致するドメインがありません（新規定義を推奨）"
+
+    return (top_domains, analysis_text)
+
+
 def process_domain_suggestion(targets: List[TargetItem], domains: Dict[str, DomainDef],
-                              tables: Dict[Tuple[str, str], TableDef],
+                              tables: Dict[str, TableDef],
                               cfg: Dict[str, Any], client: ApiClient,
                               api_semaphore: threading.Semaphore) -> pd.DataFrame:
-    """機能1: ドメイン提案"""
+    """
+    ドメイン提案機能（新仕様）
+
+    処理フロー:
+    1. 対象一覧から項目名を読み込み
+    2. ドメイン定義で完全一致チェック → 一致あれば採用して終了
+    3. テーブル定義から該当項目を検索
+    4. LLMで判断材料を提供（提案はしない）
+    5. 結果を出力（人間が最終判断）
+    """
     rows = []
     for item in targets:
-        domain_key = normalize_text(item.domain)
-        domain_exists = domain_key in domains if domain_key else False
+        # Step 1: 項目名で正規化キーを作成
+        item_key = normalize_text(item.item_name)
 
-        table_key = (normalize_text(item.table_name), normalize_text(item.column_name))
-        table_def = tables.get(table_key)
-
-        if domain_exists:
+        # Step 2: ドメイン定義で完全一致チェック
+        if item_key in domains:
+            matched_domain = domains[item_key]
             rows.append({
-                "source_file": item.source_file,
-                "item_name": item.item_name,
-                "specified_domain": item.domain,
-                "check_result": "OK",
-                "reason": "ドメイン定義に存在",
-                "recommended_domain": item.domain
+                "対象行番号": item.row_number,
+                "対象ファイル": item.source_file,
+                "項目名": item.item_name,
+                "判定結果": "完全一致",
+                "一致ドメイン": matched_domain.name,
+                "ドメイン行番号": matched_domain.row_number,
+                "ドメインファイル": matched_domain.source_file,
+                "データ型": matched_domain.data_type,
+                "桁数": matched_domain.length or "-",
+                "バリデーション": matched_domain.validation,
+                "備考": "ドメイン定義に完全一致"
             })
-        elif not table_def:
+            continue
+
+        # Step 3: テーブル定義から該当項目を検索
+        table_def = tables.get(item_key)
+        if not table_def:
             rows.append({
-                "source_file": item.source_file,
-                "item_name": item.item_name,
-                "specified_domain": item.domain or "(未指定)",
-                "check_result": "エラー",
-                "reason": "テーブル定義が見つかりません",
-                "recommended_domain": None
+                "対象行番号": item.row_number,
+                "対象ファイル": item.source_file,
+                "項目名": item.item_name,
+                "判定結果": "エラー",
+                "備考": "テーブル定義が見つかりません"
+            })
+            continue
+
+        # Step 4: LLMで判断材料を提供
+        # すべてのドメインを候補として渡す（型でフィルタしない）
+        domain_list = []
+        for domain in domains.values():
+            domain_list.append(
+                f"- {domain.name}: {domain.data_type}({domain.length or '-'}), バリデーション: {domain.validation}"
+            )
+
+        llm_result = call_llm(
+            LLM_SUGGESTION_SYSTEM,
+            LLM_SUGGESTION_USER.format(
+                item_name=item.item_name,
+                table_name=table_def.table_name,
+                column_name=table_def.column_name,
+                table_type=table_def.data_type,
+                table_length=table_def.length or "未指定",
+                domain_candidates="\n".join(domain_list) if domain_list else "(ドメイン候補なし)"
+            ),
+            cfg, client, api_semaphore
+        )
+
+        if "error" in llm_result:
+            rows.append({
+                "対象行番号": item.row_number,
+                "対象ファイル": item.source_file,
+                "項目名": item.item_name,
+                "テーブル名": table_def.table_name,
+                "カラム名": table_def.column_name,
+                "テーブル行番号": table_def.row_number,
+                "データ型": table_def.data_type,
+                "桁数": table_def.length or "-",
+                "判定結果": "LLMエラー",
+                "備考": llm_result.get("error", "不明なエラー")
             })
         else:
-            # LLM判定
-            domain_list = [f"{d.name} ({d.data_type})" for d in list(domains.values())[:10]]
-            llm_result = call_llm(
-                LLM_SUGGESTION_SYSTEM,
-                LLM_SUGGESTION_USER.format(
-                    item_name=item.item_name,
-                    table_name=table_def.table_name,
-                    column_name=table_def.column_name,
-                    table_type=table_def.data_type,
-                    table_length=table_def.length or "未指定",
-                    domain_candidates="\n".join(domain_list)
-                ),
-                cfg, client, api_semaphore
-            )
-            if "error" not in llm_result:
-                check_result = "ドメイン不要" if not llm_result.get("domain_required") else "要定義"
-                rows.append({
-                    "source_file": item.source_file,
-                    "item_name": item.item_name,
-                    "specified_domain": item.domain or "(未指定)",
-                    "check_result": check_result,
-                    "reason": llm_result.get("reason", ""),
-                    "recommended_domain": llm_result.get("recommended_domain")
-                })
+            # Step 5: LLM分析結果を出力（人間が最終判断）
+            rows.append({
+                "対象行番号": item.row_number,
+                "対象ファイル": item.source_file,
+                "項目名": item.item_name,
+                "テーブル名": table_def.table_name,
+                "カラム名": table_def.column_name,
+                "テーブル行番号": table_def.row_number,
+                "テーブルファイル": table_def.source_file,
+                "データ型": table_def.data_type,
+                "桁数": table_def.length or "-",
+                "判定結果": "要判断",
+                "業務的意味": llm_result.get("business_meaning", ""),
+                "類似ドメイン": ", ".join(llm_result.get("similar_domains", [])),
+                "必要な特性": llm_result.get("required_characteristics", ""),
+                "技術的項目判定": "はい" if llm_result.get("is_technical", False) else "いいえ",
+                "備考": llm_result.get("notes", "")
+            })
+
     return pd.DataFrame(rows)
 
 def process_domain_validation(tables: Dict[Tuple[str, str], TableDef],
@@ -573,17 +716,18 @@ def save_outputs(df_suggestion: Optional[pd.DataFrame], df_validation: Optional[
         if df_suggestion is not None and len(df_suggestion) > 0:
             df_suggestion.to_excel(w, sheet_name="ドメイン提案", index=False)
             ws = w.sheets["ドメイン提案"]
-            # 色付け
-            if "check_result" in df_suggestion.columns:
-                result_col_idx = list(df_suggestion.columns).index("check_result") + 1
+            # 色付け（判定結果列）
+            if "判定結果" in df_suggestion.columns:
+                result_col_idx = list(df_suggestion.columns).index("判定結果") + 1
                 result_col = get_column_letter(result_col_idx)
                 fill_green = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
                 fill_yellow = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
                 fill_red = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
                 rng = f"{result_col}2:{result_col}{len(df_suggestion)+1}"
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="OK"'], fill=fill_green))
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="要定義"'], fill=fill_yellow))
+                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="完全一致"'], fill=fill_green))
+                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="要判断"'], fill=fill_yellow))
                 ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="エラー"'], fill=fill_red))
+                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="LLMエラー"'], fill=fill_red))
 
         if df_validation is not None and len(df_validation) > 0:
             df_validation.to_excel(w, sheet_name="整合性チェック", index=False)

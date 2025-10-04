@@ -382,6 +382,28 @@ KeyError: 必須列 ['項目名称'] を含むヘッダー行が見つかりま�
 
 **解決策**: 出力先のExcelファイルを閉じてから再実行
 
+## 📁 プロジェクト構成
+
+```
+word/
+├── word.py                    # メインプログラム
+├── word.spec                  # PyInstallerビルド設定
+├── domain_check.py            # ドメイン固有の検証ツール
+├── README.md                  # このファイル
+├── RATE_LIMIT_GUIDE.md       # API制限対応ガイド
+├── .env                       # 環境設定（プロキシ、APIキーなど）
+├── tests/                     # テストファイル
+│   ├── __init__.py
+│   ├── mock_api.py           # モックAPI応答
+│   ├── run_tests.py          # テスト実行スクリプト
+│   ├── test_word_matching.py
+│   ├── test_functions.py
+│   ├── test_partial_matching.py
+│   └── test_sheet_matching.py
+└── dev/                       # 開発中・実験的機能（現在は空）
+    └── README.md
+```
+
 ## 📚 技術詳細
 
 ### 使用ライブラリ

@@ -579,10 +579,10 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
     # テストモード判定
     if cfg.get("TEST_MODE", False) or os.getenv("WORD_MATCHING_TEST_MODE", "false").lower() == "true":
         try:
-            from mock_api import mock_llm_response
+            from tests.mock_api import mock_llm_response
             return mock_llm_response(screen_name, candidates)
         except ImportError:
-            print("[警告] mock_api.pyが見つかりません。フォールバックを使用します。")
+            print("[警告] tests/mock_api.pyが見つかりません。フォールバックを使用します。")
             return fallback_reason(screen_name, candidates)
  
     client = client or ApiClient(cfg)
