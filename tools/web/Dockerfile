@@ -27,8 +27,17 @@ COPY word /app/word
 COPY domain /app/domain
 COPY pr-agent /app/pr-agent
 
+# PR-Agent設定ファイルをホームディレクトリにコピー
+RUN mkdir -p /root/.pr_agent
+COPY pr-agent/prg/configs /root/.pr_agent/configs
+COPY .pr_agent.toml /root/.pr_agent.toml
+
 # Pythonパスを設定（tools/配下からインポートできるように）
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/app:/app/pr-agent/prg:$PYTHONPATH
+
+# PR-Agent環境変数
+ENV PR_AGENT_CONFIG_PATH=/root/.pr_agent/configs
+ENV HOME=/root
 
 # Streamlit設定
 ENV STREAMLIT_SERVER_PORT=8501 \
