@@ -10,8 +10,12 @@ import os
 import asyncio
 from pathlib import Path
 
-# tools/pr-agentモジュールのパスを追加
-tools_dir = Path(__file__).parent.parent.parent
+# 共通設定をインポート
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common.config import get_custom_prompt, CUSTOM_PROMPT_TEMPLATES
+
+# pr-agentモジュールのパスを追加
+tools_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(tools_dir / "pr-agent"))
 
 # ページ設定
@@ -86,6 +90,8 @@ with st.sidebar:
     # デフォルト値を環境変数から取得
     default_gitlab_token = os.getenv("GITLAB_TOKEN", "")
     default_gemini_key = os.getenv("GEMINI_API_KEY", "")
+    default_openai_key = os.getenv("OPENAI_API_KEY", "")
+    default_user_id = os.getenv("APIM_USER_ID", "")
 
     gitlab_token = st.text_input(
         "GitLab Token",
@@ -93,21 +99,42 @@ with st.sidebar:
         type="password",
         help="GitLabリポジトリにアクセスするためのパーソナルアクセストークン（api scope必須）"
     )
-    gemini_api_key = st.text_input(
-        "Gemini API Key",
-        value=default_gemini_key,
+
+    api_key = st.text_input(
+        "Azure OpenAI API Key",
+        value=default_openai_key,
         type="password",
-        help="Gemini APIキー（コードレビュー生成用）"
+        help="Azure OpenAI APIキー"
+    )
+
+    user_id = st.text_input(
+        "User ID (apim-user-id)",
+        value=default_user_id,
+        help="API Management のユーザID"
     )
 
     st.markdown("---")
 
     st.subheader("🎯 PR-Agentコマンド")
+
+    # コマンドの説明
+    command_descriptions = {
+        "review": "📝 コードレビュー - コードの問題点、改善提案、ベストプラクティスを分析",
+        "improve": "✨ コード改善 - 具体的なコード改善案を提示（リファクタリング、最適化など）",
+        "describe": "📋 PR説明生成 - PRの内容を分析して説明文を自動生成",
+        "ask": "❓ 質問応答 - PRに関する質問に回答（例: セキュリティリスクは？）",
+        "update_changelog": "📰 変更履歴更新 - CHANGELOGファイルを自動更新",
+        "generate_labels": "🏷️ ラベル生成 - PRの内容に基づいて適切なラベルを提案"
+    }
+
     pr_command = st.selectbox(
         "実行コマンド",
-        ["review", "improve", "describe", "ask", "update_changelog", "generate_labels"],
+        options=list(command_descriptions.keys()),
         help="実行するPR-Agentコマンドを選択"
     )
+
+    # コマンド説明を下に表示
+    st.info(command_descriptions[pr_command])
 
     # askコマンドの場合は質問入力欄を表示
     question = ""
@@ -126,24 +153,56 @@ with st.sidebar:
     configs_dir = tools_dir / "pr-agent" / "configs"
 
     config_options = {"デフォルト": None}
+    config_descriptions = {"デフォルト": "標準設定を使用"}
 
     # プリセット
     presets_dir = configs_dir / "presets"
     if presets_dir.exists():
         for config_file in sorted(presets_dir.glob("*.toml")):
-            config_options[f"🎯 {config_file.stem}"] = str(config_file)
+            key = f"🎯 {config_file.stem}"
+            config_options[key] = str(config_file)
+            # ファイルから説明を抽出
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    first_line = f.readline().strip()
+                    if first_line.startswith('#'):
+                        config_descriptions[key] = first_line.lstrip('# ').strip()
+                    else:
+                        config_descriptions[key] = f"プリセット: {config_file.stem}"
+            except:
+                config_descriptions[key] = f"プリセット: {config_file.stem}"
 
     # 言語固有
     lang_dir = configs_dir / "language-specific"
     if lang_dir.exists():
         for config_file in sorted(lang_dir.glob("*.toml")):
-            config_options[f"🔧 {config_file.stem}"] = str(config_file)
+            key = f"🔧 {config_file.stem}"
+            config_options[key] = str(config_file)
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    first_line = f.readline().strip()
+                    if first_line.startswith('#'):
+                        config_descriptions[key] = first_line.lstrip('# ').strip()
+                    else:
+                        config_descriptions[key] = f"言語固有設定: {config_file.stem}"
+            except:
+                config_descriptions[key] = f"言語固有設定: {config_file.stem}"
 
     # テンプレート
     templates_dir = configs_dir / "templates"
     if templates_dir.exists():
         for config_file in sorted(templates_dir.glob("*.toml")):
-            config_options[f"📄 {config_file.stem}"] = str(config_file)
+            key = f"📄 {config_file.stem}"
+            config_options[key] = str(config_file)
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    first_line = f.readline().strip()
+                    if first_line.startswith('#'):
+                        config_descriptions[key] = first_line.lstrip('# ').strip()
+                    else:
+                        config_descriptions[key] = f"テンプレート: {config_file.stem}"
+            except:
+                config_descriptions[key] = f"テンプレート: {config_file.stem}"
 
     selected_config = st.selectbox(
         "設定ファイル",
@@ -153,7 +212,10 @@ with st.sidebar:
 
     config_path = config_options[selected_config]
 
-    # 選択された設定の説明
+    # 設定ファイルの説明を下に表示
+    st.info(config_descriptions.get(selected_config, "標準設定を使用"))
+
+    # 選択された設定の内容を確認可能に
     if selected_config != "デフォルト":
         with st.expander("📖 設定ファイルの内容を確認", expanded=False):
             try:
@@ -167,14 +229,13 @@ with st.sidebar:
     with st.expander("🔧 詳細設定", expanded=False):
         model = st.selectbox(
             "LLMモデル",
-            ["gemini/gemini-2.0-flash", "gemini/gemini-2.5-pro"],
-            help="使用するGeminiモデル"
+            ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+            help="使用するAzure OpenAIモデル"
         )
 
-        custom_prompt = st.text_area(
-            "カスタムプロンプト（オプション）",
-            placeholder="例: XSS脆弱性を重点的にチェック",
-            help="設定ファイルに追加の指示を付与"
+        custom_prompt = get_custom_prompt(
+            CUSTOM_PROMPT_TEMPLATES["pr_agent"],
+            "このレビューに適用する追加の指示やコンテキスト情報"
         )
 
         if pr_command == "improve":
@@ -194,25 +255,111 @@ with st.sidebar:
                 help="レビューコメントの最大数"
             )
 
+
 # メインエリア
 st.subheader("GitLab マージリクエスト情報")
 
-mr_url = st.text_input(
-    "マージリクエストURL",
-    placeholder="https://gitlab.com/group/project/-/merge_requests/1",
-    help="レビュー対象のGitLab MR URL"
+# MR選択方法
+input_method = st.radio(
+    "入力方法",
+    ["URLを直接入力", "プロジェクトから選択"],
+    horizontal=True
 )
+
+mr_url = ""
+selected_mr = None
+
+if input_method == "URLを直接入力":
+    mr_url = st.text_input(
+        "マージリクエストURL",
+        placeholder="https://gitlab.com/group/project/-/merge_requests/1",
+        help="レビュー対象のGitLab MR URL"
+    )
+else:
+    # プロジェクトから選択
+    project_url = st.text_input(
+        "プロジェクトURL",
+        placeholder="https://gitlab.com/group/project",
+        help="GitLabプロジェクトのURL"
+    )
+
+    if project_url and gitlab_token:
+        try:
+            import requests
+            import re
+
+            # プロジェクトIDを抽出
+            match = re.match(r'https://gitlab\.com/(.+)', project_url.rstrip('/'))
+            if match:
+                project_path = match.group(1)
+
+                # GitLab APIでMR一覧を取得
+                headers = {"PRIVATE-TOKEN": gitlab_token}
+                api_url = f"https://gitlab.com/api/v4/projects/{project_path.replace('/', '%2F')}/merge_requests"
+
+                with st.spinner("MR一覧を取得中..."):
+                    response = requests.get(
+                        api_url,
+                        headers=headers,
+                        params={"state": "opened", "order_by": "updated_at", "sort": "desc"}
+                    )
+
+                if response.status_code == 200:
+                    mrs = response.json()
+
+                    if mrs:
+                        # MR選択ボックス
+                        mr_options = {
+                            f"!{mr['iid']} - {mr['title']} (by {mr['author']['name']})": mr['web_url']
+                            for mr in mrs
+                        }
+
+                        selected_label = st.selectbox(
+                            "マージリクエストを選択",
+                            options=list(mr_options.keys()),
+                            help="レビューしたいMRを選択してください"
+                        )
+
+                        mr_url = mr_options[selected_label]
+
+                        # 選択されたMRの詳細を表示
+                        selected_mr = next(mr for mr in mrs if mr['web_url'] == mr_url)
+
+                        with st.expander("📋 MR詳細", expanded=False):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.write(f"**タイトル**: {selected_mr['title']}")
+                                st.write(f"**作成者**: {selected_mr['author']['name']}")
+                                st.write(f"**ソースブランチ**: {selected_mr['source_branch']}")
+                            with col2:
+                                st.write(f"**ターゲットブランチ**: {selected_mr['target_branch']}")
+                                st.write(f"**作成日**: {selected_mr['created_at'][:10]}")
+                                st.write(f"**更新日**: {selected_mr['updated_at'][:10]}")
+                    else:
+                        st.info("このプロジェクトにはオープンなMRがありません")
+                else:
+                    st.error(f"❌ MR一覧の取得に失敗しました: {response.status_code}")
+                    if response.status_code == 401:
+                        st.error("GitLab Tokenが無効です")
+                    elif response.status_code == 404:
+                        st.error("プロジェクトが見つかりません")
+            else:
+                st.warning("有効なGitLabプロジェクトURLを入力してください")
+        except Exception as e:
+            st.error(f"エラー: {str(e)}")
+    elif project_url and not gitlab_token:
+        st.warning("⚠️ GitLab Tokenを入力してください")
 
 st.markdown("---")
 
 # 実行ボタン（APIキーとMR URLが入力されている場合のみ有効）
-button_disabled = not (gitlab_token and gemini_api_key and mr_url)
+button_disabled = not (gitlab_token and api_key and user_id and mr_url)
 if pr_command == "ask":
     button_disabled = button_disabled or not question
 
 if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, disabled=button_disabled):
-    if not gitlab_token or not gemini_api_key:
-        st.error("❌ GitLab TokenとGemini API Keyを入力してください")
+    if not gitlab_token or not api_key or not user_id:
+        st.error("❌ GitLab Token、Azure OpenAI API Key、User IDを入力してください")
     elif not mr_url:
         st.error("❌ マージリクエストURLを入力してください")
     elif pr_command == "ask" and not question:
@@ -283,9 +430,8 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
             # 環境変数を設定
             env = os.environ.copy()
             env["GITLAB_TOKEN"] = gitlab_token
-            env["GEMINI_API_KEY"] = gemini_api_key
-            env["GOOGLE_AI_STUDIO__GEMINI_API_KEY"] = gemini_api_key
-            env["OPENAI_API_KEY"] = ""
+            env["OPENAI_API_KEY"] = api_key
+            env["APIM_USER_ID"] = user_id
             env["CONFIG__GIT_PROVIDER"] = "gitlab"
             env["CONFIG__MODEL"] = model
             env["CONFIG__RESPONSE_LANGUAGE"] = "ja-JP"

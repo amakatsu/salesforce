@@ -39,17 +39,18 @@ PR-Agent は QodoAI が開発したAIベースのプルリクエスト分析・�
 ## 📁 プロジェクト構造
 
 ```
-📦 pr-agent-custom/
+📦 pr-agent/
 ├── 📄 README.md                           # メインガイド（最初に読む）
 ├── 📄 pr_agent.py                         # メイン実行コマンド
+├── 📄 .pr_agent.toml                      # ローカル開発用デフォルト設定
 │
-├── 📁 configs/                            # 設定ファイル群
+├── 📁 configs/                            # 設定ファイル群（Web UIから選択可能）
 │   ├── 📁 templates/                      # 基本テンプレート
 │   │   ├── 📄 configuration-example.toml  # 基本設定テンプレート
 │   │   └── 📄 high-precision-config.toml  # 高精度レビュー設定
 │   │
 │   ├── 📁 presets/                        # 用途別プリセット
-│   │   ├── 📄 security-focused.toml       # 🔒 セキュリティ特化
+│   │   ├── 📄 security-focused.toml       # 🔒 セキュリティ特化（OWASP Top 10）
 │   │   ├── 📄 performance-focused.toml    # ⚡ パフォーマンス特化
 │   │   └── 📄 educational.toml            # 👨‍🎓 教育・新人向け
 │   │
@@ -68,6 +69,15 @@ PR-Agent は QodoAI が開発したAIベースのプルリクエスト分析・�
     ├── 📄 precision-enhancement-guide.md  # レビュー精度向上ガイド
     └── 📄 PR-Agent-Structure.md           # PR-Agent内部構造
 ```
+
+### 設定ファイルの配置ルール
+
+- **`pr-agent/.pr_agent.toml`**: ローカル開発時のデフォルト設定（CLI実行用）
+- **`tools/.pr_agent.toml`**: Dockerコンテナ内のグローバルデフォルト設定（`/root/.pr_agent.toml`にコピーされる）
+- **`configs/`**: Web UIから選択可能な設定ファイル群
+  - `presets/`: 用途別の設定（セキュリティ、パフォーマンス等）
+  - `language-specific/`: 言語固有の最適化設定
+  - `templates/`: カスタマイズのベーステンプレート
 
 ## 🚀 インストール
 

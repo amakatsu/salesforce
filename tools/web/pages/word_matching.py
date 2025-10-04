@@ -10,10 +10,14 @@ import tempfile
 from pathlib import Path
 import streamlit as st
 
-# tools/wordモジュールをインポート
-tools_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(tools_dir))
-from tools.word.word import process, save_outputs, DEFAULT_CONFIG
+# 共通設定をインポート
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common.config import render_api_credentials_section, get_custom_prompt, CUSTOM_PROMPT_TEMPLATES
+
+# wordモジュールをインポート
+word_dir = Path(__file__).parent.parent / "word"
+sys.path.insert(0, str(word_dir.parent))
+from word.word import process, save_outputs, DEFAULT_CONFIG
 
 # ページ設定
 st.set_page_config(
@@ -134,25 +138,8 @@ st.markdown("---")
 with st.sidebar:
     st.header("⚙️ 設定")
 
-    # API設定
-    import json
-    default_headers = json.loads(DEFAULT_CONFIG["OPENAI_HEADERS_JSON"])
-    default_api_key = default_headers.get("api-key", "")
-    default_user_id = default_headers.get("apim-user-id", "")
-
-    st.subheader("🔑 API認証情報")
-    st.caption("LLM APIに接続するための認証情報を入力してください")
-    api_key = st.text_input(
-        "APIキー",
-        value=default_api_key,
-        type="password",
-        help="Azure OpenAI APIのキーを入力してください"
-    )
-    user_id = st.text_input(
-        "ユーザID (apim-user-id)",
-        value=default_user_id,
-        help="API Management のユーザIDを入力してください"
-    )
+    # API認証情報（共通設定を使用）
+    api_key, user_id = render_api_credentials_section()
 
     st.markdown("---")
 
@@ -173,7 +160,7 @@ with st.sidebar:
     st.markdown("---")
 
     # LLM設定（上級者向け）
-    with st.expander("🔧 LLM設定（上級者向け）", expanded=False):
+    with st.expander("🔧 詳細設定", expanded=False):
         st.caption("LLMの動作パラメータを調整できます（通常は変更不要）")
         max_tokens = st.number_input(
             "Max Tokens",
@@ -197,6 +184,11 @@ with st.sidebar:
             value=DEFAULT_CONFIG["FUZZY_THRESHOLD"],
             step=0.05,
             help="単語の類似度判定の最低スコア（高いほど厳密に一致）"
+        )
+
+        custom_prompt = get_custom_prompt(
+            CUSTOM_PROMPT_TEMPLATES["word_matching"],
+            "物理名生成時の追加の指示やルール"
         )
 
 # メインエリア

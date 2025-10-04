@@ -10,10 +10,14 @@ import sys
 import json
 from pathlib import Path
 
-# tools/domainモジュールをインポート
-tools_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(tools_dir))
-from tools.domain.domain_check import (
+# 共通設定をインポート
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common.config import render_api_credentials_section, get_custom_prompt, CUSTOM_PROMPT_TEMPLATES
+
+# domainモジュールをインポート
+domain_dir = Path(__file__).parent.parent / "domain"
+sys.path.insert(0, str(domain_dir.parent))
+from domain.domain_check import (
     load_domains, load_tables, load_targets,
     process_domain_suggestion, save_outputs,
     ApiClient, DEFAULT_CONFIG
@@ -91,34 +95,8 @@ st.markdown("---")
 with st.sidebar:
     st.header("⚙️ 設定")
 
-    st.subheader("🔑 API認証情報")
-
-    # デフォルト値を環境変数から取得
-    default_headers = json.loads(DEFAULT_CONFIG["OPENAI_HEADERS_JSON"])
-    default_api_key = default_headers.get("api-key", "")
-    default_user_id = default_headers.get("apim-user-id", "")
-
-    api_key = st.text_input(
-        "APIキー",
-        value=default_api_key,
-        type="password",
-        help="Azure OpenAI APIのキーを入力してください"
-    )
-    user_id = st.text_input(
-        "ユーザID (apim-user-id)",
-        value=default_user_id,
-        help="API Management のユーザIDを入力してください"
-    )
-
-    st.markdown("---")
-
-    st.subheader("🎯 チェック項目")
-    check_mode = st.selectbox(
-        "実行モード",
-        ["ドメイン提案のみ", "整合性チェックのみ", "両方実行"],
-        index=0,
-        help="実行する機能を選択"
-    )
+    # API認証情報（共通設定を使用）
+    api_key, user_id = render_api_credentials_section()
 
     st.markdown("---")
 
@@ -127,7 +105,7 @@ with st.sidebar:
             "Max Tokens",
             value=DEFAULT_CONFIG["MAX_TOKENS"],
             min_value=100,
-            max_value=1500,
+            max_value=800,
             help="LLMが生成する最大トークン数"
         )
         temperature = st.slider(
@@ -144,6 +122,11 @@ with st.sidebar:
             max_value=10,
             value=DEFAULT_CONFIG["MAX_WORKERS"],
             help="並列で処理するスレッド数"
+        )
+
+        custom_prompt = get_custom_prompt(
+            CUSTOM_PROMPT_TEMPLATES["domain_check"],
+            "ドメイン提案時の追加の指示やルール"
         )
 
 # メインエリア
@@ -188,16 +171,11 @@ with col3:
 st.markdown("---")
 
 # 実行ボタン（APIキーとファイルが揃っている場合のみ有効）
-mode_map = {
-    "ドメイン提案のみ": "suggestion",
-    "整合性チェックのみ": "validation",
-    "両方実行": "both"
-}
+# 常に両方実行
+check_mode = "both"
 
 # 必要なファイルチェック
-files_ready = domain_files and table_files
-if mode_map[check_mode] in ["suggestion", "both"]:
-    files_ready = files_ready and target_files
+files_ready = domain_files and table_files and target_files
 
 button_disabled = not (api_key and user_id and files_ready)
 
@@ -240,7 +218,7 @@ if st.button("🚀 チェック実行", type="primary", use_container_width=True
                 config["TEMPERATURE"] = float(temperature)
                 config["MAX_WORKERS"] = int(max_workers)
                 config["OUT_DIR"] = str(tmpdir / "out")
-                config["CHECK_MODE"] = mode_map[check_mode]
+                config["CHECK_MODE"] = "both"
 
                 # API設定の上書き
                 config["OPENAI_HEADERS_JSON"] = json.dumps({
