@@ -1,4 +1,5 @@
-# word-web/Dockerfile
+# tools/web/Dockerfile
+# 開発支援ツール統合Webポータル
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -6,19 +7,30 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# システムパッケージのインストール
 # curl: HEALTHCHECK用 / ca-certificates: HTTPS用
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# ← ここがポイント：ビルドコンテキストは「リポジトリ直下」なのでパスは word-web/...
-COPY word-web/requirements.txt .
+# ビルドコンテキストは tools/ ディレクトリ
+COPY web/requirements.txt .
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY word-web/app.py /app/app.py
-COPY word /app/word
+# Webアプリケーションファイルをコピー
+COPY web/app.py /app/app.py
+COPY web/pages /app/pages
 
+# バックエンドロジックをコピー
+COPY word /app/word
+COPY domain /app/domain
+COPY pr-agent /app/pr-agent
+
+# Pythonパスを設定（tools/配下からインポートできるように）
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+# Streamlit設定
 ENV STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
     STREAMLIT_SERVER_HEADLESS=true \

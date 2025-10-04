@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  dev-tools-web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: dev-tools-web
+    ports:
+      - "8501:8501"
+    environment:
+      # API認証情報（環境変数または.envファイルから）
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      # 開発時は以下をアンコメントしてホットリロード有効化
+      # - ./web/app.py:/app/app.py
+      # - ./web/pages:/app/pages
+      # データ永続化用（オプション）
+      - dev-tools-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dev-tools-network
+
+volumes:
+  dev-tools-data:
+    driver: local
+
+networks:
+  dev-tools-network:
+    driver: bridge
