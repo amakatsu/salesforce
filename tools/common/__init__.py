@@ -18,6 +18,7 @@ from .normalizers import (
     normalize_column_name,
     extract_digits
 )
+from .cli_utils import app_root, ask_directory
 
 __all__ = [
     # API Backend
@@ -41,5 +42,8 @@ __all__ = [
     'normalize_text',
     'normalize_data_type',
     'normalize_column_name',
-    'extract_digits'
+    'extract_digits',
+    # CLI Utils
+    'app_root',
+    'ask_directory'
 ]

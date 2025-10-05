@@ -23,7 +23,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import requests
-from dotenv import load_dotenv
 
 # 共通モジュール
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,6 +30,11 @@ from common.api_backend import create_api_backend
 from common.config import get_common_config, get_tool_config
 from common.excel_utils import read_excel_with_auto_header
 from common.normalizers import normalize_text as norm_text, normalize_data_type as norm_dtype
+from common.cli_utils import app_root, ask_directory
+
+# domainモジュール
+from domain.models import DomainDef, TableDef, TargetItem
+from domain.data_loader import load_domains, load_tables, load_targets
 
 # ====== GUI（任意） ===========================================================
 try:
@@ -47,196 +51,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     **get_tool_config("domain")  # ツール固有設定（config.yamlから取得）
 }
 
-# ====== 正規化関数（ラッパー） ================================================
-# common.normalizers を使用（互換性のためローカル名を維持）
-def normalize_text(text: str) -> str:
-    """NFKC正規化 + 小文字化（共通モジュール使用）"""
-    if text is None or text == "":
-        return ""
-    s = unicodedata.normalize("NFKC", str(text)).lower().strip()
-    return re.sub(r"[\u3000\s]+", " ", s)
-
-def normalize_data_type(dtype: str) -> str:
-    """データ型の正規化（共通モジュール使用）"""
-    return norm_dtype(dtype) if dtype else ""
-
-# ====== データクラス ==========================================================
-@dataclass
-class DomainDef:
-    """ドメイン定義"""
-    name: str
-    data_type: str
-    length: Optional[str]
-    validation: str  # 単項目チェック（バリデーション内容）
-    row_number: int  # Excel行番号
-    source_file: str
-    source_sheet: str
-
-@dataclass
-class TableDef:
-    """テーブル定義"""
-    table_name: str
-    item_name: str      # 項目名（論理名）
-    column_name: str    # カラム名（物理名）
-    data_type: str
-    length: Optional[str]
-    row_number: int     # Excel行番号
-    source_file: str
-    source_sheet: str
-
-@dataclass
-class TargetItem:
-    """対象項目"""
-    item_name: str      # 項目名（論理名）のみ
-    row_number: int     # Excel行番号
-    source_file: str
-    source_sheet: str
-
-# ====== Excel I/O =============================================================
-HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
-HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
-
-def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[str]:
-    if not preferred:
-        return [xls.sheet_names[0]]
-    norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
-    patterns = [p.strip() for p in preferred.split(",") if p.strip()]
-    if not patterns:
-        return [xls.sheet_names[0]]
-    all_matches = []
-    for pattern in patterns:
-        want = norm(pattern)
-        regex_pattern = want.replace('*', '.*')
-        for name in xls.sheet_names:
-            if re.match(regex_pattern, norm(name)):
-                all_matches.append(name)
-    result = []
-    seen = set()
-    for sheet in all_matches:
-        if sheet not in seen:
-            result.append(sheet)
-            seen.add(sheet)
-    return result if result else [xls.sheet_names[0]]
-
-def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
-    head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
-    req = {normalize_text(c) for c in required_cols if c}
-    for i in range(len(head_df)):
-        row_vals = {normalize_text(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan"}}
-        if req.issubset(row_vals):
-            return i
-    raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
-
-def read_excel_auto(path: Path, sheet_name: Optional[str], required_cols: List[str]) -> pd.DataFrame:
-    """
-    Excelファイルを自動的にヘッダー検出して読み込み
-    ※ 共通モジュールのread_excel_with_auto_headerを内部で使用可能だが、
-       required_colsチェックのため独自実装を維持
-    """
-    if not HEADER_DETECT:
-        return pd.read_excel(path, sheet_name=sheet_name)
-    header_row = _detect_header_row(path, sheet_name, required_cols, HEADER_SCAN_ROWS)
-    return pd.read_excel(path, sheet_name=sheet_name, header=header_row)
-
-def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
-    """ドメイン定義を読み込み（行番号付き）"""
-    files = sorted(dir_path.glob(cfg["DOMAIN_GLOB"]))
-    if not files:
-        raise FileNotFoundError(f"ドメイン定義ファイルが見つかりません")
-    domains = {}
-    for path in files:
-        xls = pd.ExcelFile(path)
-        sheets = _pick_matching_sheets(xls, cfg["DOMAIN_SHEET"])
-        for sheet in sheets:
-            try:
-                header_row = _detect_header_row(path, sheet, [cfg["DOMAIN_NAME_COL"], cfg["DOMAIN_TYPE_COL"]], HEADER_SCAN_ROWS)
-                df = pd.read_excel(path, sheet_name=sheet, header=header_row)
-                for idx, row in df.iterrows():
-                    name = str(row.get(cfg["DOMAIN_NAME_COL"], "")).strip()
-                    if name:
-                        # 行番号 = ヘッダー行 + データ行インデックス + 2（1始まり、ヘッダーの次の行）
-                        row_number = header_row + idx + 2
-                        domains[normalize_text(name)] = DomainDef(
-                            name=name,
-                            data_type=str(row.get(cfg["DOMAIN_TYPE_COL"], "")).strip(),
-                            length=str(row.get(cfg["DOMAIN_LENGTH_COL"], "")).strip() if cfg["DOMAIN_LENGTH_COL"] in df.columns else None,
-                            validation=str(row.get(cfg["DOMAIN_VALIDATION_COL"], "")).strip() if cfg["DOMAIN_VALIDATION_COL"] in df.columns else "",
-                            row_number=row_number,
-                            source_file=path.name,
-                            source_sheet=sheet
-                        )
-                print(f"[INFO] ドメイン定義読み込み: {path.name}/{sheet} ({len(domains)}件)")
-            except Exception as e:
-                print(f"[警告] {path.name}({sheet}) エラー: {e}")
-    print(f"[INFO] 合計ドメイン定義: {len(domains)}件")
-    return domains
-
-def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, TableDef]:
-    """テーブル定義を読み込み（項目名でキー、行番号付き）"""
-    files = sorted(dir_path.glob(cfg["TABLE_GLOB"]))
-    if not files:
-        raise FileNotFoundError(f"テーブル定義ファイルが見つかりません")
-    tables = {}
-    for path in files:
-        xls = pd.ExcelFile(path)
-        sheets = _pick_matching_sheets(xls, cfg["TABLE_SHEET"])
-        for sheet in sheets:
-            try:
-                header_row = _detect_header_row(path, sheet, [cfg["TABLE_NAME_COL"], cfg["TABLE_ITEM_COL"], cfg["TABLE_COLUMN_COL"]], HEADER_SCAN_ROWS)
-                df = pd.read_excel(path, sheet_name=sheet, header=header_row)
-                for idx, row in df.iterrows():
-                    table_name = str(row.get(cfg["TABLE_NAME_COL"], "")).strip()
-                    item_name = str(row.get(cfg["TABLE_ITEM_COL"], "")).strip()
-                    column_name = str(row.get(cfg["TABLE_COLUMN_COL"], "")).strip()
-                    if table_name and item_name and column_name:
-                        row_number = header_row + idx + 2
-                        # キーは項目名（論理名）のみ
-                        key = normalize_text(item_name)
-                        tables[key] = TableDef(
-                            table_name=table_name,
-                            item_name=item_name,
-                            column_name=column_name,
-                            data_type=str(row.get(cfg["TABLE_TYPE_COL"], "")).strip() if cfg["TABLE_TYPE_COL"] in df.columns else "",
-                            length=str(row.get(cfg["TABLE_LENGTH_COL"], "")).strip() if cfg["TABLE_LENGTH_COL"] in df.columns else None,
-                            row_number=row_number,
-                            source_file=path.name,
-                            source_sheet=sheet
-                        )
-                print(f"[INFO] テーブル定義読み込み: {path.name}/{sheet}")
-            except Exception as e:
-                print(f"[警告] {path.name}({sheet}) エラー: {e}")
-    print(f"[INFO] 合計テーブルカラム: {len(tables)}件")
-    return tables
-
-def load_targets(dir_path: Path, cfg: Dict[str, Any]) -> List[TargetItem]:
-    """対象一覧を読み込み（項目名のみ、行番号付き）"""
-    files = sorted(dir_path.glob(cfg["TARGET_GLOB"]))
-    if not files:
-        print(f"[警告] 対象一覧ファイルが見つかりません")
-        return []
-    items = []
-    for path in files:
-        xls = pd.ExcelFile(path)
-        sheets = _pick_matching_sheets(xls, cfg["TARGET_SHEET"])
-        for sheet in sheets:
-            try:
-                header_row = _detect_header_row(path, sheet, [cfg["TARGET_ITEM_COL"]], HEADER_SCAN_ROWS)
-                df = pd.read_excel(path, sheet_name=sheet, header=header_row)
-                for idx, row in df.iterrows():
-                    item_name = str(row.get(cfg["TARGET_ITEM_COL"], "")).strip()
-                    if item_name:
-                        row_number = header_row + idx + 2
-                        items.append(TargetItem(
-                            item_name=item_name,
-                            row_number=row_number,
-                            source_file=path.name,
-                            source_sheet=sheet
-                        ))
-                print(f"[INFO] 対象一覧読み込み: {path.name}/{sheet}")
-            except Exception as e:
-                print(f"[警告] {path.name}({sheet}) エラー: {e}")
-    print(f"[INFO] 合計対象項目: {len(items)}件")
-    return items
+# ====== 正規化関数（エイリアス） ==============================================
+# Use imported functions directly with shorter names for convenience
+normalize_text = norm_text
+normalize_data_type = norm_dtype
 
 # ====== LLMプロンプト（機能1: ドメイン提案） ==================================
 LLM_SUGGESTION_SYSTEM = (
@@ -655,26 +473,11 @@ def save_outputs(df_suggestion: Optional[pd.DataFrame], df_validation: Optional[
     print(f"保存: {xlsx_path}")
 
 # ====== CLI ===================================================================
-def app_root() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).parent
-
-def ask_directory(title: str) -> Optional[str]:
-    if not TK_AVAILABLE:
-        return None
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        path = filedialog.askdirectory(title=title)
-        root.destroy()
-        return path or None
-    except:
-        return None
-
 def main() -> None:
-    load_dotenv()
-
+    """
+    メイン処理（CLI実行用）
+    ※ 設定はconfig.yamlから読み込まれます（環境変数で上書き可）
+    """
     parser = argparse.ArgumentParser(description="ドメイン定義総合チェックツール")
     parser.add_argument("--dir", help="入力ディレクトリ")
     parser.add_argument("--out-dir", help="出力ディレクトリ")

@@ -2,55 +2,40 @@
 # -*- coding: utf-8 -*-
 """
 Excel→単語照合→レポート生成（LLM補助）
- 
+メイン処理
 """
 from __future__ import annotations
- 
+
 import argparse
 import concurrent.futures as cf
-import difflib
 import json
 import os
-import re
 import sys
 import threading
-import time
-import unicodedata
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
- 
+
 import pandas as pd
-import requests
-from dotenv import load_dotenv
 
 # 共通モジュール
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from common.api_backend import create_api_backend
 from common.config import get_common_config, get_tool_config
-from common.excel_utils import read_excel_with_auto_header, detect_header_row
+from common.cli_utils import app_root, ask_directory
 
-# PyInstallerビルド時のSSL証明書対応
-try:
-    import certifi
-    CA_BUNDLE = certifi.where()
-except ImportError:
-    CA_BUNDLE = True  # デフォルトの証明書検証を使用
-
-# PyInstallerビルド時のDNS解決対応（Windows）
-if sys.platform == 'win32':
-    try:
-        import win_inet_pton
-    except ImportError:
-        pass
-
-    # socket初期化を強制実行
-    import socket
-    try:
-        socket.setdefaulttimeout(30)
-        socket.getaddrinfo('localhost', 80)
-    except Exception:
-        pass
+# wordモジュール
+from word.text_utils import (
+    Candidate,
+    normalize_text,
+    calculate_similarity,
+    find_top_candidates,
+    generate_simple_physical_name
+)
+from word.llm_handler import call_llm_api, create_fallback_response, HARD_EXACT_SCORE
+from word.excel_loader import (
+    pick_matching_sheets,
+    load_excel_with_auto_header
+)
  
 # ====== GUI（任意） ===========================================================
 try:
@@ -60,140 +45,29 @@ try:
 except Exception:
     TK_AVAILABLE = False
  
-# ====== 定数（読みやすさのため一箇所に集約） ===============================
-# 「事実上の完全一致」と見なすスコア（difflibは1.0に非常に近づく）
-HARD_EXACT_SCORE = 1.0  # 完全一致のみに限定
-# LLMフォールバック時に"完全一致"扱いにする安全側の下限
-FALLBACK_EXACT_FLOOR = 0.95
- 
-# ====== 設定（config.yamlで設定、環境変数で上書き可） ====================
-# 共通設定を取得してツール固有設定を追加
+# ====== 設定 ==================================================================
 DEFAULT_CONFIG: Dict[str, Any] = {
     **get_common_config(),   # 共通設定（API、LLMパラメータ等）
     **get_tool_config("word")  # ツール固有設定（config.yamlから取得）
 }
 
-# ====== 文字列正規化／類似度 =================================================
-
-def zenkaku_hankaku_norm(text: str) -> str:
-    """NFKC正規化 + 小文字化 + 記号/空白の正規化で**照合の土台**を整える。"""
-    if text is None:
-        return ""
-    s = unicodedata.normalize("NFKC", str(text)).lower().strip()
-    s = re.sub(r"[\u3000\s]+", " ", s)          # 全角/半角スペースを単一化
-    s = re.sub(r"[\-/・·•･,()\[\]_]+", " ", s)    # 区切り記号はスペースへ
-    return re.sub(r"\s+", " ", s)
-
-
-def local_similarity(a: str, b: str) -> float:
-    """簡易類似度：完全一致=1.0 / 片包含=0.9 / それ以外はdifflibのratio。"""
-    a_n, b_n = zenkaku_hankaku_norm(a), zenkaku_hankaku_norm(b)
-    if not a_n or not b_n:
-        return 0.0
-    if a_n == b_n:
-        return 1.0
-    if a_n in b_n or b_n in a_n:
-        return 0.9
-    return difflib.SequenceMatcher(None, a_n, b_n).ratio()
-
-@dataclass
-class Candidate:
-    term: str
-    score: float
-
-# ====== Excel I/O =============================================================
+# ====== ヘルパー関数 ==========================================================
 
 def _int_env(name: str) -> Optional[int]:
+    """環境変数から整数を取得"""
     v = os.getenv(name, "")
     try:
         return int(v) if v else None
     except Exception:
         return None
 
-# ヘッダー検出設定（config.yamlから取得、環境変数で上書き可）
+# ヘッダー検出設定
 _tool_cfg = get_tool_config("word")
 HEADER_DETECT = os.getenv("HEADER_DETECT", str(_tool_cfg.get("HEADER_DETECT", True))).lower() != "false"
 HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", str(_tool_cfg.get("HEADER_SCAN_ROWS", 30))))
 SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
 VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW")
- 
- 
-def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
-    """優先シートが無ければ先頭。NFKCで厳密同名も考慮。"""
-    if preferred and preferred in xls.sheet_names:
-        return preferred
-    if preferred:
-        norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
-        want = norm(preferred)
-        for name in xls.sheet_names:
-            if norm(name) == want:
-                return name
-    return xls.sheet_names[0]
- 
- 
-def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[str]:
-    """設定シート名にマッチする全てのシートを返す。ワイルドカード対応。"""
-    if not preferred:
-        return [xls.sheet_names[0]]
- 
-    norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
- 
-    # 複数パターンをカンマ区切りで分割
-    patterns = [p.strip() for p in preferred.split(",") if p.strip()]
-    if not patterns:
-        return [xls.sheet_names[0]]
- 
-    all_matches = []
- 
-    for pattern in patterns:
-        want = norm(pattern)
- 
-        # ワイルドカード対応（*を正規表現に変換）
-        import re as regex_module
-        regex_pattern = want.replace('*', '.*')
-        for name in xls.sheet_names:
-            if regex_module.match(regex_pattern, norm(name)):
-                all_matches.append(name)
- 
-    # 重複を除去して順序を保持
-    result = []
-    seen = set()
-    for sheet in all_matches:
-        if sheet not in seen:
-            result.append(sheet)
-            seen.add(sheet)
- 
-    # マッチするものがなければ先頭シート
-    return result if result else [xls.sheet_names[0]]
- 
- 
-def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
-    """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。"""
-    head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
-    req = {zenkaku_hankaku_norm(c) for c in required_cols if c}
-    for i in range(len(head_df)):
-        row_vals = {zenkaku_hankaku_norm(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan", "一致なし"}}
-        if req.issubset(row_vals):
-            return i
-    raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
- 
- 
-def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
-                                     explicit_header_row_1based: Optional[int] = None,
-                                     scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
-    """
-    ヘッダ行が1行目とは限らないExcelに対応
-    ※ required_colsチェックのため独自実装を維持（共通モジュールは単純な検出のみ）
-    """
-    if explicit_header_row_1based is not None:
-        hdr0 = max(0, explicit_header_row_1based - 1)
-        return pd.read_excel(path, sheet_name=sheet_name, header=hdr0), hdr0
-    if not HEADER_DETECT:
-        return pd.read_excel(path, sheet_name=sheet_name), 0
-    # ヘッダ行の自動検出（required_colsチェック付き）
-    header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
-    return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
- 
+
  
 def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
                           screen_col_override: Optional[str] = None,
@@ -205,22 +79,22 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
         raise FileNotFoundError(f"画面項目定義ファイルが見つかりません: {dir_path}/{cfg['SCREEN_GLOB']}")
     if not vocab_files:
         raise FileNotFoundError(f"単語帳ファイルが見つかりません: {dir_path}/{cfg['VOCAB_GLOB']}")
- 
+
     screen_col = screen_col_override or cfg["SCREEN_COL"]
     term_col = vocab_col_override or cfg["VOCAB_TERM_COL"]
     phys_col = cfg["VOCAB_PHYS_COL"]
     phys_abbr_col = cfg["VOCAB_PHYS_ABBR_COL"]
     no_col = cfg["VOCAB_NO_COL"]
- 
+
     # --- 画面項目定義を縦結合（複数シート対応）
     screen_frames: List[pd.DataFrame] = []
     for path in screen_files:
         xls = pd.ExcelFile(path)
-        matching_sheets = _pick_matching_sheets(xls, cfg["SCREEN_SHEET"]) if cfg["SCREEN_SHEET"] else [xls.sheet_names[0]]
- 
+        matching_sheets = pick_matching_sheets(xls, cfg["SCREEN_SHEET"]) if cfg["SCREEN_SHEET"] else [xls.sheet_names[0]]
+
         for sheet_used in matching_sheets:
             try:
-                df_s, _ = read_excel_with_header_detection(path, sheet_used, [screen_col], SCREEN_HEADER_ROW, HEADER_SCAN_ROWS)
+                df_s, _ = load_excel_with_auto_header(path, sheet_used, [screen_col], SCREEN_HEADER_ROW, HEADER_SCAN_ROWS)
                 if screen_col not in df_s.columns:
                     print(f"[警告] {path.name}（{sheet_used}）: 必須列 '{screen_col}' が存在しません - スキップ")
                     continue
@@ -229,16 +103,16 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
                 print(f"[INFO] 画面項目定義読み込み: {path.name} / {sheet_used} ({len(df_s)}件)")
             except Exception as e:
                 print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
- 
+
     # --- 単語帳を縦結合（複数シート対応）
     vocab_frames: List[pd.DataFrame] = []
     for path in vocab_files:
         xls = pd.ExcelFile(path)
-        matching_sheets = _pick_matching_sheets(xls, cfg["VOCAB_SHEET"]) if cfg["VOCAB_SHEET"] else [xls.sheet_names[0]]
- 
+        matching_sheets = pick_matching_sheets(xls, cfg["VOCAB_SHEET"]) if cfg["VOCAB_SHEET"] else [xls.sheet_names[0]]
+
         for sheet_used in matching_sheets:
             try:
-                df_v, _ = read_excel_with_header_detection(path, sheet_used, [term_col, phys_col, no_col], VOCAB_HEADER_ROW, HEADER_SCAN_ROWS)
+                df_v, _ = load_excel_with_auto_header(path, sheet_used, [term_col, phys_col, no_col], VOCAB_HEADER_ROW, HEADER_SCAN_ROWS)
                 missing = [c for c in [term_col, phys_col, no_col] if c not in df_v.columns]
                 if missing:
                     print(f"[警告] {path.name}（{sheet_used}）: 必須列が不足: {missing} - スキップ")
@@ -249,51 +123,44 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
                 print(f"[INFO] 単語帳読み込み: {path.name} / {sheet_used} ({len(df_v)}件)")
             except Exception as e:
                 print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
- 
+
     # データフレームの結合（空チェック付き）
     if not screen_frames:
         raise FileNotFoundError(f"読み込み可能な画面項目定義シートが見つかりません")
     if not vocab_frames:
         raise FileNotFoundError(f"読み込み可能な単語帳シートが見つかりません")
- 
+
     df_screen = pd.concat(screen_frames, ignore_index=True)
     df_vocab = pd.concat(vocab_frames, ignore_index=True)
- 
+
     print(f"[INFO] 合計読み込み: 画面項目定義 {len(df_screen)}件, 単語帳 {len(df_vocab)}件")
- 
+
     # --- 欠損・空行の整理
     df_screen[screen_col] = df_screen[screen_col].fillna("")
     for c in [term_col, phys_col, no_col, phys_abbr_col]:
         df_vocab[c] = df_vocab[c].fillna("")
     df_screen = df_screen[df_screen[screen_col].astype(str).str.strip() != ""].copy()
     df_vocab = df_vocab[df_vocab[term_col].astype(str).str.strip() != ""].copy()
- 
+
     # --- 照合キー追加・列名整理
-    df_vocab["__term_norm"] = df_vocab[term_col].astype(str).map(zenkaku_hankaku_norm)
+    df_vocab["__term_norm"] = df_vocab[term_col].astype(str).map(normalize_text)
     df_vocab = df_vocab.rename(columns={term_col: "_term", phys_col: "_phys", phys_abbr_col: "_phys_abbr", no_col: "_no"})
     df_screen = df_screen.rename(columns={screen_col: "_screen", "__source_file": "_src_file", "__source_sheet": "_src_sheet"})
- 
+
     return df_screen, df_vocab
  
 # ====== 候補生成（ローカル） ==================================================
- 
-def top_k_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
-    """画面項目 vs 単語帳の**直接照合**で上位k件を返却。"""
-    scored = [Candidate(term, local_similarity(screen_name, term)) for term in vocab_terms]
-    scored.sort(key=lambda c: c.score, reverse=True)
-    return [c for c in scored[:k] if c.score >= threshold]
- 
- 
+
 def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
     """複合語対策：unigram/bigram に分解してパーツ単位で候補を拾う。"""
-    tokens = [t for t in zenkaku_hankaku_norm(screen_name).split(" ") if t]
+    tokens = [t for t in normalize_text(screen_name).split(" ") if t]
     grams = set(tokens)
     for i in range(len(tokens) - 1):
         grams.add(tokens[i] + " " + tokens[i + 1])
     pool: List[Candidate] = []
     for g in grams:
         for vt in vocab_terms:
-            s = local_similarity(g, vt)
+            s = calculate_similarity(g, vt)
             if s >= threshold:
                 pool.append(Candidate(vt, s))
     # 同一単語は最大スコアを採用
@@ -303,7 +170,7 @@ def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshol
     merged = [Candidate(t, sc) for t, sc in best_by_term.items()]
     merged.sort(key=lambda c: c.score, reverse=True)
     return merged[: max(k, 10)]
- 
+
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = (
     "あなたは業務システム開発における命名規則の専門家です。\n"
@@ -450,120 +317,7 @@ LLM_USER_TEMPLATE = (
 JSON以外の出力禁止。即座にJSONのみ返してください。
     """
 )
- 
- 
-def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
-    """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
-    cand_payload = []
-    for c in candidates:
-        item = {"term": c.term, "local_score": round(c.score, 4)}
-        if term_meta and c.term in term_meta:
-            meta = term_meta[c.term]
-            phys = meta.get("_phys_abbr") or meta.get("_phys")
-            if phys:
-                item["physical_name"] = phys
-        cand_payload.append(item)
-    return {
-        "model": cfg["OPENAI_MODEL"],
-        "max_tokens": cfg["MAX_TOKENS"],
-        "temperature": cfg["TEMPERATURE"],
-        "top_p": cfg["TOP_P"],
-        "presence_penalty": cfg["PRESENCE_PENALTY"],
-        "frequency_penalty": cfg["FREQUENCY_PENALTY"],
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": LLM_SYSTEM},
-            {"role": "user", "content": LLM_USER_TEMPLATE.format(
-                screen_name=screen_name,
-                candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
-            )},
-        ],
-    }
- 
- 
-def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client = None, api_semaphore: Optional[threading.Semaphore] = None, term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
-    """LLM呼び出し。失敗時はフォールバック。"""
-    # テストモード判定
-    if cfg.get("TEST_MODE", False) or os.getenv("WORD_MATCHING_TEST_MODE", "false").lower() == "true":
-        try:
-            from tests.mock_api import mock_llm_response
-            return mock_llm_response(screen_name, candidates)
-        except ImportError:
-            print("[警告] tests/mock_api.pyが見つかりません。フォールバックを使用します。")
-            return fallback_reason(screen_name, candidates)
 
-    client = client or create_api_backend(cfg)
-    payload = build_llm_payload(screen_name, candidates, cfg, term_meta)
- 
-    # サーバー負荷対策：セマフォで同時実行API数を制限
-    if api_semaphore:
-        api_semaphore.acquire()
- 
-    try:
-        for attempt in range(cfg["RETRY"] + 1):
-            try:
-                data = client.post_json(payload)
-                content = data["choices"][0]["message"]["content"]
-                result = json.loads(content)
-                return result
-            except Exception as e:
-                # API認証エラーの場合はリトライせずに即座に例外を投げる
-                error_msg = str(e)
-                if hasattr(e, 'response') and e.response is not None:
-                    status_code = e.response.status_code
-                    if status_code in [401, 403]:
-                        raise Exception(f"API認証エラー (HTTP {status_code}): APIキーまたはユーザIDが無効です") from e
-
-                # その他のエラーの場合はリトライ
-                if attempt < cfg["RETRY"]:
-                    time.sleep(1.2 * (attempt + 1))  # バックオフ
-                    continue
-                return fallback_reason(screen_name, candidates)
-    finally:
-        if api_semaphore:
-            api_semaphore.release()
- 
- 
-def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, Any]:
-    """ネットワーク障害や破損時の**最小限の結論**。"""
-    if not candidates:
-        return {
-            "match_type": "一致なし",
-            "matched_term": None,
-            "reason": "API不達/候補なし。後日、単語帳の拡充を検討してください。",
-            "proposed_name": simple_proposal(screen_name),
-        }
-    top = candidates[0]
-    if top.score >= FALLBACK_EXACT_FLOOR:
-        return {
-            "match_type": "完全一致",
-            "matched_term": top.term,
-            "reason": f"ローカル完全一致（score={top.score:.2f}）",
-            "proposed_name": simple_proposal(top.term),
-        }
-    return {
-        "match_type": "一部一致",
-        "matched_term": top.term,
-        "reason": f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
-        "proposed_name": simple_proposal(top.term),
-    }
- 
-# ====== 簡易物理名生成 =======================================================
- 
-def simple_proposal(text: str) -> str:
-    """ローワーキャメルの簡易物理名を生成（8〜10文字程度）。"""
-    s = zenkaku_hankaku_norm(text)
-    tokens = [t for t in re.split(r"\s+", s) if t]
-    if not tokens:
-        return "newItem"
-    # 冗長語の削ぎ落とし
-    stop_words = {"コード", "番号", "名称名", "名称名称"}
-    core = [w for w in tokens[:3] if w not in stop_words] or tokens[:2]
-    # lowerCamelCase化
-    name = core[0].lower() + "".join(w.capitalize() for w in core[1:])
-    # 長さ制御（長すぎると読みにくい）
-    return (name[:8] if len(name) > 10 else name) or "newItem"
- 
 # ====== メイン処理 ============================================================
  
 def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any], progress_callback=None) -> pd.DataFrame:
@@ -600,7 +354,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         """1件の画面項目に対する判定ワーカー（スレッドで実行）。"""
         # --- 0) 正規化ベースの完全一致 → LLMスキップ
-        normalized = zenkaku_hankaku_norm(screen_name)
+        normalized = normalize_text(screen_name)
         exact_term = norm_to_term.get(normalized)
         if exact_term:
             m = term_meta.get(exact_term) or {}
@@ -620,15 +374,15 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
                 "local_top_score": 1.0,
                 "coverage_ratio": 1.0,
-                "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(exact_term)),
+                "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or generate_simple_physical_name(exact_term)),
                 "reason": "正規化完全一致（LLM未呼び出し）",
                 "unmatched_terms": None,
                 "unmatched_note": None,
             }
- 
+
         # --- 1) ローカル候補生成（複合語＋ダイレクト）
         broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
-        direct_candidates = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
+        direct_candidates = find_top_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
         # 単語単位で最高スコアを取り、上位だけ残す
         merged_scores: Dict[str, float] = {}
         for c in broad_candidates + direct_candidates:
@@ -636,13 +390,13 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         merged: List[Candidate] = [Candidate(t, s) for t, s in merged_scores.items()]
         merged.sort(key=lambda c: c.score, reverse=True)
         merged = merged[: max(cfg["TOP_K"], 10)]
- 
+
         # --- 2) ローカル最高スコアが完全一致（1.0）→ 即決
         if merged and merged[0].score >= HARD_EXACT_SCORE:
             top = merged[0]
             # 追加の完全一致チェック（正規化後の文字列比較）
-            norm_screen = zenkaku_hankaku_norm(screen_name)
-            norm_term = zenkaku_hankaku_norm(top.term)
+            norm_screen = normalize_text(screen_name)
+            norm_term = normalize_text(top.term)
             if norm_screen == norm_term:  # 真の完全一致のみ
                 m = term_meta.get(top.term) or {}
                 return {
@@ -661,14 +415,26 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                     "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
                     "local_top_score": top.score,
                     "coverage_ratio": 1.0,
-                    "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(top.term)),
+                    "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or generate_simple_physical_name(top.term)),
                     "reason": f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）",
                     "unmatched_terms": None,
                     "unmatched_note": None,
                 }
- 
+
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
-        llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta)
+        # Build custom prompt for this file's specific requirements
+        system_prompt = LLM_SYSTEM
+        user_prompt = LLM_USER_TEMPLATE.format(
+            screen_name=screen_name,
+            candidates_json=json.dumps([{
+                "term": c.term,
+                "local_score": round(c.score, 4),
+                **({"physical_name": (term_meta.get(c.term) or {}).get("_phys_abbr") or (term_meta.get(c.term) or {}).get("_phys")}
+                   if term_meta and c.term in term_meta and ((term_meta.get(c.term) or {}).get("_phys_abbr") or (term_meta.get(c.term) or {}).get("_phys"))
+                   else {})
+            } for c in merged], ensure_ascii=False, indent=2)
+        )
+        llm = call_llm_api(system_prompt, user_prompt, cfg, api_client, api_semaphore)
  
         # 値の整形
         cov_raw = llm.get("coverage_ratio")
@@ -870,143 +636,17 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         df.to_excel(w, sheet_name="結果", startrow=1, header=False, index=True)
         summary_df.to_excel(w, sheet_name="サマリ", index=True)
         by_file_df.to_excel(w, sheet_name="ファイル別サマリ", index=True)
- 
-        # --- 5) 条件付き書式（「一部一致」「一致なし」を色付け）
-        if len(df) > 0:
-            ws = w.sheets["結果"]
- 
-            # 2段見出しなのでデータ開始行は 3 行目
-            start_row = 3
-            end_row = start_row + len(df) - 1
- 
-            # 列インデックス（1始まり）を取得
-            col_index = {col: i+1 for i, col in enumerate(df.columns)}
-            mt_idx = col_index[("【結果】", "一致状況")]
-            si_idx = col_index[("【対象項目】", "項目名")]
- 
-            mt_col = get_column_letter(mt_idx)
-            si_col = get_column_letter(si_idx)
- 
-            # 塗り色
-            fill_yellow = PatternFill(start_color="FFF3B3", end_color="FFF3B3", fill_type="solid")
-            fill_red = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
- 
-            # 一部一致（match_type 列自体）
-            rng_mt = f"{mt_col}{start_row}:{mt_col}{end_row}"
-            ws.conditional_formatting.add(
-                rng_mt,
-                FormulaRule(formula=[f'{mt_col}{start_row}="一部一致"'], fill=fill_yellow)
-            )
-            # 一致なし（match_type 列自体）
-            ws.conditional_formatting.add(
-                rng_mt,
-                FormulaRule(formula=[f'{mt_col}{start_row}="一致なし"'], fill=fill_red)
-            )
- 
-            # 画面項目名列も同じ条件で色付け（列は固定、行は相対）
-            rng_si = f"{si_col}{start_row}:{si_col}{end_row}"
-            ws.conditional_formatting.add(
-                rng_si,
-                FormulaRule(formula=[f'${mt_col}{start_row}="一部一致"'], fill=fill_yellow)
-            )
-            ws.conditional_formatting.add(
-                rng_si,
-                FormulaRule(formula=[f'${mt_col}{start_row}="一致なし"'], fill=fill_red)
-            )
- 
+
     print(f"保存: {xlsx_path}")
  
  
 # ====== CLI ================================================================
  
-def app_root() -> Path:
-    if getattr(sys, "frozen", False):  # PyInstaller
-        return Path(sys.executable).parent
-    return Path(__file__).parent
- 
- 
-def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
-    if not TK_AVAILABLE:
-        return None
-    try:
-        root = tk.Tk(); root.withdraw()
-        path = filedialog.askdirectory(title=title, initialdir=initial or str(app_root()))
-        root.destroy()
-        return path or None
-    except Exception:
-        return None
- 
- 
-def detect_and_save_proxy() -> None:
-    """システムのプロキシ設定を検出して.envに保存"""
-    import urllib.request
-
-    # 既に.envにプロキシ設定がある場合はスキップ
-    if os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY"):
-        return
-
-    # システムプロキシを自動検出
-    proxies = urllib.request.getproxies()
-
-    if proxies:
-        env_path = app_root() / ".env"
-        env_lines = []
-
-        # 既存の.envを読み込み
-        if env_path.exists():
-            with open(env_path, "r", encoding="utf-8") as f:
-                env_lines = f.readlines()
-
-        # プロキシ設定を追加
-        proxy_settings = []
-        if "http" in proxies:
-            proxy_settings.append(f"HTTP_PROXY={proxies['http']}\n")
-            print(f"[INFO] 検出されたHTTPプロキシ: {proxies['http']}")
-        if "https" in proxies:
-            proxy_settings.append(f"HTTPS_PROXY={proxies['https']}\n")
-            print(f"[INFO] 検出されたHTTPSプロキシ: {proxies['https']}")
-
-        if proxy_settings:
-            # 既存のプロキシ設定行を削除
-            env_lines = [line for line in env_lines if not line.startswith("HTTP_PROXY=") and not line.startswith("HTTPS_PROXY=")]
-
-            # 新しいプロキシ設定を追加
-            env_lines.extend(["\n# 自動検出されたプロキシ設定\n"] + proxy_settings)
-
-            # .envに書き込み
-            with open(env_path, "w", encoding="utf-8") as f:
-                f.writelines(env_lines)
-
-            print(f"[INFO] プロキシ設定を {env_path} に保存しました")
-
-            # 環境変数に即座に反映
-            for key, value in proxies.items():
-                if key == "http":
-                    os.environ["HTTP_PROXY"] = value
-                elif key == "https":
-                    os.environ["HTTPS_PROXY"] = value
-
-
 def main() -> None:
-    # PyInstallerでビルドされたEXEの場合、.envファイルを明示的に読み込む
-    if getattr(sys, "frozen", False):
-        # EXEの場合: 実行ファイルと同じディレクトリ or 一時展開先の.envを探す
-        exe_dir = Path(sys.executable).parent
-        env_candidates = [
-            exe_dir / ".env",  # EXEと同じフォルダ
-            Path(sys._MEIPASS) / ".env" if hasattr(sys, "_MEIPASS") else None,  # 一時展開先
-            app_root() / ".env",  # 元のディレクトリ
-        ]
-        for env_path in env_candidates:
-            if env_path and env_path.exists():
-                load_dotenv(env_path)
-                print(f"[INFO] .envファイルを読み込みました: {env_path}")
-                break
-    else:
-        # 通常のPython実行時
-        load_dotenv()
-        detect_and_save_proxy()
-
+    """
+    メイン処理（CLI実行用）
+    ※ 設定はconfig.yamlから読み込まれます（環境変数で上書き可）
+    """
     # ダブルクリック実行時のカレントずれ防止
     try:
         os.chdir(app_root())
