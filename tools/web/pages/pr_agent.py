@@ -12,7 +12,11 @@ from pathlib import Path
 
 # 共通設定をインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from common.config import get_custom_prompt, CUSTOM_PROMPT_TEMPLATES
+from web_common.config import (
+    render_api_credentials_section,
+    get_custom_prompt,
+    CUSTOM_PROMPT_TEMPLATES
+)
 
 # pr-agentモジュールのパスを追加
 tools_dir = Path(__file__).parent.parent
@@ -85,14 +89,10 @@ st.markdown("---")
 with st.sidebar:
     st.header("⚙️ 設定")
 
-    st.subheader("🔑 API認証情報")
+    st.subheader("🔑 GitLab Token")
 
-    # デフォルト値を環境変数から取得
+    # GitLab Token
     default_gitlab_token = os.getenv("GITLAB_TOKEN", "")
-    default_gemini_key = os.getenv("GEMINI_API_KEY", "")
-    default_openai_key = os.getenv("OPENAI_API_KEY", "")
-    default_user_id = os.getenv("APIM_USER_ID", "")
-
     gitlab_token = st.text_input(
         "GitLab Token",
         value=default_gitlab_token,
@@ -100,18 +100,10 @@ with st.sidebar:
         help="GitLabリポジトリにアクセスするためのパーソナルアクセストークン（api scope必須）"
     )
 
-    api_key = st.text_input(
-        "Azure OpenAI API Key",
-        value=default_openai_key,
-        type="password",
-        help="Azure OpenAI APIキー"
-    )
+    st.markdown("---")
 
-    user_id = st.text_input(
-        "User ID (apim-user-id)",
-        value=default_user_id,
-        help="API Management のユーザID"
-    )
+    # Azure OpenAI認証情報（共通設定を使用）
+    api_key, user_id = render_api_credentials_section()
 
     st.markdown("---")
 

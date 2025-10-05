@@ -12,7 +12,12 @@ from pathlib import Path
 
 # 共通設定をインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from common.config import render_api_credentials_section, get_custom_prompt, CUSTOM_PROMPT_TEMPLATES
+from web_common.config import (
+    render_api_credentials_section,
+    get_custom_prompt,
+    CUSTOM_PROMPT_TEMPLATES
+)
+from common.api_backend import ApiBackend
 
 # domainモジュールをインポート
 domain_dir = Path(__file__).parent.parent / "domain"
@@ -20,7 +25,7 @@ sys.path.insert(0, str(domain_dir.parent))
 from domain.domain_check import (
     load_domains, load_tables, load_targets,
     process_domain_suggestion, save_outputs,
-    ApiClient, DEFAULT_CONFIG
+    DEFAULT_CONFIG
 )
 import threading
 
@@ -235,7 +240,8 @@ if st.button("🚀 チェック実行", type="primary", use_container_width=True
 
                 progress_bar.progress(40)
 
-                api_client = ApiClient(config)
+                # 共通バックエンドを使用
+                api_backend = ApiBackend(api_key=api_key, user_id=user_id)
                 api_semaphore = threading.Semaphore(config["MAX_CONCURRENT_API"])
 
                 df_suggestion = None
@@ -250,7 +256,7 @@ if st.button("🚀 チェック実行", type="primary", use_container_width=True
 
                         with st.spinner("ドメイン提案中..."):
                             df_suggestion = process_domain_suggestion(
-                                targets, domains, tables, config, api_client, api_semaphore
+                                targets, domains, tables, config, api_backend, api_semaphore
                             )
 
                         progress_bar.progress(70)

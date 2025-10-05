@@ -9,6 +9,9 @@ python-dotenv>=1.0.0
 certifi>=2023.7.22
 rapidfuzz>=3.0.0
 
+# 設定ファイル読み込み
+PyYAML>=6.0
+
 # domain_check.pyの依存パッケージ
 # (pandas, openpyxl, requests は上記で含まれている)
 

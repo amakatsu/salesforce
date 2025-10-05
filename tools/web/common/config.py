@@ -1,43 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-共通設定モジュール
-各ツールで使用する設定を一元管理
+Web UI用の共通設定モジュール
+Streamlit UIヘルパー関数のみ（バックエンドロジックは tools/common/ に配置）
 """
 import streamlit as st
 import os
+import sys
+import json
+from pathlib import Path
 
-
-def get_api_credentials():
-    """
-    API認証情報を取得する共通関数
-
-    Returns:
-        tuple: (api_key, user_id)
-    """
-    # デフォルト値を環境変数から取得
-    default_api_key = os.getenv("OPENAI_API_KEY", "")
-    default_user_id = os.getenv("APIM_USER_ID", "")
-
-    api_key = st.text_input(
-        "Azure OpenAI API Key",
-        value=default_api_key,
-        type="password",
-        help="Azure OpenAI APIキー"
-    )
-
-    user_id = st.text_input(
-        "User ID (apim-user-id)",
-        value=default_user_id,
-        help="API Management のユーザID"
-    )
-
-    return api_key, user_id
+# 共通設定を読み込み
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from common.config import _load_config_file
 
 
 def render_api_credentials_section(title="🔑 API認証情報"):
     """
-    API認証情報セクションを描画
+    API認証情報セクションを描画（config.yamlのデフォルト値を使用）
 
     Args:
         title: セクションタイトル
@@ -46,7 +26,40 @@ def render_api_credentials_section(title="🔑 API認証情報"):
         tuple: (api_key, user_id)
     """
     st.subheader(title)
-    return get_api_credentials()
+
+    # config.yamlからデフォルト値を取得
+    cfg = _load_config_file()
+    api_cfg = cfg.get("api", {})
+    headers_json = api_cfg.get("headers_json", "{}")
+
+    # デフォルトのAPI Key/User IDを抽出
+    default_api_key = ""
+    default_user_id = ""
+    try:
+        headers = json.loads(headers_json)
+        default_api_key = headers.get("api-key", "")
+        default_user_id = headers.get("apim-user-id", "")
+    except:
+        pass
+
+    # 環境変数で上書き可能
+    default_api_key = os.getenv("OPENAI_API_KEY", default_api_key)
+    default_user_id = os.getenv("APIM_USER_ID", default_user_id)
+
+    api_key = st.text_input(
+        "Azure OpenAI API Key",
+        value=default_api_key,
+        type="password",
+        help="Azure OpenAI APIキー（config.yamlのデフォルト値を使用）"
+    )
+
+    user_id = st.text_input(
+        "User ID (apim-user-id)",
+        value=default_user_id,
+        help="API Management のユーザID（config.yamlのデフォルト値を使用）"
+    )
+
+    return api_key, user_id
 
 
 def get_custom_prompt(placeholder_text, help_text="追加の指示やコンテキスト情報"):

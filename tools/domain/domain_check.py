@@ -25,6 +25,13 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
+# 共通モジュール
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common.api_backend import create_api_backend
+from common.config import get_common_config, get_tool_config
+from common.excel_utils import read_excel_with_auto_header
+from common.normalizers import normalize_text as norm_text, normalize_data_type as norm_dtype
+
 # ====== GUI（任意） ===========================================================
 try:
     import tkinter as tk
@@ -34,87 +41,24 @@ except Exception:
     TK_AVAILABLE = False
 
 # ====== 定数 ==================================================================
+# 共通設定を取得してツール固有設定を追加
 DEFAULT_CONFIG: Dict[str, Any] = {
-    # --- API（OpenAI互換）
-    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu"),
-    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-    "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-    "OPENAI_PATH": os.getenv("OPENAI_PATH", "/chat/completions"),
-    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", '{"api-key":"8b843f2df20548899f93c0624452ea68","apim-user-id":"PIT04447"}'),
-    "OPENAI_SEND_AUTH": os.getenv("OPENAI_SEND_AUTH", "false").lower() != "false",
-    "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
-    "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
-    "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
-    "VERIFY_SSL": os.getenv("VERIFY_SSL", "false").lower() != "false",
-
-    # --- 生成パラメタ
-    "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
-    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.5")),
-    "TOP_P": float(os.getenv("TOP_P", "0.95")),
-
-    # --- 入力ファイル検出
-    "TARGET_GLOB": os.getenv("TARGET_GLOB", "*対象一覧*.xlsx"),
-    "DOMAIN_GLOB": os.getenv("DOMAIN_GLOB", "*ドメイン定義*.xlsx"),
-    "TABLE_GLOB": os.getenv("TABLE_GLOB", "*テーブル定義*.xlsx"),
-
-    # --- シート/列設定
-    "TARGET_SHEET": os.getenv("TARGET_SHEET", "*"),
-    "DOMAIN_SHEET": os.getenv("DOMAIN_SHEET", "*"),
-    "TABLE_SHEET": os.getenv("TABLE_SHEET", "*"),
-
-    # 対象一覧（項目名のみ）
-    "TARGET_ITEM_COL": os.getenv("TARGET_ITEM_COL", "項目名"),
-
-    # ドメイン定義（ドメイン名、データ型、桁数、バリデーション）
-    "DOMAIN_NAME_COL": os.getenv("DOMAIN_NAME_COL", "ドメイン名"),
-    "DOMAIN_TYPE_COL": os.getenv("DOMAIN_TYPE_COL", "データ型"),
-    "DOMAIN_LENGTH_COL": os.getenv("DOMAIN_LENGTH_COL", "桁数"),
-    "DOMAIN_VALIDATION_COL": os.getenv("DOMAIN_VALIDATION_COL", "単項目チェック"),
-
-    # テーブル定義（テーブル名、項目名、カラム名、データ型、桁数）
-    "TABLE_NAME_COL": os.getenv("TABLE_NAME_COL", "テーブル名"),
-    "TABLE_ITEM_COL": os.getenv("TABLE_ITEM_COL", "項目名"),
-    "TABLE_COLUMN_COL": os.getenv("TABLE_COLUMN_COL", "カラム名"),
-    "TABLE_TYPE_COL": os.getenv("TABLE_TYPE_COL", "データ型"),
-    "TABLE_LENGTH_COL": os.getenv("TABLE_LENGTH_COL", "桁数"),
-
-    # --- 出力
-    "OUT_DIR": os.getenv("OUT_DIR", "out"),
-
-    # --- 実行制御
-    "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
-    "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
-    "RETRY": int(os.getenv("RETRY", "2")),
-    "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5")),
-
-    # --- 機能制御
-    "CHECK_MODE": os.getenv("CHECK_MODE", "suggestion")  # suggestion, validation, both
+    **get_common_config(),      # 共通設定（API、LLMパラメータ等）
+    **get_tool_config("domain")  # ツール固有設定（config.yamlから取得）
 }
 
-# ====== 正規化関数 ============================================================
+# ====== 正規化関数（ラッパー） ================================================
+# common.normalizers を使用（互換性のためローカル名を維持）
 def normalize_text(text: str) -> str:
-    """NFKC正規化 + 小文字化"""
+    """NFKC正規化 + 小文字化（共通モジュール使用）"""
     if text is None or text == "":
         return ""
     s = unicodedata.normalize("NFKC", str(text)).lower().strip()
     return re.sub(r"[\u3000\s]+", " ", s)
 
 def normalize_data_type(dtype: str) -> str:
-    """データ型の正規化"""
-    if not dtype:
-        return ""
-    dt = normalize_text(dtype)
-    type_map = {
-        "varchar": "varchar", "varchar2": "varchar", "char": "char",
-        "int": "integer", "integer": "integer", "bigint": "bigint",
-        "decimal": "decimal", "numeric": "decimal", "number": "decimal",
-        "date": "date", "datetime": "datetime", "timestamp": "timestamp",
-        "boolean": "boolean", "bool": "boolean"
-    }
-    for key, value in type_map.items():
-        if key in dt:
-            return value
-    return dt
+    """データ型の正規化（共通モジュール使用）"""
+    return norm_dtype(dtype) if dtype else ""
 
 # ====== データクラス ==========================================================
 @dataclass
@@ -184,6 +128,11 @@ def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], sc
     raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
 
 def read_excel_auto(path: Path, sheet_name: Optional[str], required_cols: List[str]) -> pd.DataFrame:
+    """
+    Excelファイルを自動的にヘッダー検出して読み込み
+    ※ 共通モジュールのread_excel_with_auto_headerを内部で使用可能だが、
+       required_colsチェックのため独自実装を維持
+    """
     if not HEADER_DETECT:
         return pd.read_excel(path, sheet_name=sheet_name)
     header_row = _detect_header_row(path, sheet_name, required_cols, HEADER_SCAN_ROWS)
@@ -289,38 +238,6 @@ def load_targets(dir_path: Path, cfg: Dict[str, Any]) -> List[TargetItem]:
     print(f"[INFO] 合計対象項目: {len(items)}件")
     return items
 
-# ====== APIクライアント =======================================================
-class ApiClient:
-    def __init__(self, cfg: Dict[str, Any]):
-        self.base_url = cfg["OPENAI_BASE_URL"].rstrip("/")
-        self.path = cfg["OPENAI_PATH"]
-        self.timeout = cfg["TIMEOUT_SEC"]
-        self.verify = cfg["VERIFY_SSL"]
-        self.session = requests.Session()
-        proxies: Dict[str, str] = {}
-        if cfg.get("HTTP_PROXY"):
-            proxies["http"] = cfg["HTTP_PROXY"]
-        if cfg.get("HTTPS_PROXY"):
-            proxies["https"] = cfg["HTTPS_PROXY"]
-        if proxies:
-            self.session.proxies.update(proxies)
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
-        if cfg.get("OPENAI_SEND_AUTH") and cfg.get("OPENAI_API_KEY"):
-            headers["Authorization"] = f"Bearer {cfg['OPENAI_API_KEY']}"
-        extra = cfg.get("OPENAI_HEADERS_JSON")
-        if extra:
-            try:
-                headers.update(json.loads(extra))
-            except:
-                pass
-        self.headers = headers
-
-    def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}{self.path}"
-        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
-        resp.raise_for_status()
-        return resp.json()
-
 # ====== LLMプロンプト（機能1: ドメイン提案） ==================================
 LLM_SUGGESTION_SYSTEM = (
     "あなたはデータベース設計の専門家です。\n"
@@ -410,7 +327,7 @@ JSON以外出力禁止。
 """
 
 def call_llm(prompt_system: str, prompt_user: str, cfg: Dict[str, Any],
-             client: ApiClient, api_semaphore: threading.Semaphore) -> Dict[str, Any]:
+             client, api_semaphore: threading.Semaphore) -> Dict[str, Any]:
     payload = {
         "model": cfg["OPENAI_MODEL"],
         "max_tokens": cfg["MAX_TOKENS"],
@@ -788,7 +705,7 @@ def main() -> None:
     domains = load_domains(root_dir, cfg)
     tables = load_tables(root_dir, cfg)
 
-    api_client = ApiClient(cfg)
+    api_client = create_api_backend(cfg)
     api_semaphore = threading.Semaphore(cfg["MAX_CONCURRENT_API"])
 
     df_suggestion = None

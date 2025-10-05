@@ -21,7 +21,13 @@ RUN python -m pip install --upgrade pip && \
 # Webアプリケーションファイルをコピー
 COPY web/app.py /app/app.py
 COPY web/pages /app/pages
-COPY web/common /app/common
+COPY web/common /app/web_common
+
+# 共通設定ファイルをコピー
+COPY config.yaml /app/config.yaml
+
+# 共通APIバックエンドをコピー（tools/common -> /app/common）
+COPY common /app/common
 
 # バックエンドロジックをコピー
 COPY word /app/word

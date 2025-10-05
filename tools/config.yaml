@@ -1,0 +1,102 @@
+# ====================================================================
+# 開発支援ツール 共通設定ファイル
+# ====================================================================
+
+# --- API設定（OpenAI互換） ---
+api:
+  base_url: "https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu"
+  model: "gpt-4o-mini"
+  path: "/chat/completions"
+  timeout_sec: 30
+  send_auth: false
+  org_id: ""
+  # API認証情報（デフォルト値）
+  headers_json: '{"api-key":"8b843f2df20548899f93c0624452ea68","apim-user-id":"PIT04447"}'
+
+# --- プロキシ設定 ---
+proxy:
+  http: ""
+  https: ""
+  verify_ssl: true
+
+# --- LLM生成パラメータ ---
+llm:
+  max_tokens: 800
+  temperature: 0.7
+  top_p: 0.95
+  presence_penalty: 0.0
+  frequency_penalty: 0.0
+
+# --- 実行制御 ---
+execution:
+  max_workers: 6
+  retry: 2
+  max_concurrent_api: 5
+
+# ====================================================================
+# ツール固有設定
+# ====================================================================
+
+# --- 単語マッチングツール (word) ---
+word:
+  # 入力ファイル検出
+  screen_glob: "*画面項目定義*.xlsx"
+  vocab_glob: "*単語名一覧*.xlsx"
+
+  # シート/列設定
+  screen_sheet: "*"
+  vocab_sheet: "*"
+  screen_col: "項目名称"
+  vocab_term_col: "論理名"
+  vocab_phys_col: "物理名（正式名称）"
+  vocab_phys_abbr_col: "物理名（略称）"
+  vocab_no_col: "No"
+
+  # 類似度設定
+  fuzzy_threshold: 0.72
+  top_k: 3
+
+  # ヘッダー検出
+  header_detect: true
+  header_scan_rows: 30
+
+  # 出力設定
+  out_dir: "out"
+
+# --- ドメインチェックツール (domain) ---
+domain:
+  # 入力ファイル検出
+  target_glob: "*対象一覧*.xlsx"
+  domain_glob: "*ドメイン定義*.xlsx"
+  table_glob: "*テーブル定義*.xlsx"
+
+  # シート設定
+  target_sheet: "*"
+  domain_sheet: "*"
+  table_sheet: "*"
+
+  # 対象一覧の列名
+  target_item_col: "項目名"
+
+  # ドメイン定義の列名
+  domain_name_col: "ドメイン名"
+  domain_type_col: "データ型"
+  domain_length_col: "桁数"
+  domain_validation_col: "単項目チェック"
+
+  # テーブル定義の列名
+  table_name_col: "テーブル名"
+  table_item_col: "項目名"
+  table_column_col: "カラム名"
+  table_type_col: "データ型"
+  table_length_col: "桁数"
+
+  # ヘッダー検出
+  header_detect: true
+  header_scan_rows: 10
+
+  # 出力設定
+  out_dir: "out"
+
+  # 機能制御
+  check_mode: "suggestion"  # suggestion, validation, both

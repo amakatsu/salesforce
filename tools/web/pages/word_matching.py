@@ -12,7 +12,7 @@ import streamlit as st
 
 # 共通設定をインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from common.config import render_api_credentials_section, get_custom_prompt, CUSTOM_PROMPT_TEMPLATES
+from web_common.config import render_api_credentials_section, get_custom_prompt, CUSTOM_PROMPT_TEMPLATES
 
 # wordモジュールをインポート
 word_dir = Path(__file__).parent.parent / "word"

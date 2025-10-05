@@ -24,6 +24,12 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
+# 共通モジュール
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common.api_backend import create_api_backend
+from common.config import get_common_config, get_tool_config
+from common.excel_utils import read_excel_with_auto_header, detect_header_row
+
 # PyInstallerビルド時のSSL証明書対応
 try:
     import certifi
@@ -60,62 +66,15 @@ HARD_EXACT_SCORE = 1.0  # 完全一致のみに限定
 # LLMフォールバック時に"完全一致"扱いにする安全側の下限
 FALLBACK_EXACT_FLOOR = 0.95
  
-# ====== 設定（.envで上書き可） =============================================
+# ====== 設定（config.yamlで設定、環境変数で上書き可） ====================
+# 共通設定を取得してツール固有設定を追加
 DEFAULT_CONFIG: Dict[str, Any] = {
-    # --- API（OpenAI互換）
-    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu"),
-    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-    "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-    "OPENAI_PATH": os.getenv("OPENAI_PATH", "/chat/completions"),
-    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", "{\"api-key\":\"8b843f2df20548899f93c0624452ea68\",\"apim-user-id\":\"PIT04447\"}"),
-    "OPENAI_SEND_AUTH": os.getenv("OPENAI_SEND_AUTH", "false").lower() != "false",
-    "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
-    "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
-    "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
-    "VERIFY_SSL": os.getenv("VERIFY_SSL", "true").lower() != "false",
- 
-    # --- 生成パラメタ
-    "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
-    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.7")),
-    "TOP_P": float(os.getenv("TOP_P", "0.95")),
-    "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
-    "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
- 
-    # --- 入力検出
-    "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
-    "VOCAB_GLOB": os.getenv("VOCAB_GLOB", "*単語名一覧*.xlsx"),
- 
-    # --- シート/列（必要に応じて引数で上書き）
-    # シート名は複数指定可能（カンマ区切り）例: "画面項目定義,システム設計書,IF定義書"
-    # ワイルドカード指定可能（*）例: "*" で全シート、"画面*" で「画面」で始まるシート
-    # デフォルト "*" で全シートを読み込むことで、ファイル構造に依存しない柔軟な運用が可能
-    "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
-    "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
-    "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
-    "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
-    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）"),
-    "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
-    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No"),
- 
-    # --- 類似度設定
-    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
-    "TOP_K": int(os.getenv("TOP_K", "3")),  # 直接候補の上位件数
- 
-    # --- 出力
-    "OUT_DIR": os.getenv("OUT_DIR", "out"),
- 
-    # --- 実行制御
-    "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
-    "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
-    "RETRY": int(os.getenv("RETRY", "30")),
- 
-    # --- レート制限（サーバー負荷対策）
-    # 同時実行するAPI呼び出しの最大数（MAX_WORKERSより小さい値にするとAPI負荷を抑制）
-    "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5"))
+    **get_common_config(),   # 共通設定（API、LLMパラメータ等）
+    **get_tool_config("word")  # ツール固有設定（config.yamlから取得）
 }
- 
+
 # ====== 文字列正規化／類似度 =================================================
- 
+
 def zenkaku_hankaku_norm(text: str) -> str:
     """NFKC正規化 + 小文字化 + 記号/空白の正規化で**照合の土台**を整える。"""
     if text is None:
@@ -124,8 +83,8 @@ def zenkaku_hankaku_norm(text: str) -> str:
     s = re.sub(r"[\u3000\s]+", " ", s)          # 全角/半角スペースを単一化
     s = re.sub(r"[\-/・·•･,()\[\]_]+", " ", s)    # 区切り記号はスペースへ
     return re.sub(r"\s+", " ", s)
- 
- 
+
+
 def local_similarity(a: str, b: str) -> float:
     """簡易類似度：完全一致=1.0 / 片包含=0.9 / それ以外はdifflibのratio。"""
     a_n, b_n = zenkaku_hankaku_norm(a), zenkaku_hankaku_norm(b)
@@ -136,23 +95,25 @@ def local_similarity(a: str, b: str) -> float:
     if a_n in b_n or b_n in a_n:
         return 0.9
     return difflib.SequenceMatcher(None, a_n, b_n).ratio()
- 
+
 @dataclass
 class Candidate:
     term: str
     score: float
- 
+
 # ====== Excel I/O =============================================================
- 
+
 def _int_env(name: str) -> Optional[int]:
     v = os.getenv(name, "")
     try:
         return int(v) if v else None
     except Exception:
         return None
- 
-HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
-HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
+
+# ヘッダー検出設定（config.yamlから取得、環境変数で上書き可）
+_tool_cfg = get_tool_config("word")
+HEADER_DETECT = os.getenv("HEADER_DETECT", str(_tool_cfg.get("HEADER_DETECT", True))).lower() != "false"
+HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", str(_tool_cfg.get("HEADER_SCAN_ROWS", 30))))
 SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
 VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW")
  
@@ -220,13 +181,16 @@ def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], sc
 def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
                                      explicit_header_row_1based: Optional[int] = None,
                                      scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
-    """ヘッダ行が1行目とは限らないExcelに対応。"""
+    """
+    ヘッダ行が1行目とは限らないExcelに対応
+    ※ required_colsチェックのため独自実装を維持（共通モジュールは単純な検出のみ）
+    """
     if explicit_header_row_1based is not None:
         hdr0 = max(0, explicit_header_row_1based - 1)
         return pd.read_excel(path, sheet_name=sheet_name, header=hdr0), hdr0
     if not HEADER_DETECT:
         return pd.read_excel(path, sheet_name=sheet_name), 0
-    # ヘッダ行の自動検出
+    # ヘッダ行の自動検出（required_colsチェック付き）
     header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
  
@@ -339,63 +303,6 @@ def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshol
     merged = [Candidate(t, sc) for t, sc in best_by_term.items()]
     merged.sort(key=lambda c: c.score, reverse=True)
     return merged[: max(k, 10)]
- 
-# ====== APIクライアント =======================================================
-class ApiClient:
-    """OpenAI互換APIへの最小ラッパ（ヘッダ/プロキシ/SSL検証対応）。"""
-    def __init__(self, cfg: Dict[str, Any]):
-        self.base_url = cfg["OPENAI_BASE_URL"].rstrip("/")
-        self.path = cfg["OPENAI_PATH"]
-        self.timeout = cfg["TIMEOUT_SEC"]
-        # PyInstallerビルド時の証明書検証対応
-        if cfg["VERIFY_SSL"]:
-            self.verify = CA_BUNDLE
-        else:
-            self.verify = False
-        self.session = requests.Session()  # ThreadPool内ではスレッド毎の生成を推奨
-        # プロキシ
-        proxies: Dict[str, str] = {}
-        if cfg.get("HTTP_PROXY"):
-            proxies["http"] = cfg["HTTP_PROXY"]
-        if cfg.get("HTTPS_PROXY"):
-            proxies["https"] = cfg["HTTPS_PROXY"]
-        if proxies:
-            self.session.proxies.update(proxies)
-        # ヘッダ
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
-        if cfg.get("OPENAI_SEND_AUTH") and cfg.get("OPENAI_API_KEY"):
-            headers["Authorization"] = f"Bearer {cfg['OPENAI_API_KEY']}"
-        if cfg.get("OPENAI_ORG_ID"):
-            headers["OpenAI-Organization"] = cfg["OPENAI_ORG_ID"]
-        extra = cfg.get("OPENAI_HEADERS_JSON")
-        if extra:
-            try:
-                headers.update(json.loads(extra))
-            except Exception:
-                pass
-        self.headers = headers
- 
-    def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}{self.path}"
-
-        # デバッグ用：DNS解決テスト
-        import socket
-        from urllib.parse import urlparse
-        try:
-            hostname = urlparse(self.base_url).hostname
-            if hostname:
-                print(f"[DEBUG] DNS解決テスト: {hostname}")
-                ip = socket.gethostbyname(hostname)
-                print(f"[DEBUG] 解決成功: {hostname} -> {ip}")
-        except Exception as e:
-            print(f"[ERROR] DNS解決失敗: {e}")
-            print(f"[DEBUG] プロキシ設定: {self.session.proxies}")
-            print(f"[DEBUG] 環境変数HTTP_PROXY: {os.getenv('HTTP_PROXY')}")
-            print(f"[DEBUG] 環境変数HTTPS_PROXY: {os.getenv('HTTPS_PROXY')}")
-
-        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
-        resp.raise_for_status()
-        return resp.json()
  
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = (
@@ -574,7 +481,7 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
     }
  
  
-def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client: Optional[ApiClient] = None, api_semaphore: Optional[threading.Semaphore] = None, term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client = None, api_semaphore: Optional[threading.Semaphore] = None, term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
     """LLM呼び出し。失敗時はフォールバック。"""
     # テストモード判定
     if cfg.get("TEST_MODE", False) or os.getenv("WORD_MATCHING_TEST_MODE", "false").lower() == "true":
@@ -584,8 +491,8 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
         except ImportError:
             print("[警告] tests/mock_api.pyが見つかりません。フォールバックを使用します。")
             return fallback_reason(screen_name, candidates)
- 
-    client = client or ApiClient(cfg)
+
+    client = client or create_api_backend(cfg)
     payload = build_llm_payload(screen_name, candidates, cfg, term_meta)
  
     # サーバー負荷対策：セマフォで同時実行API数を制限
@@ -678,7 +585,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     )
  
     rows: List[Dict[str, Any]] = []
-    api_client = ApiClient(cfg)
+    api_client = create_api_backend(cfg)
  
     # API同時実行数を制限するセマフォ
     max_concurrent_api = cfg.get("MAX_CONCURRENT_API", 3)
