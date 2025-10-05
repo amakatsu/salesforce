@@ -1,0 +1,64 @@
+# tools/web/Dockerfile
+# 開発支援ツール統合Webポータル
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# システムパッケージのインストール
+# curl: HEALTHCHECK用 / ca-certificates: HTTPS用
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# ビルドコンテキストは tools/ ディレクトリ
+COPY web/requirements.txt .
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Webアプリケーションファイルをコピー
+COPY web/app.py /app/app.py
+COPY web/pages /app/pages
+COPY web/common /app/common
+
+# バックエンドロジックをコピー
+COPY word /app/word
+COPY domain /app/domain
+COPY pr-agent /app/pr-agent
+
+# PR-Agent設定ファイルをホームディレクトリにコピー
+RUN mkdir -p /root/.pr_agent
+COPY pr-agent/configs /root/.pr_agent/configs
+COPY .pr_agent.toml /root/.pr_agent.toml
+
+# カスタムLLMハンドラーをコピー（存在する場合のみ）
+COPY pr-agent/custom /app/pr-agent/custom
+
+# カスタムLLMハンドラーが存在する場合は上書き
+RUN if [ -f /app/pr-agent/custom/litellm_ai_handler.py ]; then \
+    HANDLER_PATH=$(python -c "import site; print(site.getsitepackages()[0])")/pr_agent/algo/ai_handlers/litellm_ai_handler.py; \
+    cp /app/pr-agent/custom/litellm_ai_handler.py "$HANDLER_PATH"; \
+    echo "✅ カスタムLLMハンドラーを適用しました: $HANDLER_PATH"; \
+fi
+
+# Pythonパスを設定（tools/配下からインポートできるように）
+ENV PYTHONPATH=/app:/app/pr-agent:$PYTHONPATH
+
+# PR-Agent環境変数
+ENV PR_AGENT_CONFIG_PATH=/root/.pr_agent/configs
+ENV HOME=/root
+
+# Streamlit設定
+ENV STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+EXPOSE 8501
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
+  CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+
+CMD ["python", "-m", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
