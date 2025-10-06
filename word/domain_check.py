@@ -907,6 +907,8 @@ def save_outputs(df_result: pd.DataFrame, cfg: Dict[str, Any]) -> None:
     out_dir = Path(cfg["OUT_DIR"]).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    output_file = out_dir / "screen_domain_check.xlsx"
+
     # Excelに保存
     df_result.to_excel(output_file, sheet_name="ドメインチェック結果", index=False, engine="openpyxl")
 

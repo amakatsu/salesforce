@@ -17,6 +17,7 @@ RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY word-web/app.py /app/app.py
+COPY word-web/pages /app/pages
 COPY word /app/word
 
 ENV STREAMLIT_SERVER_PORT=8501 \
