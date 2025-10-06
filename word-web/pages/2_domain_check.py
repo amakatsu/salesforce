@@ -55,7 +55,7 @@ with st.expander("💡 使い方を見る", expanded=False):
 
     ### ステップ1️⃣: ファイルをアップロード
 
-    - **画面項目定義**: 項目名称、フィールドタイプ、長さ、編集形式、必須チェック
+    - **画面項目定義**: 項目名称、フィールド、長さ、編集形式、必須
     - **ドメイン定義一覧**: ドメイン名、データ型、最小/最大文字数、最小/最大値、書式正規表現、参照外部コードIDなど
 
     ### ステップ2️⃣: 存在チェック実行
@@ -98,7 +98,7 @@ with col1:
         type=["xlsx"],
         accept_multiple_files=True,
         key="screen",
-        help="項目名称、フィールドタイプ、長さ、編集形式、必須チェック"
+        help="項目名称、フィールド、長さ、編集形式、必須"
     )
     if screen_files:
         st.success(f"✅ {len(screen_files)}件")
@@ -140,22 +140,26 @@ if st.button("🚀 チェック実行", type="primary", use_container_width=True
             # プログレスバー
             progress_bar = st.progress(0)
             status_text = st.empty()
+            detail_text = st.empty()
 
             # ファイル保存
-            status_text.text("📁 ファイルをアップロード中...")
-            progress_bar.progress(10)
+            status_text.text("📁 ステップ 1/5: ファイルをアップロード中...")
+            detail_text.text(f"画面項目定義: {len(screen_files)}件、ドメイン定義: {len(domain_files)}件")
+            progress_bar.progress(5)
 
             # 画面項目定義ファイル
             for i, f in enumerate(screen_files):
                 file_path = tmpdir / f.name
                 file_path.write_bytes(f.read())
+                detail_text.text(f"画面項目定義ファイル保存中: {i+1}/{len(screen_files)} - {f.name}")
 
             # ドメイン定義ファイル
             for i, f in enumerate(domain_files):
                 file_path = tmpdir / f.name
                 file_path.write_bytes(f.read())
+                detail_text.text(f"ドメイン定義ファイル保存中: {i+1}/{len(domain_files)} - {f.name}")
 
-            progress_bar.progress(20)
+            progress_bar.progress(15)
 
             # 設定の上書き
             config = DEFAULT_CONFIG.copy()
@@ -163,28 +167,38 @@ if st.button("🚀 チェック実行", type="primary", use_container_width=True
             config["OUT_DIR"] = str(tmpdir / "out")
 
             # データ読み込み
-            status_text.text("📂 データを読み込み中...")
-            progress_bar.progress(30)
+            status_text.text("📂 ステップ 2/5: 画面項目定義を読み込み中...")
+            detail_text.text("Excelファイルを解析しています...")
+            progress_bar.progress(25)
 
             screen_items = load_screen_items(tmpdir, config)
-            domains = load_domains(tmpdir, config)
+            detail_text.text(f"✓ 画面項目定義読み込み完了: {len(screen_items)}件")
+            progress_bar.progress(35)
 
+            status_text.text("📂 ステップ 3/5: ドメイン定義を読み込み中...")
+            detail_text.text("Excelファイルを解析しています...")
+
+            domains = load_domains(tmpdir, config)
+            detail_text.text(f"✓ ドメイン定義読み込み完了: {len(domains)}件")
             progress_bar.progress(50)
 
             # 突合処理
-            status_text.text("🔄 画面項目とドメインを突合中...")
+            status_text.text("🔄 ステップ 4/5: 画面項目とドメインを照合中...")
+            detail_text.text(f"{len(screen_items)}件の画面項目を{len(domains)}件のドメインと照合しています...")
 
-            with st.spinner("突合処理中..."):
-                df_result = process_screen_domain_matching(screen_items, domains, config)
+            df_result = process_screen_domain_matching(screen_items, domains, config)
 
+            detail_text.text(f"✓ 照合完了: {len(df_result)}件処理")
             progress_bar.progress(80)
 
             # 結果保存
-            status_text.text("💾 結果を保存中...")
+            status_text.text("💾 ステップ 5/5: 結果を保存中...")
+            detail_text.text("Excelファイルを作成しています...")
             save_outputs(df_result, config)
 
             progress_bar.progress(100)
             status_text.text("✅ 処理完了！")
+            detail_text.text(f"全{len(df_result)}件の照合が完了しました")
 
             st.success("✅ チェック処理が完了しました！")
 

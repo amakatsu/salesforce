@@ -63,7 +63,8 @@ with col2:
                 border-left: 4px solid #f56565;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
                 height: 200px;'>
-        <h3 style='color: #f56565; margin-top: 0;'>🔍 ドメイン照合ツール</h3>
+いJいち
+れつさ        <h3 style='color: #f56565; margin-top: 0;'>🔍 ドメイン照合ツール</h3>
         <p style='color: #4a5568; margin-bottom: 1rem;'>
             画面項目に対応するドメインの存在チェックと新規ドメイン提案を行います。
         </p>

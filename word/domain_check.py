@@ -60,14 +60,21 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
     "DOMAIN_SHEET": os.getenv("DOMAIN_SHEET", "*"),
 
-    # 画面項目定義
+    # 画面項目定義（列名）
     "SCREEN_ITEM_COL": os.getenv("SCREEN_ITEM_COL", "項目名称"),
-    "SCREEN_TYPE_COL": os.getenv("SCREEN_TYPE_COL", "フィールドタイプ"),
+    "SCREEN_TYPE_COL": os.getenv("SCREEN_TYPE_COL", "フィールド"),
     "SCREEN_LENGTH_COL": os.getenv("SCREEN_LENGTH_COL", "長さ"),
     "SCREEN_FORMAT_COL": os.getenv("SCREEN_FORMAT_COL", "編集形式"),
-    "SCREEN_REQUIRED_COL": os.getenv("SCREEN_REQUIRED_COL", "必須チェック"),
+    "SCREEN_REQUIRED_COL": os.getenv("SCREEN_REQUIRED_COL", "必須"),
 
-    # ドメイン定義一覧
+    # 画面項目定義（列位置インデックス、0始まり）※列名が見つからない場合のフォールバック
+    "SCREEN_ITEM_COL_IDX": int(os.getenv("SCREEN_ITEM_COL_IDX", "-1")),  # -1は無効
+    "SCREEN_TYPE_COL_IDX": int(os.getenv("SCREEN_TYPE_COL_IDX", "6")),   # G列=6
+    "SCREEN_LENGTH_COL_IDX": int(os.getenv("SCREEN_LENGTH_COL_IDX", "7")),  # H列=7
+    "SCREEN_FORMAT_COL_IDX": int(os.getenv("SCREEN_FORMAT_COL_IDX", "8")),  # I列=8
+    "SCREEN_REQUIRED_COL_IDX": int(os.getenv("SCREEN_REQUIRED_COL_IDX", "9")),  # J列=9
+
+    # ドメイン定義一覧（列名）
     "DOMAIN_NAME_COL": os.getenv("DOMAIN_NAME_COL", "ドメイン名"),
     "DOMAIN_TYPE_COL": os.getenv("DOMAIN_TYPE_COL", "データ型"),
     "DOMAIN_MIN_CHAR_COL": os.getenv("DOMAIN_MIN_CHAR_COL", "最小文字数"),
@@ -79,6 +86,19 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "DOMAIN_MAX_VALUE_COL": os.getenv("DOMAIN_MAX_VALUE_COL", "最大値"),
     "DOMAIN_REGEX_COL": os.getenv("DOMAIN_REGEX_COL", "書式（正規表現）"),
     "DOMAIN_CODE_ID_COL": os.getenv("DOMAIN_CODE_ID_COL", "参照外部コードID"),
+
+    # ドメイン定義一覧（列位置インデックス、0始まり）※列名が見つからない場合のフォールバック
+    "DOMAIN_NAME_COL_IDX": int(os.getenv("DOMAIN_NAME_COL_IDX", "-1")),
+    "DOMAIN_TYPE_COL_IDX": int(os.getenv("DOMAIN_TYPE_COL_IDX", "-1")),
+    "DOMAIN_MIN_CHAR_COL_IDX": int(os.getenv("DOMAIN_MIN_CHAR_COL_IDX", "5")),  # F列=5
+    "DOMAIN_MAX_CHAR_COL_IDX": int(os.getenv("DOMAIN_MAX_CHAR_COL_IDX", "6")),  # G列=6
+    "DOMAIN_MIN_BYTE_COL_IDX": int(os.getenv("DOMAIN_MIN_BYTE_COL_IDX", "7")),  # H列=7
+    "DOMAIN_MAX_BYTE_COL_IDX": int(os.getenv("DOMAIN_MAX_BYTE_COL_IDX", "8")),  # I列=8
+    "DOMAIN_DECIMAL_COL_IDX": int(os.getenv("DOMAIN_DECIMAL_COL_IDX", "9")),    # J列=9
+    "DOMAIN_MIN_VALUE_COL_IDX": int(os.getenv("DOMAIN_MIN_VALUE_COL_IDX", "10")),  # K列=10
+    "DOMAIN_MAX_VALUE_COL_IDX": int(os.getenv("DOMAIN_MAX_VALUE_COL_IDX", "11")),  # L列=11
+    "DOMAIN_REGEX_COL_IDX": int(os.getenv("DOMAIN_REGEX_COL_IDX", "12")),       # M列=12
+    "DOMAIN_CODE_ID_COL_IDX": int(os.getenv("DOMAIN_CODE_ID_COL_IDX", "13")),   # N列=13
 
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
@@ -123,10 +143,10 @@ def normalize_data_type(dtype: str) -> str:
 class ScreenItem:
     """画面項目定義"""
     item_name: str          # 項目名称
-    field_type: str         # フィールドタイプ
+    field_type: str         # フィールド
     length: Optional[str]   # 長さ
     format: str             # 編集形式
-    required: str           # 必須チェック
+    required: str           # 必須
     row_number: int         # Excel行番号
     source_file: str
     source_sheet: str
@@ -191,7 +211,6 @@ def read_excel_auto(path: Path, sheet_name: Optional[str], required_cols: List[s
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row)
 
 
-そそｎ
 def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
                                      explicit_header_row_1based: Optional[int] = None,
                                      scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
@@ -234,22 +253,51 @@ def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
 
                     row_number = header_row + idx + 2
 
-                    # 値の取得とnan対策
-                    def get_value(col_name):
-                        if col_name not in df.columns:
-                            return ""
-                        val = row.get(col_name, "")
-                        if pd.isna(val) or str(val).strip() in ["", "nan", "None"]:
-                            return ""
-                        return str(val).strip()
+                    # 値の取得とnan対策（列名で見つからない場合は列位置でフォールバック）
+                    def get_value(col_name, col_idx=-1):
+                        """
+                        列名で取得を試み、失敗したら列位置インデックスで取得
+                        col_idx: 列位置（0始まり）、-1の場合は列位置フォールバックなし
+                        """
+                        val = None
 
-                    length_val = get_value(cfg["SCREEN_LENGTH_COL"])
+                        # まず列名で取得を試みる
+                        if col_name in df.columns:
+                            val = row.get(col_name, "")
+                        # 列名が見つからず、列位置が指定されている場合
+                        elif col_idx >= 0 and col_idx < len(row):
+                            try:
+                                val = row.iloc[col_idx]
+                                print(f"[INFO] 列名'{col_name}'が見つからないため、列位置{col_idx}から取得")
+                            except:
+                                val = ""
+
+                        if pd.isna(val):
+                            return ""
+                        val_str = str(val).strip()
+                        # 半角スペースのみ、全角スペースのみ、nanなども空文字として扱う
+                        if val_str in ["", "nan", "None", " ", "　"]:
+                            return ""
+                        # 完全に空白文字のみの場合も空文字として扱う
+                        if not val_str or val_str.isspace():
+                            return ""
+                        return val_str
+
+                    length_val = get_value(cfg["SCREEN_LENGTH_COL"], cfg["SCREEN_LENGTH_COL_IDX"])
+                    field_type_val = get_value(cfg["SCREEN_TYPE_COL"], cfg["SCREEN_TYPE_COL_IDX"])
+                    format_val = get_value(cfg["SCREEN_FORMAT_COL"], cfg["SCREEN_FORMAT_COL_IDX"])
+                    required_val = get_value(cfg["SCREEN_REQUIRED_COL"], cfg["SCREEN_REQUIRED_COL_IDX"])
+
+                    # デバッグログ（最初の5件のみ）
+                    if len(items) < 5:
+                        print(f"[DEBUG] 行{row_number}: 項目名={item_name}, フィールド={field_type_val}, 長さ={length_val}, 編集形式={format_val}, 必須={required_val}")
+
                     items.append(ScreenItem(
                         item_name=item_name,
-                        field_type=get_value(cfg["SCREEN_TYPE_COL"]),
+                        field_type=field_type_val,
                         length=length_val if length_val else None,
-                        format=get_value(cfg["SCREEN_FORMAT_COL"]),
-                        required=get_value(cfg["SCREEN_REQUIRED_COL"]),
+                        format=format_val,
+                        required=required_val,
                         row_number=row_number,
                         source_file=path.name,
                         source_sheet=sheet
@@ -289,27 +337,48 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
 
                     row_number = header_row + idx + 2
 
-                    # 値の取得とnan対策
-                    def get_value(col_name):
-                        if col_name not in df.columns:
+                    # 値の取得とnan対策（列名で見つからない場合は列位置でフォールバック）
+                    def get_value(col_name, col_idx=-1):
+                        """
+                        列名で取得を試み、失敗したら列位置インデックスで取得
+                        col_idx: 列位置（0始まり）、-1の場合は列位置フォールバックなし
+                        """
+                        val = None
+
+                        # まず列名で取得を試みる
+                        if col_name in df.columns:
+                            val = row.get(col_name, "")
+                        # 列名が見つからず、列位置が指定されている場合
+                        elif col_idx >= 0 and col_idx < len(row):
+                            try:
+                                val = row.iloc[col_idx]
+                                print(f"[INFO] 列名'{col_name}'が見つからないため、列位置{col_idx}から取得")
+                            except:
+                                val = ""
+
+                        if pd.isna(val):
                             return ""
-                        val = row.get(col_name, "")
-                        if pd.isna(val) or str(val).strip() in ["", "nan", "None"]:
+                        val_str = str(val).strip()
+                        # 半角スペースのみ、全角スペースのみ、nanなども空文字として扱う
+                        if val_str in ["", "nan", "None", " ", "　"]:
                             return ""
-                        return str(val).strip()
+                        # 完全に空白文字のみの場合も空文字として扱う
+                        if not val_str or val_str.isspace():
+                            return ""
+                        return val_str
 
                     domains[normalize_text(name)] = DomainDef(
                         name=name,
-                        data_type=get_value(cfg["DOMAIN_TYPE_COL"]),
-                        min_char=get_value(cfg["DOMAIN_MIN_CHAR_COL"]) or None,
-                        max_char=get_value(cfg["DOMAIN_MAX_CHAR_COL"]) or None,
-                        min_byte=get_value(cfg["DOMAIN_MIN_BYTE_COL"]) or None,
-                        max_byte=get_value(cfg["DOMAIN_MAX_BYTE_COL"]) or None,
-                        decimal=get_value(cfg["DOMAIN_DECIMAL_COL"]) or None,
-                        min_value=get_value(cfg["DOMAIN_MIN_VALUE_COL"]) or None,
-                        max_value=get_value(cfg["DOMAIN_MAX_VALUE_COL"]) or None,
-                        regex=get_value(cfg["DOMAIN_REGEX_COL"]),
-                        code_id=get_value(cfg["DOMAIN_CODE_ID_COL"]),
+                        data_type=get_value(cfg["DOMAIN_TYPE_COL"], cfg["DOMAIN_TYPE_COL_IDX"]),
+                        min_char=get_value(cfg["DOMAIN_MIN_CHAR_COL"], cfg["DOMAIN_MIN_CHAR_COL_IDX"]) or None,
+                        max_char=get_value(cfg["DOMAIN_MAX_CHAR_COL"], cfg["DOMAIN_MAX_CHAR_COL_IDX"]) or None,
+                        min_byte=get_value(cfg["DOMAIN_MIN_BYTE_COL"], cfg["DOMAIN_MIN_BYTE_COL_IDX"]) or None,
+                        max_byte=get_value(cfg["DOMAIN_MAX_BYTE_COL"], cfg["DOMAIN_MAX_BYTE_COL_IDX"]) or None,
+                        decimal=get_value(cfg["DOMAIN_DECIMAL_COL"], cfg["DOMAIN_DECIMAL_COL_IDX"]) or None,
+                        min_value=get_value(cfg["DOMAIN_MIN_VALUE_COL"], cfg["DOMAIN_MIN_VALUE_COL_IDX"]) or None,
+                        max_value=get_value(cfg["DOMAIN_MAX_VALUE_COL"], cfg["DOMAIN_MAX_VALUE_COL_IDX"]) or None,
+                        regex=get_value(cfg["DOMAIN_REGEX_COL"], cfg["DOMAIN_REGEX_COL_IDX"]),
+                        code_id=get_value(cfg["DOMAIN_CODE_ID_COL"], cfg["DOMAIN_CODE_ID_COL_IDX"]),
                         row_number=row_number,
                         source_file=path.name,
                         source_sheet=sheet
@@ -447,10 +516,10 @@ def process_screen_domain_matching(screen_items: List[ScreenItem],
                 "理由": reason,
                 "一致ドメイン名": "",
                 "類似度": "",
-                "フィールドタイプ": item.field_type,
+                "フィールド": item.field_type,
                 "長さ": item.length,
                 "編集形式": item.format,
-                "必須チェック": item.required,
+                "必須": item.required,
                 "データ型": suggestions.get("データ型", ""),
                 "最小文字数": "",
                 "最大文字数": suggestions.get("最大文字数", ""),
@@ -479,10 +548,10 @@ def process_screen_domain_matching(screen_items: List[ScreenItem],
                 "理由": reason,
                 "一致ドメイン名": matched_domain.name if matched_domain else "",
                 "類似度": f"{score:.2%}" if score > 0 else "",
-                "フィールドタイプ": item.field_type,
+                "フィールド": item.field_type,
                 "長さ": item.length if item.length else "",
                 "編集形式": item.format if item.format else "",
-                "必須チェック": item.required if item.required else "",
+                "必須": item.required if item.required else "",
                 "データ型": get_domain_value(matched_domain.data_type) if matched_domain else "",
                 "最小文字数": get_domain_value(matched_domain.min_char) if matched_domain else "",
                 "最大文字数": get_domain_value(matched_domain.max_char) if matched_domain else "",
