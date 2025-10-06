@@ -190,6 +190,19 @@ def read_excel_auto(path: Path, sheet_name: Optional[str], required_cols: List[s
     header_row = _detect_header_row(path, sheet_name, required_cols, HEADER_SCAN_ROWS)
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row)
 
+def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
+                                     explicit_header_row_1based: Optional[int] = None,
+                                     scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
+    """ヘッダ行が1行目とは限らないExcelに対応。"""
+    if explicit_header_row_1based is not None:
+        hdr0 = max(0, explicit_header_row_1based - 1)
+        return pd.read_excel(path, sheet_name=sheet_name, header=hdr0), hdr0
+    if not HEADER_DETECT:
+        return pd.read_excel(path, sheet_name=sheet_name), 0
+    # ヘッダ行の自動検出
+    header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
+    return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
+
 def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
     """画面項目定義を読み込み（行番号付き）"""
     files = sorted(dir_path.glob(cfg["SCREEN_GLOB"]))
@@ -418,7 +431,9 @@ def process_screen_domain_matching(screen_items: List[ScreenItem],
             }
         results.append(result)
 
-    return pd.DataFrame(results)
+    df = pd.DataFrame(results)
+    print(f"[DEBUG] DataFrame作成完了: {len(df)}行, 列名: {list(df.columns)}")
+    return df
 
 # ====== 旧関数（削除予定） =====================================================
 def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, Any]:
@@ -995,6 +1010,9 @@ def main() -> None:
     # 突合処理
     print("\n[ステップ2] 画面項目とドメインの突合")
     df_result = process_screen_domain_matching(screen_items, domains, cfg)
+    print(f"[DEBUG] df_result type: {type(df_result)}, shape: {df_result.shape if hasattr(df_result, 'shape') else 'N/A'}")
+    if len(df_result) > 0:
+        print(f"[DEBUG] df_result columns: {list(df_result.columns)}")
 
     # 結果保存
     print("\n[ステップ3] 結果保存")
@@ -1003,10 +1021,14 @@ def main() -> None:
     # サマリ表示
     print("\n[処理完了]")
     print(f"  総項目数: {len(df_result)}件")
-    print(f"  完全一致: {len(df_result[df_result['判定結果'] == '完全一致'])}件")
-    print(f"  類似一致: {len(df_result[df_result['判定結果'] == '類似一致'])}件")
-    print(f"  不一致（提案必要）: {len(df_result[df_result['判定結果'] == '不一致（提案必要）'])}件")
-    print(f"  不一致（チェック不要）: {len(df_result[df_result['判定結果'] == '不一致（チェック不要）'])}件")
+    if '判定結果' in df_result.columns:
+        print(f"  完全一致: {len(df_result[df_result['判定結果'] == '完全一致'])}件")
+    else:
+        print(f"[ERROR] '判定結果' 列が存在しません。列名: {list(df_result.columns)}")
+        print(f"  完全一致: 集計不可")
+        print(f"  類似一致: {len(df_result[df_result['判定結果'] == '類似一致'])}件")
+        print(f"  不一致（提案必要）: {len(df_result[df_result['判定結果'] == '不一致（提案必要）'])}件")
+        print(f"  不一致（チェック不要）: {len(df_result[df_result['判定結果'] == '不一致（チェック不要）'])}件")
 
     if TK_AVAILABLE and not args.no_gui:
         try:
