@@ -75,25 +75,25 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-with col3:
-    st.markdown("""
-    <div style='background: white;
-                padding: 1.5rem;
-                border-radius: 10px;
-                border-left: 4px solid #48bb78;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-                height: 200px;'>
-        <h3 style='color: #48bb78; margin-top: 0;'>🤖 PR-Agent</h3>
-        <p style='color: #4a5568; margin-bottom: 1rem;'>
-            プルリクエストの自動レビューとコード品質チェックを実施します。
-        </p>
-        <p style='color: #718096; font-size: 0.9rem;'>
-            ✅ コードレビュー<br>
-            ✅ 改善提案<br>
-            ✅ テスト提案
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+# with col3:
+#     st.markdown("""
+#     <div style='background: white;
+#                 padding: 1.5rem;
+#                 border-radius: 10px;
+#                 border-left: 4px solid #48bb78;
+#                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+#                 height: 200px;'>
+#         <h3 style='color: #48bb78; margin-top: 0;'>🤖 PR-Agent</h3>
+#         <p style='color: #4a5568; margin-bottom: 1rem;'>
+#             プルリクエストの自動レビューとコード品質チェックを実施します。
+#         </p>
+#         <p style='color: #718096; font-size: 0.9rem;'>
+#             ✅ コードレビュー<br>
+#             ✅ 改善提案<br>
+#             ✅ テスト提案
+#         </p>
+#     </div>
+#     """, unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -106,7 +106,6 @@ st.markdown("""
 1. **左のサイドバーからツールを選択**
    - 📝 単語照合ツール
    - 🔍 ドメインチェック
-   - 🤖 PR-Agent
 
 2. **各ツールの画面で必要な情報を入力**
    - ファイルアップロード

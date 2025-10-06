@@ -53,30 +53,32 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "TOP_P": float(os.getenv("TOP_P", "0.95")),
 
     # --- 入力ファイル検出
-    "TARGET_GLOB": os.getenv("TARGET_GLOB", "*対象一覧*.xlsx"),
+    "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
     "DOMAIN_GLOB": os.getenv("DOMAIN_GLOB", "*ドメイン定義*.xlsx"),
-    "TABLE_GLOB": os.getenv("TABLE_GLOB", "*テーブル定義*.xlsx"),
 
     # --- シート/列設定
-    "TARGET_SHEET": os.getenv("TARGET_SHEET", "*"),
+    "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
     "DOMAIN_SHEET": os.getenv("DOMAIN_SHEET", "*"),
-    "TABLE_SHEET": os.getenv("TABLE_SHEET", "*"),
 
-    # 対象一覧（項目名のみ）
-    "TARGET_ITEM_COL": os.getenv("TARGET_ITEM_COL", "項目名"),
+    # 画面項目定義
+    "SCREEN_ITEM_COL": os.getenv("SCREEN_ITEM_COL", "項目名称"),
+    "SCREEN_TYPE_COL": os.getenv("SCREEN_TYPE_COL", "フィールドタイプ"),
+    "SCREEN_LENGTH_COL": os.getenv("SCREEN_LENGTH_COL", "長さ"),
+    "SCREEN_FORMAT_COL": os.getenv("SCREEN_FORMAT_COL", "編集形式"),
+    "SCREEN_REQUIRED_COL": os.getenv("SCREEN_REQUIRED_COL", "必須チェック"),
 
-    # ドメイン定義（ドメイン名、データ型、桁数、バリデーション）
+    # ドメイン定義一覧
     "DOMAIN_NAME_COL": os.getenv("DOMAIN_NAME_COL", "ドメイン名"),
     "DOMAIN_TYPE_COL": os.getenv("DOMAIN_TYPE_COL", "データ型"),
-    "DOMAIN_LENGTH_COL": os.getenv("DOMAIN_LENGTH_COL", "桁数"),
-    "DOMAIN_VALIDATION_COL": os.getenv("DOMAIN_VALIDATION_COL", "単項目チェック"),
-
-    # テーブル定義（テーブル名、項目名、カラム名、データ型、桁数）
-    "TABLE_NAME_COL": os.getenv("TABLE_NAME_COL", "テーブル名"),
-    "TABLE_ITEM_COL": os.getenv("TABLE_ITEM_COL", "項目名"),
-    "TABLE_COLUMN_COL": os.getenv("TABLE_COLUMN_COL", "カラム名"),
-    "TABLE_TYPE_COL": os.getenv("TABLE_TYPE_COL", "データ型"),
-    "TABLE_LENGTH_COL": os.getenv("TABLE_LENGTH_COL", "桁数"),
+    "DOMAIN_MIN_CHAR_COL": os.getenv("DOMAIN_MIN_CHAR_COL", "最小文字数"),
+    "DOMAIN_MAX_CHAR_COL": os.getenv("DOMAIN_MAX_CHAR_COL", "最大文字数"),
+    "DOMAIN_MIN_BYTE_COL": os.getenv("DOMAIN_MIN_BYTE_COL", "最小バイト数"),
+    "DOMAIN_MAX_BYTE_COL": os.getenv("DOMAIN_MAX_BYTE_COL", "最大バイト数"),
+    "DOMAIN_DECIMAL_COL": os.getenv("DOMAIN_DECIMAL_COL", "小数部バイト数"),
+    "DOMAIN_MIN_VALUE_COL": os.getenv("DOMAIN_MIN_VALUE_COL", "最小値"),
+    "DOMAIN_MAX_VALUE_COL": os.getenv("DOMAIN_MAX_VALUE_COL", "最大値"),
+    "DOMAIN_REGEX_COL": os.getenv("DOMAIN_REGEX_COL", "書式（正規表現）"),
+    "DOMAIN_CODE_ID_COL": os.getenv("DOMAIN_CODE_ID_COL", "参照外部コードID"),
 
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
@@ -87,8 +89,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "RETRY": int(os.getenv("RETRY", "2")),
     "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5")),
 
-    # --- 機能制御
-    "CHECK_MODE": os.getenv("CHECK_MODE", "suggestion")  # suggestion, validation, both
+    # --- 類似度判定
+    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 類似一致の閾値
 }
 
 # ====== 正規化関数 ============================================================
@@ -118,33 +120,32 @@ def normalize_data_type(dtype: str) -> str:
 
 # ====== データクラス ==========================================================
 @dataclass
+class ScreenItem:
+    """画面項目定義"""
+    item_name: str          # 項目名称
+    field_type: str         # フィールドタイプ
+    length: Optional[str]   # 長さ
+    format: str             # 編集形式
+    required: str           # 必須チェック
+    row_number: int         # Excel行番号
+    source_file: str
+    source_sheet: str
+
+@dataclass
 class DomainDef:
     """ドメイン定義"""
-    name: str
-    data_type: str
-    length: Optional[str]
-    validation: str  # 単項目チェック（バリデーション内容）
-    row_number: int  # Excel行番号
-    source_file: str
-    source_sheet: str
-
-@dataclass
-class TableDef:
-    """テーブル定義"""
-    table_name: str
-    item_name: str      # 項目名（論理名）
-    column_name: str    # カラム名（物理名）
-    data_type: str
-    length: Optional[str]
-    row_number: int     # Excel行番号
-    source_file: str
-    source_sheet: str
-
-@dataclass
-class TargetItem:
-    """対象項目"""
-    item_name: str      # 項目名（論理名）のみ
-    row_number: int     # Excel行番号
+    name: str                   # ドメイン名
+    data_type: str              # データ型
+    min_char: Optional[str]     # 最小文字数
+    max_char: Optional[str]     # 最大文字数
+    min_byte: Optional[str]     # 最小バイト数
+    max_byte: Optional[str]     # 最大バイト数
+    decimal: Optional[str]      # 小数部バイト数
+    min_value: Optional[str]    # 最小値
+    max_value: Optional[str]    # 最大値
+    regex: str                  # 書式正規表現
+    code_id: str                # 参照外部コードID
+    row_number: int             # Excel行番号
     source_file: str
     source_sheet: str
 
@@ -189,6 +190,42 @@ def read_excel_auto(path: Path, sheet_name: Optional[str], required_cols: List[s
     header_row = _detect_header_row(path, sheet_name, required_cols, HEADER_SCAN_ROWS)
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row)
 
+def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
+    """画面項目定義を読み込み（行番号付き）"""
+    files = sorted(dir_path.glob(cfg["SCREEN_GLOB"]))
+    if not files:
+        raise FileNotFoundError(f"画面項目定義ファイルが見つかりません")
+    items = []
+    for path in files:
+        xls = pd.ExcelFile(path)
+        sheets = _pick_matching_sheets(xls, cfg["SCREEN_SHEET"])
+        for sheet in sheets:
+            try:
+                df, header_row = read_excel_with_header_detection(
+                    path, sheet,
+                    [cfg["SCREEN_ITEM_COL"]],
+                    None, 30
+                )
+                for idx, row in df.iterrows():
+                    item_name = str(row.get(cfg["SCREEN_ITEM_COL"], "")).strip()
+                    if item_name:
+                        row_number = header_row + idx + 2
+                        items.append(ScreenItem(
+                            item_name=item_name,
+                            field_type=str(row.get(cfg["SCREEN_TYPE_COL"], "")).strip() if cfg["SCREEN_TYPE_COL"] in df.columns else "",
+                            length=str(row.get(cfg["SCREEN_LENGTH_COL"], "")).strip() if cfg["SCREEN_LENGTH_COL"] in df.columns else None,
+                            format=str(row.get(cfg["SCREEN_FORMAT_COL"], "")).strip() if cfg["SCREEN_FORMAT_COL"] in df.columns else "",
+                            required=str(row.get(cfg["SCREEN_REQUIRED_COL"], "")).strip() if cfg["SCREEN_REQUIRED_COL"] in df.columns else "",
+                            row_number=row_number,
+                            source_file=path.name,
+                            source_sheet=sheet
+                        ))
+                print(f"[INFO] 画面項目定義読み込み: {path.name}/{sheet}")
+            except Exception as e:
+                print(f"[警告] {path.name}({sheet}) エラー: {e}")
+    print(f"[INFO] 合計画面項目: {len(items)}件")
+    return items
+
 def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
     """ドメイン定義を読み込み（行番号付き）"""
     files = sorted(dir_path.glob(cfg["DOMAIN_GLOB"]))
@@ -208,13 +245,19 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
                 for idx, row in df.iterrows():
                     name = str(row.get(cfg["DOMAIN_NAME_COL"], "")).strip()
                     if name:
-                        # 行番号 = ヘッダー行 + データ行インデックス + 2（1始まり、ヘッダーの次の行）
                         row_number = header_row + idx + 2
                         domains[normalize_text(name)] = DomainDef(
                             name=name,
                             data_type=str(row.get(cfg["DOMAIN_TYPE_COL"], "")).strip(),
-                            length=str(row.get(cfg["DOMAIN_LENGTH_COL"], "")).strip() if cfg["DOMAIN_LENGTH_COL"] in df.columns else None,
-                            validation=str(row.get(cfg["DOMAIN_VALIDATION_COL"], "")).strip() if cfg["DOMAIN_VALIDATION_COL"] in df.columns else "",
+                            min_char=str(row.get(cfg["DOMAIN_MIN_CHAR_COL"], "")).strip() if cfg["DOMAIN_MIN_CHAR_COL"] in df.columns else None,
+                            max_char=str(row.get(cfg["DOMAIN_MAX_CHAR_COL"], "")).strip() if cfg["DOMAIN_MAX_CHAR_COL"] in df.columns else None,
+                            min_byte=str(row.get(cfg["DOMAIN_MIN_BYTE_COL"], "")).strip() if cfg["DOMAIN_MIN_BYTE_COL"] in df.columns else None,
+                            max_byte=str(row.get(cfg["DOMAIN_MAX_BYTE_COL"], "")).strip() if cfg["DOMAIN_MAX_BYTE_COL"] in df.columns else None,
+                            decimal=str(row.get(cfg["DOMAIN_DECIMAL_COL"], "")).strip() if cfg["DOMAIN_DECIMAL_COL"] in df.columns else None,
+                            min_value=str(row.get(cfg["DOMAIN_MIN_VALUE_COL"], "")).strip() if cfg["DOMAIN_MIN_VALUE_COL"] in df.columns else None,
+                            max_value=str(row.get(cfg["DOMAIN_MAX_VALUE_COL"], "")).strip() if cfg["DOMAIN_MAX_VALUE_COL"] in df.columns else None,
+                            regex=str(row.get(cfg["DOMAIN_REGEX_COL"], "")).strip() if cfg["DOMAIN_REGEX_COL"] in df.columns else "",
+                            code_id=str(row.get(cfg["DOMAIN_CODE_ID_COL"], "")).strip() if cfg["DOMAIN_CODE_ID_COL"] in df.columns else "",
                             row_number=row_number,
                             source_file=path.name,
                             source_sheet=sheet
@@ -225,7 +268,160 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
     print(f"[INFO] 合計ドメイン定義: {len(domains)}件")
     return domains
 
-def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, TableDef]:
+# ====== 類似度計算 =============================================================
+try:
+    from rapidfuzz import fuzz
+    FUZZ_AVAILABLE = True
+except ImportError:
+    from difflib import SequenceMatcher
+    FUZZ_AVAILABLE = False
+
+def calc_similarity(s1: str, s2: str) -> float:
+    """2つの文字列の類似度を計算（0.0-1.0）"""
+    if FUZZ_AVAILABLE:
+        return fuzz.ratio(s1, s2) / 100.0
+    else:
+        return SequenceMatcher(None, s1, s2).ratio()
+
+# ====== 突合処理 ===============================================================
+def match_item_with_domains(item: ScreenItem, domains: Dict[str, DomainDef],
+                            cfg: Dict[str, Any]) -> Tuple[str, Optional[DomainDef], float, str]:
+    """
+    画面項目とドメインを突合
+
+    Returns:
+        (match_type, matched_domain, score, reason)
+        match_type: "完全一致", "類似一致", "不一致（提案必要）", "不一致（チェック不要）"
+    """
+    item_name_norm = normalize_text(item.item_name)
+    threshold = cfg["FUZZY_THRESHOLD"]
+
+    # 完全一致チェック
+    if item_name_norm in domains:
+        return ("完全一致", domains[item_name_norm], 1.0, "項目名が完全一致")
+
+    # 類似一致チェック
+    best_score = 0.0
+    best_domain = None
+    for domain_key, domain in domains.items():
+        score = calc_similarity(item_name_norm, domain_key)
+        if score > best_score:
+            best_score = score
+            best_domain = domain
+
+    if best_score >= threshold:
+        return ("類似一致", best_domain, best_score, f"類似度: {best_score:.2%}")
+
+    # 不一致の場合、項目桁数や編集形式をチェック
+    has_length = item.length and str(item.length).strip() not in ["", "nan", "None"]
+    has_format = item.format and str(item.format).strip() not in ["", "nan", "None"]
+
+    if has_length or has_format:
+        reason = f"桁数制約または編集形式あり (長さ:{item.length}, 編集:{item.format})"
+        return ("不一致（提案必要）", None, 0.0, reason)
+    else:
+        return ("不一致（チェック不要）", None, 0.0, "桁数・編集形式なし")
+
+def suggest_domain_from_screen_item(item: ScreenItem) -> Dict[str, str]:
+    """画面項目定義からドメイン提案を生成"""
+    suggestions = {}
+
+    # フィールドタイプからデータ型を推測
+    field_type_lower = str(item.field_type).lower().strip()
+    if "text" in field_type_lower or "string" in field_type_lower:
+        suggestions["データ型"] = "VARCHAR"
+    elif "number" in field_type_lower or "integer" in field_type_lower:
+        suggestions["データ型"] = "INTEGER"
+    elif "date" in field_type_lower:
+        suggestions["データ型"] = "DATE"
+    elif "decimal" in field_type_lower or "float" in field_type_lower:
+        suggestions["データ型"] = "DECIMAL"
+    else:
+        suggestions["データ型"] = item.field_type if item.field_type else ""
+
+    # 長さから最大文字数/バイト数を設定
+    if item.length and str(item.length).strip() not in ["", "nan", "None"]:
+        try:
+            length_value = str(item.length).strip()
+            suggestions["最大文字数"] = length_value
+            suggestions["最大バイト数"] = length_value
+        except:
+            pass
+
+    # 編集形式から書式正規表現を設定
+    if item.format and str(item.format).strip() not in ["", "nan", "None"]:
+        suggestions["書式正規表現"] = str(item.format).strip()
+
+    return suggestions
+
+def process_screen_domain_matching(screen_items: List[ScreenItem],
+                                   domains: Dict[str, DomainDef],
+                                   cfg: Dict[str, Any]) -> pd.DataFrame:
+    """画面項目とドメインの突合処理"""
+    results = []
+
+    for item in screen_items:
+        match_type, matched_domain, score, reason = match_item_with_domains(item, domains, cfg)
+
+        # 不一致（提案必要）の場合、画面項目定義から借り入れ
+        if match_type == "不一致（提案必要）":
+            suggestions = suggest_domain_from_screen_item(item)
+            result = {
+                "項目名称": item.item_name,
+                "フィールドタイプ": item.field_type,
+                "長さ": item.length,
+                "編集形式": item.format,
+                "必須チェック": item.required,
+                "判定結果": match_type,
+                "一致ドメイン名": "",
+                "類似度": "",
+                "理由": reason,
+                "データ型": suggestions.get("データ型", ""),
+                "最小文字数": "",
+                "最大文字数": suggestions.get("最大文字数", ""),
+                "最小バイト数": "",
+                "最大バイト数": suggestions.get("最大バイト数", ""),
+                "小数部バイト数": "",
+                "最小値": "",
+                "最大値": "",
+                "書式正規表現": suggestions.get("書式正規表現", ""),
+                "参照外部コードID": "",
+                "元ファイル": item.source_file,
+                "元シート": item.source_sheet,
+                "行番号": item.row_number,
+            }
+        else:
+            # 一致した場合はドメイン情報を使用
+            result = {
+                "項目名称": item.item_name,
+                "フィールドタイプ": item.field_type,
+                "長さ": item.length,
+                "編集形式": item.format,
+                "必須チェック": item.required,
+                "判定結果": match_type,
+                "一致ドメイン名": matched_domain.name if matched_domain else "",
+                "類似度": f"{score:.2%}" if score > 0 else "",
+                "理由": reason,
+                "データ型": matched_domain.data_type if matched_domain else "",
+                "最小文字数": matched_domain.min_char if matched_domain else "",
+                "最大文字数": matched_domain.max_char if matched_domain else "",
+                "最小バイト数": matched_domain.min_byte if matched_domain else "",
+                "最大バイト数": matched_domain.max_byte if matched_domain else "",
+                "小数部バイト数": matched_domain.decimal if matched_domain else "",
+                "最小値": matched_domain.min_value if matched_domain else "",
+                "最大値": matched_domain.max_value if matched_domain else "",
+                "書式正規表現": matched_domain.regex if matched_domain else "",
+                "参照外部コードID": matched_domain.code_id if matched_domain else "",
+                "元ファイル": item.source_file,
+                "元シート": item.source_sheet,
+                "行番号": item.row_number,
+            }
+        results.append(result)
+
+    return pd.DataFrame(results)
+
+# ====== 旧関数（削除予定） =====================================================
+def load_tables(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, Any]:
     """テーブル定義を読み込み（項目名でキー、行番号付き）"""
     files = sorted(dir_path.glob(cfg["TABLE_GLOB"]))
     if not files:
@@ -702,49 +898,46 @@ def process_domain_validation(tables: Dict[Tuple[str, str], TableDef],
     return pd.DataFrame(rows)
 
 # ====== 出力 ==================================================================
-def save_outputs(df_suggestion: Optional[pd.DataFrame], df_validation: Optional[pd.DataFrame],
-                cfg: Dict[str, Any]) -> None:
+def save_outputs(df_result: pd.DataFrame, cfg: Dict[str, Any]) -> None:
+    """結果をExcel形式で保存"""
     from openpyxl.utils import get_column_letter
-    from openpyxl.styles import PatternFill
-    from openpyxl.formatting.rule import FormulaRule
+    from openpyxl.styles import PatternFill, Font
+    from openpyxl.formatting.rule import CellIsRule
 
     out_dir = Path(cfg["OUT_DIR"]).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    xlsx_path = out_dir / "domain_check_result.xlsx"
 
-    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as w:
-        if df_suggestion is not None and len(df_suggestion) > 0:
-            df_suggestion.to_excel(w, sheet_name="ドメイン提案", index=False)
-            ws = w.sheets["ドメイン提案"]
-            # 色付け（判定結果列）
-            if "判定結果" in df_suggestion.columns:
-                result_col_idx = list(df_suggestion.columns).index("判定結果") + 1
-                result_col = get_column_letter(result_col_idx)
-                fill_green = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
-                fill_yellow = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
-                fill_red = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
-                rng = f"{result_col}2:{result_col}{len(df_suggestion)+1}"
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="完全一致"'], fill=fill_green))
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="要判断"'], fill=fill_yellow))
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="エラー"'], fill=fill_red))
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{result_col}2="LLMエラー"'], fill=fill_red))
+    # Excelに保存
+    df_result.to_excel(output_file, sheet_name="ドメインチェック結果", index=False, engine="openpyxl")
 
-        if df_validation is not None and len(df_validation) > 0:
-            df_validation.to_excel(w, sheet_name="整合性チェック", index=False)
-            ws = w.sheets["整合性チェック"]
-            # 色付け
-            if "severity" in df_validation.columns:
-                sev_col_idx = list(df_validation.columns).index("severity") + 1
-                sev_col = get_column_letter(sev_col_idx)
-                fill_red = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
-                fill_yellow = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
-                fill_green = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
-                rng = f"{sev_col}2:{sev_col}{len(df_validation)+1}"
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{sev_col}2="critical"'], fill=fill_red))
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{sev_col}2="warning"'], fill=fill_yellow))
-                ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{sev_col}2="acceptable"'], fill=fill_green))
+    # 条件付き書式を追加
+    from openpyxl import load_workbook
+    wb = load_workbook(output_file)
+    ws = wb["ドメインチェック結果"]
 
-    print(f"保存: {xlsx_path}")
+    # 判定結果列に色付け
+    if "判定結果" in df_result.columns:
+        result_col_idx = list(df_result.columns).index("判定結果") + 1
+        result_col = get_column_letter(result_col_idx)
+
+        fill_green = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
+        fill_yellow = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+        fill_gray = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+        fill_red = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
+
+        for row in range(2, len(df_result) + 2):
+            cell = ws[f"{result_col}{row}"]
+            if cell.value == "完全一致":
+                cell.fill = fill_green
+            elif cell.value == "類似一致":
+                cell.fill = fill_yellow
+            elif cell.value == "不一致（チェック不要）":
+                cell.fill = fill_gray
+            elif cell.value == "不一致（提案必要）":
+                cell.fill = fill_red
+
+    wb.save(output_file)
+    print(f"[INFO] 保存完了: {output_file}")
 
 # ====== CLI ===================================================================
 def app_root() -> Path:
@@ -767,16 +960,13 @@ def ask_directory(title: str) -> Optional[str]:
 def main() -> None:
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="ドメイン定義総合チェックツール")
+    parser = argparse.ArgumentParser(description="画面項目ドメインチェックツール")
     parser.add_argument("--dir", help="入力ディレクトリ")
     parser.add_argument("--out-dir", help="出力ディレクトリ")
-    parser.add_argument("--mode", choices=["both", "suggestion", "validation"], default="both",
-                       help="実行モード: both=両方, suggestion=ドメイン提案のみ, validation=整合性チェックのみ")
     parser.add_argument("--no-gui", action="store_true")
     args = parser.parse_args()
 
     cfg = DEFAULT_CONFIG.copy()
-    cfg["CHECK_MODE"] = args.mode
 
     in_dir = args.dir
     if not in_dir and not args.no_gui:
@@ -793,29 +983,28 @@ def main() -> None:
         print(f"ディレクトリが存在しません: {root_dir}")
         return
 
+    print("[INFO] 画面項目ドメインチェック処理を開始します...")
+
     # データ読み込み
+    print("\n[ステップ1] データ読み込み")
+    screen_items = load_screen_items(root_dir, cfg)
     domains = load_domains(root_dir, cfg)
-    tables = load_tables(root_dir, cfg)
 
-    api_client = ApiClient(cfg)
-    api_semaphore = threading.Semaphore(cfg["MAX_CONCURRENT_API"])
+    # 突合処理
+    print("\n[ステップ2] 画面項目とドメインの突合")
+    df_result = process_screen_domain_matching(screen_items, domains, cfg)
 
-    df_suggestion = None
-    df_validation = None
+    # 結果保存
+    print("\n[ステップ3] 結果保存")
+    save_outputs(df_result, cfg)
 
-    # 機能1: ドメイン提案
-    if cfg["CHECK_MODE"] in ["both", "suggestion"]:
-        targets = load_targets(root_dir, cfg)
-        if targets:
-            print("\n[機能1] ドメイン提案処理開始...")
-            df_suggestion = process_domain_suggestion(targets, domains, tables, cfg, api_client, api_semaphore)
-
-    # 機能2: 整合性チェック
-    if cfg["CHECK_MODE"] in ["both", "validation"]:
-        print("\n[機能2] 整合性チェック処理開始...")
-        df_validation = process_domain_validation(tables, domains, cfg, api_client, api_semaphore)
-
-    save_outputs(df_suggestion, df_validation, cfg)
+    # サマリ表示
+    print("\n[処理完了]")
+    print(f"  総項目数: {len(df_result)}件")
+    print(f"  完全一致: {len(df_result[df_result['判定結果'] == '完全一致'])}件")
+    print(f"  類似一致: {len(df_result[df_result['判定結果'] == '類似一致'])}件")
+    print(f"  不一致（提案必要）: {len(df_result[df_result['判定結果'] == '不一致（提案必要）'])}件")
+    print(f"  不一致（チェック不要）: {len(df_result[df_result['判定結果'] == '不一致（チェック不要）'])}件")
 
     if TK_AVAILABLE and not args.no_gui:
         try:
