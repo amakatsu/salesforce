@@ -190,6 +190,8 @@ def read_excel_auto(path: Path, sheet_name: Optional[str], required_cols: List[s
     header_row = _detect_header_row(path, sheet_name, required_cols, HEADER_SCAN_ROWS)
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row)
 
+
+そそｎ
 def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
                                      explicit_header_row_1based: Optional[int] = None,
                                      scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
@@ -220,19 +222,38 @@ def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
                     None, 30
                 )
                 for idx, row in df.iterrows():
+                    # 行全体が空かチェック
+                    if row.isna().all():
+                        continue
+
                     item_name = str(row.get(cfg["SCREEN_ITEM_COL"], "")).strip()
-                    if item_name:
-                        row_number = header_row + idx + 2
-                        items.append(ScreenItem(
-                            item_name=item_name,
-                            field_type=str(row.get(cfg["SCREEN_TYPE_COL"], "")).strip() if cfg["SCREEN_TYPE_COL"] in df.columns else "",
-                            length=str(row.get(cfg["SCREEN_LENGTH_COL"], "")).strip() if cfg["SCREEN_LENGTH_COL"] in df.columns else None,
-                            format=str(row.get(cfg["SCREEN_FORMAT_COL"], "")).strip() if cfg["SCREEN_FORMAT_COL"] in df.columns else "",
-                            required=str(row.get(cfg["SCREEN_REQUIRED_COL"], "")).strip() if cfg["SCREEN_REQUIRED_COL"] in df.columns else "",
-                            row_number=row_number,
-                            source_file=path.name,
-                            source_sheet=sheet
-                        ))
+
+                    # 項目名が空の行はスキップ
+                    if not item_name or item_name in ["nan", "None"]:
+                        continue
+
+                    row_number = header_row + idx + 2
+
+                    # 値の取得とnan対策
+                    def get_value(col_name):
+                        if col_name not in df.columns:
+                            return ""
+                        val = row.get(col_name, "")
+                        if pd.isna(val) or str(val).strip() in ["", "nan", "None"]:
+                            return ""
+                        return str(val).strip()
+
+                    length_val = get_value(cfg["SCREEN_LENGTH_COL"])
+                    items.append(ScreenItem(
+                        item_name=item_name,
+                        field_type=get_value(cfg["SCREEN_TYPE_COL"]),
+                        length=length_val if length_val else None,
+                        format=get_value(cfg["SCREEN_FORMAT_COL"]),
+                        required=get_value(cfg["SCREEN_REQUIRED_COL"]),
+                        row_number=row_number,
+                        source_file=path.name,
+                        source_sheet=sheet
+                    ))
                 print(f"[INFO] 画面項目定義読み込み: {path.name}/{sheet}")
             except Exception as e:
                 print(f"[警告] {path.name}({sheet}) エラー: {e}")
@@ -256,25 +277,43 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
                     None, 30
                 )
                 for idx, row in df.iterrows():
+                    # 行全体が空かチェック
+                    if row.isna().all():
+                        continue
+
                     name = str(row.get(cfg["DOMAIN_NAME_COL"], "")).strip()
-                    if name:
-                        row_number = header_row + idx + 2
-                        domains[normalize_text(name)] = DomainDef(
-                            name=name,
-                            data_type=str(row.get(cfg["DOMAIN_TYPE_COL"], "")).strip(),
-                            min_char=str(row.get(cfg["DOMAIN_MIN_CHAR_COL"], "")).strip() if cfg["DOMAIN_MIN_CHAR_COL"] in df.columns else None,
-                            max_char=str(row.get(cfg["DOMAIN_MAX_CHAR_COL"], "")).strip() if cfg["DOMAIN_MAX_CHAR_COL"] in df.columns else None,
-                            min_byte=str(row.get(cfg["DOMAIN_MIN_BYTE_COL"], "")).strip() if cfg["DOMAIN_MIN_BYTE_COL"] in df.columns else None,
-                            max_byte=str(row.get(cfg["DOMAIN_MAX_BYTE_COL"], "")).strip() if cfg["DOMAIN_MAX_BYTE_COL"] in df.columns else None,
-                            decimal=str(row.get(cfg["DOMAIN_DECIMAL_COL"], "")).strip() if cfg["DOMAIN_DECIMAL_COL"] in df.columns else None,
-                            min_value=str(row.get(cfg["DOMAIN_MIN_VALUE_COL"], "")).strip() if cfg["DOMAIN_MIN_VALUE_COL"] in df.columns else None,
-                            max_value=str(row.get(cfg["DOMAIN_MAX_VALUE_COL"], "")).strip() if cfg["DOMAIN_MAX_VALUE_COL"] in df.columns else None,
-                            regex=str(row.get(cfg["DOMAIN_REGEX_COL"], "")).strip() if cfg["DOMAIN_REGEX_COL"] in df.columns else "",
-                            code_id=str(row.get(cfg["DOMAIN_CODE_ID_COL"], "")).strip() if cfg["DOMAIN_CODE_ID_COL"] in df.columns else "",
-                            row_number=row_number,
-                            source_file=path.name,
-                            source_sheet=sheet
-                        )
+
+                    # ドメイン名が空の行はスキップ
+                    if not name or name in ["nan", "None"]:
+                        continue
+
+                    row_number = header_row + idx + 2
+
+                    # 値の取得とnan対策
+                    def get_value(col_name):
+                        if col_name not in df.columns:
+                            return ""
+                        val = row.get(col_name, "")
+                        if pd.isna(val) or str(val).strip() in ["", "nan", "None"]:
+                            return ""
+                        return str(val).strip()
+
+                    domains[normalize_text(name)] = DomainDef(
+                        name=name,
+                        data_type=get_value(cfg["DOMAIN_TYPE_COL"]),
+                        min_char=get_value(cfg["DOMAIN_MIN_CHAR_COL"]) or None,
+                        max_char=get_value(cfg["DOMAIN_MAX_CHAR_COL"]) or None,
+                        min_byte=get_value(cfg["DOMAIN_MIN_BYTE_COL"]) or None,
+                        max_byte=get_value(cfg["DOMAIN_MAX_BYTE_COL"]) or None,
+                        decimal=get_value(cfg["DOMAIN_DECIMAL_COL"]) or None,
+                        min_value=get_value(cfg["DOMAIN_MIN_VALUE_COL"]) or None,
+                        max_value=get_value(cfg["DOMAIN_MAX_VALUE_COL"]) or None,
+                        regex=get_value(cfg["DOMAIN_REGEX_COL"]),
+                        code_id=get_value(cfg["DOMAIN_CODE_ID_COL"]),
+                        row_number=row_number,
+                        source_file=path.name,
+                        source_sheet=sheet
+                    )
                 print(f"[INFO] ドメイン定義読み込み: {path.name}/{sheet} ({len(domains)}件)")
             except Exception as e:
                 print(f"[警告] {path.name}({sheet}) エラー: {e}")
@@ -311,7 +350,9 @@ def match_item_with_domains(item: ScreenItem, domains: Dict[str, DomainDef],
 
     # 完全一致チェック
     if item_name_norm in domains:
-        return ("完全一致", domains[item_name_norm], 1.0, "項目名が完全一致")
+        matched_domain = domains[item_name_norm]
+        reason = f"項目名「{item.item_name}」がドメイン「{matched_domain.name}」と完全に一致しました"
+        return ("完全一致", matched_domain, 1.0, reason)
 
     # 類似一致チェック
     best_score = 0.0
@@ -323,47 +364,65 @@ def match_item_with_domains(item: ScreenItem, domains: Dict[str, DomainDef],
             best_domain = domain
 
     if best_score >= threshold:
-        return ("類似一致", best_domain, best_score, f"類似度: {best_score:.2%}")
+        reason = f"項目名「{item.item_name}」がドメイン「{best_domain.name}」と類似しています（類似度: {best_score:.1%}）"
+        return ("類似一致", best_domain, best_score, reason)
 
     # 不一致の場合、項目桁数や編集形式をチェック
-    has_length = item.length and str(item.length).strip() not in ["", "nan", "None"]
-    has_format = item.format and str(item.format).strip() not in ["", "nan", "None"]
+    has_length = False
+    has_format = False
+
+    if item.length is not None:
+        length_str = str(item.length).strip()
+        has_length = length_str and length_str not in ["", "nan", "None"]
+
+    if item.format:
+        format_str = str(item.format).strip()
+        has_format = format_str and format_str not in ["", "nan", "None"]
 
     if has_length or has_format:
-        reason = f"桁数制約または編集形式あり (長さ:{item.length}, 編集:{item.format})"
+        details = []
+        if has_length:
+            details.append(f"長さ制約: {item.length}")
+        if has_format:
+            details.append(f"編集形式: {item.format}")
+        reason = f"一致するドメインが見つかりませんでしたが、{', '.join(details)}が定義されているため、新規ドメインの提案が必要です"
         return ("不一致（提案必要）", None, 0.0, reason)
     else:
-        return ("不一致（チェック不要）", None, 0.0, "桁数・編集形式なし")
+        reason = f"一致するドメインが見つかりませんでした。長さや編集形式の定義がないため、ドメイン設定は不要と判断されます"
+        return ("不一致（チェック不要）", None, 0.0, reason)
 
 def suggest_domain_from_screen_item(item: ScreenItem) -> Dict[str, str]:
     """画面項目定義からドメイン提案を生成"""
     suggestions = {}
 
     # フィールドタイプからデータ型を推測
-    field_type_lower = str(item.field_type).lower().strip()
-    if "text" in field_type_lower or "string" in field_type_lower:
-        suggestions["データ型"] = "VARCHAR"
-    elif "number" in field_type_lower or "integer" in field_type_lower:
-        suggestions["データ型"] = "INTEGER"
-    elif "date" in field_type_lower:
-        suggestions["データ型"] = "DATE"
-    elif "decimal" in field_type_lower or "float" in field_type_lower:
-        suggestions["データ型"] = "DECIMAL"
-    else:
-        suggestions["データ型"] = item.field_type if item.field_type else ""
+    if item.field_type:
+        field_type_lower = str(item.field_type).lower().strip()
+        if "text" in field_type_lower or "string" in field_type_lower or "varchar" in field_type_lower:
+            suggestions["データ型"] = "VARCHAR"
+        elif "number" in field_type_lower or "integer" in field_type_lower or "int" in field_type_lower:
+            suggestions["データ型"] = "INTEGER"
+        elif "date" in field_type_lower:
+            suggestions["データ型"] = "DATE"
+        elif "decimal" in field_type_lower or "float" in field_type_lower or "numeric" in field_type_lower:
+            suggestions["データ型"] = "DECIMAL"
+        elif "boolean" in field_type_lower or "bool" in field_type_lower:
+            suggestions["データ型"] = "BOOLEAN"
+        else:
+            suggestions["データ型"] = item.field_type
 
     # 長さから最大文字数/バイト数を設定
-    if item.length and str(item.length).strip() not in ["", "nan", "None"]:
-        try:
-            length_value = str(item.length).strip()
+    if item.length is not None:
+        length_value = str(item.length).strip()
+        if length_value and length_value not in ["", "nan", "None"]:
             suggestions["最大文字数"] = length_value
             suggestions["最大バイト数"] = length_value
-        except:
-            pass
 
     # 編集形式から書式正規表現を設定
-    if item.format and str(item.format).strip() not in ["", "nan", "None"]:
-        suggestions["書式正規表現"] = str(item.format).strip()
+    if item.format:
+        format_value = str(item.format).strip()
+        if format_value and format_value not in ["", "nan", "None"]:
+            suggestions["書式正規表現"] = format_value
 
     return suggestions
 
@@ -380,15 +439,18 @@ def process_screen_domain_matching(screen_items: List[ScreenItem],
         if match_type == "不一致（提案必要）":
             suggestions = suggest_domain_from_screen_item(item)
             result = {
+                "元ファイル": item.source_file,
+                "元シート": item.source_sheet,
+                "行番号": item.row_number,
                 "項目名称": item.item_name,
+                "判定結果": match_type,
+                "理由": reason,
+                "一致ドメイン名": "",
+                "類似度": "",
                 "フィールドタイプ": item.field_type,
                 "長さ": item.length,
                 "編集形式": item.format,
                 "必須チェック": item.required,
-                "判定結果": match_type,
-                "一致ドメイン名": "",
-                "類似度": "",
-                "理由": reason,
                 "データ型": suggestions.get("データ型", ""),
                 "最小文字数": "",
                 "最大文字数": suggestions.get("最大文字数", ""),
@@ -399,39 +461,48 @@ def process_screen_domain_matching(screen_items: List[ScreenItem],
                 "最大値": "",
                 "書式正規表現": suggestions.get("書式正規表現", ""),
                 "参照外部コードID": "",
-                "元ファイル": item.source_file,
-                "元シート": item.source_sheet,
-                "行番号": item.row_number,
             }
         else:
             # 一致した場合はドメイン情報を使用
+            # Noneの場合は空文字列に変換
+            def get_domain_value(val):
+                if val is None or pd.isna(val):
+                    return ""
+                return str(val).strip()
+
             result = {
-                "項目名称": item.item_name,
-                "フィールドタイプ": item.field_type,
-                "長さ": item.length,
-                "編集形式": item.format,
-                "必須チェック": item.required,
-                "判定結果": match_type,
-                "一致ドメイン名": matched_domain.name if matched_domain else "",
-                "類似度": f"{score:.2%}" if score > 0 else "",
-                "理由": reason,
-                "データ型": matched_domain.data_type if matched_domain else "",
-                "最小文字数": matched_domain.min_char if matched_domain else "",
-                "最大文字数": matched_domain.max_char if matched_domain else "",
-                "最小バイト数": matched_domain.min_byte if matched_domain else "",
-                "最大バイト数": matched_domain.max_byte if matched_domain else "",
-                "小数部バイト数": matched_domain.decimal if matched_domain else "",
-                "最小値": matched_domain.min_value if matched_domain else "",
-                "最大値": matched_domain.max_value if matched_domain else "",
-                "書式正規表現": matched_domain.regex if matched_domain else "",
-                "参照外部コードID": matched_domain.code_id if matched_domain else "",
                 "元ファイル": item.source_file,
                 "元シート": item.source_sheet,
                 "行番号": item.row_number,
+                "項目名称": item.item_name,
+                "判定結果": match_type,
+                "理由": reason,
+                "一致ドメイン名": matched_domain.name if matched_domain else "",
+                "類似度": f"{score:.2%}" if score > 0 else "",
+                "フィールドタイプ": item.field_type,
+                "長さ": item.length if item.length else "",
+                "編集形式": item.format if item.format else "",
+                "必須チェック": item.required if item.required else "",
+                "データ型": get_domain_value(matched_domain.data_type) if matched_domain else "",
+                "最小文字数": get_domain_value(matched_domain.min_char) if matched_domain else "",
+                "最大文字数": get_domain_value(matched_domain.max_char) if matched_domain else "",
+                "最小バイト数": get_domain_value(matched_domain.min_byte) if matched_domain else "",
+                "最大バイト数": get_domain_value(matched_domain.max_byte) if matched_domain else "",
+                "小数部バイト数": get_domain_value(matched_domain.decimal) if matched_domain else "",
+                "最小値": get_domain_value(matched_domain.min_value) if matched_domain else "",
+                "最大値": get_domain_value(matched_domain.max_value) if matched_domain else "",
+                "書式正規表現": get_domain_value(matched_domain.regex) if matched_domain else "",
+                "参照外部コードID": get_domain_value(matched_domain.code_id) if matched_domain else "",
             }
         results.append(result)
 
     df = pd.DataFrame(results)
+
+    # NaNや"nan"文字列を空文字列に置換
+    df = df.fillna("")
+    df = df.replace("nan", "")
+    df = df.replace("None", "")
+
     print(f"[DEBUG] DataFrame作成完了: {len(df)}行, 列名: {list(df.columns)}")
     return df
 
