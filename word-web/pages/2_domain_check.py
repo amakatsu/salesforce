@@ -186,7 +186,15 @@ if st.button("🚀 チェック実行", type="primary", use_container_width=True
             status_text.text("🔄 ステップ 4/5: 画面項目とドメインを照合中...")
             detail_text.text(f"{len(screen_items)}件の画面項目を{len(domains)}件のドメインと照合しています...")
 
-            df_result = process_screen_domain_matching(screen_items, domains, config)
+            # 進捗コールバック関数
+            def update_progress(processed, total):
+                pct = processed * 100 / total if total > 0 else 0
+                # プログレスバーを50%から80%の範囲で更新
+                progress_value = 50 + int(30 * processed / total)
+                progress_bar.progress(progress_value)
+                detail_text.text(f"照合中: {processed}/{total}件処理済み ({pct:.1f}%)")
+
+            df_result = process_screen_domain_matching(screen_items, domains, config, progress_callback=update_progress)
 
             detail_text.text(f"✓ 照合完了: {len(df_result)}件処理")
             progress_bar.progress(80)

@@ -115,11 +115,64 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
 # ====== 正規化関数 ============================================================
 def normalize_text(text: str) -> str:
-    """NFKC正規化 + 小文字化"""
+    """NFKC正規化 + 小文字化 + 同義語統一"""
     if text is None or text == "":
         return ""
     s = unicodedata.normalize("NFKC", str(text)).lower().strip()
-    return re.sub(r"[\u3000\s]+", " ", s)
+    s = re.sub(r"[\u3000\s]+", " ", s)
+
+    # 同義語の統一（類似度向上のため）
+
+    # 日付・時刻関連
+    s = re.sub(r"取引日$", "日付", s)  # 取引日 → 日付
+    s = re.sub(r"年月日$", "日付", s)  # 年月日 → 日付
+    s = re.sub(r"(\w+)日$", r"\1日付", s)  # XX日 → XX日付
+    s = re.sub(r"日時$", "日時", s)   # 日時（統一）
+    s = re.sub(r"時刻$", "時刻", s)   # 時刻（統一）
+    s = re.sub(r"タイムスタンプ$", "日時", s)  # タイムスタンプ → 日時
+
+    # 金額・数量関連
+    s = re.sub(r"金額$", "金額", s)   # 金額（統一）
+    s = re.sub(r"価格$", "金額", s)   # 価格 → 金額
+    s = re.sub(r"料金$", "金額", s)   # 料金 → 金額
+    s = re.sub(r"単価$", "単価", s)   # 単価（統一）
+    s = re.sub(r"数量$", "数量", s)   # 数量（統一）
+    s = re.sub(r"件数$", "数量", s)   # 件数 → 数量
+    s = re.sub(r"個数$", "数量", s)   # 個数 → 数量
+
+    # コード・ID関連
+    s = re.sub(r"コード$", "コード", s)  # コード（統一）
+    s = re.sub(r"cd$", "コード", s)     # cd → コード
+    s = re.sub(r"識別子$", "id", s)     # 識別子 → id
+    s = re.sub(r"番号$", "番号", s)     # 番号（統一）
+    s = re.sub(r"no$", "番号", s)       # no → 番号
+
+    # 名称・名前関連
+    s = re.sub(r"名称$", "名称", s)   # 名称（統一）
+    s = re.sub(r"名前$", "名称", s)   # 名前 → 名称
+    s = re.sub(r"氏名$", "名称", s)   # 氏名 → 名称
+    s = re.sub(r"name$", "名称", s)   # name → 名称
+
+    # 区分・種別関連
+    s = re.sub(r"区分$", "区分", s)   # 区分（統一）
+    s = re.sub(r"種別$", "区分", s)   # 種別 → 区分
+    s = re.sub(r"タイプ$", "区分", s)  # タイプ → 区分
+    s = re.sub(r"type$", "区分", s)   # type → 区分
+
+    # フラグ・状態関連
+    s = re.sub(r"フラグ$", "フラグ", s)  # フラグ（統一）
+    s = re.sub(r"flag$", "フラグ", s)   # flag → フラグ
+    s = re.sub(r"状態$", "状態", s)     # 状態（統一）
+    s = re.sub(r"ステータス$", "状態", s)  # ステータス → 状態
+    s = re.sub(r"status$", "状態", s)   # status → 状態
+
+    # 備考・メモ関連
+    s = re.sub(r"備考$", "備考", s)   # 備考（統一）
+    s = re.sub(r"メモ$", "備考", s)   # メモ → 備考
+    s = re.sub(r"コメント$", "備考", s)  # コメント → 備考
+    s = re.sub(r"摘要$", "備考", s)   # 摘要 → 備考
+
+    return s
 
 def normalize_data_type(dtype: str) -> str:
     """データ型の正規化"""
@@ -268,7 +321,6 @@ def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
                         elif col_idx >= 0 and col_idx < len(row):
                             try:
                                 val = row.iloc[col_idx]
-                                print(f"[INFO] 列名'{col_name}'が見つからないため、列位置{col_idx}から取得")
                             except:
                                 val = ""
 
@@ -352,7 +404,6 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
                         elif col_idx >= 0 and col_idx < len(row):
                             try:
                                 val = row.iloc[col_idx]
-                                print(f"[INFO] 列名'{col_name}'が見つからないため、列位置{col_idx}から取得")
                             except:
                                 val = ""
 
@@ -454,10 +505,10 @@ def match_item_with_domains(item: ScreenItem, domains: Dict[str, DomainDef],
             details.append(f"長さ制約: {item.length}")
         if has_format:
             details.append(f"編集形式: {item.format}")
-        reason = f"一致するドメインが見つかりませんでしたが、{', '.join(details)}が定義されているため、新規ドメインの提案が必要です"
+        reason = f"一致するドメインが見つかりませんでしたが、画面項目定義書に{', '.join(details)}が定義されているため、新規ドメインの提案が必要です"
         return ("不一致（提案必要）", None, 0.0, reason)
     else:
-        reason = f"一致するドメインが見つかりませんでした。長さや編集形式の定義がないため、ドメイン設定は不要と判断されます"
+        reason = f"一致するドメインが見つかりませんでした。画面項目定義書に長さや編集形式の定義がないため、ドメイン設定は不要と判断されます"
         return ("不一致（チェック不要）", None, 0.0, reason)
 
 def suggest_domain_from_screen_item(item: ScreenItem) -> Dict[str, str]:
@@ -497,9 +548,20 @@ def suggest_domain_from_screen_item(item: ScreenItem) -> Dict[str, str]:
 
 def process_screen_domain_matching(screen_items: List[ScreenItem],
                                    domains: Dict[str, DomainDef],
-                                   cfg: Dict[str, Any]) -> pd.DataFrame:
-    """画面項目とドメインの突合処理"""
+                                   cfg: Dict[str, Any],
+                                   progress_callback=None) -> pd.DataFrame:
+    """
+    画面項目とドメインの突合処理
+
+    Args:
+        screen_items: 画面項目リスト
+        domains: ドメイン定義辞書
+        cfg: 設定
+        progress_callback: 進捗コールバック関数 (processed_count, total_items)
+    """
     results = []
+    total_items = len(screen_items)
+    processed_count = 0
 
     for item in screen_items:
         match_type, matched_domain, score, reason = match_item_with_domains(item, domains, cfg)
@@ -564,6 +626,15 @@ def process_screen_domain_matching(screen_items: List[ScreenItem],
                 "参照外部コードID": get_domain_value(matched_domain.code_id) if matched_domain else "",
             }
         results.append(result)
+
+        # 進捗更新
+        processed_count += 1
+        pct = processed_count * 100 / total_items if total_items else 0
+        if processed_count % 10 == 0 or processed_count == total_items:
+            print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
+        # コールバック呼び出し（リアルタイム進捗）
+        if progress_callback:
+            progress_callback(processed_count, total_items)
 
     df = pd.DataFrame(results)
 
