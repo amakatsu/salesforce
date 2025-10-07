@@ -330,36 +330,24 @@ def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[s
     """設定シート名にマッチする全てのシートを返す。ワイルドカード対応。"""
     if not preferred:
         return [xls.sheet_names[0]]
- 
-    norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
- 
+
     # 複数パターンをカンマ区切りで分割
     patterns = [p.strip() for p in preferred.split(",") if p.strip()]
     if not patterns:
         return [xls.sheet_names[0]]
- 
-    all_matches = []
- 
+
+    # 全シート名を正規化
+    norm_sheets = {_normalize_text(name): name for name in xls.sheet_names}
+
+    # パターンマッチング（重複除去はdictで自動処理）
+    matches = {}
     for pattern in patterns:
-        want = norm(pattern)
- 
-        # ワイルドカード対応（*を正規表現に変換）
-        import re as regex_module
-        regex_pattern = want.replace('*', '.*')
-        for name in xls.sheet_names:
-            if regex_module.match(regex_pattern, norm(name)):
-                all_matches.append(name)
- 
-    # 重複を除去して順序を保持
-    result = []
-    seen = set()
-    for sheet in all_matches:
-        if sheet not in seen:
-            result.append(sheet)
-            seen.add(sheet)
- 
-    # マッチするものがなければ先頭シート
-    return result if result else [xls.sheet_names[0]]
+        regex_pattern = _normalize_text(pattern).replace('*', '.*')
+        for norm_name, original_name in norm_sheets.items():
+            if re.match(regex_pattern, norm_name) and original_name not in matches:
+                matches[original_name] = True
+
+    return list(matches.keys()) if matches else [xls.sheet_names[0]]
  
  
 def _pick_matching_column(df: pd.DataFrame, col_pattern: str) -> Optional[str]:
@@ -388,13 +376,20 @@ def _pick_matching_column(df: pd.DataFrame, col_pattern: str) -> Optional[str]:
 
 
 def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
-    """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。"""
+    """先頭scan_rows行で必須列がそろう行をヘッダ行とみなす。ワイルドカード対応。"""
     head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
-    req = {zenkaku_hankaku_norm(c) for c in required_cols if c}
-    for i in range(len(head_df)):
-        row_vals = {zenkaku_hankaku_norm(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan", "一致なし"}}
-        if req.issubset(row_vals):
-            return i
+
+    # ワイルドカードを正規表現パターンに変換
+    patterns = [zenkaku_hankaku_norm(col).replace('*', '.*') for col in required_cols if col]
+
+    for row_idx, row in head_df.iterrows():
+        # 行の有効な値を正規化
+        row_values = [zenkaku_hankaku_norm(str(v)) for v in row if str(v) not in {"", "nan", "一致なし"}]
+
+        # 全てのパターンがいずれかの値にマッチするかチェック
+        if all(any(re.match(pat, val) for val in row_values) for pat in patterns):
+            return row_idx
+
     raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
  
  
@@ -553,23 +548,21 @@ def top_k_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold
  
 def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
     """複合語対策：unigram/bigram に分解してパーツ単位で候補を拾う。"""
-    tokens = [t for t in zenkaku_hankaku_norm(screen_name).split(" ") if t]
-    grams = set(tokens)
-    for i in range(len(tokens) - 1):
-        grams.add(tokens[i] + " " + tokens[i + 1])
-    pool: List[Candidate] = []
-    for g in grams:
-        for vt in vocab_terms:
-            s = local_similarity(g, vt)
-            if s >= threshold:
-                pool.append(Candidate(vt, s))
-    # 同一単語は最大スコアを採用
-    best_by_term: Dict[str, float] = {}
-    for cand in pool:
-        best_by_term[cand.term] = max(best_by_term.get(cand.term, 0.0), cand.score)
-    merged = [Candidate(t, sc) for t, sc in best_by_term.items()]
-    merged.sort(key=lambda c: c.score, reverse=True)
-    return merged[: max(k, 10)]
+    tokens = zenkaku_hankaku_norm(screen_name).split()
+    grams = set(tokens + [f"{tokens[i]} {tokens[i+1]}" for i in range(len(tokens) - 1)])
+
+    # 各単語の最高スコアを辞書内包表記で収集
+    best_scores = {}
+    for gram in grams:
+        for term in vocab_terms:
+            score = local_similarity(gram, term)
+            if score >= threshold:
+                best_scores[term] = max(best_scores.get(term, 0.0), score)
+
+    # スコア降順でソート
+    candidates = sorted([Candidate(t, s) for t, s in best_scores.items()],
+                       key=lambda c: c.score, reverse=True)
+    return candidates[:max(k, 10)]
  
 # ====== APIクライアント =======================================================
 class ApiClient:
@@ -607,24 +600,10 @@ class ApiClient:
         self.headers = headers
  
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        """APIリクエストを送信してJSONレスポンスを返す。"""
         url = f"{self.base_url}{self.path}"
-
-        # デバッグ用：DNS解決テスト
-        import socket
-        from urllib.parse import urlparse
-        try:
-            hostname = urlparse(self.base_url).hostname
-            if hostname:
-                print(f"[DEBUG] DNS解決テスト: {hostname}")
-                ip = socket.gethostbyname(hostname)
-                print(f"[DEBUG] 解決成功: {hostname} -> {ip}")
-        except Exception as e:
-            print(f"[ERROR] DNS解決失敗: {e}")
-            print(f"[DEBUG] プロキシ設定: {self.session.proxies}")
-            print(f"[DEBUG] 環境変数HTTP_PROXY: {os.getenv('HTTP_PROXY')}")
-            print(f"[DEBUG] 環境変数HTTPS_PROXY: {os.getenv('HTTPS_PROXY')}")
-
-        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
+        resp = self.session.post(url, headers=self.headers, json=body,
+                                timeout=self.timeout, verify=self.verify)
         resp.raise_for_status()
         return resp.json()
  
@@ -675,30 +654,24 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
     client = client or ApiClient(cfg)
     payload = build_llm_payload(screen_name, candidates, cfg, term_meta)
  
-    # サーバー負荷対策：セマフォで同時実行API数を制限
+    # セマフォで同時実行API数を制限
     if api_semaphore:
         api_semaphore.acquire()
- 
+
     try:
         for attempt in range(cfg["RETRY"] + 1):
             try:
                 data = client.post_json(payload)
-                content = data["choices"][0]["message"]["content"]
-                result = json.loads(content)
-                return result
+                return json.loads(data["choices"][0]["message"]["content"])
             except Exception as e:
-                # API認証エラーの場合はリトライせずに即座に例外を投げる
-                error_msg = str(e)
-                if hasattr(e, 'response') and e.response is not None:
-                    status_code = e.response.status_code
-                    if status_code in [401, 403]:
-                        raise Exception(f"API認証エラー (HTTP {status_code}): APIキーまたはユーザIDが無効です") from e
-
-                # その他のエラーの場合はリトライ
+                # 認証エラーは即座に例外を投げる
+                if hasattr(e, 'response') and getattr(e.response, 'status_code', None) in [401, 403]:
+                    raise Exception(f"API認証エラー: APIキーまたはユーザIDが無効です") from e
+                # リトライ上限に達していなければバックオフして再試行
                 if attempt < cfg["RETRY"]:
-                    time.sleep(RETRY_BACKOFF_MULTIPLIER * (attempt + 1))  # バックオフ
-                    continue
-                return fallback_reason(screen_name, candidates)
+                    time.sleep(RETRY_BACKOFF_MULTIPLIER * (attempt + 1))
+                else:
+                    return fallback_reason(screen_name, candidates)
     finally:
         if api_semaphore:
             api_semaphore.release()
@@ -731,18 +704,18 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
 # ====== 簡易物理名生成 =======================================================
  
 def simple_proposal(text: str) -> str:
-    """ローワーキャメルの簡易物理名を生成（8〜10文字程度）。"""
-    s = zenkaku_hankaku_norm(text)
-    tokens = [t for t in re.split(r"\s+", s) if t]
+    """lowerCamelCaseの簡易物理名を生成（8〜10文字程度）。"""
+    tokens = zenkaku_hankaku_norm(text).split()
     if not tokens:
         return "newItem"
-    # 冗長語の削ぎ落とし
+
+    # 冗長語を除外してコア要素を取得
     stop_words = {"コード", "番号", "名称名", "名称名称"}
     core = [w for w in tokens[:3] if w not in stop_words] or tokens[:2]
-    # lowerCamelCase化
+
+    # lowerCamelCase化して長さ制御
     name = core[0].lower() + "".join(w.capitalize() for w in core[1:])
-    # 長さ制御（長すぎると読みにくい）
-    return (name[:8] if len(name) > 10 else name) or "newItem"
+    return name[:8] if len(name) > 10 else name or "newItem"
  
 # ====== メイン処理 ============================================================
  
@@ -786,20 +759,22 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     def _build_exact_match_result(screen_name: str, src_file: str, src_sheet: Optional[str],
                                    term: str, metadata: Dict[str, Any], score: float, reason: str) -> Dict[str, Any]:
         """完全一致結果の辞書を構築。"""
+        phys_name = _get_phys_name(metadata)
+        term_no = metadata.get("no")
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
             "screen_item": screen_name,
             "match_type": MATCH_TYPE_EXACT,
             "matched_term": term,
-            "matched_term_no": metadata.get("no"),
-            "matched_term_phys": _get_phys_name(metadata),
+            "matched_term_no": term_no,
+            "matched_term_phys": phys_name,
             "matched_terms": None,
             "matched_terms_nos": None,
             "matched_terms_phys": None,
             "local_top_term": term,
-            "local_top_term_no": metadata.get("no"),
-            "local_top_term_phys": _get_phys_name(metadata),
+            "local_top_term_no": term_no,
+            "local_top_term_phys": phys_name,
             "local_top_score": score,
             "coverage_ratio": 1.0,
             "proposed_name": _get_phys_name(metadata, term),
@@ -843,37 +818,27 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
         llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta)
  
-        # 値の整形
-        def safe_float(val):
-            try:
-                return float(val) if val is not None else None
-            except (ValueError, TypeError):
-                return None
+        # 値の整形ヘルパー
+        safe_float = lambda v: float(v) if v not in (None, "") else None
+        join_if_exists = lambda items, sep=", ": sep.join(str(i) for i in items) if items else None
 
-        def join_if_exists(items, sep=", "):
-            return sep.join(items) if items else None
-
-        mt = llm.get("matched_term")
-        mt_meta = meta_of(mt)
+        # メタデータ取得
+        mt_meta = _get_metadata(llm.get("matched_term"))
         matched_terms = llm.get("matched_terms") or []
-        mts_metas = [meta_of(t) for t in matched_terms]
-
+        mts_metas = [_get_metadata(t) for t in matched_terms]
         top_meta = _get_metadata(merged[0].term) if merged else {}
-
-        unmatched_terms = join_if_exists(llm.get("unmatched_terms") or [])
-        unmatched_note = join_if_exists(llm.get("unmatched_notes") or [], " / ")
 
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
             "screen_item": screen_name,
             "match_type": llm.get("match_type"),
-            "matched_term": mt or None,
-            "matched_term_no": mt_meta["no"],
+            "matched_term": llm.get("matched_term"),
+            "matched_term_no": mt_meta.get("no"),
             "matched_term_phys": _get_phys_name(mt_meta),
             "matched_terms": join_if_exists(matched_terms),
-            "matched_terms_nos": join_if_exists([str(m.get("no")) for m in mts_metas if m.get("no")]),
-            "matched_terms_phys": join_if_exists([str(_get_phys_name(m)) for m in mts_metas if _get_phys_name(m)]),
+            "matched_terms_nos": join_if_exists([m.get("no") for m in mts_metas if m.get("no")]),
+            "matched_terms_phys": join_if_exists([_get_phys_name(m) for m in mts_metas if _get_phys_name(m)]),
             "local_top_term": merged[0].term if merged else None,
             "local_top_term_no": top_meta.get("no"),
             "local_top_term_phys": _get_phys_name(top_meta),
@@ -881,8 +846,8 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "coverage_ratio": safe_float(llm.get("coverage_ratio")),
             "reason": llm.get("reason"),
             "proposed_name": llm.get("proposed_name"),
-            "unmatched_terms": unmatched_terms,
-            "unmatched_note": unmatched_note,
+            "unmatched_terms": join_if_exists(llm.get("unmatched_terms") or []),
+            "unmatched_note": join_if_exists(llm.get("unmatched_notes") or [], " / "),
         }
  
     # 並列実行（小規模時は自動で縮退）
