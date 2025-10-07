@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-
+ 
 # ====== GUI（任意） ===========================================================
 try:
     import tkinter as tk
@@ -33,45 +33,330 @@ except Exception:
     TK_AVAILABLE = False
  
 # ====== 定数（読みやすさのため一箇所に集約） ===============================
-# スコアリング関連
-EXACT_MATCH_SCORE = 1.0  # 完全一致スコア
-PARTIAL_MATCH_SCORE = 0.9  # 片方包含時のスコア
-FALLBACK_EXACT_THRESHOLD = 0.95  # LLMフォールバック時の完全一致判定閾値
-
-# ヘッダー検出関連
-DEFAULT_HEADER_SCAN_ROWS = 10  # ヘッダー行を探索する行数
-EXCEL_DATA_START_ROW = 3  # Excelデータ開始行（2段ヘッダー想定）
-
-# 進捗表示関連
-PROGRESS_LOG_INTERVAL = 10  # 進捗ログを出力する間隔（件数）
-
-# リトライ関連
-RETRY_BACKOFF_MULTIPLIER = 1.2  # リトライ時のバックオフ係数（秒）
-
-# マッチタイプ定数
-MATCH_TYPE_EXACT = "完全一致"
-MATCH_TYPE_EXACT_PARTS = "完全一致（部品ごと）"
-MATCH_TYPE_PARTIAL = "一部一致"
-MATCH_TYPE_NONE = "一致なし"
-
-# 列名定数（内部使用）
-COL_TERM = "_term"
-COL_PHYS = "_phys"
-COL_PHYS_ABBR = "_phys_abbr"
-COL_NO = "_no"
-COL_TERM_NORM = "__term_norm"
-COL_SCREEN = "_screen"
-COL_SRC_FILE = "_src_file"
-COL_SRC_SHEET = "_src_sheet"
-
-# 列名エイリアス（#とNoを相互認識）
-COLUMN_ALIASES = {
-    "#": ["#", "no", "番号"],
-    "no": ["#", "no", "番号"],
+# 「事実上の完全一致」と見なすスコア（difflibは1.0に非常に近づく）
+HARD_EXACT_SCORE = 1.0  # 完全一致のみに限定
+# LLMフォールバック時に"完全一致"扱いにする安全側の下限
+FALLBACK_EXACT_FLOOR = 0.95
+ 
+# ====== 設定（.envで上書き可） =============================================
+DEFAULT_CONFIG: Dict[str, Any] = {
+    # --- API（OpenAI互換）
+    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu"),
+    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
+    "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+    "OPENAI_PATH": os.getenv("OPENAI_PATH", "/chat/completions"),
+    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", "{\"api-key\":\"8b843f2df20548899f93c0624452ea68\",\"apim-user-id\":\"PIT04447\"}"),
+    "OPENAI_SEND_AUTH": os.getenv("OPENAI_SEND_AUTH", "false").lower() != "false",
+    "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
+    "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
+    "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
+    "VERIFY_SSL": os.getenv("VERIFY_SSL", "true").lower() != "false",
+ 
+    # --- 生成パラメタ
+    "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
+    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.7")),
+    "TOP_P": float(os.getenv("TOP_P", "0.95")),
+    "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
+    "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
+ 
+    # --- 入力検出
+    "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
+    "VOCAB_GLOB": os.getenv("VOCAB_GLOB", "*単語名一覧*.xlsx"),
+ 
+    # --- シート/列（必要に応じて引数で上書き）
+    # シート名は複数指定可能（カンマ区切り）例: "画面項目定義,システム設計書,IF定義書"
+    # ワイルドカード指定可能（*）例: "*" で全シート、"画面*" で「画面」で始まるシート
+    # デフォルト "*" で全シートを読み込むことで、ファイル構造に依存しない柔軟な運用が可能
+    "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
+    "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
+    "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
+    "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
+    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）"),
+    "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
+    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No"),
+ 
+    # --- 類似度設定
+    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
+    "TOP_K": int(os.getenv("TOP_K", "3")),  # 直接候補の上位件数
+ 
+    # --- 出力
+    "OUT_DIR": os.getenv("OUT_DIR", "out"),
+ 
+    # --- 実行制御
+    "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
+    "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
+    "RETRY": int(os.getenv("RETRY", "30")),
+ 
+    # --- レート制限（サーバー負荷対策）
+    # 同時実行するAPI呼び出しの最大数（MAX_WORKERSより小さい値にするとAPI負荷を抑制）
+    "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5"))
 }
-
-# LLMプロンプト定数
-LLM_SYSTEM_PROMPT = (
+ 
+# ====== 文字列正規化／類似度 =================================================
+ 
+def zenkaku_hankaku_norm(text: str) -> str:
+    """NFKC正規化 + 小文字化 + 記号/空白の正規化で**照合の土台**を整える。"""
+    if text is None:
+        return ""
+    s = unicodedata.normalize("NFKC", str(text)).lower().strip()
+    s = re.sub(r"[\u3000\s]+", " ", s)          # 全角/半角スペースを単一化
+    s = re.sub(r"[\-/・·•･,()\[\]_]+", " ", s)    # 区切り記号はスペースへ
+    return re.sub(r"\s+", " ", s)
+ 
+ 
+def local_similarity(a: str, b: str) -> float:
+    """簡易類似度：完全一致=1.0 / 片包含=0.9 / それ以外はdifflibのratio。"""
+    a_n, b_n = zenkaku_hankaku_norm(a), zenkaku_hankaku_norm(b)
+    if not a_n or not b_n:
+        return 0.0
+    if a_n == b_n:
+        return 1.0
+    if a_n in b_n or b_n in a_n:
+        return 0.9
+    return difflib.SequenceMatcher(None, a_n, b_n).ratio()
+ 
+@dataclass
+class Candidate:
+    term: str
+    score: float
+ 
+# ====== Excel I/O =============================================================
+ 
+def _int_env(name: str) -> Optional[int]:
+    v = os.getenv(name, "")
+    try:
+        return int(v) if v else None
+    except Exception:
+        return None
+ 
+HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
+HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
+SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
+VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW")
+ 
+ 
+def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
+    """優先シートが無ければ先頭。NFKCで厳密同名も考慮。"""
+    if preferred and preferred in xls.sheet_names:
+        return preferred
+    if preferred:
+        norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
+        want = norm(preferred)
+        for name in xls.sheet_names:
+            if norm(name) == want:
+                return name
+    return xls.sheet_names[0]
+ 
+ 
+def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[str]:
+    """設定シート名にマッチする全てのシートを返す。ワイルドカード対応。"""
+    if not preferred:
+        return [xls.sheet_names[0]]
+ 
+    norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
+ 
+    # 複数パターンをカンマ区切りで分割
+    patterns = [p.strip() for p in preferred.split(",") if p.strip()]
+    if not patterns:
+        return [xls.sheet_names[0]]
+ 
+    all_matches = []
+ 
+    for pattern in patterns:
+        want = norm(pattern)
+ 
+        # ワイルドカード対応（*を正規表現に変換）
+        import re as regex_module
+        regex_pattern = want.replace('*', '.*')
+        for name in xls.sheet_names:
+            if regex_module.match(regex_pattern, norm(name)):
+                all_matches.append(name)
+ 
+    # 重複を除去して順序を保持
+    result = []
+    seen = set()
+    for sheet in all_matches:
+        if sheet not in seen:
+            result.append(sheet)
+            seen.add(sheet)
+ 
+    # マッチするものがなければ先頭シート
+    return result if result else [xls.sheet_names[0]]
+ 
+ 
+def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
+    """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。"""
+    head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
+    req = {zenkaku_hankaku_norm(c) for c in required_cols if c}
+    for i in range(len(head_df)):
+        row_vals = {zenkaku_hankaku_norm(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan", "一致なし"}}
+        if req.issubset(row_vals):
+            return i
+    raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
+ 
+ 
+def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
+                                     explicit_header_row_1based: Optional[int] = None,
+                                     scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
+    """ヘッダ行が1行目とは限らないExcelに対応。"""
+    if explicit_header_row_1based is not None:
+        hdr0 = max(0, explicit_header_row_1based - 1)
+        return pd.read_excel(path, sheet_name=sheet_name, header=hdr0), hdr0
+    if not HEADER_DETECT:
+        return pd.read_excel(path, sheet_name=sheet_name), 0
+    # ヘッダ行の自動検出
+    header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
+    return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
+ 
+ 
+def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
+                          screen_col_override: Optional[str] = None,
+                          vocab_col_override: Optional[str] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """単一ディレクトリから『画面項目定義』群と『単語帳』群を収集して前処理。"""
+    screen_files = sorted(dir_path.glob(cfg["SCREEN_GLOB"]))
+    vocab_files = sorted(dir_path.glob(cfg["VOCAB_GLOB"]))
+    if not screen_files:
+        raise FileNotFoundError(f"画面項目定義ファイルが見つかりません: {dir_path}/{cfg['SCREEN_GLOB']}")
+    if not vocab_files:
+        raise FileNotFoundError(f"単語帳ファイルが見つかりません: {dir_path}/{cfg['VOCAB_GLOB']}")
+ 
+    screen_col = screen_col_override or cfg["SCREEN_COL"]
+    term_col = vocab_col_override or cfg["VOCAB_TERM_COL"]
+    phys_col = cfg["VOCAB_PHYS_COL"]
+    phys_abbr_col = cfg["VOCAB_PHYS_ABBR_COL"]
+    no_col = cfg["VOCAB_NO_COL"]
+ 
+    # --- 画面項目定義を縦結合（複数シート対応）
+    screen_frames: List[pd.DataFrame] = []
+    for path in screen_files:
+        xls = pd.ExcelFile(path)
+        matching_sheets = _pick_matching_sheets(xls, cfg["SCREEN_SHEET"]) if cfg["SCREEN_SHEET"] else [xls.sheet_names[0]]
+ 
+        for sheet_used in matching_sheets:
+            try:
+                df_s, _ = read_excel_with_header_detection(path, sheet_used, [screen_col], SCREEN_HEADER_ROW, HEADER_SCAN_ROWS)
+                if screen_col not in df_s.columns:
+                    print(f"[警告] {path.name}（{sheet_used}）: 必須列 '{screen_col}' が存在しません - スキップ")
+                    continue
+                df_s["__source_file"], df_s["__source_sheet"] = path.name, sheet_used
+                screen_frames.append(df_s)
+                print(f"[INFO] 画面項目定義読み込み: {path.name} / {sheet_used} ({len(df_s)}件)")
+            except Exception as e:
+                print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
+ 
+    # --- 単語帳を縦結合（複数シート対応）
+    vocab_frames: List[pd.DataFrame] = []
+    for path in vocab_files:
+        xls = pd.ExcelFile(path)
+        matching_sheets = _pick_matching_sheets(xls, cfg["VOCAB_SHEET"]) if cfg["VOCAB_SHEET"] else [xls.sheet_names[0]]
+ 
+        for sheet_used in matching_sheets:
+            try:
+                df_v, _ = read_excel_with_header_detection(path, sheet_used, [term_col, phys_col, no_col], VOCAB_HEADER_ROW, HEADER_SCAN_ROWS)
+                missing = [c for c in [term_col, phys_col, no_col] if c not in df_v.columns]
+                if missing:
+                    print(f"[警告] {path.name}（{sheet_used}）: 必須列が不足: {missing} - スキップ")
+                    continue
+                if phys_abbr_col not in df_v.columns:
+                    df_v[phys_abbr_col] = ""  # 任意列は空で補完
+                vocab_frames.append(df_v)
+                print(f"[INFO] 単語帳読み込み: {path.name} / {sheet_used} ({len(df_v)}件)")
+            except Exception as e:
+                print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
+ 
+    # データフレームの結合（空チェック付き）
+    if not screen_frames:
+        raise FileNotFoundError(f"読み込み可能な画面項目定義シートが見つかりません")
+    if not vocab_frames:
+        raise FileNotFoundError(f"読み込み可能な単語帳シートが見つかりません")
+ 
+    df_screen = pd.concat(screen_frames, ignore_index=True)
+    df_vocab = pd.concat(vocab_frames, ignore_index=True)
+ 
+    print(f"[INFO] 合計読み込み: 画面項目定義 {len(df_screen)}件, 単語帳 {len(df_vocab)}件")
+ 
+    # --- 欠損・空行の整理
+    df_screen[screen_col] = df_screen[screen_col].fillna("")
+    for c in [term_col, phys_col, no_col, phys_abbr_col]:
+        df_vocab[c] = df_vocab[c].fillna("")
+    df_screen = df_screen[df_screen[screen_col].astype(str).str.strip() != ""].copy()
+    df_vocab = df_vocab[df_vocab[term_col].astype(str).str.strip() != ""].copy()
+ 
+    # --- 照合キー追加・列名整理
+    df_vocab["__term_norm"] = df_vocab[term_col].astype(str).map(zenkaku_hankaku_norm)
+    df_vocab = df_vocab.rename(columns={term_col: "_term", phys_col: "_phys", phys_abbr_col: "_phys_abbr", no_col: "_no"})
+    df_screen = df_screen.rename(columns={screen_col: "_screen", "__source_file": "_src_file", "__source_sheet": "_src_sheet"})
+ 
+    return df_screen, df_vocab
+ 
+# ====== 候補生成（ローカル） ==================================================
+ 
+def top_k_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
+    """画面項目 vs 単語帳の**直接照合**で上位k件を返却。"""
+    scored = [Candidate(term, local_similarity(screen_name, term)) for term in vocab_terms]
+    scored.sort(key=lambda c: c.score, reverse=True)
+    return [c for c in scored[:k] if c.score >= threshold]
+ 
+ 
+def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
+    """複合語対策：unigram/bigram に分解してパーツ単位で候補を拾う。"""
+    tokens = [t for t in zenkaku_hankaku_norm(screen_name).split(" ") if t]
+    grams = set(tokens)
+    for i in range(len(tokens) - 1):
+        grams.add(tokens[i] + " " + tokens[i + 1])
+    pool: List[Candidate] = []
+    for g in grams:
+        for vt in vocab_terms:
+            s = local_similarity(g, vt)
+            if s >= threshold:
+                pool.append(Candidate(vt, s))
+    # 同一単語は最大スコアを採用
+    best_by_term: Dict[str, float] = {}
+    for cand in pool:
+        best_by_term[cand.term] = max(best_by_term.get(cand.term, 0.0), cand.score)
+    merged = [Candidate(t, sc) for t, sc in best_by_term.items()]
+    merged.sort(key=lambda c: c.score, reverse=True)
+    return merged[: max(k, 10)]
+ 
+# ====== APIクライアント =======================================================
+class ApiClient:
+    """OpenAI互換APIへの最小ラッパ（ヘッダ/プロキシ/SSL検証対応）。"""
+    def __init__(self, cfg: Dict[str, Any]):
+        self.base_url = cfg["OPENAI_BASE_URL"].rstrip("/")
+        self.path = cfg["OPENAI_PATH"]
+        self.timeout = cfg["TIMEOUT_SEC"]
+        self.verify = cfg["VERIFY_SSL"]
+        self.session = requests.Session()  # ThreadPool内ではスレッド毎の生成を推奨
+        # プロキシ
+        proxies: Dict[str, str] = {}
+        if cfg.get("HTTP_PROXY"):
+            proxies["http"] = cfg["HTTP_PROXY"]
+        if cfg.get("HTTPS_PROXY"):
+            proxies["https"] = cfg["HTTPS_PROXY"]
+        if proxies:
+            self.session.proxies.update(proxies)
+        # ヘッダ
+        headers: Dict[str, str] = {"Content-Type": "application/json"}
+        if cfg.get("OPENAI_SEND_AUTH") and cfg.get("OPENAI_API_KEY"):
+            headers["Authorization"] = f"Bearer {cfg['OPENAI_API_KEY']}"
+        if cfg.get("OPENAI_ORG_ID"):
+            headers["OpenAI-Organization"] = cfg["OPENAI_ORG_ID"]
+        extra = cfg.get("OPENAI_HEADERS_JSON")
+        if extra:
+            try:
+                headers.update(json.loads(extra))
+            except Exception:
+                pass
+        self.headers = headers
+ 
+    def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        url = f"{self.base_url}{self.path}"
+        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
+        resp.raise_for_status()
+        return resp.json()
+ 
+# ====== LLM呼び出し（プロンプト詳細は割愛） ================================
+LLM_SYSTEM = (
     "あなたは業務システム開発における命名規則の専門家です。\n"
     "画面項目名と単語帳を照合し、lowerCamelCase形式の物理名を提案することが使命です。\n"
     "\n"
@@ -160,8 +445,8 @@ LLM_SYSTEM_PROMPT = (
     "- 必ず提示された全キーを含める\n"
     "- null許容キーは適切に null を設定\n"
 )
-
-LLM_USER_PROMPT_TEMPLATE = (
+ 
+LLM_USER_TEMPLATE = (
     """画面項目名: {screen_name}
 
 単語帳候補（local_score降順）:
@@ -216,408 +501,8 @@ LLM_USER_PROMPT_TEMPLATE = (
 JSON以外の出力禁止。即座にJSONのみ返してください。
     """
 )
-
-# ====== 設定（.envで上書き可） =============================================
-DEFAULT_CONFIG: Dict[str, Any] = {
-    # --- API（OpenAI互換）
-    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu"),
-    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-    "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-    "OPENAI_PATH": os.getenv("OPENAI_PATH", "/chat/completions"),
-    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", "{\"api-key\":\"8b843f2df20548899f93c0624452ea68\",\"apim-user-id\":\"PIT04447\"}"),
-    "OPENAI_SEND_AUTH": os.getenv("OPENAI_SEND_AUTH", "false").lower() != "false",
-    "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
-    "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
-    "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
-    "VERIFY_SSL": os.getenv("VERIFY_SSL", "true").lower() != "false",
- 
-    # --- 生成パラメタ
-    "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
-    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.7")),
-    "TOP_P": float(os.getenv("TOP_P", "0.95")),
-    "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
-    "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
- 
-    # --- 入力検出
-    "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
-    "VOCAB_GLOB": os.getenv("VOCAB_GLOB", "*単語名一覧*.xlsx"),
- 
-    # --- シート/列（必要に応じて引数で上書き）
-    # シート名は複数指定可能（カンマ区切り）例: "画面項目定義,システム設計書,IF定義書"
-    # ワイルドカード指定可能（*）例: "*" で全シート、"画面*" で「画面」で始まるシート
-    # デフォルト "*" で全シートを読み込むことで、ファイル構造に依存しない柔軟な運用が可能
-    "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
-    "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
-    "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
-    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "#"),
-    "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
-    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名*"),
-    "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
- 
-    # --- 類似度設定
-    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
-    "TOP_K": int(os.getenv("TOP_K", "3")),  # 直接候補の上位件数
- 
-    # --- 出力
-    "OUT_DIR": os.getenv("OUT_DIR", "out"),
- 
-    # --- 実行制御
-    "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
-    "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
-    "RETRY": int(os.getenv("RETRY", "30")),
- 
-    # --- レート制限（サーバー負荷対策）
-    # 同時実行するAPI呼び出しの最大数（MAX_WORKERSより小さい値にするとAPI負荷を抑制）
-    "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5"))
-}
- 
-# ====== 文字列正規化／類似度 =================================================
- 
-def zenkaku_hankaku_norm(text: str) -> str:
-    """NFKC正規化 + 小文字化 + 記号/空白の正規化で**照合の土台**を整える。"""
-    if text is None:
-        return ""
-    s = unicodedata.normalize("NFKC", str(text)).lower().strip()
-    s = re.sub(r"[\u3000\s]+", " ", s)          # 全角/半角スペースを単一化
-    s = re.sub(r"[\-/・·•･,\(\)\[\]_]+", " ", s)    # 区切り記号はスペースへ
-    return re.sub(r"\s+", " ", s)
  
  
-def local_similarity(a: str, b: str) -> float:
-    """簡易類似度：完全一致=1.0 / 片包含=0.9 / それ以外はdifflibのratio。"""
-    a_n, b_n = zenkaku_hankaku_norm(a), zenkaku_hankaku_norm(b)
-    if not a_n or not b_n:
-        return 0.0
-    if a_n == b_n:
-        return EXACT_MATCH_SCORE
-    if a_n in b_n or b_n in a_n:
-        return PARTIAL_MATCH_SCORE
-    return difflib.SequenceMatcher(None, a_n, b_n).ratio()
- 
-@dataclass
-class Candidate:
-    term: str
-    score: float
- 
-# ====== Excel I/O =============================================================
- 
-def _int_env(name: str) -> Optional[int]:
-    """環境変数を整数として取得。変換失敗時はNone。"""
-    v = os.getenv(name, "")
-    try:
-        return int(v) if v else None
-    except (ValueError, TypeError):
-        return None
- 
-HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
-HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", str(DEFAULT_HEADER_SCAN_ROWS)))
-SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
-VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW")
- 
- 
-def _normalize_text(text: str) -> str:
-    """テキストをNFKC正規化し、小文字化・トリム。"""
-    return unicodedata.normalize("NFKC", text).strip().lower()
-
-
-def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
-    """優先シートが無ければ先頭。NFKCで厳密同名も考慮。"""
-    if preferred and preferred in xls.sheet_names:
-        return preferred
-    if preferred:
-        want = _normalize_text(preferred)
-        for name in xls.sheet_names:
-            if _normalize_text(name) == want:
-                return name
-    return xls.sheet_names[0]
- 
- 
-def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[str]:
-    """設定シート名にマッチする全てのシートを返す。ワイルドカード対応。"""
-    if not preferred:
-        return [xls.sheet_names[0]]
-
-    # 複数パターンをカンマ区切りで分割
-    patterns = [p.strip() for p in preferred.split(",") if p.strip()]
-    if not patterns:
-        return [xls.sheet_names[0]]
-
-    # 全シート名を正規化
-    norm_sheets = {_normalize_text(name): name for name in xls.sheet_names}
-
-    # パターンマッチング（重複除去はdictで自動処理）
-    matches = {}
-    for pattern in patterns:
-        regex_pattern = _normalize_text(pattern).replace('*', '.*')
-        for norm_name, original_name in norm_sheets.items():
-            if re.match(regex_pattern, norm_name) and original_name not in matches:
-                matches[original_name] = True
-
-    return list(matches.keys()) if matches else [xls.sheet_names[0]]
- 
- 
-def _pick_matching_column(df: pd.DataFrame, col_pattern: str) -> Optional[str]:
-    """列名パターンにマッチする最初の列を返す。ワイルドカード対応、エイリアス対応。"""
-    if not col_pattern:
-        return None
-
-    # 完全一致チェック
-    if col_pattern in df.columns:
-        return col_pattern
-
-    want = _normalize_text(col_pattern)
-
-    # エイリアスを展開（定義されていない場合は元のパターンのみ）
-    search_patterns = COLUMN_ALIASES.get(want, [want])
-
-    # NFKC正規化で一致チェック（エイリアス含む）
-    for col in df.columns:
-        if _normalize_text(str(col)) in search_patterns:
-            return col
-
-    # ワイルドカードパターンマッチング
-    regex_pattern = want.replace('*', '.*')
-    for col in df.columns:
-        if re.match(regex_pattern, _normalize_text(str(col))):
-            return col
-
-    return None
-
-
-def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
-    """先頭scan_rows行で必須列がそろう行をヘッダ行とみなす。ワイルドカード対応。"""
-    head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
-
-    # ワイルドカードを正規表現パターンに変換
-    patterns = [zenkaku_hankaku_norm(col).replace('*', '.*') for col in required_cols if col]
-
-    for row_idx, row in head_df.iterrows():
-        # 行の有効な値を正規化
-        row_values = [zenkaku_hankaku_norm(str(v)) for v in row if str(v) not in {"", "nan", "一致なし"}]
-
-        # 全てのパターンがいずれかの値にマッチするかチェック
-        if all(any(re.match(pat, val) for val in row_values) for pat in patterns):
-            return row_idx
-
-    raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
- 
- 
-def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
-                                     explicit_header_row_1based: Optional[int] = None,
-                                     scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
-    """ヘッダ行が1行目とは限らないExcelに対応。"""
-    if explicit_header_row_1based is not None:
-        hdr0 = max(0, explicit_header_row_1based - 1)
-        return pd.read_excel(path, sheet_name=sheet_name, header=hdr0), hdr0
-    if not HEADER_DETECT:
-        return pd.read_excel(path, sheet_name=sheet_name), 0
-    # ヘッダ行の自動検出
-    header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
-    return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
- 
- 
-def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
-                          screen_col_override: Optional[str] = None,
-                          vocab_col_override: Optional[str] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """単一ディレクトリから『画面項目定義』群と『単語帳』群を収集して前処理。"""
-    screen_files = sorted(dir_path.glob(cfg["SCREEN_GLOB"]))
-    vocab_files = sorted(dir_path.glob(cfg["VOCAB_GLOB"]))
-    if not screen_files:
-        raise FileNotFoundError(f"画面項目定義ファイルが見つかりません: {dir_path}/{cfg['SCREEN_GLOB']}")
-    if not vocab_files:
-        raise FileNotFoundError(f"単語帳ファイルが見つかりません: {dir_path}/{cfg['VOCAB_GLOB']}")
- 
-    screen_col = screen_col_override or cfg["SCREEN_COL"]
-    term_col = vocab_col_override or cfg["VOCAB_TERM_COL"]
-    phys_col = cfg["VOCAB_PHYS_COL"]
-    phys_abbr_col = cfg["VOCAB_PHYS_ABBR_COL"]
-    no_col = cfg["VOCAB_NO_COL"]
- 
-    # --- 画面項目定義を縦結合（複数シート対応）
-    screen_frames: List[pd.DataFrame] = []
-    for path in screen_files:
-        xls = pd.ExcelFile(path)
-        matching_sheets = _pick_matching_sheets(xls, cfg["SCREEN_SHEET"]) if cfg["SCREEN_SHEET"] else [xls.sheet_names[0]]
- 
-        for sheet_used in matching_sheets:
-            try:
-                df_s, _ = read_excel_with_header_detection(path, sheet_used, [screen_col], SCREEN_HEADER_ROW, HEADER_SCAN_ROWS)
-                # ワイルドカード対応の列名マッチング
-                matched_col = _pick_matching_column(df_s, screen_col)
-                if not matched_col:
-                    print(f"[警告] {path.name}（{sheet_used}）: 必須列 '{screen_col}' にマッチする列が存在しません - スキップ")
-                    continue
-                # マッチした列名を統一名にリネーム
-                if matched_col != screen_col:
-                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_col}' を '{screen_col}' として使用")
-                    df_s = df_s.rename(columns={matched_col: screen_col})
-                df_s["__source_file"], df_s["__source_sheet"] = path.name, sheet_used
-                screen_frames.append(df_s)
-                print(f"[INFO] 画面項目定義読み込み: {path.name} / {sheet_used} ({len(df_s)}件)")
-            except Exception as e:
-                print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
- 
-    # --- 単語帳を縦結合（複数シート対応）
-    vocab_frames: List[pd.DataFrame] = []
-    for path in vocab_files:
-        xls = pd.ExcelFile(path)
-        matching_sheets = _pick_matching_sheets(xls, cfg["VOCAB_SHEET"]) if cfg["VOCAB_SHEET"] else [xls.sheet_names[0]]
- 
-        for sheet_used in matching_sheets:
-            try:
-                df_v, _ = read_excel_with_header_detection(path, sheet_used, [term_col, phys_col, no_col], VOCAB_HEADER_ROW, HEADER_SCAN_ROWS)
-
-                # ワイルドカード対応の列名マッチング（必須列）
-                matched_term_col = _pick_matching_column(df_v, term_col)
-                matched_phys_col = _pick_matching_column(df_v, phys_col)
-                matched_no_col = _pick_matching_column(df_v, no_col)
-
-                missing = []
-                if not matched_term_col:
-                    missing.append(term_col)
-                if not matched_phys_col:
-                    missing.append(phys_col)
-                if not matched_no_col:
-                    missing.append(no_col)
-
-                if missing:
-                    print(f"[警告] {path.name}（{sheet_used}）: 必須列が不足: {missing} - スキップ")
-                    continue
-
-                # マッチした列名を統一名にリネーム
-                rename_map = {}
-                if matched_term_col != term_col:
-                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_term_col}' を '{term_col}' として使用")
-                    rename_map[matched_term_col] = term_col
-                if matched_phys_col != phys_col:
-                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_phys_col}' を '{phys_col}' として使用")
-                    rename_map[matched_phys_col] = phys_col
-                if matched_no_col != no_col:
-                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_no_col}' を '{no_col}' として使用")
-                    rename_map[matched_no_col] = no_col
-
-                if rename_map:
-                    df_v = df_v.rename(columns=rename_map)
-
-                # 任意列（物理名略称）のマッチング
-                matched_phys_abbr_col = _pick_matching_column(df_v, phys_abbr_col)
-                if matched_phys_abbr_col and matched_phys_abbr_col != phys_abbr_col:
-                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_phys_abbr_col}' を '{phys_abbr_col}' として使用")
-                    df_v = df_v.rename(columns={matched_phys_abbr_col: phys_abbr_col})
-                elif not matched_phys_abbr_col:
-                    df_v[phys_abbr_col] = ""  # 任意列は空で補完
-
-                vocab_frames.append(df_v)
-                print(f"[INFO] 単語帳読み込み: {path.name} / {sheet_used} ({len(df_v)}件)")
-            except Exception as e:
-                print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
- 
-    # データフレームの結合（空チェック付き）
-    if not screen_frames:
-        raise FileNotFoundError(f"読み込み可能な画面項目定義シートが見つかりません")
-    if not vocab_frames:
-        raise FileNotFoundError(f"読み込み可能な単語帳シートが見つかりません")
- 
-    df_screen = pd.concat(screen_frames, ignore_index=True)
-    df_vocab = pd.concat(vocab_frames, ignore_index=True)
- 
-    print(f"[INFO] 合計読み込み: 画面項目定義 {len(df_screen)}件, 単語帳 {len(df_vocab)}件")
- 
-    # --- 欠損・空行の整理
-    df_screen[screen_col] = df_screen[screen_col].fillna("")
-    for c in [term_col, phys_col, no_col, phys_abbr_col]:
-        df_vocab[c] = df_vocab[c].fillna("")
-    df_screen = df_screen[df_screen[screen_col].astype(str).str.strip() != ""].copy()
-    df_vocab = df_vocab[df_vocab[term_col].astype(str).str.strip() != ""].copy()
- 
-    # --- 照合キー追加・列名整理
-    df_vocab[COL_TERM_NORM] = df_vocab[term_col].astype(str).map(zenkaku_hankaku_norm)
-    df_vocab = df_vocab.rename(columns={
-        term_col: COL_TERM,
-        phys_col: COL_PHYS,
-        phys_abbr_col: COL_PHYS_ABBR,
-        no_col: COL_NO
-    })
-    df_screen = df_screen.rename(columns={
-        screen_col: COL_SCREEN,
-        "__source_file": COL_SRC_FILE,
-        "__source_sheet": COL_SRC_SHEET
-    })
- 
-    return df_screen, df_vocab
- 
-# ====== 候補生成（ローカル） ==================================================
- 
-def top_k_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
-    """画面項目 vs 単語帳の**直接照合**で上位k件を返却。"""
-    scored = [Candidate(term, local_similarity(screen_name, term)) for term in vocab_terms]
-    scored.sort(key=lambda c: c.score, reverse=True)
-    return [c for c in scored[:k] if c.score >= threshold]
- 
- 
-def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
-    """複合語対策：unigram/bigram に分解してパーツ単位で候補を拾う。"""
-    tokens = zenkaku_hankaku_norm(screen_name).split()
-    grams = set(tokens + [f"{tokens[i]} {tokens[i+1]}" for i in range(len(tokens) - 1)])
-
-    # 各単語の最高スコアを辞書内包表記で収集
-    best_scores = {}
-    for gram in grams:
-        for term in vocab_terms:
-            score = local_similarity(gram, term)
-            if score >= threshold:
-                best_scores[term] = max(best_scores.get(term, 0.0), score)
-
-    # スコア降順でソート
-    candidates = sorted([Candidate(t, s) for t, s in best_scores.items()],
-                       key=lambda c: c.score, reverse=True)
-    return candidates[:max(k, 10)]
- 
-# ====== APIクライアント =======================================================
-class ApiClient:
-    """OpenAI互換APIへの最小ラッパ（ヘッダ/プロキシ/SSL検証対応）。"""
-    def __init__(self, cfg: Dict[str, Any]):
-        self.base_url = cfg["OPENAI_BASE_URL"].rstrip("/")
-        self.path = cfg["OPENAI_PATH"]
-        self.timeout = cfg["TIMEOUT_SEC"]
-        # PyInstallerビルド時の証明書検証対応
-        if cfg["VERIFY_SSL"]:
-            self.verify = CA_BUNDLE
-        else:
-            self.verify = False
-        self.session = requests.Session()  # ThreadPool内ではスレッド毎の生成を推奨
-        # プロキシ
-        proxies: Dict[str, str] = {}
-        if cfg.get("HTTP_PROXY"):
-            proxies["http"] = cfg["HTTP_PROXY"]
-        if cfg.get("HTTPS_PROXY"):
-            proxies["https"] = cfg["HTTPS_PROXY"]
-        if proxies:
-            self.session.proxies.update(proxies)
-        # ヘッダ
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
-        if cfg.get("OPENAI_SEND_AUTH") and cfg.get("OPENAI_API_KEY"):
-            headers["Authorization"] = f"Bearer {cfg['OPENAI_API_KEY']}"
-        if cfg.get("OPENAI_ORG_ID"):
-            headers["OpenAI-Organization"] = cfg["OPENAI_ORG_ID"]
-        extra = cfg.get("OPENAI_HEADERS_JSON")
-        if extra:
-            try:
-                headers.update(json.loads(extra))
-            except Exception:
-                pass
-        self.headers = headers
- 
-    def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        """APIリクエストを送信してJSONレスポンスを返す。"""
-        url = f"{self.base_url}{self.path}"
-        resp = self.session.post(url, headers=self.headers, json=body,
-                                timeout=self.timeout, verify=self.verify)
-        resp.raise_for_status()
-        return resp.json()
- 
-# ====== LLM呼び出し ==========================================================
-
 def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
     """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
     cand_payload = []
@@ -638,15 +523,13 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
         "frequency_penalty": cfg["FREQUENCY_PENALTY"],
         "response_format": {"type": "json_object"},
         "messages": [
-            {"role": "system", "content": LLM_SYSTEM_PROMPT},
-            {"role": "user", "content": LLM_USER_PROMPT_TEMPLATE.format(
+            {"role": "system", "content": LLM_SYSTEM},
+            {"role": "user", "content": LLM_USER_TEMPLATE.format(
                 screen_name=screen_name,
                 candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
             )},
         ],
     }
-
-
  
  
 def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client: Optional[ApiClient] = None, api_semaphore: Optional[threading.Semaphore] = None, term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -654,33 +537,31 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
     # テストモード判定
     if cfg.get("TEST_MODE", False) or os.getenv("WORD_MATCHING_TEST_MODE", "false").lower() == "true":
         try:
-            from tests.mock_api import mock_llm_response
+            from mock_api import mock_llm_response
             return mock_llm_response(screen_name, candidates)
         except ImportError:
-            print("[警告] tests/mock_api.pyが見つかりません。フォールバックを使用します。")
+            print("[警告] mock_api.pyが見つかりません。フォールバックを使用します。")
             return fallback_reason(screen_name, candidates)
  
     client = client or ApiClient(cfg)
     payload = build_llm_payload(screen_name, candidates, cfg, term_meta)
  
-    # セマフォで同時実行API数を制限
+    # サーバー負荷対策：セマフォで同時実行API数を制限
     if api_semaphore:
         api_semaphore.acquire()
-
+ 
     try:
         for attempt in range(cfg["RETRY"] + 1):
             try:
                 data = client.post_json(payload)
-                return json.loads(data["choices"][0]["message"]["content"])
-            except Exception as e:
-                # 認証エラーは即座に例外を投げる
-                if hasattr(e, 'response') and getattr(e.response, 'status_code', None) in [401, 403]:
-                    raise Exception(f"API認証エラー: APIキーまたはユーザIDが無効です") from e
-                # リトライ上限に達していなければバックオフして再試行
+                content = data["choices"][0]["message"]["content"]
+                result = json.loads(content)
+                return result
+            except Exception:
                 if attempt < cfg["RETRY"]:
-                    time.sleep(RETRY_BACKOFF_MULTIPLIER * (attempt + 1))
-                else:
-                    return fallback_reason(screen_name, candidates)
+                    time.sleep(1.2 * (attempt + 1))  # バックオフ
+                    continue
+                return fallback_reason(screen_name, candidates)
     finally:
         if api_semaphore:
             api_semaphore.release()
@@ -696,7 +577,7 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
             "proposed_name": simple_proposal(screen_name),
         }
     top = candidates[0]
-    if top.score >= FALLBACK_EXACT_THRESHOLD:
+    if top.score >= FALLBACK_EXACT_FLOOR:
         return {
             "match_type": "完全一致",
             "matched_term": top.term,
@@ -713,31 +594,38 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
 # ====== 簡易物理名生成 =======================================================
  
 def simple_proposal(text: str) -> str:
-    """lowerCamelCaseの簡易物理名を生成（8〜10文字程度）。"""
-    tokens = zenkaku_hankaku_norm(text).split()
+    """ローワーキャメルの簡易物理名を生成（8〜10文字程度）。"""
+    s = zenkaku_hankaku_norm(text)
+    tokens = [t for t in re.split(r"\s+", s) if t]
     if not tokens:
         return "newItem"
-
-    # 冗長語を除外してコア要素を取得
+    # 冗長語の削ぎ落とし
     stop_words = {"コード", "番号", "名称名", "名称名称"}
     core = [w for w in tokens[:3] if w not in stop_words] or tokens[:2]
-
-    # lowerCamelCase化して長さ制御
+    # lowerCamelCase化
     name = core[0].lower() + "".join(w.capitalize() for w in core[1:])
-    return name[:8] if len(name) > 10 else name or "newItem"
+    # 長さ制御（長すぎると読みにくい）
+    return (name[:8] if len(name) > 10 else name) or "newItem"
  
 # ====== メイン処理 ============================================================
  
-def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any], progress_callback=None) -> pd.DataFrame:
+def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any]) -> pd.DataFrame:
     """全体フロー：入力→候補生成→（完全一致なら即決）→LLM判定→集計DataFrame。"""
     df_screen, df_vocab = load_screen_and_vocab(dir_path, cfg, screen_col, vocab_col)
     # 全体件数（進捗ログ用）
     total_items = len(df_screen)
     processed_count = 0
  
-    vocab_terms = df_vocab[COL_TERM].astype(str).tolist()
-    term_meta = df_vocab[[COL_TERM, COL_PHYS, COL_PHYS_ABBR, COL_NO]].drop_duplicates(COL_TERM).set_index(COL_TERM).to_dict(orient="index")
-    norm_to_term = df_vocab[[COL_TERM_NORM, COL_TERM]].drop_duplicates(COL_TERM_NORM).set_index(COL_TERM_NORM)[COL_TERM].to_dict()
+    vocab_terms = df_vocab["_term"].astype(str).tolist()
+    term_meta = (
+        df_vocab[["_term", "_phys", "_phys_abbr", "_no"]]
+        .drop_duplicates("_term").set_index("_term").to_dict(orient="index")
+    )
+    # 正規化キー→原語の辞書（完全一致ショートサーキット用）
+    norm_to_term = (
+        df_vocab[["__term_norm", "_term"]]
+        .drop_duplicates("__term_norm").set_index("__term_norm")["_term"].to_dict()
+    )
  
     rows: List[Dict[str, Any]] = []
     api_client = ApiClient(cfg)
@@ -746,62 +634,40 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     max_concurrent_api = cfg.get("MAX_CONCURRENT_API", 3)
     api_semaphore = threading.Semaphore(max_concurrent_api)
  
-    def _log_progress(count: int, total: int) -> None:
-        """進捗ログを出力（定期的 or 完了時）。"""
-        pct = count * 100 / total if total else 0
-        if count % PROGRESS_LOG_INTERVAL == 0 or count == total:
-            print(f"[INFO] {count}/{total} 件処理済み ({pct:.1f}%)")
-        if progress_callback:
-            progress_callback(count, total)
-
-    def _get_metadata(term: Optional[str]) -> Dict[str, Any]:
-        """単語のメタデータを取得。"""
+    def meta_of(term: Optional[str]) -> Dict[str, Any]:
         if not term:
             return {"no": None, "phys": None, "phys_abbr": None}
-        m = term_meta.get(str(term), {})
-        return {"no": m.get(COL_NO), "phys": m.get(COL_PHYS), "phys_abbr": m.get(COL_PHYS_ABBR)}
-
-    def _get_phys_name(metadata: Dict[str, Any], fallback: str = "") -> str:
-        """物理名を取得（略称 > 正式名称 > フォールバック）。"""
-        return metadata.get("phys_abbr") or metadata.get("phys") or simple_proposal(fallback)
-
-    def _build_exact_match_result(screen_name: str, src_file: str, src_sheet: Optional[str],
-                                   term: str, metadata: Dict[str, Any], score: float, reason: str) -> Dict[str, Any]:
-        """完全一致結果の辞書を構築。"""
-        phys_name = _get_phys_name(metadata)
-        term_no = metadata.get("no")
-        return {
-            "source_file": src_file,
-            "source_sheet": src_sheet,
-            "screen_item": screen_name,
-            "match_type": MATCH_TYPE_EXACT,
-            "matched_term": term,
-            "matched_term_no": term_no,
-            "matched_term_phys": phys_name,
-            "matched_terms": None,
-            "matched_terms_nos": None,
-            "matched_terms_phys": None,
-            "local_top_term": term,
-            "local_top_term_no": term_no,
-            "local_top_term_phys": phys_name,
-            "local_top_score": score,
-            "coverage_ratio": 1.0,
-            "proposed_name": _get_phys_name(metadata, term),
-            "reason": reason,
-            "unmatched_terms": None,
-            "unmatched_note": None,
-        }
+        m = term_meta.get(str(term)) or {}
+        return {"no": m.get("_no"), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
  
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         """1件の画面項目に対する判定ワーカー（スレッドで実行）。"""
         # --- 0) 正規化ベースの完全一致 → LLMスキップ
-        exact_term = norm_to_term.get(zenkaku_hankaku_norm(screen_name))
+        normalized = zenkaku_hankaku_norm(screen_name)
+        exact_term = norm_to_term.get(normalized)
         if exact_term:
-            return _build_exact_match_result(
-                screen_name, src_file, src_sheet, exact_term,
-                _get_metadata(exact_term), EXACT_MATCH_SCORE,
-                "正規化完全一致（LLM未呼び出し）"
-            )
+            m = term_meta.get(exact_term) or {}
+            return {
+                "source_file": src_file,
+                "source_sheet": src_sheet,
+                "screen_item": screen_name,
+                "match_type": "完全一致",
+                "matched_term": exact_term,
+                "matched_term_no": m.get("_no"),
+                "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
+                "matched_terms": None,
+                "matched_terms_nos": None,
+                "matched_terms_phys": None,
+                "local_top_term": exact_term,
+                "local_top_term_no": m.get("_no"),
+                "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
+                "local_top_score": 1.0,
+                "coverage_ratio": 1.0,
+                "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(exact_term)),
+                "reason": "正規化完全一致（LLM未呼び出し）",
+                "unmatched_terms": None,
+                "unmatched_note": None,
+            }
  
         # --- 1) ローカル候補生成（複合語＋ダイレクト）
         broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
@@ -815,48 +681,81 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         merged = merged[: max(cfg["TOP_K"], 10)]
  
         # --- 2) ローカル最高スコアが完全一致（1.0）→ 即決
-        if merged and merged[0].score >= EXACT_MATCH_SCORE:
+        if merged and merged[0].score >= HARD_EXACT_SCORE:
             top = merged[0]
-            if zenkaku_hankaku_norm(screen_name) == zenkaku_hankaku_norm(top.term):
-                return _build_exact_match_result(
-                    screen_name, src_file, src_sheet, top.term,
-                    _get_metadata(top.term), top.score,
-                    f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）"
-                )
+            # 追加の完全一致チェック（正規化後の文字列比較）
+            norm_screen = zenkaku_hankaku_norm(screen_name)
+            norm_term = zenkaku_hankaku_norm(top.term)
+            if norm_screen == norm_term:  # 真の完全一致のみ
+                m = term_meta.get(top.term) or {}
+                return {
+                    "source_file": src_file,
+                    "source_sheet": src_sheet,
+                    "screen_item": screen_name,
+                    "match_type": "完全一致",
+                    "matched_term": top.term,
+                    "matched_term_no": m.get("_no"),
+                    "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
+                    "matched_terms": None,
+                    "matched_terms_nos": None,
+                    "matched_terms_phys": None,
+                    "local_top_term": top.term,
+                    "local_top_term_no": m.get("_no"),
+                    "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
+                    "local_top_score": top.score,
+                    "coverage_ratio": 1.0,
+                    "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(top.term)),
+                    "reason": f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）",
+                    "unmatched_terms": None,
+                    "unmatched_note": None,
+                }
  
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
         llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta)
  
-        # 値の整形ヘルパー
-        safe_float = lambda v: float(v) if v not in (None, "") else None
-        join_if_exists = lambda items, sep=", ": sep.join(str(i) for i in items) if items else None
-
-        # メタデータ取得
-        mt_meta = _get_metadata(llm.get("matched_term"))
+        # 値の整形
+        cov_raw = llm.get("coverage_ratio")
+        try:
+            coverage_ratio = float(cov_raw) if cov_raw is not None else None
+        except Exception:
+            coverage_ratio = None
+        mt = llm.get("matched_term")
+        mt_meta = meta_of(mt)
         matched_terms = llm.get("matched_terms") or []
-        mts_metas = [_get_metadata(t) for t in matched_terms]
-        top_meta = _get_metadata(merged[0].term) if merged else {}
+        mts_metas = [meta_of(t) for t in matched_terms]
+
+        # 未登録語の整形（配列→文字列変換）
+        unmatched_terms = None
+        unmatched_note = None
+        try:
+            llm_unmatched_terms = llm.get("unmatched_terms") or []
+            llm_unmatched_notes = llm.get("unmatched_notes") or []
+            if llm_unmatched_terms and llm_unmatched_notes:
+                unmatched_terms = ", ".join(llm_unmatched_terms)
+                unmatched_note = " / ".join(llm_unmatched_notes)
+        except Exception:
+            pass
 
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
             "screen_item": screen_name,
             "match_type": llm.get("match_type"),
-            "matched_term": llm.get("matched_term"),
-            "matched_term_no": mt_meta.get("no"),
-            "matched_term_phys": _get_phys_name(mt_meta),
-            "matched_terms": join_if_exists(matched_terms),
-            "matched_terms_nos": join_if_exists([m.get("no") for m in mts_metas if m.get("no")]),
-            "matched_terms_phys": join_if_exists([_get_phys_name(m) for m in mts_metas if _get_phys_name(m)]),
-            "local_top_term": merged[0].term if merged else None,
-            "local_top_term_no": top_meta.get("no"),
-            "local_top_term_phys": _get_phys_name(top_meta),
-            "local_top_score": merged[0].score if merged else None,
-            "coverage_ratio": safe_float(llm.get("coverage_ratio")),
+            "matched_term": mt or None,
+            "matched_term_no": mt_meta["no"],
+            "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
+            "matched_terms": ", ".join(matched_terms) or None,
+            "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_metas if m.get("no")]) or None,
+            "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_metas if (m.get("phys_abbr") or m.get("phys"))]) or None,
+            "local_top_term": (merged[0].term if merged else None),
+            "local_top_term_no": (term_meta.get(merged[0].term) or {}).get("_no") if merged else None,
+            "local_top_term_phys": ((term_meta.get(merged[0].term) or {}).get("_phys_abbr") or (term_meta.get(merged[0].term) or {}).get("_phys")) if merged else None,
+            "local_top_score": (merged[0].score if merged else None),
+            "coverage_ratio": coverage_ratio,
             "reason": llm.get("reason"),
             "proposed_name": llm.get("proposed_name"),
-            "unmatched_terms": join_if_exists(llm.get("unmatched_terms") or []),
-            "unmatched_note": join_if_exists(llm.get("unmatched_notes") or [], " / "),
+            "unmatched_terms": unmatched_terms,
+            "unmatched_note": unmatched_note,
         }
  
     # 並列実行（小規模時は自動で縮退）
@@ -869,7 +768,10 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 row = fut.result()
                 rows.append(row)
                 processed_count += 1
-                _log_progress(processed_count, total_items)
+                # 進捗ログ: 10件ごとに出力
+                if processed_count % 10 == 0 or processed_count == total_items:
+                    pct = processed_count * 100 / total_items if total_items else 0
+                    print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
             except Exception as e:
                 # ワーカー失敗時も処理を止めない
                 error_row = {
@@ -878,7 +780,10 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 }
                 rows.append(error_row)
                 processed_count += 1
-                _log_progress(processed_count, total_items)
+                # エラー行でも進捗ログ
+                if processed_count % 10 == 0 or processed_count == total_items:
+                    pct = processed_count * 100 / total_items if total_items else 0
+                    print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
  
     return pd.DataFrame(rows).reset_index(drop=True)
  
@@ -1007,8 +912,8 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         if len(df) > 0:
             ws = w.sheets["結果"]
  
-            # 2段見出しなのでデータ開始行
-            start_row = EXCEL_DATA_START_ROW
+            # 2段見出しなのでデータ開始行は 3 行目
+            start_row = 3
             end_row = start_row + len(df) - 1
  
             # 列インデックス（1始まり）を取得
@@ -1069,76 +974,8 @@ def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
         return None
  
  
-def detect_and_save_proxy() -> None:
-    """システムのプロキシ設定を検出して.envに保存"""
-    import urllib.request
-
-    # 既に.envにプロキシ設定がある場合はスキップ
-    if os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY"):
-        return
-
-    # システムプロキシを自動検出
-    proxies = urllib.request.getproxies()
-
-    if proxies:
-        env_path = app_root() / ".env"
-        env_lines = []
-
-        # 既存の.envを読み込み
-        if env_path.exists():
-            with open(env_path, "r", encoding="utf-8") as f:
-                env_lines = f.readlines()
-
-        # プロキシ設定を追加
-        proxy_settings = []
-        if "http" in proxies:
-            proxy_settings.append(f"HTTP_PROXY={proxies['http']}\n")
-            print(f"[INFO] 検出されたHTTPプロキシ: {proxies['http']}")
-        if "https" in proxies:
-            proxy_settings.append(f"HTTPS_PROXY={proxies['https']}\n")
-            print(f"[INFO] 検出されたHTTPSプロキシ: {proxies['https']}")
-
-        if proxy_settings:
-            # 既存のプロキシ設定行を削除
-            env_lines = [line for line in env_lines if not line.startswith("HTTP_PROXY=") and not line.startswith("HTTPS_PROXY=")]
-
-            # 新しいプロキシ設定を追加
-            env_lines.extend(["\n# 自動検出されたプロキシ設定\n"] + proxy_settings)
-
-            # .envに書き込み
-            with open(env_path, "w", encoding="utf-8") as f:
-                f.writelines(env_lines)
-
-            print(f"[INFO] プロキシ設定を {env_path} に保存しました")
-
-            # 環境変数に即座に反映
-            for key, value in proxies.items():
-                if key == "http":
-                    os.environ["HTTP_PROXY"] = value
-                elif key == "https":
-                    os.environ["HTTPS_PROXY"] = value
-
-
 def main() -> None:
-    # PyInstallerでビルドされたEXEの場合、.envファイルを明示的に読み込む
-    if getattr(sys, "frozen", False):
-        # EXEの場合: 実行ファイルと同じディレクトリ or 一時展開先の.envを探す
-        exe_dir = Path(sys.executable).parent
-        env_candidates = [
-            exe_dir / ".env",  # EXEと同じフォルダ
-            Path(sys._MEIPASS) / ".env" if hasattr(sys, "_MEIPASS") else None,  # 一時展開先
-            app_root() / ".env",  # 元のディレクトリ
-        ]
-        for env_path in env_candidates:
-            if env_path and env_path.exists():
-                load_dotenv(env_path)
-                print(f"[INFO] .envファイルを読み込みました: {env_path}")
-                break
-    else:
-        # 通常のPython実行時
-        load_dotenv()
-        detect_and_save_proxy()
-
+    load_dotenv()
     # ダブルクリック実行時のカレントずれ防止
     try:
         os.chdir(app_root())
