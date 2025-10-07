@@ -71,9 +71,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
     "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
     "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
-    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）"),
+    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）,物理名正式名称"),
     "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
-    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No"),
+    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No,#"),
  
     # --- 類似度設定
     "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
@@ -130,10 +130,9 @@ def _int_env(name: str) -> Optional[int]:
         return None
  
 HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
-HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
+HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "30"))
 SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
-VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW")
- 
+VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW") 
  
 def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
     """優先シートが無ければ先頭。NFKCで厳密同名も考慮。"""
@@ -184,13 +183,36 @@ def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[s
     return result if result else [xls.sheet_names[0]]
  
  
+def _find_column_in_candidates(df: pd.DataFrame, col_candidates: str) -> Optional[str]:
+    """カンマ区切りの列名候補から最初に見つかった列名を返す。"""
+    candidates = [c.strip() for c in col_candidates.split(",") if c.strip()]
+    for candidate in candidates:
+        if candidate in df.columns:
+            return candidate
+        # 正規化した列名でも検索
+        norm_candidate = zenkaku_hankaku_norm(candidate)
+        for col in df.columns:
+            if zenkaku_hankaku_norm(str(col)) == norm_candidate:
+                return col
+    return None
+
+
 def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
-    """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。"""
+    """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。
+    required_colsの各要素はカンマ区切りで複数候補を指定可能。"""
     head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
-    req = {zenkaku_hankaku_norm(c) for c in required_cols if c}
+
+    # 各必須列について、いずれかの候補が含まれていればOK
+    req_sets = []
+    for col_spec in required_cols:
+        if col_spec:
+            candidates = {zenkaku_hankaku_norm(c.strip()) for c in col_spec.split(",") if c.strip()}
+            req_sets.append(candidates)
+
     for i in range(len(head_df)):
         row_vals = {zenkaku_hankaku_norm(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan", "一致なし"}}
-        if req.issubset(row_vals):
+        # すべての必須列グループについて、いずれかの候補が含まれているか確認
+        if all(any(cand in row_vals for cand in req_set) for req_set in req_sets):
             return i
     raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
  
@@ -253,12 +275,37 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
         for sheet_used in matching_sheets:
             try:
                 df_v, _ = read_excel_with_header_detection(path, sheet_used, [term_col, phys_col, no_col], VOCAB_HEADER_ROW, HEADER_SCAN_ROWS)
-                missing = [c for c in [term_col, phys_col, no_col] if c not in df_v.columns]
+
+                # 複数候補から実際の列名を解決
+                actual_term_col = _find_column_in_candidates(df_v, term_col)
+                actual_phys_col = _find_column_in_candidates(df_v, phys_col)
+                actual_no_col = _find_column_in_candidates(df_v, no_col)
+                actual_phys_abbr_col = _find_column_in_candidates(df_v, phys_abbr_col)
+
+                missing = []
+                if not actual_term_col:
+                    missing.append(term_col)
+                if not actual_phys_col:
+                    missing.append(phys_col)
+                if not actual_no_col:
+                    missing.append(no_col)
+
                 if missing:
                     print(f"[警告] {path.name}（{sheet_used}）: 必須列が不足: {missing} - スキップ")
                     continue
-                if phys_abbr_col not in df_v.columns:
-                    df_v[phys_abbr_col] = ""  # 任意列は空で補完
+
+                # 列名を統一した名前にリネーム
+                df_v = df_v.rename(columns={
+                    actual_term_col: "_term",
+                    actual_phys_col: "_phys",
+                    actual_no_col: "_no"
+                })
+
+                if actual_phys_abbr_col:
+                    df_v = df_v.rename(columns={actual_phys_abbr_col: "_phys_abbr"})
+                else:
+                    df_v["_phys_abbr"] = ""  # 任意列は空で補完
+
                 vocab_frames.append(df_v)
                 print(f"[INFO] 単語帳読み込み: {path.name} / {sheet_used} ({len(df_v)}件)")
             except Exception as e:
@@ -277,14 +324,14 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
  
     # --- 欠損・空行の整理
     df_screen[screen_col] = df_screen[screen_col].fillna("")
-    for c in [term_col, phys_col, no_col, phys_abbr_col]:
+    # 単語帳は既にリネーム済みなので "_" 付きの列名を使用
+    for c in ["_term", "_phys", "_no", "_phys_abbr"]:
         df_vocab[c] = df_vocab[c].fillna("")
     df_screen = df_screen[df_screen[screen_col].astype(str).str.strip() != ""].copy()
-    df_vocab = df_vocab[df_vocab[term_col].astype(str).str.strip() != ""].copy()
- 
+    df_vocab = df_vocab[df_vocab["_term"].astype(str).str.strip() != ""].copy()
+
     # --- 照合キー追加・列名整理
-    df_vocab["__term_norm"] = df_vocab[term_col].astype(str).map(zenkaku_hankaku_norm)
-    df_vocab = df_vocab.rename(columns={term_col: "_term", phys_col: "_phys", phys_abbr_col: "_phys_abbr", no_col: "_no"})
+    df_vocab["__term_norm"] = df_vocab["_term"].astype(str).map(zenkaku_hankaku_norm)
     df_screen = df_screen.rename(columns={screen_col: "_screen", "__source_file": "_src_file", "__source_sheet": "_src_sheet"})
  
     return df_screen, df_vocab
