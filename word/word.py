@@ -64,6 +64,12 @@ COL_SCREEN = "_screen"
 COL_SRC_FILE = "_src_file"
 COL_SRC_SHEET = "_src_sheet"
 
+# 列名エイリアス（#とNoを相互認識）
+COLUMN_ALIASES = {
+    "#": ["#", "no", "番号"],
+    "no": ["#", "no", "番号"],
+}
+
 # LLMプロンプト定数
 LLM_SYSTEM_PROMPT = (
     "あなたは業務システム開発における命名規則の専門家です。\n"
@@ -351,7 +357,7 @@ def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[s
  
  
 def _pick_matching_column(df: pd.DataFrame, col_pattern: str) -> Optional[str]:
-    """列名パターンにマッチする最初の列を返す。ワイルドカード対応。"""
+    """列名パターンにマッチする最初の列を返す。ワイルドカード対応、エイリアス対応。"""
     if not col_pattern:
         return None
 
@@ -361,9 +367,12 @@ def _pick_matching_column(df: pd.DataFrame, col_pattern: str) -> Optional[str]:
 
     want = _normalize_text(col_pattern)
 
-    # NFKC正規化で一致チェック
+    # エイリアスを展開（定義されていない場合は元のパターンのみ）
+    search_patterns = COLUMN_ALIASES.get(want, [want])
+
+    # NFKC正規化で一致チェック（エイリアス含む）
     for col in df.columns:
-        if _normalize_text(str(col)) == want:
+        if _normalize_text(str(col)) in search_patterns:
             return col
 
     # ワイルドカードパターンマッチング
