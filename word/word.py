@@ -24,28 +24,6 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
-# PyInstallerビルド時のSSL証明書対応
-try:
-    import certifi
-    CA_BUNDLE = certifi.where()
-except ImportError:
-    CA_BUNDLE = True  # デフォルトの証明書検証を使用
-
-# PyInstallerビルド時のDNS解決対応（Windows）
-if sys.platform == 'win32':
-    try:
-        import win_inet_pton
-    except ImportError:
-        pass
-
-    # socket初期化を強制実行
-    import socket
-    try:
-        socket.setdefaulttimeout(30)
-        socket.getaddrinfo('localhost', 80)
-    except Exception:
-        pass
- 
 # ====== GUI（任意） ===========================================================
 try:
     import tkinter as tk
@@ -55,11 +33,184 @@ except Exception:
     TK_AVAILABLE = False
  
 # ====== 定数（読みやすさのため一箇所に集約） ===============================
-# 「事実上の完全一致」と見なすスコア（difflibは1.0に非常に近づく）
-HARD_EXACT_SCORE = 1.0  # 完全一致のみに限定
-# LLMフォールバック時に"完全一致"扱いにする安全側の下限
-FALLBACK_EXACT_FLOOR = 0.95
- 
+# スコアリング関連
+EXACT_MATCH_SCORE = 1.0  # 完全一致スコア
+PARTIAL_MATCH_SCORE = 0.9  # 片方包含時のスコア
+FALLBACK_EXACT_THRESHOLD = 0.95  # LLMフォールバック時の完全一致判定閾値
+
+# ヘッダー検出関連
+DEFAULT_HEADER_SCAN_ROWS = 10  # ヘッダー行を探索する行数
+EXCEL_DATA_START_ROW = 3  # Excelデータ開始行（2段ヘッダー想定）
+
+# 進捗表示関連
+PROGRESS_LOG_INTERVAL = 10  # 進捗ログを出力する間隔（件数）
+
+# リトライ関連
+RETRY_BACKOFF_MULTIPLIER = 1.2  # リトライ時のバックオフ係数（秒）
+
+# マッチタイプ定数
+MATCH_TYPE_EXACT = "完全一致"
+MATCH_TYPE_EXACT_PARTS = "完全一致（部品ごと）"
+MATCH_TYPE_PARTIAL = "一部一致"
+MATCH_TYPE_NONE = "一致なし"
+
+# 列名定数（内部使用）
+COL_TERM = "_term"
+COL_PHYS = "_phys"
+COL_PHYS_ABBR = "_phys_abbr"
+COL_NO = "_no"
+COL_TERM_NORM = "__term_norm"
+COL_SCREEN = "_screen"
+COL_SRC_FILE = "_src_file"
+COL_SRC_SHEET = "_src_sheet"
+
+# LLMプロンプト定数
+LLM_SYSTEM_PROMPT = (
+    "あなたは業務システム開発における命名規則の専門家です。\n"
+    "画面項目名と単語帳を照合し、lowerCamelCase形式の物理名を提案することが使命です。\n"
+    "\n"
+    "# タスク\n"
+    "与えられた画面項目名に対して:\n"
+    "1. 単語帳候補との一致度を判定\n"
+    "2. 候補の physical_name を活用して最適な物理名を生成\n"
+    "3. 不足する語は自分で補完して完全な物理名を構築\n"
+    "\n"
+    "# 重要: あなたに渡される画面項目名は、既に単一語での完全一致判定を通過しています\n"
+    "# つまり、単一の候補と完全一致するものは既に除外されています\n"
+    "\n"
+    "# 判定基準（厳密に適用）\n"
+    "- **完全一致（部品ごと）**: 画面項目名を複数の語に分解でき、全ての語が単語帳の候補で充足される場合\n"
+    "  例1: 「回収稟議番号」で「回収」と「稟議番号」が両方候補にある → 完全一致（部品ごと）\n"
+    "  例2: 「銀行取引一覧」で「銀行」「取引」「一覧」が全て候補にある → 完全一致（部品ごと）\n"
+    "  重要: 未登録語が1つもない場合のみ完全一致（部品ごと）\n"
+    "- **一部一致**: 画面項目名を複数の語に分解でき、その一部が単語帳にあるが、一部は未登録の場合\n"
+    "  例1: 「顧客担当者名」で「顧客」と「名」が候補にあり、「担当者」は未登録 → 一部一致\n"
+    "  例2: 「新規申込日」で「申込」「日」はあるが、「新規」は未登録 → 一部一致\n"
+    "- **一致なし**: 画面項目名のどの語も単語帳に存在しない、または候補が全て不適切な場合のみ\n"
+    "  例: 「稟議承認日」で「稟議」「承認」「日」全てが候補にない → 一致なし\n"
+    "\n"
+    "\n"
+    "# ネーミングルール（厳格に遵守）\n"
+    "\n"
+    "## 基本原則\n"
+    "1. **lowerCamelCase形式**: 必ず小文字始まり（例: ○ shinseiDate / × ShinseiDate）\n"
+    "2. **推奨文字数**: 8文字程度を目安とする（最大15文字まで許容）\n"
+    "3. **誰が見ても意味が容易にわかる名称**にする\n"
+    "\n"
+    "## 言語選択ルール\n"
+    "1. **原則: 英単語を使用**\n"
+    "2. **例外: 以下の場合のみ日本語ローマ字表記（ヘボン式）を使用**\n"
+    "   - 日本人にとって極端に馴染みの薄い英単語の場合（例: 稟議 → ringi, 禀 → rin）\n"
+    "   - 行内・融資内で一般的に用いられている単語（例: 案件番号 → lcNo）\n"
+    "   - 別名をつけたほうが望ましいもの（例: 当行 → mufgBank）\n"
+    "3. **ヘボン式ローマ字の詳細**\n"
+    "   - し→shi, ち→chi, つ→tsu, ふ→fu, じ→ji, ず→zu\n"
+    "   - しゃ→sha, しゅ→shu, しょ→sho, ちゃ→cha, ちゅ→chu, ちょ→cho\n"
+    "   - じゃ→ja, じゅ→ju, じょ→jo\n"
+    "   - 撥音「ん」: b,m,p の前は m、それ以外は n（例: 申込→moushikomi, 案件→anken）\n"
+    "   - 長音: 母音を重ねる（例: 交付→kofu, 照会→shokai）\n"
+    "4. **混在ルール**\n"
+    "   - **原則: 英語と日本語ローマ字の混在は禁止**（例: NG customerRingi）\n"
+    "   - **例外**: 行内で一般的に用いられている場合のみ許可（例: lcNo = loanCase + Number）\n"
+    "   - 1つの物理名はすべて英語、またはすべて日本語ローマ字に統一することを推奨\n"
+    "\n"
+    "## 略語使用ルール\n"
+    "1. **原則: 略語は使用しない**\n"
+    "2. **例外: 以下の条件を両方満たす場合のみ許可**\n"
+    "   - 名称が9文字以上となる場合\n"
+    "   - 略語を用いたほうがわかりやすい場合\n"
+    "3. 略語を使用する場合も、誰が見ても意味がわかること\n"
+    "\n"
+    "## 複合語ルール\n"
+    "1. 原則: 単語レベルで定義し、複合語は単語帳の単語を組み合わせる\n"
+    "2. 例外: 単語を組み合わせて違和感がある場合のみ複合語での定義を認める\n"
+    "   - 例: 案件番号 → case + no だと違和感 → lcNo として定義可\n"
+    "\n"
+    "## 表記揺れの考慮\n"
+    "- コード = CD = code\n"
+    "- 番号 = No = number\n"
+    "- 名称 = 名 = name\n"
+    "- フラグ = flag\n"
+    "\n"
+    "# 物理名生成の優先順位（最重要）\n"
+    "1. **候補の physical_name を最優先**: 候補に physical_name がある場合は必ずそれを使用\n"
+    "2. **不足語の補完**: 候補にない語は、ネーミングルール従って自分で英語名/ローマ字を考案\n"
+    "3. **最小限の命名**: 余分な語を追加せず、画面項目名の意味を正確に表現する最短形を目指す\n"
+    "4. **文字数制約**: 8文字程度が理想、最大15文字（ただし意味が不明瞭になるなら文字数より明瞭さ優先）\n"
+    "\n"
+    "# 思考プロセス\n"
+    "以下の手順で分析してください:\n"
+    "1. 画面項目名を意味のある語に分解（例: 「顧客担当者名」→「顧客」「担当者」「名」）\n"
+    "2. 各語が候補リストにあるか確認\n"
+    "3. 一致状況を判定:\n"
+    "   - 完全一致（部品ごと）: 分解した全ての語が候補にある（未登録語なし）\n"
+    "   - 一部一致: 分解した語の一部が候補にあり、一部は未登録\n"
+    "   - 一致なし: どの語も候補にない\n"
+    "4. 候補にある語はその physical_name を使用、ない語は自分で考案\n"
+    "5. 適切な語順で lowerCamelCase に結合\n"
+    "\n"
+    "# 出力\n"
+    "- JSON形式のみ出力（説明文・前置き・後置きは一切不要）\n"
+    "- 必ず提示された全キーを含める\n"
+    "- null許容キーは適切に null を設定\n"
+)
+
+LLM_USER_PROMPT_TEMPLATE = (
+    """画面項目名: {screen_name}
+
+単語帳候補（local_score降順）:
+{candidates_json}
+
+---
+タスク: 上記の画面項目名に対して、lowerCamelCaseの物理名を提案してください。
+
+処理ステップ:
+1. 画面項目名を意味のある語に分解
+2. 各語が候補リストに存在するかチェック
+3. physical_name生成:
+   - 候補にある語 → その physical_name を使用（必須）
+   - 候補にない語 → ネーミングルールに従い自分で考案
+   - 全てを lowerCamelCase で結合
+
+出力JSON:
+{{
+  "match_type": "完全一致（部品ごと）" | "一部一致" | "一致なし",
+  "matched_term": null,
+  "matched_terms": string[] | null,
+  "reason": string,
+  "proposed_name": string,
+  "coverage_ratio": number | null,
+  "unmatched_terms": string[] | null,
+  "unmatched_notes": string[] | null
+}}
+
+フィールド定義:
+- match_type: 「完全一致（部品ごと）」「一部一致」「一致なし」のいずれか
+  - 完全一致（部品ごと）: 分解した全ての語が候補で充足（unmatched_terms が空）
+  - 一部一致: 一部の語が候補にあり、一部は未登録（unmatched_terms に値あり）
+  - 一致なし: どの語も候補にない
+- matched_term: 常に null（単一語での完全一致用フィールドは使用しない）
+- matched_terms: 完全一致または一部一致時の語リスト（例: ["回収", "稟議番号"]）、一致なしの場合は null
+- proposed_name: 必須、lowerCamelCase、8-15文字推奨
+- coverage_ratio: 0.0-1.0、完全一致（部品ごと）=1.0、一致なし=null または 0.0
+- unmatched_terms: 候補にない語のリスト（完全一致（部品ごと）の場合は空配列またはnull）
+- unmatched_notes: unmatched_terms各要素の説明（要素数一致）
+- reason: 判定理由を1文で
+
+具体例1（完全一致（部品ごと））:
+入力: "回収稟議番号"
+候補: [{{"term": "回収", "physical_name": "kaishu"}}, {{"term": "稟議番号", "physical_name": "ringiNo"}}]
+出力: {{"match_type": "完全一致（部品ごと）", "matched_term": null, "matched_terms": ["回収", "稟議番号"], "proposed_name": "kaishuRingiNo", "coverage_ratio": 1.0, "unmatched_terms": null, "unmatched_notes": null, "reason": "全ての語が候補で充足"}}
+
+具体例2（一部一致）:
+入力: "顧客担当者名"
+候補: [{{"term": "顧客", "physical_name": "customer"}}, {{"term": "名", "physical_name": "name"}}]
+出力: {{"match_type": "一部一致", "matched_term": null, "matched_terms": ["顧客", "名"], "proposed_name": "customerPersonInChargeName", "coverage_ratio": 0.67, "unmatched_terms": ["担当者"], "unmatched_notes": ["業務担当者"], "reason": "顧客と名は一致、担当者は未登録のため補完"}}
+
+JSON以外の出力禁止。即座にJSONのみ返してください。
+    """
+)
+
 # ====== 設定（.envで上書き可） =============================================
 DEFAULT_CONFIG: Dict[str, Any] = {
     # --- API（OpenAI互換）
@@ -92,10 +243,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
     "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
     "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
+    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "#"),
     "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
-    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）"),
+    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名*"),
     "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
-    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No"),
  
     # --- 類似度設定
     "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
@@ -122,7 +273,7 @@ def zenkaku_hankaku_norm(text: str) -> str:
         return ""
     s = unicodedata.normalize("NFKC", str(text)).lower().strip()
     s = re.sub(r"[\u3000\s]+", " ", s)          # 全角/半角スペースを単一化
-    s = re.sub(r"[\-/・·•･,()\[\]_]+", " ", s)    # 区切り記号はスペースへ
+    s = re.sub(r"[\-/・·•･,\(\)\[\]_]+", " ", s)    # 区切り記号はスペースへ
     return re.sub(r"\s+", " ", s)
  
  
@@ -132,9 +283,9 @@ def local_similarity(a: str, b: str) -> float:
     if not a_n or not b_n:
         return 0.0
     if a_n == b_n:
-        return 1.0
+        return EXACT_MATCH_SCORE
     if a_n in b_n or b_n in a_n:
-        return 0.9
+        return PARTIAL_MATCH_SCORE
     return difflib.SequenceMatcher(None, a_n, b_n).ratio()
  
 @dataclass
@@ -145,27 +296,32 @@ class Candidate:
 # ====== Excel I/O =============================================================
  
 def _int_env(name: str) -> Optional[int]:
+    """環境変数を整数として取得。変換失敗時はNone。"""
     v = os.getenv(name, "")
     try:
         return int(v) if v else None
-    except Exception:
+    except (ValueError, TypeError):
         return None
  
 HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
-HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
+HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", str(DEFAULT_HEADER_SCAN_ROWS)))
 SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
 VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW")
  
  
+def _normalize_text(text: str) -> str:
+    """テキストをNFKC正規化し、小文字化・トリム。"""
+    return unicodedata.normalize("NFKC", text).strip().lower()
+
+
 def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
     """優先シートが無ければ先頭。NFKCで厳密同名も考慮。"""
     if preferred and preferred in xls.sheet_names:
         return preferred
     if preferred:
-        norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
-        want = norm(preferred)
+        want = _normalize_text(preferred)
         for name in xls.sheet_names:
-            if norm(name) == want:
+            if _normalize_text(name) == want:
                 return name
     return xls.sheet_names[0]
  
@@ -206,6 +362,31 @@ def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[s
     return result if result else [xls.sheet_names[0]]
  
  
+def _pick_matching_column(df: pd.DataFrame, col_pattern: str) -> Optional[str]:
+    """列名パターンにマッチする最初の列を返す。ワイルドカード対応。"""
+    if not col_pattern:
+        return None
+
+    # 完全一致チェック
+    if col_pattern in df.columns:
+        return col_pattern
+
+    want = _normalize_text(col_pattern)
+
+    # NFKC正規化で一致チェック
+    for col in df.columns:
+        if _normalize_text(str(col)) == want:
+            return col
+
+    # ワイルドカードパターンマッチング
+    regex_pattern = want.replace('*', '.*')
+    for col in df.columns:
+        if re.match(regex_pattern, _normalize_text(str(col))):
+            return col
+
+    return None
+
+
 def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
     """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。"""
     head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
@@ -257,9 +438,15 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
         for sheet_used in matching_sheets:
             try:
                 df_s, _ = read_excel_with_header_detection(path, sheet_used, [screen_col], SCREEN_HEADER_ROW, HEADER_SCAN_ROWS)
-                if screen_col not in df_s.columns:
-                    print(f"[警告] {path.name}（{sheet_used}）: 必須列 '{screen_col}' が存在しません - スキップ")
+                # ワイルドカード対応の列名マッチング
+                matched_col = _pick_matching_column(df_s, screen_col)
+                if not matched_col:
+                    print(f"[警告] {path.name}（{sheet_used}）: 必須列 '{screen_col}' にマッチする列が存在しません - スキップ")
                     continue
+                # マッチした列名を統一名にリネーム
+                if matched_col != screen_col:
+                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_col}' を '{screen_col}' として使用")
+                    df_s = df_s.rename(columns={matched_col: screen_col})
                 df_s["__source_file"], df_s["__source_sheet"] = path.name, sheet_used
                 screen_frames.append(df_s)
                 print(f"[INFO] 画面項目定義読み込み: {path.name} / {sheet_used} ({len(df_s)}件)")
@@ -275,12 +462,47 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
         for sheet_used in matching_sheets:
             try:
                 df_v, _ = read_excel_with_header_detection(path, sheet_used, [term_col, phys_col, no_col], VOCAB_HEADER_ROW, HEADER_SCAN_ROWS)
-                missing = [c for c in [term_col, phys_col, no_col] if c not in df_v.columns]
+
+                # ワイルドカード対応の列名マッチング（必須列）
+                matched_term_col = _pick_matching_column(df_v, term_col)
+                matched_phys_col = _pick_matching_column(df_v, phys_col)
+                matched_no_col = _pick_matching_column(df_v, no_col)
+
+                missing = []
+                if not matched_term_col:
+                    missing.append(term_col)
+                if not matched_phys_col:
+                    missing.append(phys_col)
+                if not matched_no_col:
+                    missing.append(no_col)
+
                 if missing:
                     print(f"[警告] {path.name}（{sheet_used}）: 必須列が不足: {missing} - スキップ")
                     continue
-                if phys_abbr_col not in df_v.columns:
+
+                # マッチした列名を統一名にリネーム
+                rename_map = {}
+                if matched_term_col != term_col:
+                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_term_col}' を '{term_col}' として使用")
+                    rename_map[matched_term_col] = term_col
+                if matched_phys_col != phys_col:
+                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_phys_col}' を '{phys_col}' として使用")
+                    rename_map[matched_phys_col] = phys_col
+                if matched_no_col != no_col:
+                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_no_col}' を '{no_col}' として使用")
+                    rename_map[matched_no_col] = no_col
+
+                if rename_map:
+                    df_v = df_v.rename(columns=rename_map)
+
+                # 任意列（物理名略称）のマッチング
+                matched_phys_abbr_col = _pick_matching_column(df_v, phys_abbr_col)
+                if matched_phys_abbr_col and matched_phys_abbr_col != phys_abbr_col:
+                    print(f"[INFO] {path.name}（{sheet_used}）: 列 '{matched_phys_abbr_col}' を '{phys_abbr_col}' として使用")
+                    df_v = df_v.rename(columns={matched_phys_abbr_col: phys_abbr_col})
+                elif not matched_phys_abbr_col:
                     df_v[phys_abbr_col] = ""  # 任意列は空で補完
+
                 vocab_frames.append(df_v)
                 print(f"[INFO] 単語帳読み込み: {path.name} / {sheet_used} ({len(df_v)}件)")
             except Exception as e:
@@ -305,9 +527,18 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
     df_vocab = df_vocab[df_vocab[term_col].astype(str).str.strip() != ""].copy()
  
     # --- 照合キー追加・列名整理
-    df_vocab["__term_norm"] = df_vocab[term_col].astype(str).map(zenkaku_hankaku_norm)
-    df_vocab = df_vocab.rename(columns={term_col: "_term", phys_col: "_phys", phys_abbr_col: "_phys_abbr", no_col: "_no"})
-    df_screen = df_screen.rename(columns={screen_col: "_screen", "__source_file": "_src_file", "__source_sheet": "_src_sheet"})
+    df_vocab[COL_TERM_NORM] = df_vocab[term_col].astype(str).map(zenkaku_hankaku_norm)
+    df_vocab = df_vocab.rename(columns={
+        term_col: COL_TERM,
+        phys_col: COL_PHYS,
+        phys_abbr_col: COL_PHYS_ABBR,
+        no_col: COL_NO
+    })
+    df_screen = df_screen.rename(columns={
+        screen_col: COL_SCREEN,
+        "__source_file": COL_SRC_FILE,
+        "__source_sheet": COL_SRC_SHEET
+    })
  
     return df_screen, df_vocab
  
@@ -397,154 +628,8 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json()
  
-# ====== LLM呼び出し（プロンプト詳細は割愛） ================================
-LLM_SYSTEM = (
-    "あなたは業務システム開発における命名規則の専門家です。\n"
-    "画面項目名と単語帳を照合し、lowerCamelCase形式の物理名を提案することが使命です。\n"
-    "\n"
-    "# タスク\n"
-    "与えられた画面項目名に対して:\n"
-    "1. 単語帳候補との一致度を判定\n"
-    "2. 候補の physical_name を活用して最適な物理名を生成\n"
-    "3. 不足する語は自分で補完して完全な物理名を構築\n"
-    "\n"
-    "# 重要: あなたに渡される画面項目名は、既に単一語での完全一致判定を通過しています\n"
-    "# つまり、単一の候補と完全一致するものは既に除外されています\n"
-    "\n"
-    "# 判定基準（厳密に適用）\n"
-    "- **完全一致（部品ごと）**: 画面項目名を複数の語に分解でき、全ての語が単語帳の候補で充足される場合\n"
-    "  例1: 「回収稟議番号」で「回収」と「稟議番号」が両方候補にある → 完全一致（部品ごと）\n"
-    "  例2: 「銀行取引一覧」で「銀行」「取引」「一覧」が全て候補にある → 完全一致（部品ごと）\n"
-    "  重要: 未登録語が1つもない場合のみ完全一致（部品ごと）\n"
-    "- **一部一致**: 画面項目名を複数の語に分解でき、その一部が単語帳にあるが、一部は未登録の場合\n"
-    "  例1: 「顧客担当者名」で「顧客」と「名」が候補にあり、「担当者」は未登録 → 一部一致\n"
-    "  例2: 「新規申込日」で「申込」「日」はあるが、「新規」は未登録 → 一部一致\n"
-    "- **一致なし**: 画面項目名のどの語も単語帳に存在しない、または候補が全て不適切な場合のみ\n"
-    "  例: 「稟議承認日」で「稟議」「承認」「日」全てが候補にない → 一致なし\n"
-    "\n"
-    "\n"
-    "# ネーミングルール（厳格に遵守）\n"
-    "\n"
-    "## 基本原則\n"
-    "1. **lowerCamelCase形式**: 必ず小文字始まり（例: ○ shinseiDate / × ShinseiDate）\n"
-    "2. **推奨文字数**: 8文字程度を目安とする（最大15文字まで許容）\n"
-    "3. **誰が見ても意味が容易にわかる名称**にする\n"
-    "\n"
-    "## 言語選択ルール\n"
-    "1. **原則: 英単語を使用**\n"
-    "2. **例外: 以下の場合のみ日本語ローマ字表記（ヘボン式）を使用**\n"
-    "   - 日本人にとって極端に馴染みの薄い英単語の場合（例: 稟議 → ringi, 禀 → rin）\n"
-    "   - 行内・融資内で一般的に用いられている単語（例: 案件番号 → lcNo）\n"
-    "   - 別名をつけたほうが望ましいもの（例: 当行 → mufgBank）\n"
-    "3. **ヘボン式ローマ字の詳細**\n"
-    "   - し→shi, ち→chi, つ→tsu, ふ→fu, じ→ji, ず→zu\n"
-    "   - しゃ→sha, しゅ→shu, しょ→sho, ちゃ→cha, ちゅ→chu, ちょ→cho\n"
-    "   - じゃ→ja, じゅ→ju, じょ→jo\n"
-    "   - 撥音「ん」: b,m,p の前は m、それ以外は n（例: 申込→moushikomi, 案件→anken）\n"
-    "   - 長音: 母音を重ねる（例: 交付→kofu, 照会→shokai）\n"
-    "4. **混在ルール**\n"
-    "   - **原則: 英語と日本語ローマ字の混在は禁止**（例: NG customerRingi）\n"
-    "   - **例外**: 行内で一般的に用いられている場合のみ許可（例: lcNo = loanCase + Number）\n"
-    "   - 1つの物理名はすべて英語、またはすべて日本語ローマ字に統一することを推奨\n"
-    "\n"
-    "## 略語使用ルール\n"
-    "1. **原則: 略語は使用しない**\n"
-    "2. **例外: 以下の条件を両方満たす場合のみ許可**\n"
-    "   - 名称が9文字以上となる場合\n"
-    "   - 略語を用いたほうがわかりやすい場合\n"
-    "3. 略語を使用する場合も、誰が見ても意味がわかること\n"
-    "\n"
-    "## 複合語ルール\n"
-    "1. 原則: 単語レベルで定義し、複合語は単語帳の単語を組み合わせる\n"
-    "2. 例外: 単語を組み合わせて違和感がある場合のみ複合語での定義を認める\n"
-    "   - 例: 案件番号 → case + no だと違和感 → lcNo として定義可\n"
-    "\n"
-    "## 表記揺れの考慮\n"
-    "- コード = CD = code\n"
-    "- 番号 = No = number\n"
-    "- 名称 = 名 = name\n"
-    "- フラグ = flag\n"
-    "\n"
-    "# 物理名生成の優先順位（最重要）\n"
-    "1. **候補の physical_name を最優先**: 候補に physical_name がある場合は必ずそれを使用\n"
-    "2. **不足語の補完**: 候補にない語は、ネーミングルール従って自分で英語名/ローマ字を考案\n"
-    "3. **最小限の命名**: 余分な語を追加せず、画面項目名の意味を正確に表現する最短形を目指す\n"
-    "4. **文字数制約**: 8文字程度が理想、最大15文字（ただし意味が不明瞭になるなら文字数より明瞭さ優先）\n"
-    "\n"
-    "# 思考プロセス\n"
-    "以下の手順で分析してください:\n"
-    "1. 画面項目名を意味のある語に分解（例: 「顧客担当者名」→「顧客」「担当者」「名」）\n"
-    "2. 各語が候補リストにあるか確認\n"
-    "3. 一致状況を判定:\n"
-    "   - 完全一致（部品ごと）: 分解した全ての語が候補にある（未登録語なし）\n"
-    "   - 一部一致: 分解した語の一部が候補にあり、一部は未登録\n"
-    "   - 一致なし: どの語も候補にない\n"
-    "4. 候補にある語はその physical_name を使用、ない語は自分で考案\n"
-    "5. 適切な語順で lowerCamelCase に結合\n"
-    "\n"
-    "# 出力\n"
-    "- JSON形式のみ出力（説明文・前置き・後置きは一切不要）\n"
-    "- 必ず提示された全キーを含める\n"
-    "- null許容キーは適切に null を設定\n"
-)
- 
-LLM_USER_TEMPLATE = (
-    """画面項目名: {screen_name}
+# ====== LLM呼び出し ==========================================================
 
-単語帳候補（local_score降順）:
-{candidates_json}
-
----
-タスク: 上記の画面項目名に対して、lowerCamelCaseの物理名を提案してください。
-
-処理ステップ:
-1. 画面項目名を意味のある語に分解
-2. 各語が候補リストに存在するかチェック
-3. physical_name生成:
-   - 候補にある語 → その physical_name を使用（必須）
-   - 候補にない語 → ネーミングルールに従い自分で考案
-   - 全てを lowerCamelCase で結合
-
-出力JSON:
-{{
-  "match_type": "完全一致（部品ごと）" | "一部一致" | "一致なし",
-  "matched_term": null,
-  "matched_terms": string[] | null,
-  "reason": string,
-  "proposed_name": string,
-  "coverage_ratio": number | null,
-  "unmatched_terms": string[] | null,
-  "unmatched_notes": string[] | null
-}}
-
-フィールド定義:
-- match_type: 「完全一致（部品ごと）」「一部一致」「一致なし」のいずれか
-  - 完全一致（部品ごと）: 分解した全ての語が候補で充足（unmatched_terms が空）
-  - 一部一致: 一部の語が候補にあり、一部は未登録（unmatched_terms に値あり）
-  - 一致なし: どの語も候補にない
-- matched_term: 常に null（単一語での完全一致用フィールドは使用しない）
-- matched_terms: 完全一致または一部一致時の語リスト（例: ["回収", "稟議番号"]）、一致なしの場合は null
-- proposed_name: 必須、lowerCamelCase、8-15文字推奨
-- coverage_ratio: 0.0-1.0、完全一致（部品ごと）=1.0、一致なし=null または 0.0
-- unmatched_terms: 候補にない語のリスト（完全一致（部品ごと）の場合は空配列またはnull）
-- unmatched_notes: unmatched_terms各要素の説明（要素数一致）
-- reason: 判定理由を1文で
-
-具体例1（完全一致（部品ごと））:
-入力: "回収稟議番号"
-候補: [{{"term": "回収", "physical_name": "kaishu"}}, {{"term": "稟議番号", "physical_name": "ringiNo"}}]
-出力: {{"match_type": "完全一致（部品ごと）", "matched_term": null, "matched_terms": ["回収", "稟議番号"], "proposed_name": "kaishuRingiNo", "coverage_ratio": 1.0, "unmatched_terms": null, "unmatched_notes": null, "reason": "全ての語が候補で充足"}}
-
-具体例2（一部一致）:
-入力: "顧客担当者名"
-候補: [{{"term": "顧客", "physical_name": "customer"}}, {{"term": "名", "physical_name": "name"}}]
-出力: {{"match_type": "一部一致", "matched_term": null, "matched_terms": ["顧客", "名"], "proposed_name": "customerPersonInChargeName", "coverage_ratio": 0.67, "unmatched_terms": ["担当者"], "unmatched_notes": ["業務担当者"], "reason": "顧客と名は一致、担当者は未登録のため補完"}}
-
-JSON以外の出力禁止。即座にJSONのみ返してください。
-    """
-)
- 
- 
 def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
     """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
     cand_payload = []
@@ -565,13 +650,15 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
         "frequency_penalty": cfg["FREQUENCY_PENALTY"],
         "response_format": {"type": "json_object"},
         "messages": [
-            {"role": "system", "content": LLM_SYSTEM},
-            {"role": "user", "content": LLM_USER_TEMPLATE.format(
+            {"role": "system", "content": LLM_SYSTEM_PROMPT},
+            {"role": "user", "content": LLM_USER_PROMPT_TEMPLATE.format(
                 screen_name=screen_name,
                 candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
             )},
         ],
     }
+
+
  
  
 def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client: Optional[ApiClient] = None, api_semaphore: Optional[threading.Semaphore] = None, term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -609,7 +696,7 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
 
                 # その他のエラーの場合はリトライ
                 if attempt < cfg["RETRY"]:
-                    time.sleep(1.2 * (attempt + 1))  # バックオフ
+                    time.sleep(RETRY_BACKOFF_MULTIPLIER * (attempt + 1))  # バックオフ
                     continue
                 return fallback_reason(screen_name, candidates)
     finally:
@@ -627,7 +714,7 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
             "proposed_name": simple_proposal(screen_name),
         }
     top = candidates[0]
-    if top.score >= FALLBACK_EXACT_FLOOR:
+    if top.score >= FALLBACK_EXACT_THRESHOLD:
         return {
             "match_type": "完全一致",
             "matched_term": top.term,
@@ -666,16 +753,9 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     total_items = len(df_screen)
     processed_count = 0
  
-    vocab_terms = df_vocab["_term"].astype(str).tolist()
-    term_meta = (
-        df_vocab[["_term", "_phys", "_phys_abbr", "_no"]]
-        .drop_duplicates("_term").set_index("_term").to_dict(orient="index")
-    )
-    # 正規化キー→原語の辞書（完全一致ショートサーキット用）
-    norm_to_term = (
-        df_vocab[["__term_norm", "_term"]]
-        .drop_duplicates("__term_norm").set_index("__term_norm")["_term"].to_dict()
-    )
+    vocab_terms = df_vocab[COL_TERM].astype(str).tolist()
+    term_meta = df_vocab[[COL_TERM, COL_PHYS, COL_PHYS_ABBR, COL_NO]].drop_duplicates(COL_TERM).set_index(COL_TERM).to_dict(orient="index")
+    norm_to_term = df_vocab[[COL_TERM_NORM, COL_TERM]].drop_duplicates(COL_TERM_NORM).set_index(COL_TERM_NORM)[COL_TERM].to_dict()
  
     rows: List[Dict[str, Any]] = []
     api_client = ApiClient(cfg)
@@ -684,40 +764,60 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     max_concurrent_api = cfg.get("MAX_CONCURRENT_API", 3)
     api_semaphore = threading.Semaphore(max_concurrent_api)
  
-    def meta_of(term: Optional[str]) -> Dict[str, Any]:
+    def _log_progress(count: int, total: int) -> None:
+        """進捗ログを出力（定期的 or 完了時）。"""
+        pct = count * 100 / total if total else 0
+        if count % PROGRESS_LOG_INTERVAL == 0 or count == total:
+            print(f"[INFO] {count}/{total} 件処理済み ({pct:.1f}%)")
+        if progress_callback:
+            progress_callback(count, total)
+
+    def _get_metadata(term: Optional[str]) -> Dict[str, Any]:
+        """単語のメタデータを取得。"""
         if not term:
             return {"no": None, "phys": None, "phys_abbr": None}
-        m = term_meta.get(str(term)) or {}
-        return {"no": m.get("_no"), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
+        m = term_meta.get(str(term), {})
+        return {"no": m.get(COL_NO), "phys": m.get(COL_PHYS), "phys_abbr": m.get(COL_PHYS_ABBR)}
+
+    def _get_phys_name(metadata: Dict[str, Any], fallback: str = "") -> str:
+        """物理名を取得（略称 > 正式名称 > フォールバック）。"""
+        return metadata.get("phys_abbr") or metadata.get("phys") or simple_proposal(fallback)
+
+    def _build_exact_match_result(screen_name: str, src_file: str, src_sheet: Optional[str],
+                                   term: str, metadata: Dict[str, Any], score: float, reason: str) -> Dict[str, Any]:
+        """完全一致結果の辞書を構築。"""
+        return {
+            "source_file": src_file,
+            "source_sheet": src_sheet,
+            "screen_item": screen_name,
+            "match_type": MATCH_TYPE_EXACT,
+            "matched_term": term,
+            "matched_term_no": metadata.get("no"),
+            "matched_term_phys": _get_phys_name(metadata),
+            "matched_terms": None,
+            "matched_terms_nos": None,
+            "matched_terms_phys": None,
+            "local_top_term": term,
+            "local_top_term_no": metadata.get("no"),
+            "local_top_term_phys": _get_phys_name(metadata),
+            "local_top_score": score,
+            "coverage_ratio": 1.0,
+            "proposed_name": _get_phys_name(metadata, term),
+            "reason": reason,
+            "unmatched_terms": None,
+            "unmatched_note": None,
+        }
  
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         """1件の画面項目に対する判定ワーカー（スレッドで実行）。"""
         # --- 0) 正規化ベースの完全一致 → LLMスキップ
-        normalized = zenkaku_hankaku_norm(screen_name)
-        exact_term = norm_to_term.get(normalized)
+        exact_term = norm_to_term.get(zenkaku_hankaku_norm(screen_name))
         if exact_term:
-            m = term_meta.get(exact_term) or {}
-            return {
-                "source_file": src_file,
-                "source_sheet": src_sheet,
-                "screen_item": screen_name,
-                "match_type": "完全一致",
-                "matched_term": exact_term,
-                "matched_term_no": m.get("_no"),
-                "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
-                "matched_terms": None,
-                "matched_terms_nos": None,
-                "matched_terms_phys": None,
-                "local_top_term": exact_term,
-                "local_top_term_no": m.get("_no"),
-                "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
-                "local_top_score": 1.0,
-                "coverage_ratio": 1.0,
-                "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(exact_term)),
-                "reason": "正規化完全一致（LLM未呼び出し）",
-                "unmatched_terms": None,
-                "unmatched_note": None,
-            }
+            return _build_exact_match_result(
+                screen_name, src_file, src_sheet, exact_term,
+                _get_metadata(exact_term), EXACT_MATCH_SCORE,
+                "正規化完全一致（LLM未呼び出し）"
+            )
  
         # --- 1) ローカル候補生成（複合語＋ダイレクト）
         broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
@@ -731,60 +831,37 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         merged = merged[: max(cfg["TOP_K"], 10)]
  
         # --- 2) ローカル最高スコアが完全一致（1.0）→ 即決
-        if merged and merged[0].score >= HARD_EXACT_SCORE:
+        if merged and merged[0].score >= EXACT_MATCH_SCORE:
             top = merged[0]
-            # 追加の完全一致チェック（正規化後の文字列比較）
-            norm_screen = zenkaku_hankaku_norm(screen_name)
-            norm_term = zenkaku_hankaku_norm(top.term)
-            if norm_screen == norm_term:  # 真の完全一致のみ
-                m = term_meta.get(top.term) or {}
-                return {
-                    "source_file": src_file,
-                    "source_sheet": src_sheet,
-                    "screen_item": screen_name,
-                    "match_type": "完全一致",
-                    "matched_term": top.term,
-                    "matched_term_no": m.get("_no"),
-                    "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
-                    "matched_terms": None,
-                    "matched_terms_nos": None,
-                    "matched_terms_phys": None,
-                    "local_top_term": top.term,
-                    "local_top_term_no": m.get("_no"),
-                    "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
-                    "local_top_score": top.score,
-                    "coverage_ratio": 1.0,
-                    "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(top.term)),
-                    "reason": f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）",
-                    "unmatched_terms": None,
-                    "unmatched_note": None,
-                }
+            if zenkaku_hankaku_norm(screen_name) == zenkaku_hankaku_norm(top.term):
+                return _build_exact_match_result(
+                    screen_name, src_file, src_sheet, top.term,
+                    _get_metadata(top.term), top.score,
+                    f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）"
+                )
  
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
         llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta)
  
         # 値の整形
-        cov_raw = llm.get("coverage_ratio")
-        try:
-            coverage_ratio = float(cov_raw) if cov_raw is not None else None
-        except Exception:
-            coverage_ratio = None
+        def safe_float(val):
+            try:
+                return float(val) if val is not None else None
+            except (ValueError, TypeError):
+                return None
+
+        def join_if_exists(items, sep=", "):
+            return sep.join(items) if items else None
+
         mt = llm.get("matched_term")
         mt_meta = meta_of(mt)
         matched_terms = llm.get("matched_terms") or []
         mts_metas = [meta_of(t) for t in matched_terms]
 
-        # 未登録語の整形（配列→文字列変換）
-        unmatched_terms = None
-        unmatched_note = None
-        try:
-            llm_unmatched_terms = llm.get("unmatched_terms") or []
-            llm_unmatched_notes = llm.get("unmatched_notes") or []
-            if llm_unmatched_terms and llm_unmatched_notes:
-                unmatched_terms = ", ".join(llm_unmatched_terms)
-                unmatched_note = " / ".join(llm_unmatched_notes)
-        except Exception:
-            pass
+        top_meta = _get_metadata(merged[0].term) if merged else {}
+
+        unmatched_terms = join_if_exists(llm.get("unmatched_terms") or [])
+        unmatched_note = join_if_exists(llm.get("unmatched_notes") or [], " / ")
 
         return {
             "source_file": src_file,
@@ -793,15 +870,15 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "match_type": llm.get("match_type"),
             "matched_term": mt or None,
             "matched_term_no": mt_meta["no"],
-            "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
-            "matched_terms": ", ".join(matched_terms) or None,
-            "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_metas if m.get("no")]) or None,
-            "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_metas if (m.get("phys_abbr") or m.get("phys"))]) or None,
-            "local_top_term": (merged[0].term if merged else None),
-            "local_top_term_no": (term_meta.get(merged[0].term) or {}).get("_no") if merged else None,
-            "local_top_term_phys": ((term_meta.get(merged[0].term) or {}).get("_phys_abbr") or (term_meta.get(merged[0].term) or {}).get("_phys")) if merged else None,
-            "local_top_score": (merged[0].score if merged else None),
-            "coverage_ratio": coverage_ratio,
+            "matched_term_phys": _get_phys_name(mt_meta),
+            "matched_terms": join_if_exists(matched_terms),
+            "matched_terms_nos": join_if_exists([str(m.get("no")) for m in mts_metas if m.get("no")]),
+            "matched_terms_phys": join_if_exists([str(_get_phys_name(m)) for m in mts_metas if _get_phys_name(m)]),
+            "local_top_term": merged[0].term if merged else None,
+            "local_top_term_no": top_meta.get("no"),
+            "local_top_term_phys": _get_phys_name(top_meta),
+            "local_top_score": merged[0].score if merged else None,
+            "coverage_ratio": safe_float(llm.get("coverage_ratio")),
             "reason": llm.get("reason"),
             "proposed_name": llm.get("proposed_name"),
             "unmatched_terms": unmatched_terms,
@@ -818,13 +895,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 row = fut.result()
                 rows.append(row)
                 processed_count += 1
-                # 進捗ログ: 10件ごとに出力
-                pct = processed_count * 100 / total_items if total_items else 0
-                if processed_count % 10 == 0 or processed_count == total_items:
-                    print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
-                # コールバック呼び出し（リアルタイム進捗）
-                if progress_callback:
-                    progress_callback(processed_count, total_items)
+                _log_progress(processed_count, total_items)
             except Exception as e:
                 # ワーカー失敗時も処理を止めない
                 error_row = {
@@ -833,13 +904,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 }
                 rows.append(error_row)
                 processed_count += 1
-                # エラー行でも進捗ログ
-                pct = processed_count * 100 / total_items if total_items else 0
-                if processed_count % 10 == 0 or processed_count == total_items:
-                    print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
-                # コールバック呼び出し（リアルタイム進捗）
-                if progress_callback:
-                    progress_callback(processed_count, total_items)
+                _log_progress(processed_count, total_items)
  
     return pd.DataFrame(rows).reset_index(drop=True)
  
@@ -968,8 +1033,8 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         if len(df) > 0:
             ws = w.sheets["結果"]
  
-            # 2段見出しなのでデータ開始行は 3 行目
-            start_row = 3
+            # 2段見出しなのでデータ開始行
+            start_row = EXCEL_DATA_START_ROW
             end_row = start_row + len(df) - 1
  
             # 列インデックス（1始まり）を取得
