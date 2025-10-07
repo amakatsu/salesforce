@@ -681,11 +681,20 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     max_concurrent_api = cfg.get("MAX_CONCURRENT_API", 3)
     api_semaphore = threading.Semaphore(max_concurrent_api)
  
+    def _format_no(no_value) -> Optional[int]:
+        """列番号を整数化（小数点を除去）"""
+        if no_value is None:
+            return None
+        try:
+            return int(float(no_value))
+        except (ValueError, TypeError):
+            return None
+
     def meta_of(term: Optional[str]) -> Dict[str, Any]:
         if not term:
             return {"no": None, "phys": None, "phys_abbr": None}
         m = term_meta.get(str(term)) or {}
-        return {"no": m.get("_no"), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
+        return {"no": _format_no(m.get("_no")), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
  
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         """1件の画面項目に対する判定ワーカー（スレッドで実行）。"""
@@ -700,13 +709,13 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "screen_item": screen_name,
                 "match_type": "完全一致",
                 "matched_term": exact_term,
-                "matched_term_no": m.get("_no"),
+                "matched_term_no": _format_no(m.get("_no")),
                 "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
                 "matched_terms": None,
                 "matched_terms_nos": None,
                 "matched_terms_phys": None,
                 "local_top_term": exact_term,
-                "local_top_term_no": m.get("_no"),
+                "local_top_term_no": _format_no(m.get("_no")),
                 "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
                 "local_top_score": 1.0,
                 "coverage_ratio": 1.0,
@@ -741,13 +750,13 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                     "screen_item": screen_name,
                     "match_type": "完全一致",
                     "matched_term": top.term,
-                    "matched_term_no": m.get("_no"),
+                    "matched_term_no": _format_no(m.get("_no")),
                     "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
                     "matched_terms": None,
                     "matched_terms_nos": None,
                     "matched_terms_phys": None,
                     "local_top_term": top.term,
-                    "local_top_term_no": m.get("_no"),
+                    "local_top_term_no": _format_no(m.get("_no")),
                     "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
                     "local_top_score": top.score,
                     "coverage_ratio": 1.0,
@@ -792,10 +801,10 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "matched_term_no": mt_meta["no"],
             "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
             "matched_terms": ", ".join(matched_terms) or None,
-            "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_metas if m.get("no")]) or None,
+            "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_metas if m.get("no") is not None]) or None,
             "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_metas if (m.get("phys_abbr") or m.get("phys"))]) or None,
             "local_top_term": (merged[0].term if merged else None),
-            "local_top_term_no": (term_meta.get(merged[0].term) or {}).get("_no") if merged else None,
+            "local_top_term_no": _format_no((term_meta.get(merged[0].term) or {}).get("_no")) if merged else None,
             "local_top_term_phys": ((term_meta.get(merged[0].term) or {}).get("_phys_abbr") or (term_meta.get(merged[0].term) or {}).get("_phys")) if merged else None,
             "local_top_score": (merged[0].score if merged else None),
             "coverage_ratio": coverage_ratio,
