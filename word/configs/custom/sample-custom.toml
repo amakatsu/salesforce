@@ -1,0 +1,22 @@
+# サンプルカスタム設定
+# このファイルはcommon.tomlとマージされます
+# common.tomlの設定を上書きする場合のみ記述してください
+
+[pr_reviewer]
+# コードレビュー特有の設定
+require_score_review = true
+require_tests_review = true
+require_estimate_effort_to_review = true
+num_code_suggestions = 6
+
+# カスタム指示
+extra_instructions = """
+コードレビューの重点項目:
+- セキュリティ脆弱性のチェック
+- パフォーマンスの最適化
+- コードの可読性
+"""
+
+[pr_code_suggestions]
+# コード改善提案の設定
+num_code_suggestions = 6

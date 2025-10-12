@@ -63,37 +63,37 @@ with col2:
                 border-left: 4px solid #f56565;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
                 height: 200px;'>
-        <h3 style='color: #f56565; margin-top: 0;'>🔍 ドメイン照合ツール</h3>
+        <h3 style='color: #f56565; margin-top: 0;'>🔍 ドメインチェック</h3>
         <p style='color: #4a5568; margin-bottom: 1rem;'>
-            画面項目に対応するドメインの存在チェックと新規ドメイン提案を行います。
+            ドメイン設計の整合性をチェックし、問題点を検出します。
         </p>
         <p style='color: #718096; font-size: 0.9rem;'>
-            ✅ ドメイン存在チェック<br>
-            ✅ ドメイン情報自動取得<br>
-            ✅ 新規ドメイン提案
+            ✅ 命名規則チェック<br>
+            ✅ 関連性分析<br>
+            ✅ レポート出力
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-# with col3:
-#     st.markdown("""
-#     <div style='background: white;
-#                 padding: 1.5rem;
-#                 border-radius: 10px;
-#                 border-left: 4px solid #48bb78;
-#                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-#                 height: 200px;'>
-#         <h3 style='color: #48bb78; margin-top: 0;'>🤖 PR-Agent</h3>
-#         <p style='color: #4a5568; margin-bottom: 1rem;'>
-#             プルリクエストの自動レビューとコード品質チェックを実施します。
-#         </p>
-#         <p style='color: #718096; font-size: 0.9rem;'>
-#             ✅ コードレビュー<br>
-#             ✅ 改善提案<br>
-#             ✅ テスト提案
-#         </p>
-#     </div>
-#     """, unsafe_allow_html=True)
+with col3:
+    st.markdown("""
+    <div style='background: white;
+                padding: 1.5rem;
+                border-radius: 10px;
+                border-left: 4px solid #48bb78;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                height: 200px;'>
+        <h3 style='color: #48bb78; margin-top: 0;'>🤖 PR-Agent</h3>
+        <p style='color: #4a5568; margin-bottom: 1rem;'>
+            プルリクエストの自動レビューとコード品質チェックを実施します。
+        </p>
+        <p style='color: #718096; font-size: 0.9rem;'>
+            ✅ コードレビュー<br>
+            ✅ 改善提案<br>
+            ✅ テスト提案
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
