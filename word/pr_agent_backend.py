@@ -70,9 +70,6 @@ class ConfigManager:
         # wordディレクトリのconfigsを参照
         base_dir = Path(__file__).parent / "configs"
         self.config_dirs = {
-            "templates": base_dir / "templates",
-            "presets": base_dir / "presets",
-            "language_specific": base_dir / "language-specific",
             "custom": base_dir / "custom"
         }
         self.common_config_path = base_dir / "common.toml"
@@ -95,7 +92,7 @@ class ConfigManager:
 
     def get_available_configs(self) -> Dict[str, Dict[str, str]]:
         """利用可能な設定ファイル一覧を取得"""
-        configs = {"templates": {}, "presets": {}, "language_specific": {}, "custom": {}}
+        configs = {"custom": {}}
 
         for category, directory in self.config_dirs.items():
             if directory.exists():
@@ -112,9 +109,6 @@ class ConfigManager:
         print("─" * 50)
 
         category_info = [
-            ("templates", "📄 テンプレート (templates):", Colors.CYAN),
-            ("presets", "🎯 プリセット (presets):", Colors.PURPLE),
-            ("language_specific", "🔧 言語固有 (language-specific):", Colors.YELLOW),
             ("custom", "✨ カスタム (custom):", Colors.GREEN)
         ]
 
@@ -150,7 +144,7 @@ class ConfigManager:
 
         return None
 
-    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None) -> bool:
+    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None) -> bool:
         """指定された設定ファイルを適用（共通設定とマージ）"""
         config_file = Path(config_path)
 
@@ -162,6 +156,10 @@ class ConfigManager:
 
         # 共通設定とカスタム設定をマージ
         merged_config = self._merge_configs(config_path)
+
+        # API設定を追加
+        if api_config:
+            merged_config = self._inject_api_config(merged_config, api_config)
 
         # マージした設定を書き込み
         with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -175,7 +173,7 @@ class ConfigManager:
 
         return True
 
-    def create_default_config(self, custom_prompt: Optional[str] = None) -> None:
+    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None) -> None:
         """デフォルト設定ファイルを作成（共通設定ベース）"""
         self.backup_current_config()
 
@@ -183,6 +181,10 @@ class ConfigManager:
         if self.common_config_path.exists():
             with open(self.common_config_path, 'r', encoding='utf-8') as f:
                 common_config = toml.load(f)
+
+            # API設定を追加
+            if api_config:
+                common_config = self._inject_api_config(common_config, api_config)
 
             # 共通設定を書き込み
             with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -321,6 +323,38 @@ num_code_suggestions = 4
                 result[key] = value
         return result
 
+    def _inject_api_config(self, config: Dict, api_config: Dict) -> Dict:
+        """API設定を設定ファイルに注入"""
+        if 'config' not in config:
+            config['config'] = {}
+
+        if 'openai' not in config:
+            config['openai'] = {}
+
+        # OpenAI API Key
+        if 'api_key' in api_config:
+            config['config']['openai_key'] = api_config['api_key']
+            config['openai']['key'] = api_config['api_key']
+
+        # OpenAI Base URL (Azure OpenAI用)
+        if 'base_url' in api_config:
+            config['config']['ai_provider'] = 'openai'
+            config['openai']['api_base'] = api_config['base_url']
+
+        # User ID (Azure APIM用)
+        if 'user_id' in api_config:
+            config['openai']['user_id'] = api_config['user_id']
+
+        # OpenAI Path
+        if 'api_path' in api_config:
+            config['openai']['path'] = api_config['api_path']
+
+        # カスタムヘッダー (Azure OpenAIのapim-user-id等)
+        if 'custom_headers' in api_config:
+            config['config']['custom_headers'] = api_config['custom_headers']
+
+        return config
+
 
 class UrlValidator:
     """URL検証クラス"""
@@ -340,9 +374,48 @@ class PRAgentRunner:
     """PR-Agent実行クラス"""
 
     @staticmethod
+    def _inject_custom_ai_handler():
+        """カスタムAIハンドラーをPR-Agentに注入"""
+        try:
+            # カスタムハンドラーをインポート
+            import sys
+            from pathlib import Path
+
+            # wordディレクトリをパスに追加
+            word_dir = Path(__file__).parent
+            if str(word_dir.parent) not in sys.path:
+                sys.path.insert(0, str(word_dir.parent))
+
+            from word.ai_handlers.custom_ai_handler import CustomAzureAIHandler
+
+            # PR-AgentのLiteLLMAIHandlerを置き換え
+            from pr_agent.algo.ai_handlers import litellm_ai_handler
+
+            # LiteLLMAIHandlerクラスをカスタムハンドラーで置き換え
+            original_handler = litellm_ai_handler.LiteLLMAIHandler
+            litellm_ai_handler.LiteLLMAIHandler = CustomAzureAIHandler
+
+            # 他のモジュールからのインポートも置き換え
+            import pr_agent.agent.pr_agent as pr_agent_module
+            pr_agent_module.LiteLLMAIHandler = CustomAzureAIHandler
+
+            Logger.print_colored("✅ カスタムAIハンドラーを注入しました (LiteLLMAIHandler -> CustomAzureAIHandler)", Colors.GREEN)
+            return True
+
+        except Exception as e:
+            Logger.warning(f"カスタムAIハンドラーの注入に失敗: {str(e)}")
+            Logger.warning("デフォルトのlitellmハンドラーを使用します")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    @staticmethod
     async def run(pr_url: str, command: str = "review", extra_args: Optional[List[str]] = None) -> bool:
         """PR-Agentを実行"""
         try:
+            # カスタムAIハンドラーを注入
+            PRAgentRunner._inject_custom_ai_handler()
+
             from pr_agent.agent.pr_agent import PRAgent
 
             Logger.print_colored("🚀 PR-Agent を実行しています...", Colors.BLUE)

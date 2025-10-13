@@ -6,9 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# curl: HEALTHCHECK用 / ca-certificates: HTTPS用
+# curl: HEALTHCHECK用 / ca-certificates: HTTPS用 / git: PR-Agent用
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
+    apt-get install -y --no-install-recommends curl ca-certificates git && \
     rm -rf /var/lib/apt/lists/*
 
 # ← ここがポイント：ビルドコンテキストは「リポジトリ直下」なのでパスは word-web/...
@@ -19,6 +19,9 @@ RUN python -m pip install --upgrade pip && \
 COPY word-web/app.py /app/app.py
 COPY word-web/pages /app/pages
 COPY word /app/word
+
+# .envファイルをコピー（本番では環境変数で設定するため、ローカル開発用）
+COPY .env /app/.env
 
 ENV STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0 \

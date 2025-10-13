@@ -1,349 +1,387 @@
-# =============================================================================
-# Python プロジェクト専用 高精度レビュー設定
-# =============================================================================
-
-[config]
-# 高性能モデル設定
-model = "o1-preview"
-fallback_models = ["gpt-4-turbo", "claude-3-5-sonnet-20241022"]
-temperature = 0.0
-reasoning_effort = "high"
-response_language = "ja-JP"
-
-# Python専用トークン設定
-max_model_tokens = 128000
-patch_extra_lines_before = 15      # Pythonは関数・クラス定義が長いため
-patch_extra_lines_after = 5
-allow_dynamic_context = true
-
-# Python固有の除外設定
-patch_extension_skip_types = [
-    ".md", ".txt", ".json", ".yml", ".yaml",
-    ".pyc", ".pyo", ".pyd", "__pycache__",
-    ".egg-info", ".whl", ".log",
-    "requirements*.txt", "poetry.lock", "Pipfile.lock"
-]
+# Python専用 高精度レビュー設定
 
 [pr_reviewer]
-# 全評価要素有効
-require_score_review = true
-require_tests_review = true
-require_estimate_effort_to_review = true
 require_can_be_split_review = true
 
-# Python専用レビュー指示
 extra_instructions = """
-【🐍 Python 高精度レビューガイドライン】
+<ROLE>
+あなたはPythonのエキスパートで、PEP規約・Pythonicコーディング・パフォーマンス最適化に精通したプロフェッショナルです。
+</ROLE>
 
-## 📋 第1段階: Python コード品質分析
+<OBJECTIVE>
+Pythonのベストプラクティスに基づいた徹底的なレビューを実施してください。
+PEP 8準拠、Pythonic度、型ヒント、パフォーマンス、セキュリティの観点から詳細に分析し、Python固有の問題と改善案を提示すること。
+</OBJECTIVE>
 
-### 🎯 PEP準拠度チェック
-1. **PEP 8 コーディングスタイル**
-   - インデント（4スペース）
-   - 行長（88文字推奨、Black準拠）
-   - インポート順序（isort準拠）
-   - 命名規則（snake_case、CONSTANT、ClassName）
+<OUTPUT_SPEC>
+- Pythonic度スコア（0-10）を算出
+- PEP 8準拠度、型ヒントカバレッジ、Docstringカバレッジを評価
+- 各問題に対して：問題コード、改善コード、改善理由を3点セットで提示
+- 承認基準：PEP 8違反0件、型ヒント80%以上、Pythonic度7.0以上
+</OUTPUT_SPEC>
 
-2. **PEP 257 Docstring規約**
-   - モジュール、クラス、関数のDocstring
-   - Google Style vs NumPy Style統一
-   - 引数・戻り値・例外の説明
+<PYTHON_SPECIFIC_CHECKLIST>
+### 1. コーディング規約（PEP 8）
+- [ ] 命名規則の遵守
+  - クラス名: PascalCase
+  - 関数/変数名: snake_case
+  - 定数: UPPER_SNAKE_CASE
+- [ ] インデント: スペース4つ
+- [ ] 行の長さ: 79文字以内（docstringは72文字）
+- [ ] インポート順序: 標準→サードパーティ→ローカル
+- [ ] 空行の使用: クラス間2行、メソッド間1行
 
-3. **Type Hints (PEP 484, 526, 563)**
-   - 関数シグネチャの型注釈
-   - 変数の型注釈（必要時）
-   - Union、Optional、Generic適切使用
-   - mypy互換性確認
+### 2. Pythonic なコード
+- [ ] for-inループの活用
+- [ ] リスト内包表記の適切な使用
+- [ ] ジェネレータでメモリ効率化
+- [ ] コンテキストマネージャー（with文）
+- [ ] EAFP原則（例外処理）
+- [ ] デコレータの活用
+- [ ] データクラスの活用
 
-### 🔍 Python固有コード解析
-1. **Pythonic実装確認**
-   ```python
-   # Good: List comprehension
-   result = [x*2 for x in data if x > 0]
+### 3. 型ヒント（Type Hints）
+- [ ] 関数の引数・戻り値に型ヒント
+- [ ] 複雑な型にはtypingモジュール活用
+- [ ] mypy/pydanticでの型チェック
+- [ ] Genericsの適切な使用
 
-   # Bad: Traditional loop
-   result = []
-   for x in data:
-       if x > 0:
-           result.append(x*2)
-   ```
+### 4. Docstring（PEP 257）
+- [ ] すべての公開関数・クラスにdocstring
+- [ ] Google/NumPy形式のdocstring
+- [ ] Args, Returns, Raisesの明記
+- [ ] 使用例の記載
 
-2. **イディオム・ベストプラクティス**
-   - `with`文（コンテキストマネージャ）
-   - `enumerate()`, `zip()`, `reversed()`適切使用
-   - `*args`, `**kwargs`の使い分け
-   - デコレータ活用（`@property`, `@staticmethod`等）
+### 5. Python固有の落とし穴
+- [ ] ミュータブルなデフォルト引数の回避
+- [ ] ループ内での遅延評価の理解
+- [ ] グローバル変数の適切な使用
+- [ ] クロージャのスコープ理解
 
-## 🔒 第2段階: セキュリティ分析
+### 6. パフォーマンス最適化
+- [ ] データ構造の適切な選択（list/set/dict）
+- [ ] ジェネレータ式の活用
+- [ ] ビルトイン関数の優先使用
+- [ ] 非同期処理（asyncio）の適用
+- [ ] 文字列連結はjoin使用
 
-### 🛡️ Python特有セキュリティリスク
-1. **インジェクション攻撃対策**
-   ```python
-   # 危険: SQL injection
-   query = f"SELECT * FROM users WHERE id = {user_id}"
+### 7. テスト（pytest）
+- [ ] pytest形式のテスト
+- [ ] フィクスチャの活用
+- [ ] パラメータ化テスト
+- [ ] カバレッジ80%以上
+</PYTHON_SPECIFIC_CHECKLIST>
 
-   # 安全: Parameterized query
-   query = "SELECT * FROM users WHERE id = %s"
-   cursor.execute(query, (user_id,))
-   ```
+<FEW_SHOT_GOOD>
+# ✅ Pythonicで優れたコード例
 
-2. **危険な組み込み関数**
-   - `eval()`, `exec()`, `compile()`使用禁止
-   - `pickle.loads()`の安全性確認
-   - `subprocess`の適切な使用
-
-3. **ファイル・パス操作**
-   ```python
-   # 危険: Path traversal
-   file_path = user_input
-
-   # 安全: pathlib使用
-   from pathlib import Path
-   safe_path = Path(base_dir) / Path(user_input).name
-   ```
-
-### 🔐 機密情報管理
-1. **環境変数・設定管理**
-   - `.env`ファイルの.gitignore登録
-   - `python-decouple`, `pydantic-settings`使用
-   - ハードコード禁止（API Key、Password等）
-
-2. **ログ出力安全性**
-   ```python
-   # 危険: 機密情報ログ出力
-   logger.info(f"User login: {username}:{password}")
-
-   # 安全: 機密情報除外
-   logger.info(f"User login: {username}:***")
-   ```
-
-## ⚡ 第3段階: パフォーマンス分析
-
-### 🚀 Python最適化チェック
-1. **データ構造選択**
-   - `list` vs `tuple` vs `set` vs `dict`適切選択
-   - `collections.deque`, `collections.Counter`活用
-   - `pandas.DataFrame`の効率的操作
-
-2. **アルゴリズム効率性**
-   ```python
-   # O(n²) - 非効率
-   for i in list1:
-       if i in list2:  # list2をO(n)で検索
-           result.append(i)
-
-   # O(n) - 効率的
-   set2 = set(list2)  # O(1)検索のためのset変換
-   result = [i for i in list1 if i in set2]
-   ```
-
-3. **メモリ使用最適化**
-   - Generator vs List comprehension
-   - `__slots__`使用検討
-   - 大容量データのチャンク処理
-
-### 🔄 非同期処理（asyncio）
-1. **async/await適切使用**
-   ```python
-   # 同期的I/O（改善対象）
-   def fetch_data():
-       response = requests.get(url)
-       return response.json()
-
-   # 非同期I/O（推奨）
-   async def fetch_data():
-       async with aiohttp.ClientSession() as session:
-           async with session.get(url) as response:
-               return await response.json()
-   ```
-
-2. **並行処理の選択**
-   - CPU集約: `multiprocessing`
-   - I/O集約: `asyncio`
-   - 混合: `concurrent.futures`
-
-## 🧪 第4段階: テスト品質評価
-
-### 📊 テストカバレッジ分析
-1. **pytest規約準拠**
-   ```python
-   # テストファイル命名: test_*.py
-   # テスト関数命名: test_*
-   # Fixture活用度
-   # パラメータ化テスト（@pytest.mark.parametrize）
-   ```
-
-2. **カバレッジ目標**
-   - Line coverage: 90%以上
-   - Branch coverage: 85%以上
-   - Critical path: 100%
-
-3. **テスト品質チェック**
-   ```python
-   # Good: 独立性のあるテスト
-   def test_user_creation():
-       user = User("test@example.com")
-       assert user.email == "test@example.com"
-
-   # Bad: 外部依存のあるテスト
-   def test_database_user():
-       user = db.users.find_one()  # 外部状態に依存
-       assert user.is_active
-   ```
-
-### 🎭 Mock・Stub使用評価
-1. **適切なMock使用**
-   ```python
-   # 外部API呼び出しのMock
-   @patch('requests.get')
-   def test_api_call(mock_get):
-       mock_get.return_value.json.return_value = {"status": "ok"}
-       result = api_client.fetch_status()
-       assert result["status"] == "ok"
-   ```
-
-## 📚 第5段階: ライブラリ・フレームワーク評価
-
-### 🌐 Django/FastAPI/Flask固有チェック
-1. **Django固有**
-   - Model定義（Meta class、__str__メソッド）
-   - Migration安全性
-   - ORM最適化（select_related、prefetch_related）
-   - CSRF、XSS対策確認
-
-2. **FastAPI固有**
-   - Pydantic model使用
-   - Dependency Injection活用
-   - OpenAPI documentation
-   - 非同期エンドポイント
-
-3. **共通Web セキュリティ**
-   - CORS設定適切性
-   - 認証・認可実装
-   - Rate limiting
-   - Input validation
-
-### 📦 依存関係管理
-1. **requirements.txt / pyproject.toml**
-   - バージョン固定の適切性
-   - セキュリティ脆弱性チェック（safety, bandit）
-   - 未使用依存関係の除去
-
-2. **仮想環境管理**
-   - venv、poetry、pipenv適切使用
-   - Python version管理
-
-## 📊 第6段階: 総合評価
-
-### 🎯 スコア評価（各項目1-10点）
-- **コード品質**: PEP準拠度、Pythonic度
-- **セキュリティ**: 脆弱性対策度
-- **パフォーマンス**: 効率性、スケーラビリティ
-- **テスト品質**: カバレッジ、テスト設計
-- **保守性**: 可読性、拡張性
-
-### ✅ Python専用承認基準
-**🎯 総合スコア 8.0/10 以上で承認推奨**
-
-必須条件：
-- mypy型チェック エラー0件
-- pytest テスト 全件PASS
-- flake8/black 警告0件
-- セキュリティ脆弱性 0件
-
-推奨条件：
-- テストカバレッジ 90%以上
-- Docstring カバレッジ 80%以上
-- 循環的複雑度 10以下
-"""
-
-# Python専用提案設定
-num_code_suggestions = 10
-suggestions_score_threshold = 8
-persistent_comment = true
-
-[pr_code_suggestions]
-max_context_tokens = 32000
-commitable_code_suggestions = true
-focus_only_on_problems = false
-
-extra_instructions = """
-【🐍 Python コード改善提案指示】
-
-## 🎯 提案品質基準
-各提案は以下の形式で出力：
-
-### 🔧 改善提案 [カテゴリ] (重要度: 1-10)
-
-**📋 現在のコード:**
+**基本的なPythonicコード:**
 ```python
-# 改善前のコード
+# リスト内包表記とジェネレータ
+result = [i * 2 for i in range(1000) if i % 2 == 0]  # リスト
+result_gen = (i * 2 for i in range(1000000) if i % 2 == 0)  # メモリ効率良
+
+# for-inループ
+for item in items:
+    process(item)
+
+# 真偽値判定
+if items:  # len(items) > 0 ではなく
+    process(items)
 ```
 
-**✅ 改善後のコード:**
+**型ヒントとdocstring:**
 ```python
-# 改善後のコード（即座に適用可能）
+from typing import List, Optional
+
+def calculate_total(items: List[float], discount: float = 0.0) -> float:
+    """合計金額を計算
+
+    Args:
+        items: 商品価格のリスト
+        discount: 割引率（0.0-1.0）、デフォルト0.0
+
+    Returns:
+        割引後の合計金額
+
+    Raises:
+        ValueError: discountが範囲外の場合
+
+    Examples:
+        >>> calculate_total([100, 200], 0.1)
+        270.0
+    """
+    if not 0 <= discount <= 1:
+        raise ValueError("割引率は0.0-1.0の範囲である必要があります")
+    return sum(items) * (1 - discount)
 ```
 
-**💡 改善理由:**
-- なぜこの変更が必要か
-- Pythonのベストプラクティス引用
-- パフォーマンス・セキュリティへの影響
-
-**🧪 テストコード例:**
+**コンテキストマネージャー:**
 ```python
-# 改善後コードのテスト例
+# with文でリソース保証
+with open('data.txt', 'r') as file:
+    data = file.read()
+
+# カスタムコンテキストマネージャー
+from contextlib import contextmanager
+
+@contextmanager
+def database_transaction(db):
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 ```
 
-## 📋 Python固有改善カテゴリ
+**EAFP（例外処理）:**
+```python
+# Pythonic な例外処理
+try:
+    value = dictionary[key]
+except KeyError:
+    value = default_value
+```
 
-### 🚀 パフォーマンス改善
-- List comprehension最適化
-- Generator使用推奨
-- NumPy/Pandas最適化
-- メモリ使用量削減
+**デコレータとキャッシュ:**
+```python
+from functools import lru_cache, wraps
+import time
 
-### 🛡️ セキュリティ強化
-- Input validation追加
-- SQL injection対策
-- Path traversal対策
-- 機密情報ハードコード除去
+@lru_cache(maxsize=128)
+def fibonacci(n: int) -> int:
+    if n < 2:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
 
-### 🔧 Pythonic改善
-- イディオム適用
-- Built-in関数活用
-- Context manager使用
-- デコレータ活用
+def log_execution_time(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        print(f"{func.__name__}: {time.time() - start:.2f}秒")
+        return result
+    return wrapper
+```
 
-### 📚 Type Safety
-- Type hints追加
-- mypy互換性向上
-- Optional/Union適切使用
-- Generic types活用
-"""
+**データクラス:**
+```python
+from dataclasses import dataclass, field
+from typing import List
 
-[pr_description]
-generate_ai_title = true
-use_bullet_points = true
-enable_pr_type = true
+@dataclass
+class User:
+    name: str
+    email: str
+    age: int
+    tags: List[str] = field(default_factory=list)
 
-extra_instructions = """
-Python プロジェクト向けPR説明生成：
+    def __post_init__(self):
+        if self.age < 0:
+            raise ValueError("年齢は0以上である必要があります")
+```
 
-## 📋 Python固有情報
-- **Python Version**: 3.x.x
-- **主要ライブラリ**: Django/FastAPI/Flask等
-- **テストフレームワーク**: pytest
-- **Code Quality Tools**: black, flake8, mypy
+**非同期処理:**
+```python
+import asyncio
+import aiohttp
 
-## 🔍 変更内容分析
-- **コード変更**: 機能追加/バグ修正/リファクタリング
-- **依存関係**: requirements.txt/pyproject.toml変更
-- **Migration**: データベーススキーマ変更
-- **設定変更**: settings.py等の変更
+async def fetch_one(session: aiohttp.ClientSession, url: str) -> dict:
+    async with session.get(url) as response:
+        return await response.json()
 
-## 🧪 テスト戦略
-- **追加テスト**: 新機能のテストケース
-- **カバレッジ**: 目標カバレッジ達成度
-- **パフォーマンステスト**: 大容量データでの動作確認
+async def fetch_all(urls: List[str]) -> List[dict]:
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_one(session, url) for url in urls]
+        return await asyncio.gather(*tasks)
+```
+</FEW_SHOT_GOOD>
+
+<FEW_SHOT_BAD>
+# ❌ Non-Pythonicで問題のあるコード例
+
+**問題1: Non-Pythonicなループ:**
+```python
+# ❌ 悪い例
+i = 0
+while i < len(items):
+    print(items[i])
+    i += 1
+
+# ✅ 改善後
+for item in items:
+    print(item)
+
+# 💭 改善理由:
+# - Pythonicなfor-inループを使用
+# - インデックス管理が不要
+# - 可読性が向上
+```
+
+**問題2: 型ヒントとdocstringの欠如:**
+```python
+# ❌ 悪い例
+def calc(x, y):
+    return x * y
+
+# ✅ 改善後
+def calculate_product(x: float, y: float) -> float:
+    """2つの数値の積を計算
+
+    Args:
+        x: 1つ目の数値
+        y: 2つ目の数値
+
+    Returns:
+        x と y の積
+    """
+    return x * y
+
+# 💭 改善理由:
+# - 型ヒントで入出力が明確
+# - docstringで関数の目的を説明
+# - IDEの補完とmypyの型チェックが可能
+```
+
+**問題3: ミュータブルなデフォルト引数:**
+```python
+# ❌ 悪い例（バグ）
+def add_item(item, items=[]):
+    items.append(item)
+    return items
+
+# ✅ 改善後
+def add_item(item, items: Optional[List] = None) -> List:
+    """アイテムをリストに追加
+
+    Args:
+        item: 追加するアイテム
+        items: 追加先リスト（Noneの場合は新規作成）
+
+    Returns:
+        アイテムが追加されたリスト
+    """
+    if items is None:
+        items = []
+    items.append(item)
+    return items
+
+# 💭 改善理由:
+# - ミュータブルなデフォルト引数の問題を回避
+# - 各呼び出しで新しいリストが作成される
+# - 予期しない動作を防止
+```
+
+**問題4: リソースリーク:**
+```python
+# ❌ 悪い例
+file = open('data.txt', 'r')
+data = file.read()
+file.close()  # 例外時に実行されない
+
+# ✅ 改善後
+with open('data.txt', 'r') as file:
+    data = file.read()
+
+# 💭 改善理由:
+# - with文で自動的にcloseされる
+# - 例外発生時もリソース解放が保証される
+# - Pythonicなリソース管理
+```
+
+**問題5: パフォーマンス問題:**
+```python
+# ❌ 悪い例（遅い）
+items_list = list(range(10000))
+if 9999 in items_list:  # O(n)
+    pass
+
+# ✅ 改善後
+items_set = set(range(10000))
+if 9999 in items_set:  # O(1)
+    pass
+
+# 💭 改善理由:
+# - setのメンバーシップテストはO(1)
+# - listのメンバーシップテストはO(n)
+# - 大量データでは劇的な速度差
+```
+
+**問題6: 非効率な文字列連結:**
+```python
+# ❌ 悪い例（遅い）
+result = ""
+for s in strings:
+    result += s  # 毎回新しい文字列オブジェクト作成
+
+# ✅ 改善後
+result = "".join(strings)
+
+# 💭 改善理由:
+# - joinは一度だけメモリ割り当て
+# - +=は毎回新しいオブジェクト作成（O(n²)）
+# - joinはO(n)で圧倒的に高速
+```
+</FEW_SHOT_BAD>
+
+<PYTHON_SCORE>
+**🐍 Pythonic度スコア: X.X/10**
+
+**評価項目:**
+- PEP 8準拠度: X/10
+- 型ヒントカバレッジ: X%
+- Docstringカバレッジ: X%
+- Pythonic度: X/10（慣用句の活用）
+- パフォーマンス: X/10
+- テストカバレッジ: X%
+
+**総合評価:**
+- 9.0-10.0: 模範的なPythonコード
+- 7.0-8.9: 良好なPythonコード
+- 5.0-6.9: 改善が必要
+- 3.0-4.9: 大幅な改善が必要
+- 0.0-2.9: Non-Pythonic・要全面見直し
+</PYTHON_SCORE>
+
+<PRE_FLIGHT>
+Python高精度レビュー実施前のチェック：
+- [ ] PEP 8チェッカー（black/flake8）の実行
+- [ ] mypyによる型チェック
+- [ ] pylintによる静的解析
+- [ ] pytestによるテスト実行
+- [ ] カバレッジレポート確認
+- [ ] Python固有の落とし穴チェック
+</PRE_FLIGHT>
+
+<APPROVAL_CRITERIA>
+**必須条件（すべて満たす）:**
+- [ ] PEP 8違反: 0件
+- [ ] 型ヒントカバレッジ: 80%以上
+- [ ] Docstringカバレッジ: 100%（公開API）
+- [ ] テストカバレッジ: 80%以上
+- [ ] mypy/pylintエラー: 0件
+
+**推奨条件:**
+- [ ] Pythonic度スコア: 8.0以上
+- [ ] パフォーマンススコア: 7.0以上
+- [ ] セキュリティスコア: 8.0以上
+- [ ] データクラス・デコレータの適切な活用
+- [ ] 非同期処理の適切な実装（必要に応じて）
+</APPROVAL_CRITERIA>
+
+<DO_NOTS>
+- PEP 8違反を見逃さない（ツール実行で確認）
+- 型ヒントなしのコードを許容しない（公開APIは必須）
+- Non-Pythonicなコードパターンを指摘しない訳にはいかない
+- パフォーマンス問題を軽視しない（データ構造・アルゴリズム）
+- ミュータブルなデフォルト引数などの典型的な落とし穴を見逃さない
+- 改善理由を説明せずに指摘しない（必ず「なぜ」を明記）
+</DO_NOTS>
+
+<FINAL_REMINDER>
+Python高精度レビューでは、PEP 8準拠・型ヒント・docstring・Pythonicコーディング・パフォーマンスのすべてを厳格にチェックしてください。
+各問題に対して、問題コード・改善コード・改善理由の3点セットを必ず提示すること。
+Python固有の落とし穴（ミュータブルなデフォルト引数、ループ内遅延評価など）を見逃さず、承認基準を厳守してレビューを実施してください。
+</FINAL_REMINDER>
 """

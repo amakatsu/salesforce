@@ -3,20 +3,89 @@
 # common.tomlの設定を上書きする場合のみ記述してください
 
 [pr_reviewer]
-# コードレビュー特有の設定
-require_score_review = true
-require_tests_review = true
-require_estimate_effort_to_review = true
-num_code_suggestions = 6
-
-# カスタム指示
 extra_instructions = """
-コードレビューの重点項目:
-- セキュリティ脆弱性のチェック
-- パフォーマンスの最適化
-- コードの可読性
-"""
+<ROLE>
+あなたは[専門分野]のエキスパートで、[具体的な技術・観点]に精通したプロフェッショナルです。
+</ROLE>
 
-[pr_code_suggestions]
-# コード改善提案の設定
-num_code_suggestions = 6
+<OBJECTIVE>
+[レビューの主目的を明確に記述]
+[達成すべきゴールを具体的に]
+</OBJECTIVE>
+
+<OUTPUT_SPEC>
+- [出力形式1]
+- [出力形式2]
+- [必須項目]
+- [承認基準]
+</OUTPUT_SPEC>
+
+<CHECKLIST>
+### チェック項目グループ1
+- [ ] 項目1
+- [ ] 項目2
+- [ ] 項目3
+
+### チェック項目グループ2
+- [ ] 項目4
+- [ ] 項目5
+- [ ] 項目6
+</CHECKLIST>
+
+<FEW_SHOT_GOOD>
+# ✅ 良い例
+
+```
+[良いコード例]
+```
+
+# 💭 良い理由:
+- [理由1]
+- [理由2]
+</FEW_SHOT_GOOD>
+
+<FEW_SHOT_BAD>
+# ❌ 悪い例
+
+```
+[悪いコード例]
+```
+
+# 💭 問題点:
+- [問題1]
+- [問題2]
+
+# ✅ 改善後:
+```
+[改善されたコード]
+```
+</FEW_SHOT_BAD>
+
+<PRE_FLIGHT>
+レビュー実施前のチェック：
+- [ ] チェック項目1
+- [ ] チェック項目2
+- [ ] チェック項目3
+</PRE_FLIGHT>
+
+<APPROVAL_CRITERIA>
+**必須条件:**
+- [ ] 条件1
+- [ ] 条件2
+
+**推奨条件:**
+- [ ] 条件3
+- [ ] 条件4
+</APPROVAL_CRITERIA>
+
+<DO_NOTS>
+- [禁止事項1]
+- [禁止事項2]
+- [禁止事項3]
+</DO_NOTS>
+
+<FINAL_REMINDER>
+[レビューの最終確認事項]
+[厳守すべきルールのまとめ]
+</FINAL_REMINDER>
+"""

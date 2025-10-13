@@ -23,7 +23,15 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import requests
 from dotenv import load_dotenv
- 
+
+# .envファイルを読み込み（Streamlitからインポートされる前に環境変数を設定）
+# Dockerコンテナ内: /app/word/word.py → /app/.env
+from pathlib import Path as _EnvPath
+_env_file = _EnvPath(__file__).parent.parent / '.env'
+if _env_file.exists():
+    load_dotenv(_env_file)
+del _env_file, _EnvPath
+
 # ====== GUI（任意） ===========================================================
 try:
     import tkinter as tk

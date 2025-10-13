@@ -7,12 +7,20 @@ response_language = "ja-JP"
 max_model_tokens = 32000
 reasoning_effort = "medium"
 
+[pr_reviewer]
+require_score_review = true
+require_tests_review = true
+require_estimate_effort_to_review = true
+num_code_suggestions = 10
+enable_review_labels_effort = true
+enable_review_labels_security = true
+
 [pr_description]
 publish_description = true
 add_original_user_description = true
 
 [pr_code_suggestions]
-num_code_suggestions = 4
+num_code_suggestions = 10
 
 [pr_questions]
 enable_help_text = true

@@ -9,6 +9,13 @@ import shutil
 import tempfile
 from pathlib import Path
 import streamlit as st
+from dotenv import load_dotenv
+
+# .envファイルを読み込み（存在する場合）
+# Dockerコンテナ内: /app/pages/1_word_matching.py → /app/.env
+env_path = Path(__file__).parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
 
 # 親ディレクトリのwordモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))

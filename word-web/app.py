@@ -4,6 +4,13 @@
 開発支援ツール - トップページ
 """
 import streamlit as st
+from pathlib import Path
+from dotenv import load_dotenv
+
+# .envファイルを読み込み（存在する場合）
+env_path = Path(__file__).parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
 
 # ページ設定
 st.set_page_config(

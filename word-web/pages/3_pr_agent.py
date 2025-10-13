@@ -10,6 +10,13 @@ import asyncio
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+
+# .envファイルを読み込み（存在する場合）
+# Dockerコンテナ内: /app/pages/3_pr_agent.py → /app/.env
+env_path = Path(__file__).parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
 
 # バックエンドモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -58,7 +65,7 @@ with st.expander("💡 使い方を見る", expanded=False):
     ### ステップ2️⃣: API設定
 
     - GitLab Token（リポジトリアクセス用）
-    - Azure OpenAI API キーとユーザID（レビュー生成用）
+    - OpenAI API キーとユーザID（レビュー生成用）
 
     ### ステップ3️⃣: 設定を選択
 
@@ -82,6 +89,17 @@ with st.sidebar:
 
     st.subheader("🔑 API認証情報")
 
+    # OPENAI_HEADERS_JSONから値を抽出
+    import json
+    headers_json = os.getenv("OPENAI_HEADERS_JSON", "{}")
+    try:
+        headers_dict = json.loads(headers_json)
+        default_api_key = headers_dict.get("api-key", "")
+        default_user_id = headers_dict.get("apim-user-id", "")
+    except:
+        default_api_key = ""
+        default_user_id = ""
+
     # GitLab Token
     default_token = os.getenv("GITLAB_TOKEN", "")
     gitlab_token = st.text_input(
@@ -92,19 +110,17 @@ with st.sidebar:
     )
 
     # OpenAI API設定
-    default_api_key = os.getenv("OPENAI_API_KEY", "")
     api_key = st.text_input(
-        "APIキー",
+        "OpenAI APIキー",
         value=default_api_key,
         type="password",
-        help="Azure OpenAI APIのキーを入力してください"
+        help="OpenAI APIのキーを入力してください（.envのOPENAI_HEADERS_JSONから自動取得）"
     )
 
-    default_user_id = os.getenv("APIM_USER_ID", "")
     user_id = st.text_input(
         "ユーザID",
         value=default_user_id,
-        help="API Management のユーザIDを入力してください"
+        help="APIユーザIDを入力してください（.envのOPENAI_HEADERS_JSONから自動取得）"
     )
 
     st.markdown("---")
@@ -190,20 +206,6 @@ with st.sidebar:
     st.markdown("---")
 
     with st.expander("🔧 詳細設定", expanded=False):
-        # LLMモデル選択
-        model_options = [
-            "gemini/gemini-2.0-flash",
-            "gemini/gemini-1.5-pro",
-            "gpt-4-turbo",
-            "gpt-4o",
-            "gpt-4o-mini"
-        ]
-        selected_model = st.selectbox(
-            "LLMモデル",
-            model_options,
-            help="使用するLLMモデルを選択"
-        )
-
         # カスタムプロンプト
         custom_prompt = st.text_area(
             "カスタムプロンプト",
@@ -338,17 +340,30 @@ if pr_command == "ask":
 
 if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, disabled=button_disabled):
     if not gitlab_token or not api_key or not user_id:
-        st.error("❌ GitLab Token、APIキー、ユーザIDを入力してください")
+        st.error("❌ GitLab Token、OpenAI APIキー、ユーザIDを入力してください")
     elif not pr_url:
         st.error("❌ MR URLを入力してください")
     elif pr_command == "ask" and not question:
         st.error("❌ askコマンドには質問内容が必要です")
     else:
         try:
-            # API認証情報を環境変数に設定
+            # API認証情報を環境変数に設定（GitLab用）
             os.environ['GITLAB_TOKEN'] = gitlab_token
-            os.environ['OPENAI_API_KEY'] = api_key
-            os.environ['APIM_USER_ID'] = user_id
+
+            # API設定を準備（PR-Agent設定ファイルに注入）
+            import json
+            base_url = os.getenv("OPENAI_BASE_URL", "")
+            api_path = os.getenv("OPENAI_PATH", "/chat/completions")
+            api_config = {
+                'api_key': api_key,
+                'base_url': base_url,
+                'api_path': api_path,
+                'user_id': user_id,
+                'custom_headers': {
+                    'api-key': api_key,
+                    'apim-user-id': user_id
+                }
+            }
 
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -359,10 +374,10 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
 
             if config_path:
                 # 選択された設定ファイルを適用
-                config_manager.apply_config(config_path, custom_prompt)
+                config_manager.apply_config(config_path, custom_prompt, api_config)
             else:
                 # デフォルト設定を作成
-                config_manager.create_default_config(custom_prompt)
+                config_manager.create_default_config(custom_prompt, api_config)
 
             status_text.text(f"🔄 PR-Agent {pr_command} コマンドを実行中...")
             progress_bar.progress(30)
@@ -387,7 +402,7 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
                 st.markdown("### 📋 実行内容")
                 st.write(f"- **コマンド**: {pr_command}")
                 st.write(f"- **MR URL**: {pr_url}")
-                st.write(f"- **モデル**: {selected_model}")
+                st.write(f"- **モデル**: gpt-4o (固定)")
                 st.write(f"- **設定**: {selected_config}")
                 if pr_command == "ask" and question:
                     st.write(f"- **質問**: {question}")
