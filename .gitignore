@@ -45,9 +45,6 @@ $RECYCLE.BIN/
 sca-results.csv
 sfca_results.json
 
-# Local environment variables/config
-.env
-.config
 
 # Maven build output
 openAPI/server/target/
