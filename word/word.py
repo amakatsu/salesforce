@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Excel→単語照合→レポート生成（LLM補助）
- 
-"""
+
 from __future__ import annotations
  
 import argparse
@@ -17,6 +14,7 @@ import threading
 import time
 import unicodedata
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
  
@@ -127,6 +125,148 @@ def local_similarity(a: str, b: str) -> float:
 class Candidate:
     term: str
     score: float
+
+
+
+@dataclass
+class ComponentMatchResult:
+    matched_terms: List[str]
+    matched_norms: List[str]
+    unmatched_segments: List[str]
+    coverage_ratio: float
+    unmatched_count: int
+    has_non_digit: bool
+    digit_segments: List[str]
+
+
+class ComponentMatcher:
+    """辞書語彙による簡易分割。数字はカバー率計算から除外。"""
+
+    def __init__(self, norm_to_term: Dict[str, str]):
+        trimmed: Dict[str, str] = {}
+        for norm_value, original in norm_to_term.items():
+            key = norm_value.replace(" ", "")
+            if not key:
+                continue
+            trimmed.setdefault(key, original)
+        self.norm_to_term = trimmed
+        self.prefix_map: Dict[str, List[str]] = {}
+        for norm_value in self.norm_to_term.keys():
+            first = norm_value[0]
+            self.prefix_map.setdefault(first, []).append(norm_value)
+        for values in self.prefix_map.values():
+            values.sort(key=len, reverse=True)
+        self.nondigit_len: Dict[str, int] = {
+            key: sum(1 for ch in key if not ch.isdigit()) for key in self.norm_to_term.keys()
+        }
+
+    def analyze(self, screen_name: str) -> ComponentMatchResult:
+        normalized = zenkaku_hankaku_norm(screen_name)
+        flat = normalized.replace(" ", "")
+        if not flat:
+            return ComponentMatchResult([], [], [], 1.0, 0, False, [])
+        total_non_digit = sum(1 for ch in flat if not ch.isdigit())
+        has_non_digit = total_non_digit > 0
+
+        @lru_cache(maxsize=None)
+        def walk(idx: int):
+            if idx >= len(flat):
+                return (0, 0, 0, [])
+            best = None
+            ch = flat[idx]
+
+            if ch.isdigit():
+                j = idx
+                while j < len(flat) and flat[j].isdigit():
+                    j += 1
+                nxt = walk(j)
+                if nxt is not None:
+                    candidate = (nxt[0], nxt[1], nxt[2], [("digit", flat[idx:j], None)] + nxt[3])
+                    best = self._better(best, candidate)
+            if ch in self.prefix_map:
+                for norm_term in self.prefix_map[ch]:
+                    end = idx + len(norm_term)
+                    if flat.startswith(norm_term, idx):
+                        nxt = walk(end)
+                        if nxt is None:
+                            continue
+                        term_non_digit = self.nondigit_len.get(norm_term, 0)
+                        candidate = (
+                            nxt[0],
+                            nxt[1] + term_non_digit,
+                            nxt[2] + 1,
+                            [("term", norm_term, self.norm_to_term.get(norm_term, norm_term))] + nxt[3],
+                        )
+                        best = self._better(best, candidate)
+            if not ch.isdigit():
+                nxt = walk(idx + 1)
+                if nxt is not None:
+                    candidate = (nxt[0] + 1, nxt[1], nxt[2], [("unmatched", ch, None)] + nxt[3])
+                    best = self._better(best, candidate)
+            return best
+
+        result = walk(0)
+        if result is None:
+            return ComponentMatchResult([], [], [], 0.0, total_non_digit, has_non_digit, [])
+
+        _, matched_non_digit, _, steps = result
+        matched_terms: List[str] = []
+        matched_norms: List[str] = []
+        unmatched_segments: List[str] = []
+        digit_segments: List[str] = []
+        buffer_unmatched = ""
+
+        for step_type, value, extra in steps:
+            if step_type == "term":
+                if buffer_unmatched:
+                    unmatched_segments.append(buffer_unmatched)
+                    buffer_unmatched = ""
+                matched_norms.append(value)
+                matched_terms.append(extra or value)
+            elif step_type == "digit":
+                if buffer_unmatched:
+                    unmatched_segments.append(buffer_unmatched)
+                    buffer_unmatched = ""
+                digit_segments.append(value)
+            elif step_type == "unmatched":
+                buffer_unmatched += value
+        if buffer_unmatched:
+            unmatched_segments.append(buffer_unmatched)
+
+        coverage = 1.0
+        if has_non_digit:
+            coverage = matched_non_digit / total_non_digit if total_non_digit else 0.0
+            if coverage > 1.0:
+                coverage = 1.0
+
+        unmatched_count = sum(len(seg) for seg in unmatched_segments)
+        return ComponentMatchResult(
+            matched_terms=matched_terms,
+            matched_norms=matched_norms,
+            unmatched_segments=unmatched_segments,
+            coverage_ratio=coverage,
+            unmatched_count=unmatched_count,
+            has_non_digit=has_non_digit,
+            digit_segments=digit_segments,
+        )
+
+    @staticmethod
+    def _better(current, candidate):
+        if current is None:
+            return candidate
+        if candidate[0] < current[0]:
+            return candidate
+        if candidate[0] > current[0]:
+            return current
+        if candidate[1] > current[1]:
+            return candidate
+        if candidate[1] < current[1]:
+            return current
+        if candidate[2] > current[2]:
+            return candidate
+        if candidate[2] < current[2]:
+            return current
+        return candidate
  
 # ====== Excel I/O =============================================================
  
@@ -411,101 +551,174 @@ class ApiClient:
         return resp.json()
  
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
-LLM_SYSTEM = (
-    "あなたは業務システム開発における命名規則の専門家です。\n"
-    "画面項目名と単語帳を照合し、lowerCamelCase形式の物理名を提案することが使命です。\n"
-    "\n"
-    "# タスク\n"
-    "与えられた画面項目名に対して:\n"
-    "1. 単語帳候補との一致度を判定\n"
-    "2. 候補の physical_name を活用して最適な物理名を生成\n"
-    "3. 不足する語は自分で補完して完全な物理名を構築\n"
-    "\n"
-    "# 重要: あなたに渡される画面項目名は、既に単一語での完全一致判定を通過しています\n"
-    "# つまり、単一の候補と完全一致するものは既に除外されています\n"
-    "\n"
-    "# 判定基準（厳密に適用）\n"
-    "- **完全一致（部品ごと）**: 画面項目名を複数の語に分解でき、全ての語が単語帳の候補で充足される場合\n"
-    "  例1: 「回収稟議番号」で「回収」と「稟議番号」が両方候補にある → 完全一致（部品ごと）\n"
-    "  例2: 「銀行取引一覧」で「銀行」「取引」「一覧」が全て候補にある → 完全一致（部品ごと）\n"
-    "  重要: 未登録語が1つもない場合のみ完全一致（部品ごと）\n"
-    "- **一部一致**: 画面項目名を複数の語に分解でき、その一部が単語帳にあるが、一部は未登録の場合\n"
-    "  例1: 「顧客担当者名」で「顧客」と「名」が候補にあり、「担当者」は未登録 → 一部一致\n"
-    "  例2: 「新規申込日」で「申込」「日」はあるが、「新規」は未登録 → 一部一致\n"
-    "- **一致なし**: 画面項目名のどの語も単語帳に存在しない、または候補が全て不適切な場合のみ\n"
-    "  例: 「稟議承認日」で「稟議」「承認」「日」全てが候補にない → 一致なし\n"
-    "\n"
-    "\n"
-    "# ネーミングルール（厳格に遵守）\n"
-    "\n"
-    "## 基本原則\n"
-    "1. **lowerCamelCase形式**: 必ず小文字始まり（例: ○ shinseiDate / × ShinseiDate）\n"
-    "2. **推奨文字数**: 8文字程度を目安とする（最大15文字まで許容）\n"
-    "3. **誰が見ても意味が容易にわかる名称**にする\n"
-    "\n"
-    "## 言語選択ルール\n"
-    "1. **原則: 英単語を使用**\n"
-    "2. **例外: 以下の場合のみ日本語ローマ字表記（ヘボン式）を使用**\n"
-    "   - 日本人にとって極端に馴染みの薄い英単語の場合（例: 稟議 → ringi, 禀 → rin）\n"
-    "   - 行内・融資内で一般的に用いられている単語（例: 案件番号 → lcNo）\n"
-    "   - 別名をつけたほうが望ましいもの（例: 当行 → mufgBank）\n"
-    "3. **ヘボン式ローマ字の詳細**\n"
-    "   - し→shi, ち→chi, つ→tsu, ふ→fu, じ→ji, ず→zu\n"
-    "   - しゃ→sha, しゅ→shu, しょ→sho, ちゃ→cha, ちゅ→chu, ちょ→cho\n"
-    "   - じゃ→ja, じゅ→ju, じょ→jo\n"
-    "   - 撥音「ん」: b,m,p の前は m、それ以外は n（例: 申込→moushikomi, 案件→anken）\n"
-    "   - 長音: 母音を重ねる（例: 交付→kofu, 照会→shokai）\n"
-    "4. **混在ルール**\n"
-    "   - **原則: 英語と日本語ローマ字の混在は禁止**（例: NG customerRingi）\n"
-    "   - **例外**: 行内で一般的に用いられている場合のみ許可（例: lcNo = loanCase + Number）\n"
-    "   - 1つの物理名はすべて英語、またはすべて日本語ローマ字に統一することを推奨\n"
-    "\n"
-    "## 略語使用ルール\n"
-    "1. **原則: 略語は使用しない**\n"
-    "2. **例外: 以下の条件を両方満たす場合のみ許可**\n"
-    "   - 名称が9文字以上となる場合\n"
-    "   - 略語を用いたほうがわかりやすい場合\n"
-    "3. 略語を使用する場合も、誰が見ても意味がわかること\n"
-    "\n"
-    "## 複合語ルール\n"
-    "1. 原則: 単語レベルで定義し、複合語は単語帳の単語を組み合わせる\n"
-    "2. 例外: 単語を組み合わせて違和感がある場合のみ複合語での定義を認める\n"
-    "   - 例: 案件番号 → case + no だと違和感 → lcNo として定義可\n"
-    "\n"
-    "## 表記揺れの考慮\n"
-    "- コード = CD = code\n"
-    "- 番号 = No = number\n"
-    "- 名称 = 名 = name\n"
-    "- フラグ = flag\n"
-    "\n"
-    "# 物理名生成の優先順位（最重要）\n"
-    "1. **候補の physical_name を最優先**: 候補に physical_name がある場合は必ずそれを使用\n"
-    "2. **不足語の補完**: 候補にない語は、ネーミングルール従って自分で英語名/ローマ字を考案\n"
-    "3. **最小限の命名**: 余分な語を追加せず、画面項目名の意味を正確に表現する最短形を目指す\n"
-    "4. **文字数制約**: 8文字程度が理想、最大15文字（ただし意味が不明瞭になるなら文字数より明瞭さ優先）\n"
-    "\n"
-    "# 思考プロセス\n"
-    "以下の手順で分析してください:\n"
-    "1. 画面項目名を意味のある語に分解（例: 「顧客担当者名」→「顧客」「担当者」「名」）\n"
-    "2. 各語が候補リストにあるか確認\n"
-    "3. 一致状況を判定:\n"
-    "   - 完全一致（部品ごと）: 分解した全ての語が候補にある（未登録語なし）\n"
-    "   - 一部一致: 分解した語の一部が候補にあり、一部は未登録\n"
-    "   - 一致なし: どの語も候補にない\n"
-    "4. 候補にある語はその physical_name を使用、ない語は自分で考案\n"
-    "5. 適切な語順で lowerCamelCase に結合\n"
-    "\n"
-    "# 出力\n"
-    "- JSON形式のみ出力（説明文・前置き・後置きは一切不要）\n"
-    "- 必ず提示された全キーを含める\n"
-    "- null許容キーは適切に null を設定\n"
-)
- 
-LLM_USER_TEMPLATE = (
-    """画面項目名: {screen_name}
+LLM_SYSTEM = """あなたは業務システム開発における命名規則の専門家です。
+画面項目名と単語帳を照合し、lowerCamelCase 形式の物理名を提案することが使命です。
+以降の規則は優先度の高い順に記載します。衝突時は上位規則を必ず優先してください。
+
+### 入力コンテキスト
+- component_analysis: ローカル分割結果の JSON。
+  - component_tokens: 一致済み語
+  - unmatched_fragments: 未登録語（数字は含まない）
+  - digit_segments: 数字のみの断片
+  - expected_match_hint: "component_full" / "component_partial" / "digits_only" / "no_component_hit"
+  - coverage_ratio: 分割語ベースの被覆率（0.0〜1.0）
+- 候補リストの要素は {term, physical_name, from_component, score?} を含む。
+- from_component が true の要素は component_tokens と同一。候補に存在しない語を創作しない。
+
+### 判定ポリシー（component_analysis を最優先）
+1) expected_match_hint = "component_full"
+   - match_type = 「完全一致（部品ごと）」
+   - matched_terms = component_tokens（順序を保持）
+   - unmatched_terms は null または []
+   - reason は [component_full] で開始
+2) expected_match_hint = "component_partial"
+   - match_type = 「一部一致」
+   - matched_terms = component_tokens
+   - unmatched_terms = unmatched_fragments（数字は含めない）
+   - coverage_ratio = component_analysis.coverage_ratio をそのまま採用
+   - reason は [component_partial] で開始
+3) expected_match_hint = "digits_only"
+   - 数字は照合対象外。他に未登録語が無ければ「完全一致（部品ごと）」、あれば「一致なし」
+   - reason は必ず [digits_only] で開始
+4) expected_match_hint = "no_component_hit"
+   - 候補スコアや文脈で補完可。ただし候補に無い語を安易に追加しない
+5) component_tokens も unmatched_fragments も空
+   - 画面項目が空 or 数字のみ。創作をせず安全側で判定
+6) unmatched_terms / unmatched_notes は同じ長さの配列。数字のみ断片は unmatched_terms に含めない
+7) coverage_ratio は component_analysis.coverage_ratio を採用。未提供時のみ自分で計算
+
+### reason タグ運用
+- reason は必ず [component_full] / [component_partial] / [digits_only] / [llm_partial] / [no_match] のいずれかで開始
+- llm_partial: component_analysis では決め切れず LLM 推論で部分一致と判断
+- no_match: 妥当な候補が無いと判断。説明を簡潔に続ける（ハルシネ禁止）
+
+### 物理名命名ルール（厳密）
+1) lowerCamelCase を必ず守る（例: shinseiDate）
+2) 文字数制限（match_typeによって異なる）★今回の修正ポイント:
+   - 「完全一致（部品ごと）」: 文字数制限なし
+     理由: 候補の物理名を全て連結するため、自然に15文字を超える場合がある
+     例: "collection" + "RingiNo" = "collectionRingiNo" (17文字)
+   - 「一部一致」: 文字数制限なし
+     理由: 候補の物理名を連結+未登録語を補完するため、15文字を超えても可
+     例: "customer" + "PersonInCharge" + "Name" = "customerPersonInChargeName" (27文字)
+   - 「一致なし」: 推奨 ~8 文字、最大 15 文字
+     理由: 完全に創作するため、読みやすさを優先
+3) 英語を基調。必要に応じヘボン式ローマ字（例: 稟議 → ringi）
+4) 1つの物理名内で英語とローマ字の混在は禁止（組織内の慣用のみ例外）
+5) 略語は 9 文字以上で明快さが増す場合のみ
+6) 候補の physical_name がある語は**必ず優先**して採用
+7) 余計な語を追加しない。画面項目の意味を最少構成で表現
+
+### 表記揺れの扱い（参考）
+- コード = CD = code / 番号 = No = number / 名称 = 名 = name / フラグ = flag
+
+### 物理名生成の優先順位（最重要）
+1) 候補 physical_name を最優先
+2) 不足語のみ命名ルールで補完（英語優先、次点でローマ字）
+3) 最小限・短く・明瞭に（8〜15 文字目安）
+
+### 思考プロセス（内部で行う。出力には含めない）
+1) 画面項目名を語に分解
+2) 各語が候補にあるか確認
+3) 一致判定（完全一致/一部一致/一致なし）
+4) 候補にある語の physical_name を採用。ない語のみ命名ルールで補完
+5) lowerCamelCase で結合
+
+### 出力（JSONのみ）
+- **説明文や前置きは禁止。JSON だけを返すこと。**
+
+### 出力スキーマ（検証用。必ず満たすこと）
+{
+  "type": "object",
+  "required": ["match_type","matched_terms","unmatched_terms","unmatched_notes","coverage_ratio","reason","physical_name"],
+  "properties": {
+    "match_type": { "type": "string", "enum": ["完全一致（部品ごと）","一部一致","一致なし"] },
+    "matched_terms": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "unmatched_terms": { "type": ["array","null"], "items": { "type": "string", "minLength": 1 } },
+    "unmatched_notes": { "type": ["array","null"], "items": { "type": "string" } },
+    "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+    "reason": { "type": "string", "pattern": "^\\[(component_full|component_partial|digits_only|llm_partial|no_match)\\].*" },
+    "physical_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z]+(?:[A-Z][a-z0-9]*)*$"
+    }
+  },
+  "additionalProperties": false
+}
+
+注意: physical_name の maxLength 制約は match_type によって異なる
+- 「完全一致（部品ごと）」「一部一致」: 制限なし（候補物理名の連結を優先）
+- 「一致なし」: 15文字推奨（ただしスキーマ上は制限なし）
+
+### 事前セルフチェック（出力直前に内部で確認）
+- physical_name が lowerCamelCase である
+- 「一致なし」の場合は physical_name を 15 文字以内に収めることを推奨（必須ではない）
+- reason タグが許可集合で開始
+- coverage_ratio が [0,1] にある
+- unmatched_terms と unmatched_notes の長さが一致（双方 null 可）
+- expected_match_hint の規則に反していない
+- 曖昧なら **no_match** を選ぶ（創作禁止）
+
+### Few-shot（最小例・形式の見本のみ）
+例1（component_full）
+Input:
+"""
+component_analysis: {"component_tokens":["回収","稟議番号"],"unmatched_fragments":[],"digit_segments":[],"expected_match_hint":"component_full","coverage_ratio":1.0}
+candidates: [{"term":"回収","physical_name":"collection","from_component":true},
+{"term":"稟議番号","physical_name":"ringiNo","from_component":true}]
+"""
+Output（例）:
+{"match_type":"完全一致（部品ごと）","matched_terms":["回収","稟議番号"],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[component_full] all covered","physical_name":"collectionRingiNo"}
+
+例2（component_partial）
+Input:
+"""
+component_analysis: {"component_tokens":["申込","日"],"unmatched_fragments":["新規"],"digit_segments":[],"expected_match_hint":"component_partial","coverage_ratio":0.67}
+candidates: [{"term":"申込","physical_name":"application","from_component":true},
+{"term":"日","physical_name":"Date","from_component":true}]
+"""
+Output（例）:
+{"match_type":"一部一致","matched_terms":["申込","日"],"unmatched_terms":["新規"],"unmatched_notes":["未登録語"],"coverage_ratio":0.67,"reason":"[component_partial] unmatched: 新規","physical_name":"applicationDate"}
+
+例3（digits_only）
+Input:
+"""
+component_analysis: {"component_tokens":[],"unmatched_fragments":[],"digit_segments":["123"],"expected_match_hint":"digits_only","coverage_ratio":1.0}
+candidates: []
+"""
+Output（例）:
+{"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[digits_only] digits ignored; no other gaps","physical_name":"id"}
+"""
+
+LLM_USER_TEMPLATE = """画面項目名: {screen_name}
+
+component_analysis:
+{component_json}
 
 単語帳候補（local_score降順）:
 {candidates_json}
+
+---
+出力JSON仕様:
+{{
+  "match_type": "完全一致（部品ごと）" | "一部一致" | "一致なし",
+  "matched_term": null,
+  "matched_terms": string[] | null,
+  "reason": string,
+  "proposed_name": string,
+  "coverage_ratio": number | null,
+  "unmatched_terms": string[] | null,
+  "unmatched_notes": string[] | null
+}}
+
+注意事項:
+- JSONのみ出力し、前後にテキストを付与しない。
+- matched_terms が存在する場合は画面項目内の順序を維持する。
+- unmatched_terms と unmatched_notes は同じ長さにする（どちらかが null なら両方 null）。
+- reason は [component_full] / [component_partial] / [digits_only] / [llm_partial] / [no_match] のいずれかで開始する。
+- coverage_ratio は component_analysis.coverage_ratio を使い、未提供時のみ自分で算出する。
+- 数字だけの差分は unmatched_terms に含めず、理由に明記する。
 
 ---
 タスク: 上記の画面項目名に対して、lowerCamelCaseの物理名を提案してください。
@@ -537,7 +750,9 @@ LLM_USER_TEMPLATE = (
   - 一致なし: どの語も候補にない
 - matched_term: 常に null（単一語での完全一致用フィールドは使用しない）
 - matched_terms: 完全一致または一部一致時の語リスト（例: ["回収", "稟議番号"]）、一致なしの場合は null
-- proposed_name: 必須、lowerCamelCase、8-15文字推奨
+- proposed_name: 必須、lowerCamelCase
+  - 「完全一致（部品ごと）」「一部一致」: 文字数制限なし（候補物理名を連結するため）
+  - 「一致なし」: 8-15文字推奨（完全に創作するため）
 - coverage_ratio: 0.0-1.0、完全一致（部品ごと）=1.0、一致なし=null または 0.0
 - unmatched_terms: 候補にない語のリスト（完全一致（部品ごと）の場合は空配列またはnull）
 - unmatched_notes: unmatched_terms各要素の説明（要素数一致）
@@ -545,30 +760,61 @@ LLM_USER_TEMPLATE = (
 
 具体例1（完全一致（部品ごと））:
 入力: "回収稟議番号"
-候補: [{{"term": "回収", "physical_name": "kaishu"}}, {{"term": "稟議番号", "physical_name": "ringiNo"}}]
-出力: {{"match_type": "完全一致（部品ごと）", "matched_term": null, "matched_terms": ["回収", "稟議番号"], "proposed_name": "kaishuRingiNo", "coverage_ratio": 1.0, "unmatched_terms": null, "unmatched_notes": null, "reason": "全ての語が候補で充足"}}
+候補: [{"term": "回収", "physical_name": "kaishu"}, {"term": "稟議番号", "physical_name": "ringiNo"}]
+出力: {"match_type": "完全一致（部品ごと）", "matched_term": null, "matched_terms": ["回収", "稟議番号"], "proposed_name": "kaishuRingiNo", "coverage_ratio": 1.0, "unmatched_terms": null, "unmatched_notes": null, "reason": "全ての語が候補で充足"}
 
 具体例2（一部一致）:
 入力: "顧客担当者名"
-候補: [{{"term": "顧客", "physical_name": "customer"}}, {{"term": "名", "physical_name": "name"}}]
-出力: {{"match_type": "一部一致", "matched_term": null, "matched_terms": ["顧客", "名"], "proposed_name": "customerPersonInChargeName", "coverage_ratio": 0.67, "unmatched_terms": ["担当者"], "unmatched_notes": ["業務担当者"], "reason": "顧客と名は一致、担当者は未登録のため補完"}}
+候補: [{"term": "顧客", "physical_name": "customer"}, {"term": "名", "physical_name": "name"}]
+出力: {"match_type": "一部一致", "matched_term": null, "matched_terms": ["顧客", "名"], "proposed_name": "customerPersonInChargeName", "coverage_ratio": 0.67, "unmatched_terms": ["担当者"], "unmatched_notes": ["業務担当者"], "reason": "顧客と名は一致、担当者は未登録のため補完"}
 
-JSON以外の出力禁止。即座にJSONのみ返してください。
-    """
-)
- 
- 
-def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+JSON以外の出力は禁止です。必ず上記スキーマそのままのキー構成で 1 行の JSON を返してください。
+"""
+
+def build_llm_payload(
+    screen_name: str,
+    candidates: List[Candidate],
+    cfg: Dict[str, Any],
+    term_meta: Optional[Dict[str, Dict[str, Any]]] = None,
+    component_result: Optional[ComponentMatchResult] = None,
+) -> Dict[str, Any]:
     """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
-    cand_payload = []
+    cand_payload: List[Dict[str, Any]] = []
+    component_terms = set(component_result.matched_terms) if component_result else set()
     for c in candidates:
-        item = {"term": c.term, "local_score": round(c.score, 4)}
+        item: Dict[str, Any] = {"term": c.term, "local_score": round(c.score, 4)}
+        if component_terms:
+            item["from_component"] = c.term in component_terms
         if term_meta and c.term in term_meta:
             meta = term_meta[c.term]
             phys = meta.get("_phys_abbr") or meta.get("_phys")
             if phys:
                 item["physical_name"] = phys
         cand_payload.append(item)
+
+    component_payload: Optional[Dict[str, Any]] = None
+    if component_result:
+        hint = "no_component_hit"
+        if component_result.matched_terms:
+            if not component_result.unmatched_segments and (
+                component_result.has_non_digit or not component_result.digit_segments
+            ):
+                hint = "component_full"
+            elif not component_result.has_non_digit and component_result.digit_segments:
+                hint = "digits_only"
+            else:
+                hint = "component_partial"
+        component_payload = {
+            "normalized_screen": zenkaku_hankaku_norm(screen_name),
+            "component_tokens": component_result.matched_terms,
+            "component_tokens_norm": component_result.matched_norms,
+            "unmatched_fragments": component_result.unmatched_segments,
+            "digit_segments": component_result.digit_segments,
+            "coverage_ratio": round(component_result.coverage_ratio, 4),
+            "has_non_digit": component_result.has_non_digit,
+            "expected_match_hint": hint,
+        }
+
     return {
         "model": cfg["OPENAI_MODEL"],
         "max_tokens": cfg["MAX_TOKENS"],
@@ -579,15 +825,31 @@ def build_llm_payload(screen_name: str, candidates: List[Candidate], cfg: Dict[s
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": LLM_SYSTEM},
-            {"role": "user", "content": LLM_USER_TEMPLATE.format(
-                screen_name=screen_name,
-                candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
-            )},
+            {
+                "role": "user",
+                "content": LLM_USER_TEMPLATE.format(
+                    screen_name=screen_name,
+                    component_json=(
+                        json.dumps(component_payload, ensure_ascii=False, indent=2)
+                        if component_payload is not None
+                        else "null"
+                    ),
+                    candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
+                ),
+            },
         ],
     }
- 
- 
-def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any], client: Optional[ApiClient] = None, api_semaphore: Optional[threading.Semaphore] = None, term_meta: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+
+
+def call_llm(
+    screen_name: str,
+    candidates: List[Candidate],
+    cfg: Dict[str, Any],
+    client: Optional[ApiClient] = None,
+    api_semaphore: Optional[threading.Semaphore] = None,
+    term_meta: Optional[Dict[str, Dict[str, Any]]] = None,
+    component_result: Optional[ComponentMatchResult] = None,
+) -> Dict[str, Any]:
     """LLM呼び出し。失敗時はフォールバック。"""
     # テストモード判定
     if cfg.get("TEST_MODE", False) or os.getenv("WORD_MATCHING_TEST_MODE", "false").lower() == "true":
@@ -597,14 +859,20 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
         except ImportError:
             print("[警告] mock_api.pyが見つかりません。フォールバックを使用します。")
             return fallback_reason(screen_name, candidates)
- 
+
     client = client or ApiClient(cfg)
-    payload = build_llm_payload(screen_name, candidates, cfg, term_meta)
- 
+    payload = build_llm_payload(
+        screen_name,
+        candidates,
+        cfg,
+        term_meta=term_meta,
+        component_result=component_result,
+    )
+
     # サーバー負荷対策：セマフォで同時実行API数を制限
     if api_semaphore:
         api_semaphore.acquire()
- 
+
     try:
         for attempt in range(cfg["RETRY"] + 1):
             try:
@@ -620,8 +888,9 @@ def call_llm(screen_name: str, candidates: List[Candidate], cfg: Dict[str, Any],
     finally:
         if api_semaphore:
             api_semaphore.release()
- 
- 
+
+
+
 def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, Any]:
     """ネットワーク障害や破損時の**最小限の結論**。"""
     if not candidates:
@@ -681,7 +950,9 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         df_vocab[["__term_norm", "_term"]]
         .drop_duplicates("__term_norm").set_index("__term_norm")["_term"].to_dict()
     )
- 
+
+    component_matcher = ComponentMatcher(norm_to_term)
+
     rows: List[Dict[str, Any]] = []
     api_client = ApiClient(cfg)
  
@@ -733,17 +1004,76 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "unmatched_note": None,
             }
  
-        # --- 1) ローカル候補生成（複合語＋ダイレクト）
+        # --- 1) ローカル候補生成（複合語＋ダイレクト＋ComponentMatcher）---
+        # ステップ1: phrase_candidates と direct_candidates で基本候補を収集
         broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
         direct_candidates = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-        # 単語単位で最高スコアを取り、上位だけ残す
-        merged_scores: Dict[str, float] = {}
+
+        # ステップ2: ComponentMatcher で画面項目名を単語帳ベースで分割
+        # これにより、複数語からなる画面項目名を単語帳の語に分解できる
+        comp_result = component_matcher.analyze(screen_name)
+
+        # ステップ3: ComponentMatcher から抽出した候補を最優先で保持
+        # ★重要: ComponentMatcher で見つかった候補は、LLMが判定に使用する必須情報
+        # そのため、これらは候補数制限の対象外とし、必ず LLM に渡す
+        component_candidates: List[Candidate] = []
+        if comp_result.matched_terms:
+            for term in comp_result.matched_terms:
+                score = local_similarity(screen_name, term)
+                component_candidates.append(Candidate(term, max(score, cfg["FUZZY_THRESHOLD"])))
+
+        # ステップ4: phrase/direct 候補をマージ（ComponentMatcher候補と重複しないもののみ）
+        component_terms_set = {c.term for c in component_candidates}
+        other_candidates_scores: Dict[str, float] = {}
         for c in broad_candidates + direct_candidates:
-            merged_scores[c.term] = max(merged_scores.get(c.term, 0.0), c.score)
-        merged: List[Candidate] = [Candidate(t, s) for t, s in merged_scores.items()]
+            if c.term not in component_terms_set:  # ComponentMatcher候補との重複を除外
+                other_candidates_scores[c.term] = max(other_candidates_scores.get(c.term, 0.0), c.score)
+
+        other_candidates = [Candidate(t, s) for t, s in other_candidates_scores.items()]
+        other_candidates.sort(key=lambda c: c.score, reverse=True)
+
+        # ステップ5: 最終候補リストを構築
+        # ComponentMatcher候補（必須）+ その他候補（上位のみ、ComponentMatcher候補数を考慮して制限）
+        # 例: ComponentMatcher候補が5個なら、その他候補は最大5個（合計10個）
+        max_other = max(cfg["TOP_K"], 10) - len(component_candidates)
+        merged = component_candidates + other_candidates[:max_other]
         merged.sort(key=lambda c: c.score, reverse=True)
-        merged = merged[: max(cfg["TOP_K"], 10)]
- 
+
+        # --- 1.5) 部品ごと完全一致の早期リターン（LLM未使用）---
+        # ComponentMatcher で全ての部品が単語帳で充足した場合、LLMを呼ばずに即座に結果を返す
+        # ★重要: ここで生成する物理名は15文字制限を受けない（複数の物理名を連結するため）
+        if comp_result.matched_terms and not comp_result.unmatched_segments:
+            # 数字のみの差分は無視（digits_only ケース）
+            seg_terms_meta = [term_meta.get(t, {}) for t in comp_result.matched_terms]
+            phys_list = [(m.get("_phys_abbr") or m.get("_phys")) for m in seg_terms_meta if (m.get("_phys_abbr") or m.get("_phys"))]
+            if phys_list:
+                # lowerCamelCase連結: 最初の語は小文字で開始、2語目以降はそのまま連結
+                # 例: "collection" + "RingiNo" = "collectionRingiNo" (17文字でもOK)
+                proposed = phys_list[0][:1].lower() + phys_list[0][1:] + "".join(phys_list[1:])
+            else:
+                proposed = simple_proposal(screen_name)
+            return {
+                "source_file": src_file,
+                "source_sheet": src_sheet,
+                "screen_item": screen_name,
+                "match_type": "完全一致（部品ごと）",
+                "matched_term": None,
+                "matched_term_no": None,
+                "matched_term_phys": None,
+                "matched_terms": ", ".join(comp_result.matched_terms),
+                "matched_terms_nos": ", ".join([str(_format_no(term_meta.get(t,{}).get("_no"))) for t in comp_result.matched_terms if _format_no(term_meta.get(t,{}).get("_no")) is not None]) or None,
+                "matched_terms_phys": ", ".join([str((term_meta.get(t,{}).get("_phys_abbr") or term_meta.get(t,{}).get("_phys"))) for t in comp_result.matched_terms if (term_meta.get(t,{}).get("_phys_abbr") or term_meta.get(t,{}).get("_phys"))]) or None,
+                "local_top_term": comp_result.matched_terms[0] if comp_result.matched_terms else None,
+                "local_top_term_no": _format_no(term_meta.get(comp_result.matched_terms[0],{}).get("_no")) if comp_result.matched_terms else None,
+                "local_top_term_phys": (term_meta.get(comp_result.matched_terms[0],{}).get("_phys_abbr") or term_meta.get(comp_result.matched_terms[0],{}).get("_phys")) if comp_result.matched_terms else None,
+                "local_top_score": 1.0,
+                "coverage_ratio": 1.0,
+                "proposed_name": proposed,
+                "reason": "辞書最長一致で部品完全一致のため LLM 未使用",
+                "unmatched_terms": None,
+                "unmatched_note": None,
+            }
+
         # --- 2) ローカル最高スコアが完全一致（1.0）→ 即決
         if merged and merged[0].score >= HARD_EXACT_SCORE:
             top = merged[0]
@@ -775,37 +1105,63 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 }
  
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
-        llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta)
- 
-        # 値の整形
-        cov_raw = llm.get("coverage_ratio")
-        try:
-            coverage_ratio = float(cov_raw) if cov_raw is not None else None
-        except Exception:
-            coverage_ratio = None
-        mt = llm.get("matched_term")
-        mt_meta = meta_of(mt)
-        matched_terms = llm.get("matched_terms") or []
+        llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta, comp_result)
+
+        llm_match_type = llm.get("match_type")
+        llm_matched_term = llm.get("matched_term")
+        llm_matched_terms = llm.get("matched_terms") or []
+
+        if comp_result.matched_terms:
+            matched_terms = comp_result.matched_terms
+            matched_term_val: Optional[str] = None
+            coverage_ratio = comp_result.coverage_ratio
+        else:
+            matched_terms = llm_matched_terms
+            matched_term_val = llm_matched_term
+            cov_raw = llm.get("coverage_ratio")
+            try:
+                coverage_ratio = float(cov_raw) if cov_raw is not None else None
+            except Exception:
+                coverage_ratio = None
+
+        mt_meta = meta_of(matched_term_val)
         mts_metas = [meta_of(t) for t in matched_terms]
 
-        # 未登録語の整形（配列→文字列変換）
-        unmatched_terms = None
-        unmatched_note = None
+        llm_unmatched_terms: List[str] = []
+        llm_unmatched_notes: List[str] = []
         try:
             llm_unmatched_terms = llm.get("unmatched_terms") or []
             llm_unmatched_notes = llm.get("unmatched_notes") or []
+        except Exception:
+            pass
+
+        unmatched_terms = None
+        unmatched_note = None
+        if comp_result.matched_terms:
+            if comp_result.unmatched_segments:
+                unmatched_terms = ", ".join(comp_result.unmatched_segments)
+                if llm_unmatched_notes:
+                    unmatched_note = " / ".join(llm_unmatched_notes)
+        else:
             if llm_unmatched_terms and llm_unmatched_notes:
                 unmatched_terms = ", ".join(llm_unmatched_terms)
                 unmatched_note = " / ".join(llm_unmatched_notes)
-        except Exception:
-            pass
+
+        if unmatched_note is None and llm_unmatched_notes:
+            unmatched_note = " / ".join(llm_unmatched_notes)
+
+        final_match_type = llm_match_type
+        if comp_result.matched_terms:
+            final_match_type = "一部一致" if comp_result.unmatched_segments else "完全一致（部品ごと）"
+        elif final_match_type == "完全一致（部品ごと）":
+            final_match_type = "一部一致"
 
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
             "screen_item": screen_name,
-            "match_type": llm.get("match_type"),
-            "matched_term": mt or None,
+            "match_type": final_match_type,
+            "matched_term": matched_term_val,
             "matched_term_no": mt_meta["no"],
             "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
             "matched_terms": ", ".join(matched_terms) or None,
@@ -821,7 +1177,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "unmatched_terms": unmatched_terms,
             "unmatched_note": unmatched_note,
         }
- 
+
     # 並列実行（小規模時は自動で縮退）
     items = df_screen[["_screen", "_src_file", "_src_sheet"]].astype(str).values.tolist()
     max_workers = min(cfg["MAX_WORKERS"], max(1, len(items)))
