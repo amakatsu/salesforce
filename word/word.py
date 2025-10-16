@@ -823,11 +823,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         }
  
     # 並列実行（小規模時は自動で縮退）
-    # astype(str)を使わず、apply()で個別に文字列化してファイル名の変換を防ぐ
-    items = df_screen[["_screen", "_src_file", "_src_sheet"]].apply(
-        lambda row: [str(row["_screen"]), str(row["_src_file"]), str(row["_src_sheet"])],
-        axis=1
-    ).tolist()
+    items = df_screen[["_screen", "_src_file", "_src_sheet"]].astype(str).values.tolist()
     max_workers = min(cfg["MAX_WORKERS"], max(1, len(items)))
     with cf.ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = [ex.submit(worker, it[0], it[1], it[2]) for it in items]

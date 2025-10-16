@@ -264,14 +264,14 @@ if st.button("🚀 照合実行", type="primary", use_container_width=True, disa
                 status_text.text("📁 ファイルをアップロード中...")
                 progress_bar.progress(10)
 
-                # 画面項目定義ファイルは「画面項目定義」という名前で保存
-                for i, f in enumerate(screen_files):
-                    file_path = tmpdir / f"画面項目定義_{i+1}.xlsx"
+                # 画面項目定義ファイルを元のファイル名で保存
+                for f in screen_files:
+                    file_path = tmpdir / f.name
                     file_path.write_bytes(f.read())
 
-                # 単語帳ファイルは「単語名一覧」という名前で保存
-                for i, f in enumerate(vocab_files):
-                    file_path = tmpdir / f"単語名一覧_{i+1}.xlsx"
+                # 単語帳ファイルを元のファイル名で保存
+                for f in vocab_files:
+                    file_path = tmpdir / f.name
                     file_path.write_bytes(f.read())
 
                 progress_bar.progress(20)
