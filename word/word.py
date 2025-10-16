@@ -590,10 +590,12 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
 5) lowerCamelCase で結合
 ### 出力（JSONのみ）
 - **説明文や前置きは禁止。JSON だけを返すこと。**
+- proposed_name は match_type に関わらず lowerCamelCase の非空文字列で必ず返す。
+- proposed_name は上記の命名ルール 1)〜7) をすべて満たすこと。違反が判明した場合は修正してから出力する。
 ### 出力スキーマ（検証用。必ず満たすこと）
 {
   "type": "object",
-  "required": ["match_type","matched_terms","unmatched_terms","unmatched_notes","coverage_ratio","reason","physical_name"],
+  "required": ["match_type","matched_terms","unmatched_terms","unmatched_notes","coverage_ratio","reason","proposed_name"],
   "properties": {
     "match_type": { "type": "string", "enum": ["完全一致（部品ごと）","一部一致","一致なし"] },
     "matched_terms": { "type": "array", "items": { "type": "string", "minLength": 1 } },
@@ -601,7 +603,7 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
     "unmatched_notes": { "type": ["array","null"], "items": { "type": "string" } },
     "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
     "reason": { "type": "string", "pattern": "^\\[(component_full|component_partial|digits_only|llm_partial|no_match)\\].*" },
-    "physical_name": {
+    "proposed_name": {
       "type": "string",
       "minLength": 1,
       "pattern": "^[a-z]+(?:[A-Z][a-z0-9]*)*$"
@@ -609,12 +611,14 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
   },
   "additionalProperties": false
 }
-注意: physical_name の maxLength 制約は match_type によって異なる
+注意: proposed_name の maxLength 制約は match_type によって異なる
 - 「完全一致（部品ごと）」「一部一致」: 制限なし（候補物理名の連結を優先）
 - 「一致なし」: 15文字推奨（ただしスキーマ上は制限なし）
 ### 事前セルフチェック（出力直前に内部で確認）
-- physical_name が lowerCamelCase である
-- 「一致なし」の場合は physical_name を 15 文字以内に収めることを推奨（必須ではない）
+- proposed_name が lowerCamelCase である
+- proposed_name を null や空文字にしない
+- 「一致なし」の場合は proposed_name を 15 文字以内に収めることを推奨（必須ではない）
+- 命名ルール 1)〜7) に全て従っているか最終確認する（違反があれば再検討）
 - reason タグが許可集合で開始
 - coverage_ratio が [0,1] にある
 - unmatched_terms と unmatched_notes の長さが一致（双方 null 可）
@@ -630,7 +634,7 @@ candidates: [{"term":"回収","physical_name":"collection","from_component":true
 {"term":"稟議番号","physical_name":"ringiNo","from_component":true}]
 """
 Output（例）:
-{"match_type":"完全一致（部品ごと）","matched_terms":["回収","稟議番号"],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[component_full] all covered","physical_name":"collectionRingiNo"}
+{"match_type":"完全一致（部品ごと）","matched_terms":["回収","稟議番号"],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[component_full] all covered","proposed_name":"collectionRingiNo"}
 例2（component_partial）
 Input:
 """
@@ -639,7 +643,7 @@ candidates: [{"term":"申込","physical_name":"application","from_component":tru
 {"term":"日","physical_name":"Date","from_component":true}]
 """
 Output（例）:
-{"match_type":"一部一致","matched_terms":["申込","日"],"unmatched_terms":["新規"],"unmatched_notes":["未登録語"],"coverage_ratio":0.67,"reason":"[component_partial] unmatched: 新規","physical_name":"applicationDate"}
+{"match_type":"一部一致","matched_terms":["申込","日"],"unmatched_terms":["新規"],"unmatched_notes":["未登録語"],"coverage_ratio":0.67,"reason":"[component_partial] unmatched: 新規","proposed_name":"applicationDate"}
 例3（digits_only）
 Input:
 """
@@ -647,7 +651,7 @@ component_analysis: {"component_tokens":[],"unmatched_fragments":[],"digit_segme
 candidates: []
 """
 Output（例）:
-{"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[digits_only] digits ignored; no other gaps","physical_name":"id"}
+{"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[digits_only] digits ignored; no other gaps","proposed_name":"id"}
 """
 LLM_USER_TEMPLATE = r"""画面項目名: $screen_name
 component_analysis:
@@ -678,7 +682,7 @@ $candidates_json
 処理ステップ:
 1. 画面項目名を意味のある語に分解
 2. 各語が候補リストに存在するかチェック
-3. physical_name生成:
+3. proposed_name生成:
    - 候補にある語 → その physical_name を使用（必須）
    - 候補にない語 → ネーミングルールに従い自分で考案
    - 全てを lowerCamelCase で結合
@@ -820,6 +824,7 @@ def call_llm(
             except Exception as e:
                 # API認証エラーの場合はリトライせずに即座に例外を投げる
                 error_msg = str(e)
+                print(f"[ERROR] LLM API failed for {screen_name}: {error_msg}", file=sys.stderr)
                 if hasattr(e, 'response') and e.response is not None:
                     status_code = e.response.status_code
                     if status_code in [401, 403]:
@@ -828,36 +833,46 @@ def call_llm(
                 if attempt < cfg["RETRY"]:
                     time.sleep(1.2 * (attempt + 1))  # バックオフ
                     continue
-                return fallback_reason(screen_name, candidates)
+                return fallback_reason(screen_name, candidates, term_meta, error_msg)
     finally:
         if api_semaphore:
             api_semaphore.release() 
 
 
-def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, Any]:
+def fallback_reason(
+    screen_name: str,
+    candidates: List[Candidate],
+    term_meta: Optional[Dict[str, Dict[str, Any]]] = None,
+    error_message: Optional[str] = None,
+) -> Dict[str, Any]:
     """ネットワーク障害や破損時の**最小限の結論**。"""
 
+    def _error_prefix() -> str:
+        return f"APIエラー: {error_message}" if error_message else "API応答なし"
+
     if not candidates:
+        reason = _error_prefix()
+        if not error_message:
+            reason = "API不達/候補なし。後日、単語帳の拡充を検討してください。"
         return {
             "match_type": "一致なし",
             "matched_term": None,
-            "reason": "API不達/候補なし。後日、単語帳の拡充を検討してください。",
+            "reason": reason,
             "proposed_name": simple_proposal(screen_name),
         }
+
     top = candidates[0]
-    if top.score >= FALLBACK_EXACT_FLOOR:
-        return {
-            "match_type": "完全一致",
-            "matched_term": top.term,
-            "reason": f"ローカル完全一致（score={top.score:.2f}）",
-            "proposed_name": simple_proposal(top.term),
-        }
+    local_hint = f"ローカル候補: {top.term} (score={top.score:.2f})"
+    reason = f"{_error_prefix()} / {local_hint}"
+    if not error_message:
+        reason = f"API応答なし / {local_hint}"
     return {
-        "match_type": "一部一致",
-        "matched_term": top.term,
-        "reason": f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
+        "match_type": "一致なし",
+        "matched_term": None,
+        "reason": reason,
         "proposed_name": simple_proposal(top.term),
     }
+
 
 # ====== 簡易物理名生成 =======================================================
 
@@ -874,8 +889,8 @@ def simple_proposal(text: str) -> str:
     core = [w for w in tokens[:3] if w not in stop_words] or tokens[:2]
     # lowerCamelCase化
     name = core[0].lower() + "".join(w.capitalize() for w in core[1:])
-    # 長さ制御（長すぎると読みにくい）
-    return (name[:8] if len(name) > 10 else name) or "newItem"
+    return name or "newItem"
+
 
 # ====== メイン処理 ============================================================
 
