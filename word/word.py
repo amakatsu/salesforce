@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 from __future__ import annotations
- 
 import argparse
 import concurrent.futures as cf
 import difflib
@@ -17,11 +15,10 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
- 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-
+from string import Template
 # .envファイルを読み込み（Streamlitからインポートされる前に環境変数を設定）
 # Dockerコンテナ内: /app/word/word.py → /app/.env
 from pathlib import Path as _EnvPath
@@ -37,38 +34,35 @@ try:
     TK_AVAILABLE = True
 except Exception:
     TK_AVAILABLE = False
- 
+
 # ====== 定数（読みやすさのため一箇所に集約） ===============================
 # 「事実上の完全一致」と見なすスコア（difflibは1.0に非常に近づく）
 HARD_EXACT_SCORE = 1.0  # 完全一致のみに限定
 # LLMフォールバック時に"完全一致"扱いにする安全側の下限
 FALLBACK_EXACT_FLOOR = 0.95
- 
+
 # ====== 設定（.envで上書き可） =============================================
 DEFAULT_CONFIG: Dict[str, Any] = {
     # --- API（OpenAI互換）
-    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu"),
+    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "http://170.49.125.91:53000/api/curl/v1/chat/"),
     "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
     "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
     "OPENAI_PATH": os.getenv("OPENAI_PATH", "/chat/completions"),
-    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", "{\"api-key\":\"8b843f2df20548899f93c0624452ea68\",\"apim-user-id\":\"PIT04447\"}"),
+    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", "{\"api-key\":\"QXwXLlZijq1U8WwiYfIu3znm3wWK3qIG\",\"apim-user-id\":\"PIT03077\"}"),
     "OPENAI_SEND_AUTH": os.getenv("OPENAI_SEND_AUTH", "false").lower() != "false",
     "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
     "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
     "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
     "VERIFY_SSL": os.getenv("VERIFY_SSL", "true").lower() != "false",
- 
     # --- 生成パラメタ
     "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
     "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.7")),
     "TOP_P": float(os.getenv("TOP_P", "0.95")),
     "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
     "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
- 
     # --- 入力検出
     "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
     "VOCAB_GLOB": os.getenv("VOCAB_GLOB", "*単語名一覧*.xlsx"),
- 
     # --- シート/列（必要に応じて引数で上書き）
     # シート名は複数指定可能（カンマ区切り）例: "画面項目定義,システム設計書,IF定義書"
     # ワイルドカード指定可能（*）例: "*" で全シート、"画面*" で「画面」で始まるシート
@@ -77,41 +71,41 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
     "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
     "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
-    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）,物理名正式名称"),
+    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）,物理名"),
     "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
     "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No,#"),
- 
     # --- 類似度設定
     "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
     "TOP_K": int(os.getenv("TOP_K", "3")),  # 直接候補の上位件数
- 
+
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
- 
     # --- 実行制御
     "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
     "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
     "RETRY": int(os.getenv("RETRY", "30")),
- 
     # --- レート制限（サーバー負荷対策）
     # 同時実行するAPI呼び出しの最大数（MAX_WORKERSより小さい値にするとAPI負荷を抑制）
     "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5"))
 }
- 
+
 # ====== 文字列正規化／類似度 =================================================
- 
+
+
 def zenkaku_hankaku_norm(text: str) -> str:
     """NFKC正規化 + 小文字化 + 記号/空白の正規化で**照合の土台**を整える。"""
+
     if text is None:
         return ""
     s = unicodedata.normalize("NFKC", str(text)).lower().strip()
     s = re.sub(r"[\u3000\s]+", " ", s)          # 全角/半角スペースを単一化
     s = re.sub(r"[\-/・·•･,()\[\]_]+", " ", s)    # 区切り記号はスペースへ
     return re.sub(r"\s+", " ", s)
- 
- 
+
+
 def local_similarity(a: str, b: str) -> float:
     """簡易類似度：完全一致=1.0 / 片包含=0.9 / それ以外はdifflibのratio。"""
+
     a_n, b_n = zenkaku_hankaku_norm(a), zenkaku_hankaku_norm(b)
     if not a_n or not b_n:
         return 0.0
@@ -120,15 +114,16 @@ def local_similarity(a: str, b: str) -> float:
     if a_n in b_n or b_n in a_n:
         return 0.9
     return difflib.SequenceMatcher(None, a_n, b_n).ratio()
- 
 @dataclass
+
+
 class Candidate:
     term: str
     score: float
 
-
-
 @dataclass
+
+
 class ComponentMatchResult:
     matched_terms: List[str]
     matched_norms: List[str]
@@ -159,7 +154,6 @@ class ComponentMatcher:
         self.nondigit_len: Dict[str, int] = {
             key: sum(1 for ch in key if not ch.isdigit()) for key in self.norm_to_term.keys()
         }
-
     def analyze(self, screen_name: str) -> ComponentMatchResult:
         normalized = zenkaku_hankaku_norm(screen_name)
         flat = normalized.replace(" ", "")
@@ -167,14 +161,12 @@ class ComponentMatcher:
             return ComponentMatchResult([], [], [], 1.0, 0, False, [])
         total_non_digit = sum(1 for ch in flat if not ch.isdigit())
         has_non_digit = total_non_digit > 0
-
         @lru_cache(maxsize=None)
         def walk(idx: int):
             if idx >= len(flat):
                 return (0, 0, 0, [])
             best = None
             ch = flat[idx]
-
             if ch.isdigit():
                 j = idx
                 while j < len(flat) and flat[j].isdigit():
@@ -204,18 +196,15 @@ class ComponentMatcher:
                     candidate = (nxt[0] + 1, nxt[1], nxt[2], [("unmatched", ch, None)] + nxt[3])
                     best = self._better(best, candidate)
             return best
-
         result = walk(0)
         if result is None:
             return ComponentMatchResult([], [], [], 0.0, total_non_digit, has_non_digit, [])
-
         _, matched_non_digit, _, steps = result
         matched_terms: List[str] = []
         matched_norms: List[str] = []
         unmatched_segments: List[str] = []
         digit_segments: List[str] = []
         buffer_unmatched = ""
-
         for step_type, value, extra in steps:
             if step_type == "term":
                 if buffer_unmatched:
@@ -232,13 +221,11 @@ class ComponentMatcher:
                 buffer_unmatched += value
         if buffer_unmatched:
             unmatched_segments.append(buffer_unmatched)
-
         coverage = 1.0
         if has_non_digit:
             coverage = matched_non_digit / total_non_digit if total_non_digit else 0.0
             if coverage > 1.0:
                 coverage = 1.0
-
         unmatched_count = sum(len(seg) for seg in unmatched_segments)
         return ComponentMatchResult(
             matched_terms=matched_terms,
@@ -249,7 +236,6 @@ class ComponentMatcher:
             has_non_digit=has_non_digit,
             digit_segments=digit_segments,
         )
-
     @staticmethod
     def _better(current, candidate):
         if current is None:
@@ -267,23 +253,25 @@ class ComponentMatcher:
         if candidate[2] < current[2]:
             return current
         return candidate
- 
+
 # ====== Excel I/O =============================================================
- 
+
+
 def _int_env(name: str) -> Optional[int]:
     v = os.getenv(name, "")
     try:
         return int(v) if v else None
     except Exception:
         return None
- 
 HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
 HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "30"))
 SCREEN_HEADER_ROW = _int_env("SCREEN_HEADER_ROW")
 VOCAB_HEADER_ROW = _int_env("VOCAB_HEADER_ROW") 
- 
+
+
 def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
     """優先シートが無ければ先頭。NFKCで厳密同名も考慮。"""
+
     if preferred and preferred in xls.sheet_names:
         return preferred
     if preferred:
@@ -293,32 +281,27 @@ def _pick_sheet_or_fallback(xls: pd.ExcelFile, preferred: Optional[str]) -> str:
             if norm(name) == want:
                 return name
     return xls.sheet_names[0]
- 
- 
+
+
 def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[str]:
     """設定シート名にマッチする全てのシートを返す。ワイルドカード対応。"""
+
     if not preferred:
         return [xls.sheet_names[0]]
- 
     norm = lambda s: unicodedata.normalize("NFKC", s).strip().lower()
- 
     # 複数パターンをカンマ区切りで分割
     patterns = [p.strip() for p in preferred.split(",") if p.strip()]
     if not patterns:
         return [xls.sheet_names[0]]
- 
     all_matches = []
- 
     for pattern in patterns:
         want = norm(pattern)
- 
         # ワイルドカード対応（*を正規表現に変換）
         import re as regex_module
         regex_pattern = want.replace('*', '.*')
         for name in xls.sheet_names:
             if regex_module.match(regex_pattern, norm(name)):
                 all_matches.append(name)
- 
     # 重複を除去して順序を保持
     result = []
     seen = set()
@@ -326,13 +309,13 @@ def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[s
         if sheet not in seen:
             result.append(sheet)
             seen.add(sheet)
- 
     # マッチするものがなければ先頭シート
     return result if result else [xls.sheet_names[0]]
- 
- 
+
+
 def _find_column_in_candidates(df: pd.DataFrame, col_candidates: str) -> Optional[str]:
     """カンマ区切りの列名候補から最初に見つかった列名を返す。"""
+
     candidates = [c.strip() for c in col_candidates.split(",") if c.strip()]
     for candidate in candidates:
         if candidate in df.columns:
@@ -348,27 +331,27 @@ def _find_column_in_candidates(df: pd.DataFrame, col_candidates: str) -> Optiona
 def _detect_header_row(path: Path, sheet_name: str, required_cols: List[str], scan_rows: int) -> int:
     """先頭scan_rows行で必須列がそろう行を**ヘッダ行**とみなす。
     required_colsの各要素はカンマ区切りで複数候補を指定可能。"""
-    head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
 
+    head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
     # 各必須列について、いずれかの候補が含まれていればOK
     req_sets = []
     for col_spec in required_cols:
         if col_spec:
             candidates = {zenkaku_hankaku_norm(c.strip()) for c in col_spec.split(",") if c.strip()}
             req_sets.append(candidates)
-
     for i in range(len(head_df)):
         row_vals = {zenkaku_hankaku_norm(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan", "一致なし"}}
         # すべての必須列グループについて、いずれかの候補が含まれているか確認
         if all(any(cand in row_vals for cand in req_set) for req_set in req_sets):
             return i
     raise KeyError(f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}")
- 
- 
+
+
 def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], required_cols: List[str],
                                      explicit_header_row_1based: Optional[int] = None,
                                      scan_rows: int = 30) -> Tuple[pd.DataFrame, int]:
     """ヘッダ行が1行目とは限らないExcelに対応。"""
+
     if explicit_header_row_1based is not None:
         hdr0 = max(0, explicit_header_row_1based - 1)
         return pd.read_excel(path, sheet_name=sheet_name, header=hdr0), hdr0
@@ -377,31 +360,29 @@ def read_excel_with_header_detection(path: Path, sheet_name: Optional[str], requ
     # ヘッダ行の自動検出
     header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
- 
- 
+
+
 def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
                           screen_col_override: Optional[str] = None,
                           vocab_col_override: Optional[str] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """単一ディレクトリから『画面項目定義』群と『単語帳』群を収集して前処理。"""
+
     screen_files = sorted(dir_path.glob(cfg["SCREEN_GLOB"]))
     vocab_files = sorted(dir_path.glob(cfg["VOCAB_GLOB"]))
     if not screen_files:
         raise FileNotFoundError(f"画面項目定義ファイルが見つかりません: {dir_path}/{cfg['SCREEN_GLOB']}")
     if not vocab_files:
         raise FileNotFoundError(f"単語帳ファイルが見つかりません: {dir_path}/{cfg['VOCAB_GLOB']}")
- 
     screen_col = screen_col_override or cfg["SCREEN_COL"]
     term_col = vocab_col_override or cfg["VOCAB_TERM_COL"]
     phys_col = cfg["VOCAB_PHYS_COL"]
     phys_abbr_col = cfg["VOCAB_PHYS_ABBR_COL"]
     no_col = cfg["VOCAB_NO_COL"]
- 
     # --- 画面項目定義を縦結合（複数シート対応）
     screen_frames: List[pd.DataFrame] = []
     for path in screen_files:
         xls = pd.ExcelFile(path)
         matching_sheets = _pick_matching_sheets(xls, cfg["SCREEN_SHEET"]) if cfg["SCREEN_SHEET"] else [xls.sheet_names[0]]
- 
         for sheet_used in matching_sheets:
             try:
                 df_s, _ = read_excel_with_header_detection(path, sheet_used, [screen_col], SCREEN_HEADER_ROW, HEADER_SCAN_ROWS)
@@ -413,23 +394,19 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
                 print(f"[INFO] 画面項目定義読み込み: {path.name} / {sheet_used} ({len(df_s)}件)")
             except Exception as e:
                 print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
- 
     # --- 単語帳を縦結合（複数シート対応）
     vocab_frames: List[pd.DataFrame] = []
     for path in vocab_files:
         xls = pd.ExcelFile(path)
         matching_sheets = _pick_matching_sheets(xls, cfg["VOCAB_SHEET"]) if cfg["VOCAB_SHEET"] else [xls.sheet_names[0]]
- 
         for sheet_used in matching_sheets:
             try:
                 df_v, _ = read_excel_with_header_detection(path, sheet_used, [term_col, phys_col, no_col], VOCAB_HEADER_ROW, HEADER_SCAN_ROWS)
-
                 # 複数候補から実際の列名を解決
                 actual_term_col = _find_column_in_candidates(df_v, term_col)
                 actual_phys_col = _find_column_in_candidates(df_v, phys_col)
                 actual_no_col = _find_column_in_candidates(df_v, no_col)
                 actual_phys_abbr_col = _find_column_in_candidates(df_v, phys_abbr_col)
-
                 missing = []
                 if not actual_term_col:
                     missing.append(term_col)
@@ -437,39 +414,31 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
                     missing.append(phys_col)
                 if not actual_no_col:
                     missing.append(no_col)
-
                 if missing:
                     print(f"[警告] {path.name}（{sheet_used}）: 必須列が不足: {missing} - スキップ")
                     continue
-
                 # 列名を統一した名前にリネーム
                 df_v = df_v.rename(columns={
                     actual_term_col: "_term",
                     actual_phys_col: "_phys",
                     actual_no_col: "_no"
                 })
-
                 if actual_phys_abbr_col:
                     df_v = df_v.rename(columns={actual_phys_abbr_col: "_phys_abbr"})
                 else:
                     df_v["_phys_abbr"] = ""  # 任意列は空で補完
-
                 vocab_frames.append(df_v)
                 print(f"[INFO] 単語帳読み込み: {path.name} / {sheet_used} ({len(df_v)}件)")
             except Exception as e:
                 print(f"[警告] {path.name}（{sheet_used}）の読み込みエラー: {e} - スキップ")
- 
     # データフレームの結合（空チェック付き）
     if not screen_frames:
         raise FileNotFoundError(f"読み込み可能な画面項目定義シートが見つかりません")
     if not vocab_frames:
         raise FileNotFoundError(f"読み込み可能な単語帳シートが見つかりません")
- 
     df_screen = pd.concat(screen_frames, ignore_index=True)
     df_vocab = pd.concat(vocab_frames, ignore_index=True)
- 
     print(f"[INFO] 合計読み込み: 画面項目定義 {len(df_screen)}件, 単語帳 {len(df_vocab)}件")
- 
     # --- 欠損・空行の整理
     df_screen[screen_col] = df_screen[screen_col].fillna("")
     # 単語帳は既にリネーム済みなので "_" 付きの列名を使用
@@ -477,24 +446,25 @@ def load_screen_and_vocab(dir_path: Path, cfg: Dict[str, Any],
         df_vocab[c] = df_vocab[c].fillna("")
     df_screen = df_screen[df_screen[screen_col].astype(str).str.strip() != ""].copy()
     df_vocab = df_vocab[df_vocab["_term"].astype(str).str.strip() != ""].copy()
-
     # --- 照合キー追加・列名整理
     df_vocab["__term_norm"] = df_vocab["_term"].astype(str).map(zenkaku_hankaku_norm)
     df_screen = df_screen.rename(columns={screen_col: "_screen", "__source_file": "_src_file", "__source_sheet": "_src_sheet"})
- 
     return df_screen, df_vocab
- 
+
 # ====== 候補生成（ローカル） ==================================================
- 
+
+
 def top_k_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
     """画面項目 vs 単語帳の**直接照合**で上位k件を返却。"""
+
     scored = [Candidate(term, local_similarity(screen_name, term)) for term in vocab_terms]
     scored.sort(key=lambda c: c.score, reverse=True)
     return [c for c in scored[:k] if c.score >= threshold]
- 
- 
+
+
 def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
     """複合語対策：unigram/bigram に分解してパーツ単位で候補を拾う。"""
+
     tokens = [t for t in zenkaku_hankaku_norm(screen_name).split(" ") if t]
     grams = set(tokens)
     for i in range(len(tokens) - 1):
@@ -512,10 +482,13 @@ def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshol
     merged = [Candidate(t, sc) for t, sc in best_by_term.items()]
     merged.sort(key=lambda c: c.score, reverse=True)
     return merged[: max(k, 10)]
- 
+
 # ====== APIクライアント =======================================================
+
+
 class ApiClient:
     """OpenAI互換APIへの最小ラッパ（ヘッダ/プロキシ/SSL検証対応）。"""
+
     def __init__(self, cfg: Dict[str, Any]):
         self.base_url = cfg["OPENAI_BASE_URL"].rstrip("/")
         self.path = cfg["OPENAI_PATH"]
@@ -543,18 +516,16 @@ class ApiClient:
             except Exception:
                 pass
         self.headers = headers
- 
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
         resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
         resp.raise_for_status()
         return resp.json()
- 
+
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = """あなたは業務システム開発における命名規則の専門家です。
 画面項目名と単語帳を照合し、lowerCamelCase 形式の物理名を提案することが使命です。
 以降の規則は優先度の高い順に記載します。衝突時は上位規則を必ず優先してください。
-
 ### 入力コンテキスト
 - component_analysis: ローカル分割結果の JSON。
   - component_tokens: 一致済み語
@@ -564,7 +535,6 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
   - coverage_ratio: 分割語ベースの被覆率（0.0〜1.0）
 - 候補リストの要素は {term, physical_name, from_component, score?} を含む。
 - from_component が true の要素は component_tokens と同一。候補に存在しない語を創作しない。
-
 ### 判定ポリシー（component_analysis を最優先）
 1) expected_match_hint = "component_full"
    - match_type = 「完全一致（部品ごと）」
@@ -586,12 +556,10 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
    - 画面項目が空 or 数字のみ。創作をせず安全側で判定
 6) unmatched_terms / unmatched_notes は同じ長さの配列。数字のみ断片は unmatched_terms に含めない
 7) coverage_ratio は component_analysis.coverage_ratio を採用。未提供時のみ自分で計算
-
 ### reason タグ運用
 - reason は必ず [component_full] / [component_partial] / [digits_only] / [llm_partial] / [no_match] のいずれかで開始
 - llm_partial: component_analysis では決め切れず LLM 推論で部分一致と判断
 - no_match: 妥当な候補が無いと判断。説明を簡潔に続ける（ハルシネ禁止）
-
 ### 物理名命名ルール（厳密）
 1) lowerCamelCase を必ず守る（例: shinseiDate）
 2) 文字数制限（match_typeによって異なる）★今回の修正ポイント:
@@ -608,25 +576,20 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
 5) 略語は 9 文字以上で明快さが増す場合のみ
 6) 候補の physical_name がある語は**必ず優先**して採用
 7) 余計な語を追加しない。画面項目の意味を最少構成で表現
-
 ### 表記揺れの扱い（参考）
 - コード = CD = code / 番号 = No = number / 名称 = 名 = name / フラグ = flag
-
 ### 物理名生成の優先順位（最重要）
 1) 候補 physical_name を最優先
 2) 不足語のみ命名ルールで補完（英語優先、次点でローマ字）
 3) 最小限・短く・明瞭に（8〜15 文字目安）
-
 ### 思考プロセス（内部で行う。出力には含めない）
 1) 画面項目名を語に分解
 2) 各語が候補にあるか確認
 3) 一致判定（完全一致/一部一致/一致なし）
 4) 候補にある語の physical_name を採用。ない語のみ命名ルールで補完
 5) lowerCamelCase で結合
-
 ### 出力（JSONのみ）
 - **説明文や前置きは禁止。JSON だけを返すこと。**
-
 ### 出力スキーマ（検証用。必ず満たすこと）
 {
   "type": "object",
@@ -646,11 +609,9 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
   },
   "additionalProperties": false
 }
-
 注意: physical_name の maxLength 制約は match_type によって異なる
 - 「完全一致（部品ごと）」「一部一致」: 制限なし（候補物理名の連結を優先）
 - 「一致なし」: 15文字推奨（ただしスキーマ上は制限なし）
-
 ### 事前セルフチェック（出力直前に内部で確認）
 - physical_name が lowerCamelCase である
 - 「一致なし」の場合は physical_name を 15 文字以内に収めることを推奨（必須ではない）
@@ -670,7 +631,6 @@ candidates: [{"term":"回収","physical_name":"collection","from_component":true
 """
 Output（例）:
 {"match_type":"完全一致（部品ごと）","matched_terms":["回収","稟議番号"],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[component_full] all covered","physical_name":"collectionRingiNo"}
-
 例2（component_partial）
 Input:
 """
@@ -680,7 +640,6 @@ candidates: [{"term":"申込","physical_name":"application","from_component":tru
 """
 Output（例）:
 {"match_type":"一部一致","matched_terms":["申込","日"],"unmatched_terms":["新規"],"unmatched_notes":["未登録語"],"coverage_ratio":0.67,"reason":"[component_partial] unmatched: 新規","physical_name":"applicationDate"}
-
 例3（digits_only）
 Input:
 """
@@ -690,18 +649,14 @@ candidates: []
 Output（例）:
 {"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[digits_only] digits ignored; no other gaps","physical_name":"id"}
 """
-
-LLM_USER_TEMPLATE = """画面項目名: {screen_name}
-
+LLM_USER_TEMPLATE = r"""画面項目名: $screen_name
 component_analysis:
-{component_json}
-
+$component_json
 単語帳候補（local_score降順）:
-{candidates_json}
-
+$candidates_json
 ---
 出力JSON仕様:
-{{
+{
   "match_type": "完全一致（部品ごと）" | "一部一致" | "一致なし",
   "matched_term": null,
   "matched_terms": string[] | null,
@@ -710,8 +665,7 @@ component_analysis:
   "coverage_ratio": number | null,
   "unmatched_terms": string[] | null,
   "unmatched_notes": string[] | null
-}}
-
+}
 注意事項:
 - JSONのみ出力し、前後にテキストを付与しない。
 - matched_terms が存在する場合は画面項目内の順序を維持する。
@@ -719,10 +673,8 @@ component_analysis:
 - reason は [component_full] / [component_partial] / [digits_only] / [llm_partial] / [no_match] のいずれかで開始する。
 - coverage_ratio は component_analysis.coverage_ratio を使い、未提供時のみ自分で算出する。
 - 数字だけの差分は unmatched_terms に含めず、理由に明記する。
-
 ---
 タスク: 上記の画面項目名に対して、lowerCamelCaseの物理名を提案してください。
-
 処理ステップ:
 1. 画面項目名を意味のある語に分解
 2. 各語が候補リストに存在するかチェック
@@ -730,9 +682,8 @@ component_analysis:
    - 候補にある語 → その physical_name を使用（必須）
    - 候補にない語 → ネーミングルールに従い自分で考案
    - 全てを lowerCamelCase で結合
-
 出力JSON:
-{{
+{
   "match_type": "完全一致（部品ごと）" | "一部一致" | "一致なし",
   "matched_term": null,
   "matched_terms": string[] | null,
@@ -741,8 +692,7 @@ component_analysis:
   "coverage_ratio": number | null,
   "unmatched_terms": string[] | null,
   "unmatched_notes": string[] | null
-}}
-
+}
 フィールド定義:
 - match_type: 「完全一致（部品ごと）」「一部一致」「一致なし」のいずれか
   - 完全一致（部品ごと）: 分解した全ての語が候補で充足（unmatched_terms が空）
@@ -757,19 +707,17 @@ component_analysis:
 - unmatched_terms: 候補にない語のリスト（完全一致（部品ごと）の場合は空配列またはnull）
 - unmatched_notes: unmatched_terms各要素の説明（要素数一致）
 - reason: 判定理由を1文で
-
 具体例1（完全一致（部品ごと））:
 入力: "回収稟議番号"
 候補: [{"term": "回収", "physical_name": "kaishu"}, {"term": "稟議番号", "physical_name": "ringiNo"}]
 出力: {"match_type": "完全一致（部品ごと）", "matched_term": null, "matched_terms": ["回収", "稟議番号"], "proposed_name": "kaishuRingiNo", "coverage_ratio": 1.0, "unmatched_terms": null, "unmatched_notes": null, "reason": "全ての語が候補で充足"}
-
 具体例2（一部一致）:
 入力: "顧客担当者名"
 候補: [{"term": "顧客", "physical_name": "customer"}, {"term": "名", "physical_name": "name"}]
 出力: {"match_type": "一部一致", "matched_term": null, "matched_terms": ["顧客", "名"], "proposed_name": "customerPersonInChargeName", "coverage_ratio": 0.67, "unmatched_terms": ["担当者"], "unmatched_notes": ["業務担当者"], "reason": "顧客と名は一致、担当者は未登録のため補完"}
-
 JSON以外の出力は禁止です。必ず上記スキーマそのままのキー構成で 1 行の JSON を返してください。
 """
+
 
 def build_llm_payload(
     screen_name: str,
@@ -779,6 +727,7 @@ def build_llm_payload(
     component_result: Optional[ComponentMatchResult] = None,
 ) -> Dict[str, Any]:
     """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
+
     cand_payload: List[Dict[str, Any]] = []
     component_terms = set(component_result.matched_terms) if component_result else set()
     for c in candidates:
@@ -791,7 +740,6 @@ def build_llm_payload(
             if phys:
                 item["physical_name"] = phys
         cand_payload.append(item)
-
     component_payload: Optional[Dict[str, Any]] = None
     if component_result:
         hint = "no_component_hit"
@@ -814,7 +762,6 @@ def build_llm_payload(
             "has_non_digit": component_result.has_non_digit,
             "expected_match_hint": hint,
         }
-
     return {
         "model": cfg["OPENAI_MODEL"],
         "max_tokens": cfg["MAX_TOKENS"],
@@ -827,7 +774,7 @@ def build_llm_payload(
             {"role": "system", "content": LLM_SYSTEM},
             {
                 "role": "user",
-                "content": LLM_USER_TEMPLATE.format(
+                "content": Template(LLM_USER_TEMPLATE).safe_substitute(
                     screen_name=screen_name,
                     component_json=(
                         json.dumps(component_payload, ensure_ascii=False, indent=2)
@@ -851,14 +798,6 @@ def call_llm(
     component_result: Optional[ComponentMatchResult] = None,
 ) -> Dict[str, Any]:
     """LLM呼び出し。失敗時はフォールバック。"""
-    # テストモード判定
-    if cfg.get("TEST_MODE", False) or os.getenv("WORD_MATCHING_TEST_MODE", "false").lower() == "true":
-        try:
-            from mock_api import mock_llm_response
-            return mock_llm_response(screen_name, candidates)
-        except ImportError:
-            print("[警告] mock_api.pyが見つかりません。フォールバックを使用します。")
-            return fallback_reason(screen_name, candidates)
 
     client = client or ApiClient(cfg)
     payload = build_llm_payload(
@@ -868,11 +807,9 @@ def call_llm(
         term_meta=term_meta,
         component_result=component_result,
     )
-
     # サーバー負荷対策：セマフォで同時実行API数を制限
     if api_semaphore:
         api_semaphore.acquire()
-
     try:
         for attempt in range(cfg["RETRY"] + 1):
             try:
@@ -880,19 +817,26 @@ def call_llm(
                 content = data["choices"][0]["message"]["content"]
                 result = json.loads(content)
                 return result
-            except Exception:
+            except Exception as e:
+                # API認証エラーの場合はリトライせずに即座に例外を投げる
+                error_msg = str(e)
+                if hasattr(e, 'response') and e.response is not None:
+                    status_code = e.response.status_code
+                    if status_code in [401, 403]:
+                        raise Exception(f"API認証エラー (HTTP {status_code}): APIキーまたはユーザIDが無効です") from e
+                # その他のエラーの場合はリトライ
                 if attempt < cfg["RETRY"]:
                     time.sleep(1.2 * (attempt + 1))  # バックオフ
                     continue
                 return fallback_reason(screen_name, candidates)
     finally:
         if api_semaphore:
-            api_semaphore.release()
-
+            api_semaphore.release() 
 
 
 def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, Any]:
     """ネットワーク障害や破損時の**最小限の結論**。"""
+
     if not candidates:
         return {
             "match_type": "一致なし",
@@ -914,11 +858,13 @@ def fallback_reason(screen_name: str, candidates: List[Candidate]) -> Dict[str, 
         "reason": f"ローカル近似一致（score={top.score:.2f}）。APIフォールバック。",
         "proposed_name": simple_proposal(top.term),
     }
- 
+
 # ====== 簡易物理名生成 =======================================================
- 
+
+
 def simple_proposal(text: str) -> str:
     """ローワーキャメルの簡易物理名を生成（8〜10文字程度）。"""
+
     s = zenkaku_hankaku_norm(text)
     tokens = [t for t in re.split(r"\s+", s) if t]
     if not tokens:
@@ -930,16 +876,17 @@ def simple_proposal(text: str) -> str:
     name = core[0].lower() + "".join(w.capitalize() for w in core[1:])
     # 長さ制御（長すぎると読みにくい）
     return (name[:8] if len(name) > 10 else name) or "newItem"
- 
+
 # ====== メイン処理 ============================================================
- 
-def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any]) -> pd.DataFrame:
+
+
+def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str], cfg: Dict[str, Any], progress_callback=None) -> pd.DataFrame:
     """全体フロー：入力→候補生成→（完全一致なら即決）→LLM判定→集計DataFrame。"""
+
     df_screen, df_vocab = load_screen_and_vocab(dir_path, cfg, screen_col, vocab_col)
     # 全体件数（進捗ログ用）
     total_items = len(df_screen)
     processed_count = 0
- 
     vocab_terms = df_vocab["_term"].astype(str).tolist()
     term_meta = (
         df_vocab[["_term", "_phys", "_phys_abbr", "_no"]]
@@ -950,33 +897,29 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         df_vocab[["__term_norm", "_term"]]
         .drop_duplicates("__term_norm").set_index("__term_norm")["_term"].to_dict()
     )
-
     component_matcher = ComponentMatcher(norm_to_term)
-
     rows: List[Dict[str, Any]] = []
     api_client = ApiClient(cfg)
- 
     # API同時実行数を制限するセマフォ
     max_concurrent_api = cfg.get("MAX_CONCURRENT_API", 3)
     api_semaphore = threading.Semaphore(max_concurrent_api)
- 
     def _format_no(no_value) -> Optional[int]:
         """列番号を整数化（小数点を除去）"""
+
         if no_value is None:
             return None
         try:
             return int(float(no_value))
         except (ValueError, TypeError):
             return None
-
     def meta_of(term: Optional[str]) -> Dict[str, Any]:
         if not term:
             return {"no": None, "phys": None, "phys_abbr": None}
         m = term_meta.get(str(term)) or {}
         return {"no": _format_no(m.get("_no")), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
- 
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         """1件の画面項目に対する判定ワーカー（スレッドで実行）。"""
+
         # --- 0) 正規化ベースの完全一致 → LLMスキップ
         normalized = zenkaku_hankaku_norm(screen_name)
         exact_term = norm_to_term.get(normalized)
@@ -1003,16 +946,13 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "unmatched_terms": None,
                 "unmatched_note": None,
             }
- 
         # --- 1) ローカル候補生成（複合語＋ダイレクト＋ComponentMatcher）---
         # ステップ1: phrase_candidates と direct_candidates で基本候補を収集
         broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
         direct_candidates = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-
         # ステップ2: ComponentMatcher で画面項目名を単語帳ベースで分割
         # これにより、複数語からなる画面項目名を単語帳の語に分解できる
         comp_result = component_matcher.analyze(screen_name)
-
         # ステップ3: ComponentMatcher から抽出した候補を最優先で保持
         # ★重要: ComponentMatcher で見つかった候補は、LLMが判定に使用する必須情報
         # そのため、これらは候補数制限の対象外とし、必ず LLM に渡す
@@ -1021,24 +961,20 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             for term in comp_result.matched_terms:
                 score = local_similarity(screen_name, term)
                 component_candidates.append(Candidate(term, max(score, cfg["FUZZY_THRESHOLD"])))
-
         # ステップ4: phrase/direct 候補をマージ（ComponentMatcher候補と重複しないもののみ）
         component_terms_set = {c.term for c in component_candidates}
         other_candidates_scores: Dict[str, float] = {}
         for c in broad_candidates + direct_candidates:
             if c.term not in component_terms_set:  # ComponentMatcher候補との重複を除外
                 other_candidates_scores[c.term] = max(other_candidates_scores.get(c.term, 0.0), c.score)
-
         other_candidates = [Candidate(t, s) for t, s in other_candidates_scores.items()]
         other_candidates.sort(key=lambda c: c.score, reverse=True)
-
         # ステップ5: 最終候補リストを構築
         # ComponentMatcher候補（必須）+ その他候補（上位のみ、ComponentMatcher候補数を考慮して制限）
         # 例: ComponentMatcher候補が5個なら、その他候補は最大5個（合計10個）
         max_other = max(cfg["TOP_K"], 10) - len(component_candidates)
         merged = component_candidates + other_candidates[:max_other]
         merged.sort(key=lambda c: c.score, reverse=True)
-
         # --- 1.5) 部品ごと完全一致の早期リターン（LLM未使用）---
         # ComponentMatcher で全ての部品が単語帳で充足した場合、LLMを呼ばずに即座に結果を返す
         # ★重要: ここで生成する物理名は15文字制限を受けない（複数の物理名を連結するため）
@@ -1073,7 +1009,6 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "unmatched_terms": None,
                 "unmatched_note": None,
             }
-
         # --- 2) ローカル最高スコアが完全一致（1.0）→ 即決
         if merged and merged[0].score >= HARD_EXACT_SCORE:
             top = merged[0]
@@ -1103,14 +1038,12 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                     "unmatched_terms": None,
                     "unmatched_note": None,
                 }
- 
+
         # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
         llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta, comp_result)
-
         llm_match_type = llm.get("match_type")
         llm_matched_term = llm.get("matched_term")
         llm_matched_terms = llm.get("matched_terms") or []
-
         if comp_result.matched_terms:
             matched_terms = comp_result.matched_terms
             matched_term_val: Optional[str] = None
@@ -1123,10 +1056,8 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 coverage_ratio = float(cov_raw) if cov_raw is not None else None
             except Exception:
                 coverage_ratio = None
-
         mt_meta = meta_of(matched_term_val)
         mts_metas = [meta_of(t) for t in matched_terms]
-
         llm_unmatched_terms: List[str] = []
         llm_unmatched_notes: List[str] = []
         try:
@@ -1134,7 +1065,6 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             llm_unmatched_notes = llm.get("unmatched_notes") or []
         except Exception:
             pass
-
         unmatched_terms = None
         unmatched_note = None
         if comp_result.matched_terms:
@@ -1146,16 +1076,13 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             if llm_unmatched_terms and llm_unmatched_notes:
                 unmatched_terms = ", ".join(llm_unmatched_terms)
                 unmatched_note = " / ".join(llm_unmatched_notes)
-
         if unmatched_note is None and llm_unmatched_notes:
             unmatched_note = " / ".join(llm_unmatched_notes)
-
         final_match_type = llm_match_type
         if comp_result.matched_terms:
             final_match_type = "一部一致" if comp_result.unmatched_segments else "完全一致（部品ごと）"
         elif final_match_type == "完全一致（部品ごと）":
             final_match_type = "一部一致"
-
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
@@ -1177,7 +1104,6 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "unmatched_terms": unmatched_terms,
             "unmatched_note": unmatched_note,
         }
-
     # 並列実行（小規模時は自動で縮退）
     items = df_screen[["_screen", "_src_file", "_src_sheet"]].astype(str).values.tolist()
     max_workers = min(cfg["MAX_WORKERS"], max(1, len(items)))
@@ -1189,9 +1115,12 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 rows.append(row)
                 processed_count += 1
                 # 進捗ログ: 10件ごとに出力
+                pct = processed_count * 100 / total_items if total_items else 0
                 if processed_count % 10 == 0 or processed_count == total_items:
-                    pct = processed_count * 100 / total_items if total_items else 0
                     print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
+                # コールバック呼び出し（リアルタイム進捗）
+                if progress_callback:
+                    progress_callback(processed_count, total_items)
             except Exception as e:
                 # ワーカー失敗時も処理を止めない
                 error_row = {
@@ -1201,26 +1130,29 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 rows.append(error_row)
                 processed_count += 1
                 # エラー行でも進捗ログ
+                pct = processed_count * 100 / total_items if total_items else 0
                 if processed_count % 10 == 0 or processed_count == total_items:
-                    pct = processed_count * 100 / total_items if total_items else 0
                     print(f"[INFO] {processed_count}/{total_items} 件処理済み ({pct:.1f}%)")
- 
+                # コールバック呼び出し（リアルタイム進捗）
+                if progress_callback:
+                    progress_callback(processed_count, total_items)
     return pd.DataFrame(rows).reset_index(drop=True)
- 
+    print(f"保存: {xlsx_path}")
+
 # ====== 出力 ================================================================
- 
+
+
 def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
     """結果をExcel/CSV/JSONLで保存（MultiIndex対応・条件付き色付け付き）"""
+
     from pathlib import Path
     import pandas as pd
     from openpyxl.utils import get_column_letter
     from openpyxl.styles import PatternFill
     from openpyxl.formatting.rule import FormulaRule
- 
     out_dir = Path(cfg["OUT_DIR"]).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     xlsx_path = out_dir / "match_result.xlsx"
- 
     # --- 1) まず一次元カラムで整える（この段階では MultiIndex にしない）
     # 列順を変更: 一致した単語の後に複数一致した単語群を配置し、提案列をその後ろに移動
     ordered_cols = [
@@ -1246,7 +1178,6 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
     for c in ordered_cols:
         if c not in df.columns:
             df[c] = None
- 
     # 注意事項列
     def _warn(row):
         mt = (row.get("match_type") or "")
@@ -1256,10 +1187,8 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
             return "⚠️ 一致なし：単語帳への追加を検討してください"
         return ""
     df["注意事項"] = df.apply(_warn, axis=1)
- 
     # 一次元で並べ替え
     df = df[ordered_cols + ["注意事項"]]
- 
     # --- 2) 一括で MultiIndex 化（列数とタプル数を一致させる）
     header_map = {
         # 元情報
@@ -1295,7 +1224,6 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
     }
     df.columns = pd.MultiIndex.from_tuples([header_map[c] for c in df.columns])
     df.columns.names = [None, None]  # ← "Length of names must match..." 回避
- 
     # --- 3) サマリ/ファイル別サマリ
     status_counts = df[("【結果】", "一致状況")].value_counts(dropna=False).to_dict()
     summary_df = pd.DataFrame([
@@ -1304,7 +1232,7 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         {"メトリクス": "一致なし", "件数": status_counts.get("一致なし", 0)},
         {"メトリクス": "合計", "件数": len(df)},
     ])
- 
+
     group_keys = [("【元情報】", "ファイル名"),
                   ("【元情報】", "シート名")]
     target_col = ("【対象項目】", "項目名")
@@ -1316,7 +1244,6 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
           )
           .reset_index()
     )
- 
     # --- 4) Excel へ保存
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as w:
         # MultiIndex列はExcel保存時にヘッダーとデータの間に空白行が入る問題があるため、
@@ -1327,27 +1254,21 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         df.to_excel(w, sheet_name="結果", startrow=1, header=False, index=True)
         summary_df.to_excel(w, sheet_name="サマリ", index=True)
         by_file_df.to_excel(w, sheet_name="ファイル別サマリ", index=True)
- 
         # --- 5) 条件付き書式（「一部一致」「一致なし」を色付け）
         if len(df) > 0:
             ws = w.sheets["結果"]
- 
             # 2段見出しなのでデータ開始行は 3 行目
             start_row = 3
             end_row = start_row + len(df) - 1
- 
             # 列インデックス（1始まり）を取得
             col_index = {col: i+1 for i, col in enumerate(df.columns)}
             mt_idx = col_index[("【結果】", "一致状況")]
             si_idx = col_index[("【対象項目】", "項目名")]
- 
             mt_col = get_column_letter(mt_idx)
             si_col = get_column_letter(si_idx)
- 
             # 塗り色
             fill_yellow = PatternFill(start_color="FFF3B3", end_color="FFF3B3", fill_type="solid")
             fill_red = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
- 
             # 一部一致（match_type 列自体）
             rng_mt = f"{mt_col}{start_row}:{mt_col}{end_row}"
             ws.conditional_formatting.add(
@@ -1359,7 +1280,6 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
                 rng_mt,
                 FormulaRule(formula=[f'{mt_col}{start_row}="一致なし"'], fill=fill_red)
             )
- 
             # 画面項目名列も同じ条件で色付け（列は固定、行は相対）
             rng_si = f"{si_col}{start_row}:{si_col}{end_row}"
             ws.conditional_formatting.add(
@@ -1370,18 +1290,17 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
                 rng_si,
                 FormulaRule(formula=[f'${mt_col}{start_row}="一致なし"'], fill=fill_red)
             )
- 
     print(f"保存: {xlsx_path}")
- 
- 
+
 # ====== CLI ================================================================
- 
+
+
 def app_root() -> Path:
     if getattr(sys, "frozen", False):  # PyInstaller
         return Path(sys.executable).parent
     return Path(__file__).parent
- 
- 
+
+
 def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
     if not TK_AVAILABLE:
         return None
@@ -1392,8 +1311,8 @@ def ask_directory(title: str, initial: Optional[str] = None) -> Optional[str]:
         return path or None
     except Exception:
         return None
- 
- 
+
+
 def main() -> None:
     load_dotenv()
     # ダブルクリック実行時のカレントずれ防止
@@ -1401,7 +1320,6 @@ def main() -> None:
         os.chdir(app_root())
     except Exception:
         pass
- 
     parser = argparse.ArgumentParser(description="Excel 単語照合（LLM 補助）")
     parser.add_argument("--dir", help="入力ディレクトリ（画面項目定義・単語帳）")
     parser.add_argument("--in-dir", help="上と同じ（--dir と同義。後方互換）")
@@ -1410,12 +1328,9 @@ def main() -> None:
     parser.add_argument("--vocab-col", help="単語帳の列名（デフォルト: 論理名）")
     parser.add_argument("--no-gui", action="store_true", help="ダイアログを使わない（サーバ/CI向け）")
     args = parser.parse_args()
- 
     cfg = DEFAULT_CONFIG.copy()
- 
     if cfg.get("OPENAI_SEND_AUTH") and not cfg.get("OPENAI_API_KEY"):
         print("[警告] OPENAI_SEND_AUTH=true ですが OPENAI_API_KEY が未設定です。Authorization は送信されません。")
- 
     # 入力ディレクトリの解決
     in_dir = args.in_dir or args.dir
     if not in_dir and not args.no_gui:
@@ -1427,7 +1342,6 @@ def main() -> None:
                 in_dir = None
     if not in_dir:
         raise FileNotFoundError("入力ディレクトリが指定されていません。--dir かダイアログで指定してください。")
- 
     # 出力先の解決
     if args.out_dir:
         cfg["OUT_DIR"] = args.out_dir
@@ -1436,24 +1350,17 @@ def main() -> None:
             chosen = ask_directory("出力ディレクトリ（保存先）を選択（キャンセルで既定の out）")
             if chosen:
                 cfg["OUT_DIR"] = chosen
- 
     # 実行
     root_dir = Path(in_dir)
     if not root_dir.exists():
         raise FileNotFoundError(f"ディレクトリが存在しません: {root_dir}")
- 
     df = process(root_dir, args.screen_col, args.vocab_col, cfg)
     save_outputs(df, cfg)
- 
     if TK_AVAILABLE and not args.no_gui:
         try:
             messagebox.showinfo("完了", f"出力が完了しました。保存先: {Path(cfg['OUT_DIR']).resolve()}\\match_result.xlsx")
         except Exception:
             pass
- 
- 
+
 if __name__ == "__main__":
- 
     main()
- 
- 
