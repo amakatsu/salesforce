@@ -44,7 +44,7 @@ $RECYCLE.BIN/
 # Salesforce Code Analyzer results
 sca-results.csv
 sfca_results.json
-
+ｔ
 
 # Maven build output
 openAPI/server/target/
