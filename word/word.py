@@ -1147,6 +1147,10 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         # 最終候補リスト（全候補をLLMに渡す）
         merged = component_candidates + other_candidates
         merged.sort(key=lambda c: c.score, reverse=True)
+        display_terms: List[str] = []
+        for cand in merged:
+            if cand.term not in display_terms:
+                display_terms.append(cand.term)
 
         # 2) LLM判定（数字処理・略称優先・最長一致の原則を適用）
         llm = call_llm(
@@ -1175,7 +1179,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             except Exception:
                 coverage_ratio = None
         mt_meta = meta_of(matched_term_val)
-        matched_terms_display, joined_matched_terms_nos, joined_matched_terms_phys = summarize_matched_terms(matched_terms, meta_of)
+        matched_terms_display, joined_matched_terms_nos, joined_matched_terms_phys = summarize_matched_terms(display_terms, meta_of)
         llm_unmatched_terms: List[str] = []
         llm_unmatched_notes: List[str] = []
         try:
