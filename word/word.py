@@ -540,26 +540,25 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
    - match_type = 「完全一致（部品ごと）」
    - matched_terms = component_tokens（順序を保持）
    - unmatched_terms は null または []
-   - reason は [component_full] で開始
 2) expected_match_hint = "component_partial"
    - match_type = 「一部一致」
    - matched_terms = component_tokens
    - unmatched_terms = unmatched_fragments（数字は含めない）
    - coverage_ratio = component_analysis.coverage_ratio をそのまま採用
-   - reason は [component_partial] で開始
+   - ★重要: 一部一致判定時の注意点
+     * 候補の意味的コンテキストを必ず考慮すること
+     * 例: 「重要」に対して「要」を一致とするのは不適切（意味が異なる）
+     * 例: 「担当者」に対して「担当」を一致とするのは適切（意味が包含関係）
+     * 部分文字列一致だけでなく、業務的な意味の整合性を確認すること
 3) expected_match_hint = "digits_only"
    - 数字は照合対象外。他に未登録語が無ければ「完全一致（部品ごと）」、あれば「一致なし」
-   - reason は必ず [digits_only] で開始
 4) expected_match_hint = "no_component_hit"
    - 候補スコアや文脈で補完可。ただし候補に無い語を安易に追加しない
+   - 候補との意味的整合性を必ず確認すること（部分文字列一致だけで判断しない）
 5) component_tokens も unmatched_fragments も空
    - 画面項目が空 or 数字のみ。創作をせず安全側で判定
 6) unmatched_terms / unmatched_notes は同じ長さの配列。数字のみ断片は unmatched_terms に含めない
 7) coverage_ratio は component_analysis.coverage_ratio を採用。未提供時のみ自分で計算
-### reason タグ運用
-- reason は必ず [component_full] / [component_partial] / [digits_only] / [llm_partial] / [no_match] のいずれかで開始
-- llm_partial: component_analysis では決め切れず LLM 推論で部分一致と判断
-- no_match: 妥当な候補が無いと判断。説明を簡潔に続ける（ハルシネ禁止）
 ### 物理名命名ルール（厳密）
 1) lowerCamelCase を必ず守る（例: shinseiDate）
 2) 文字数制限（match_typeによって異なる）★今回の修正ポイント:
@@ -592,6 +591,32 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
 - **説明文や前置きは禁止。JSON だけを返すこと。**
 - proposed_name は match_type に関わらず lowerCamelCase の非空文字列で必ず返す。
 - proposed_name は上記の命名ルール 1)〜7) をすべて満たすこと。違反が判明した場合は修正してから出力する。
+### reason フィールドの記述ルール（最重要）
+reason フィールドには、以下の内容を丁寧に、分かりやすく記述すること：
+
+1) **一致した語の説明**（完全一致・一部一致の場合）
+   - どの語が単語帳に登録されていたか
+   - それぞれの語に対応する物理名は何か
+
+2) **未登録語の物理名提案とその理由**（一部一致・一致なしの場合）
+   - 未登録語に対してどのような物理名を提案したか
+   - なぜその物理名を選んだのか（英語/ローマ字の選択理由、業務的な意味など）
+   - 例: 「「担当者」は未登録のため「personInCharge」を提案しました。業務上、人を表す語には英語の person を使用し、担当の意味を明確にするため InCharge を付加しました」
+
+3) **数字の扱い**（数字が含まれる場合）
+   - 数字部分はどう扱ったか
+
+4) **注意事項**（必要な場合）
+   - 単語帳への追加を推奨する語があればその理由
+
+**重要**: reasonフィールドにタグ（[component_full]など）は不要です。自然な日本語で、分かりやすく記述してください。
+
+### unmatched_notes フィールドの記述ルール
+unmatched_notes フィールドには、unmatched_terms の各要素について以下を記述：
+- その語に対してどのような物理名を提案したか
+- なぜその物理名を選んだのか（業務的な意味、英語/ローマ字の選択理由など）
+- 例: 「業務担当者を表す英語表現として personInCharge を採用。person で人を表し、inCharge で担当の意味を明確化」
+
 ### 出力スキーマ（検証用。必ず満たすこと）
 {
   "type": "object",
@@ -600,9 +625,9 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
     "match_type": { "type": "string", "enum": ["完全一致（部品ごと）","一部一致","一致なし"] },
     "matched_terms": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "unmatched_terms": { "type": ["array","null"], "items": { "type": "string", "minLength": 1 } },
-    "unmatched_notes": { "type": ["array","null"], "items": { "type": "string" } },
+    "unmatched_notes": { "type": ["array","null"], "items": { "type": "string", "minLength": 10 } },
     "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-    "reason": { "type": "string", "pattern": "^\\[(component_full|component_partial|digits_only|llm_partial|no_match)\\].*" },
+    "reason": { "type": "string", "minLength": 20 },
     "proposed_name": {
       "type": "string",
       "minLength": 1,
@@ -619,39 +644,52 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
 - proposed_name を null や空文字にしない
 - 「一致なし」の場合は proposed_name を 15 文字以内に収めることを推奨（必須ではない）
 - 命名ルール 1)〜7) に全て従っているか最終確認する（違反があれば再検討）
-- reason タグが許可集合で開始
+- reason は分かりやすく丁寧に記述されているか（タグなし、20文字以上）
+- unmatched_notes は各要素が丁寧に記述されているか（10文字以上）
 - coverage_ratio が [0,1] にある
 - unmatched_terms と unmatched_notes の長さが一致（双方 null 可）
 - expected_match_hint の規則に反していない
+- 候補との意味的整合性を確認したか（部分文字列一致だけで判断していないか）
 - 曖昧なら **no_match** を選ぶ（創作禁止）
 
-### Few-shot（最小例・形式の見本のみ）
-例1（component_full）
+### Few-shot（形式の見本）
+例1（完全一致・部品ごと）
 Input:
 """
 component_analysis: {"component_tokens":["回収","稟議番号"],"unmatched_fragments":[],"digit_segments":[],"expected_match_hint":"component_full","coverage_ratio":1.0}
 candidates: [{"term":"回収","physical_name":"collection","from_component":true},
 {"term":"稟議番号","physical_name":"ringiNo","from_component":true}]
 """
-Output（例）:
-{"match_type":"完全一致（部品ごと）","matched_terms":["回収","稟議番号"],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[component_full] all covered","proposed_name":"collectionRingiNo"}
-例2（component_partial）
+Output:
+{"match_type":"完全一致（部品ごと）","matched_terms":["回収","稟議番号"],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"「回収」は単語帳に登録されており物理名「collection」、「稟議番号」は単語帳に登録されており物理名「ringiNo」を使用しました。全ての語が単語帳で充足されています。","proposed_name":"collectionRingiNo"}
+
+例2（一部一致）
 Input:
 """
-component_analysis: {"component_tokens":["申込","日"],"unmatched_fragments":["新規"],"digit_segments":[],"expected_match_hint":"component_partial","coverage_ratio":0.67}
-candidates: [{"term":"申込","physical_name":"application","from_component":true},
-{"term":"日","physical_name":"Date","from_component":true}]
+component_analysis: {"component_tokens":["顧客","名"],"unmatched_fragments":["担当者"],"digit_segments":[],"expected_match_hint":"component_partial","coverage_ratio":0.67}
+candidates: [{"term":"顧客","physical_name":"customer","from_component":true},
+{"term":"名","physical_name":"Name","from_component":true}]
 """
-Output（例）:
-{"match_type":"一部一致","matched_terms":["申込","日"],"unmatched_terms":["新規"],"unmatched_notes":["未登録語"],"coverage_ratio":0.67,"reason":"[component_partial] unmatched: 新規","proposed_name":"applicationDate"}
-例3（digits_only）
+Output:
+{"match_type":"一部一致","matched_terms":["顧客","名"],"unmatched_terms":["担当者"],"unmatched_notes":["業務担当者を表す英語表現として personInCharge を採用しました。person で人を表し、inCharge で担当の意味を明確化することで、業務上の役割を正確に表現しています"],"coverage_ratio":0.67,"reason":"「顧客」は単語帳に登録されており物理名「customer」、「名」は単語帳に登録されており物理名「Name」を使用しました。「担当者」は未登録のため、業務担当者を表す英語表現 personInCharge を提案しました。この語は単語帳への追加を推奨します。","proposed_name":"customerPersonInChargeName"}
+
+例3（数字のみ）
 Input:
 """
 component_analysis: {"component_tokens":[],"unmatched_fragments":[],"digit_segments":["123"],"expected_match_hint":"digits_only","coverage_ratio":1.0}
 candidates: []
 """
-Output（例）:
-{"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"[digits_only] digits ignored; no other gaps","proposed_name":"id"}
+Output:
+{"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"画面項目名は数字のみで構成されており、数字は照合対象外のため、汎用的な識別子として物理名「id」を提案しました。","proposed_name":"id"}
+
+例4（一致なし）
+Input:
+"""
+component_analysis: {"component_tokens":[],"unmatched_fragments":["緊急度"],"digit_segments":[],"expected_match_hint":"no_component_hit","coverage_ratio":0.0}
+candidates: []
+"""
+Output:
+{"match_type":"一致なし","matched_terms":null,"unmatched_terms":["緊急度"],"unmatched_notes":["緊急の度合いを表す英語 urgency を採用しました。業務上、優先度や重要度を表す一般的な英語表現として適切です"],"coverage_ratio":0.0,"reason":"「緊急度」は単語帳に登録されていないため、緊急の度合いを表す英語 urgency を提案しました。この語は単語帳への追加を推奨します。","proposed_name":"urgency"}
 """
 LLM_USER_TEMPLATE = r"""画面項目名: $screen_name
 component_analysis:
@@ -674,17 +712,25 @@ $candidates_json
 - JSONのみ出力し、前後にテキストを付与しない。
 - matched_terms が存在する場合は画面項目内の順序を維持する。
 - unmatched_terms と unmatched_notes は同じ長さにする（どちらかが null なら両方 null）。
-- reason は [component_full] / [component_partial] / [digits_only] / [llm_partial] / [no_match] のいずれかで開始する。
+- reason は自然な日本語で丁寧に記述する（タグ不要、20文字以上）。
+  * 一致した語とその物理名を説明
+  * 未登録語に対する物理名提案とその理由を詳細に説明
+- unmatched_notes は各要素について10文字以上で丁寧に記述する。
+  * その語に対する物理名提案
+  * なぜその物理名を選んだのかの理由（業務的意味、英語/ローマ字の選択理由など）
 - coverage_ratio は component_analysis.coverage_ratio を使い、未提供時のみ自分で算出する。
 - 数字だけの差分は unmatched_terms に含めず、理由に明記する。
+- 候補との意味的整合性を必ず確認する（部分文字列一致だけで判断しない）。
+  * 例: 「重要」に対して「要」を一致とするのは不適切（意味が異なる）
+  * 例: 「担当者」に対して「担当」を一致とするのは適切（意味が包含関係）
 ---
 タスク: 上記の画面項目名に対して、lowerCamelCaseの物理名を提案してください。
 処理ステップ:
 1. 画面項目名を意味のある語に分解
-2. 各語が候補リストに存在するかチェック
+2. 各語が候補リストに存在するかチェック（意味的整合性も確認）
 3. proposed_name生成:
    - 候補にある語 → その physical_name を使用（必須）
-   - 候補にない語 → ネーミングルールに従い自分で考案
+   - 候補にない語 → ネーミングルールに従い自分で考案（理由を reason と unmatched_notes に記載）
    - 全てを lowerCamelCase で結合
 出力JSON:
 {
@@ -709,16 +755,12 @@ $candidates_json
   - 「一致なし」: 8-15文字推奨（完全に創作するため）
 - coverage_ratio: 0.0-1.0、完全一致（部品ごと）=1.0、一致なし=null または 0.0
 - unmatched_terms: 候補にない語のリスト（完全一致（部品ごと）の場合は空配列またはnull）
-- unmatched_notes: unmatched_terms各要素の説明（要素数一致）
-- reason: 判定理由を1文で
-具体例1（完全一致（部品ごと））:
-入力: "回収稟議番号"
-候補: [{"term": "回収", "physical_name": "kaishu"}, {"term": "稟議番号", "physical_name": "ringiNo"}]
-出力: {"match_type": "完全一致（部品ごと）", "matched_term": null, "matched_terms": ["回収", "稟議番号"], "proposed_name": "kaishuRingiNo", "coverage_ratio": 1.0, "unmatched_terms": null, "unmatched_notes": null, "reason": "全ての語が候補で充足"}
-具体例2（一部一致）:
-入力: "顧客担当者名"
-候補: [{"term": "顧客", "physical_name": "customer"}, {"term": "名", "physical_name": "name"}]
-出力: {"match_type": "一部一致", "matched_term": null, "matched_terms": ["顧客", "名"], "proposed_name": "customerPersonInChargeName", "coverage_ratio": 0.67, "unmatched_terms": ["担当者"], "unmatched_notes": ["業務担当者"], "reason": "顧客と名は一致、担当者は未登録のため補完"}
+- unmatched_notes: unmatched_terms各要素の説明（10文字以上で丁寧に）
+  * その語に対する物理名提案とその理由を記載
+  * 英語/ローマ字の選択理由、業務的な意味などを含める
+- reason: 判定理由を丁寧に記述（20文字以上）
+  * タグ不要、自然な日本語で
+  * 一致した語とその物理名、未登録語への提案とその理由を含める
 JSON以外の出力は禁止です。必ず上記スキーマそのままのキー構成で 1 行の JSON を返してください。
 """
 
