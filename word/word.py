@@ -77,7 +77,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # --- 類似度設定
     "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.68")),  # 候補プールの下限（精度向上のため0.72→0.68に下げてより多くの候補を拾う）
     "TOP_K": int(os.getenv("TOP_K", "5")),  # 直接候補の上位件数（精度向上のため3→5に増加）
-    "MAX_LLM_CANDIDATES": int(os.getenv("MAX_LLM_CANDIDATES", "0")),  # LLMへ渡す候補の最大件数（0で無制限）
 
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
@@ -252,20 +251,19 @@ class ComponentMatcher:
         )
     @staticmethod
     def _better(current, candidate):
+        """重み付きで候補を比較する。未一致が少なく、被覆が高く、語数が少ないものを優先。"""
+
         if current is None:
             return candidate
-        if candidate[0] < current[0]:
-            return candidate
-        if candidate[0] > current[0]:
-            return current
-        if candidate[1] > current[1]:
-            return candidate
-        if candidate[1] < current[1]:
-            return current
-        if candidate[2] > current[2]:
-            return candidate
-        if candidate[2] < current[2]:
-            return current
+        # 未一致文字数が少ない方を優先
+        if candidate[0] != current[0]:
+            return candidate if candidate[0] < current[0] else current
+        # 被覆率（非数字の一致文字数）が多い方を優先
+        if candidate[1] != current[1]:
+            return candidate if candidate[1] > current[1] else current
+        # 同条件なら語数が少ない（=長い語を選択）方を優先
+        if candidate[2] != current[2]:
+            return candidate if candidate[2] < current[2] else current
         return candidate
 
 # ====== Excel I/O =============================================================
@@ -1106,9 +1104,9 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "unmatched_note": None,
             }
         # 1) ローカル候補生成
-        max_llm_candidates = cfg.get("MAX_LLM_CANDIDATES", cfg.get("TOP_K", 5))
-        broad_candidates = phrase_candidates(screen_name, vocab_terms, max_llm_candidates, cfg["FUZZY_THRESHOLD"])
-        direct_candidates = top_k_candidates(screen_name, vocab_terms, max_llm_candidates, cfg["FUZZY_THRESHOLD"])
+        # 候補はすべて LLM へ渡すため、上限は設けない
+        broad_candidates = phrase_candidates(screen_name, vocab_terms, 0, cfg["FUZZY_THRESHOLD"])
+        direct_candidates = top_k_candidates(screen_name, vocab_terms, 0, cfg["FUZZY_THRESHOLD"])
         comp_result = component_matcher.analyze(screen_name)
 
         # ComponentMatcher候補を最優先で保持（LLM判定に必須）
@@ -1118,20 +1116,31 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 score = local_similarity(screen_name, term)
                 component_candidates.append(Candidate(term, max(score, cfg["FUZZY_THRESHOLD"])))
 
+        # Component の部分語（例: 「有無」→「有」「無」）も候補に追加
         # 候補をマージ（重複除外）
         component_terms_set = {c.term for c in component_candidates}
         other_candidates_scores: Dict[str, float] = {}
         for c in broad_candidates + direct_candidates:
             if c.term not in component_terms_set:
                 other_candidates_scores[c.term] = max(other_candidates_scores.get(c.term, 0.0), c.score)
+
+        # 画面項目内に含まれる語彙をすべて候補に追加（例: 有・無・有無 を同時に保持）
+        normalized_screen_flat = zenkaku_hankaku_norm(screen_name).replace(" ", "")
+        for vocab_term in vocab_terms:
+            if vocab_term in component_terms_set or vocab_term in other_candidates_scores:
+                continue
+            term_norm = zenkaku_hankaku_norm(vocab_term).replace(" ", "")
+            if term_norm and term_norm in normalized_screen_flat:
+                score = local_similarity(screen_name, vocab_term)
+                if score >= cfg["FUZZY_THRESHOLD"]:
+                    other_candidates_scores[vocab_term] = score
+
         other_candidates = [Candidate(t, s) for t, s in other_candidates_scores.items()]
         other_candidates.sort(key=lambda c: c.score, reverse=True)
 
         # 最終候補リスト（全候補をLLMに渡す）
         merged = component_candidates + other_candidates
         merged.sort(key=lambda c: c.score, reverse=True)
-        if max_llm_candidates and max_llm_candidates > 0:
-            merged = merged[:max_llm_candidates]
 
         # 2) LLM判定（数字処理・略称優先・最長一致の原則を適用）
         llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta, comp_result)
