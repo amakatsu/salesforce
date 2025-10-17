@@ -14,7 +14,7 @@ import unicodedata
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import pandas as pd
 import requests
 from dotenv import load_dotenv
@@ -77,6 +77,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # --- 類似度設定
     "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.68")),  # 候補プールの下限（精度向上のため0.72→0.68に下げてより多くの候補を拾う）
     "TOP_K": int(os.getenv("TOP_K", "5")),  # 直接候補の上位件数（精度向上のため3→5に増加）
+    "MAX_LLM_CANDIDATES": int(os.getenv("MAX_LLM_CANDIDATES", "0")),  # LLMへ渡す候補の最大件数（0で無制限）
 
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
@@ -115,15 +116,11 @@ def local_similarity(a: str, b: str) -> float:
         return 0.9
     return difflib.SequenceMatcher(None, a_n, b_n).ratio()
 @dataclass
-
-
 class Candidate:
     term: str
     score: float
 
 @dataclass
-
-
 class ComponentMatchResult:
     matched_terms: List[str]
     matched_norms: List[str]
@@ -132,6 +129,23 @@ class ComponentMatchResult:
     unmatched_count: int
     has_non_digit: bool
     digit_segments: List[str]
+
+# ====== ユーティリティ ========================================================
+
+
+def normalize_term_no(value: Any) -> Optional[int]:
+    """列番号を int に正規化（文字列や浮動小数を許容）。"""
+
+    if value is None:
+        return None
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        if isinstance(value, str):
+            trimmed = value.strip()
+            return int(trimmed) if trimmed.isdigit() else None
+        return None
+
 
 
 class ComponentMatcher:
@@ -459,7 +473,9 @@ def top_k_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold
 
     scored = [Candidate(term, local_similarity(screen_name, term)) for term in vocab_terms]
     scored.sort(key=lambda c: c.score, reverse=True)
-    return [c for c in scored[:k] if c.score >= threshold]
+    if k and k > 0:
+        scored = scored[:k]
+    return [c for c in scored if c.score >= threshold]
 
 
 def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshold: float) -> List[Candidate]:
@@ -481,7 +497,81 @@ def phrase_candidates(screen_name: str, vocab_terms: List[str], k: int, threshol
         best_by_term[cand.term] = max(best_by_term.get(cand.term, 0.0), cand.score)
     merged = [Candidate(t, sc) for t, sc in best_by_term.items()]
     merged.sort(key=lambda c: c.score, reverse=True)
-    return merged[: max(k, 10)]
+    if k and k > 0:
+        return merged[:k]
+    return merged
+
+
+
+def build_candidate_payload(
+    candidates: List[Candidate],
+    component_result: Optional[ComponentMatchResult],
+    term_meta: Optional[Dict[str, Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    """候補リストを LLM へ渡す辞書形式に整形する。"""
+
+    payload: List[Dict[str, Any]] = []
+    component_terms = set(component_result.matched_terms) if component_result else set()
+    component_order: Dict[str, int] = {}
+    if component_result:
+        for order, term in enumerate(component_result.matched_terms, start=1):
+            component_order.setdefault(term, order)
+
+    for rank, candidate in enumerate(candidates, start=1):
+        item: Dict[str, Any] = {
+            "term": candidate.term,
+            "normalized_term": zenkaku_hankaku_norm(candidate.term),
+            "local_score": round(candidate.score, 4),
+            "local_rank": rank,
+            "from_component": candidate.term in component_terms,
+        }
+        if item["from_component"]:
+            component_rank = component_order.get(candidate.term)
+            if component_rank is not None:
+                item["component_rank"] = component_rank
+        if term_meta:
+            meta = term_meta.get(candidate.term)
+            if meta:
+                term_no = normalize_term_no(meta.get("_no"))
+                if term_no is not None:
+                    item["term_no"] = term_no
+                phys_abbr = (meta.get("_phys_abbr") or "").strip()
+                phys_full = (meta.get("_phys") or "").strip()
+                if phys_abbr:
+                    item["physical_name"] = phys_abbr
+                    if phys_full and phys_full != phys_abbr:
+                        item["physical_name_full"] = phys_full
+                elif phys_full:
+                    item["physical_name"] = phys_full
+        payload.append(item)
+    return payload
+
+
+def summarize_matched_terms(
+    matched_terms: List[str],
+    meta_lookup: Callable[[str], Dict[str, Any]],
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """一致語とメタ情報を表示用に整形する。"""
+
+    if not matched_terms:
+        return None, None, None
+
+    metas = [meta_lookup(term) for term in matched_terms]
+    numbers = [
+        str(no)
+        for no in (normalize_term_no(meta.get("no")) for meta in metas)
+        if no is not None
+    ]
+    phys_names = [
+        str(meta.get("phys_abbr") or meta.get("phys") or "")
+        for meta in metas
+        if (meta.get("phys_abbr") or meta.get("phys"))
+    ]
+    display = ", ".join(str(term) for term in matched_terms)
+    joined_numbers = ", ".join(numbers) if numbers else None
+    joined_phys = ", ".join(phys_names) if phys_names else None
+    return display or None, joined_numbers, joined_phys
+
 
 # ====== APIクライアント =======================================================
 
@@ -800,18 +890,7 @@ def build_llm_payload(
 ) -> Dict[str, Any]:
     """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
 
-    cand_payload: List[Dict[str, Any]] = []
-    component_terms = set(component_result.matched_terms) if component_result else set()
-    for c in candidates:
-        item: Dict[str, Any] = {"term": c.term, "local_score": round(c.score, 4)}
-        if component_terms:
-            item["from_component"] = c.term in component_terms
-        if term_meta and c.term in term_meta:
-            meta = term_meta[c.term]
-            phys = meta.get("_phys_abbr") or meta.get("_phys")
-            if phys:
-                item["physical_name"] = phys
-        cand_payload.append(item)
+    cand_payload = build_candidate_payload(candidates, component_result, term_meta)
     component_payload: Optional[Dict[str, Any]] = None
     if component_result:
         hint = "no_component_hit"
@@ -986,20 +1065,15 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
     # API同時実行数を制限するセマフォ
     max_concurrent_api = cfg.get("MAX_CONCURRENT_API", 3)
     api_semaphore = threading.Semaphore(max_concurrent_api)
-    def _format_no(no_value) -> Optional[int]:
-        """列番号を整数化（小数点を除去）"""
-
-        if no_value is None:
-            return None
-        try:
-            return int(float(no_value))
-        except (ValueError, TypeError):
-            return None
     def meta_of(term: Optional[str]) -> Dict[str, Any]:
         if not term:
             return {"no": None, "phys": None, "phys_abbr": None}
-        m = term_meta.get(str(term)) or {}
-        return {"no": _format_no(m.get("_no")), "phys": m.get("_phys"), "phys_abbr": m.get("_phys_abbr")}
+        meta = term_meta.get(str(term)) or {}
+        return {
+            "no": normalize_term_no(meta.get("_no")),
+            "phys": meta.get("_phys"),
+            "phys_abbr": meta.get("_phys_abbr"),
+        }
     def worker(screen_name: str, src_file: str, src_sheet: Optional[str]) -> Dict[str, Any]:
         """1件の画面項目に対する判定ワーカー（スレッドで実行）。"""
 
@@ -1007,31 +1081,34 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         normalized = zenkaku_hankaku_norm(screen_name)
         exact_term = norm_to_term.get(normalized)
         if exact_term:
-            m = term_meta.get(exact_term) or {}
+            meta = term_meta.get(exact_term) or {}
+            matched_no = normalize_term_no(meta.get("_no"))
+            matched_phys = meta.get("_phys_abbr") or meta.get("_phys")
             return {
                 "source_file": src_file,
                 "source_sheet": src_sheet,
                 "screen_item": screen_name,
                 "match_type": "完全一致",
                 "matched_term": exact_term,
-                "matched_term_no": _format_no(m.get("_no")),
-                "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
+                "matched_term_no": matched_no,
+                "matched_term_phys": matched_phys,
                 "matched_terms": f"{exact_term}(1.00)",
                 "matched_terms_nos": None,
                 "matched_terms_phys": None,
                 "local_top_term": exact_term,
-                "local_top_term_no": _format_no(m.get("_no")),
-                "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
+                "local_top_term_no": matched_no,
+                "local_top_term_phys": matched_phys,
                 "local_top_score": 1.0,
                 "coverage_ratio": 1.0,
-                "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(exact_term)),
+                "proposed_name": (matched_phys or simple_proposal(exact_term)),
                 "reason": "正規化完全一致（LLM未呼び出し）",
                 "unmatched_terms": None,
                 "unmatched_note": None,
             }
         # 1) ローカル候補生成
-        broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 10), cfg["FUZZY_THRESHOLD"])
-        direct_candidates = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
+        max_llm_candidates = cfg.get("MAX_LLM_CANDIDATES", cfg.get("TOP_K", 5))
+        broad_candidates = phrase_candidates(screen_name, vocab_terms, max_llm_candidates, cfg["FUZZY_THRESHOLD"])
+        direct_candidates = top_k_candidates(screen_name, vocab_terms, max_llm_candidates, cfg["FUZZY_THRESHOLD"])
         comp_result = component_matcher.analyze(screen_name)
 
         # ComponentMatcher候補を最優先で保持（LLM判定に必須）
@@ -1053,6 +1130,8 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         # 最終候補リスト（全候補をLLMに渡す）
         merged = component_candidates + other_candidates
         merged.sort(key=lambda c: c.score, reverse=True)
+        if max_llm_candidates and max_llm_candidates > 0:
+            merged = merged[:max_llm_candidates]
 
         # 2) LLM判定（数字処理・略称優先・最長一致の原則を適用）
         llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta, comp_result)
@@ -1072,7 +1151,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             except Exception:
                 coverage_ratio = None
         mt_meta = meta_of(matched_term_val)
-        mts_metas = [meta_of(t) for t in matched_terms]
+        matched_terms_display, joined_matched_terms_nos, joined_matched_terms_phys = summarize_matched_terms(matched_terms, meta_of)
         llm_unmatched_terms: List[str] = []
         llm_unmatched_notes: List[str] = []
         try:
@@ -1099,12 +1178,6 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         elif final_match_type == "完全一致（部品ごと）":
             final_match_type = "一部一致"
 
-        # LLM候補表示（上位20件）
-        llm_candidates_display = ", ".join([
-            f"{c.term}({c.score:.2f})"
-            for c in merged[:20]
-        ]) if merged else None
-
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
@@ -1113,11 +1186,11 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "matched_term": matched_term_val,
             "matched_term_no": mt_meta["no"],
             "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
-            "matched_terms": llm_candidates_display,
-            "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_metas if m.get("no") is not None]) or None,
-            "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_metas if (m.get("phys_abbr") or m.get("phys"))]) or None,
+            "matched_terms": matched_terms_display,
+            "matched_terms_nos": joined_matched_terms_nos,
+            "matched_terms_phys": joined_matched_terms_phys,
             "local_top_term": (merged[0].term if merged else None),
-            "local_top_term_no": _format_no((term_meta.get(merged[0].term) or {}).get("_no")) if merged else None,
+            "local_top_term_no": normalize_term_no((term_meta.get(merged[0].term) or {}).get("_no")) if merged else None,
             "local_top_term_phys": ((term_meta.get(merged[0].term) or {}).get("_phys_abbr") or (term_meta.get(merged[0].term) or {}).get("_phys")) if merged else None,
             "local_top_score": (merged[0].score if merged else None),
             "coverage_ratio": coverage_ratio,
