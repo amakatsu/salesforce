@@ -56,7 +56,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "VERIFY_SSL": os.getenv("VERIFY_SSL", "true").lower() != "false",
     # --- 生成パラメタ
     "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
-    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.7")),
+    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.3")),  # 精度向上のため0.7→0.3に下げて決定的な出力を促す
     "TOP_P": float(os.getenv("TOP_P", "0.95")),
     "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
     "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
@@ -75,8 +75,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
     "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No,#"),
     # --- 類似度設定
-    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 候補プールの下限
-    "TOP_K": int(os.getenv("TOP_K", "3")),  # 直接候補の上位件数
+    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.68")),  # 候補プールの下限（精度向上のため0.72→0.68に下げてより多くの候補を拾う）
+    "TOP_K": int(os.getenv("TOP_K", "5")),  # 直接候補の上位件数（精度向上のため3→5に増加）
 
     # --- 出力
     "OUT_DIR": os.getenv("OUT_DIR", "out"),
@@ -547,21 +547,36 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
    - coverage_ratio = component_analysis.coverage_ratio をそのまま採用
    - ★重要: 一部一致判定時の注意点
      * 候補の意味的コンテキストを必ず考慮すること
-     * 例: 「重要」に対して「要」を一致とするのは不適切（意味が異なる）
-     * 例: 「担当者」に対して「担当」を一致とするのは適切（意味が包含関係）
+     * **より長い文字列で一致する候補がある場合、必ずそちらを優先すること（最長一致の原則）**
+     * 例: 「重要度」→「重要」(2文字一致) vs 「要」(1文字一致) → 「重要」を優先
+     * 例: 「有無フラグ」→「有無」(2文字一致) vs 「有」(1文字一致) or 「無」(1文字一致) → 「有無」を優先
+     * 例: 「担当者名」→「担当者」(3文字一致) vs 「担当」(2文字一致) → 「担当者」を優先
+     * 例: 「顧客番号」→「顧客番号」(4文字一致) vs 「顧客」(2文字一致) + 「番号」(2文字一致) → 「顧客番号」を優先
      * 部分文字列一致だけでなく、業務的な意味の整合性を確認すること
+     * 最長一致の原則: 常に最も長く一致する候補を選択すること
 3) expected_match_hint = "digits_only"
-   - 数字は照合対象外。他に未登録語が無ければ「完全一致（部品ごと）」、あれば「一致なし」
+   - 数字は照合対象外（unmatched_termsに含めない）
+   - 数字以外の部分が全て一致していれば「完全一致（部品ごと）」
+   - 例: 「顧客コード1」→「顧客コード」が一致 → 「完全一致（部品ごと）」、proposed_name=「customerCode1」
+   - 数字は物理名に必ず含めるが、一致判定には影響しない
 4) expected_match_hint = "no_component_hit"
-   - 候補スコアや文脈で補完可。ただし候補に無い語を安易に追加しない
-   - 候補との意味的整合性を必ず確認すること（部分文字列一致だけで判断しない）
+   - ComponentMatcherで一致なし。候補リストから文字列として完全に含まれるものを探す
+   - 判定基準: 画面項目名を分解したとき、候補の論理名が **文字列として完全一致** する部分があるか
+   - 例: 「顧客担当者名」→「顧客」「担当者」「名」のように分割でき、各部分が候補に存在すれば「一部一致」
+   - 例: 「重要度」→「重要」は文字列として含まれるが、「要」は部分一致なので不適切
+   - 例: 「有無フラグ」→「有無」は文字列として完全一致するが、「有」「無」への分割は不適切（意味が異なる）
+   - スコアは参考程度。文字列の完全一致性を最優先すること
+   - 曖昧な場合や、文字列として完全に分割できない場合は「一致なし」を選ぶ
 5) component_tokens も unmatched_fragments も空
    - 画面項目が空 or 数字のみ。創作をせず安全側で判定
 6) unmatched_terms / unmatched_notes は同じ長さの配列。数字のみ断片は unmatched_terms に含めない
 7) coverage_ratio は component_analysis.coverage_ratio を採用。未提供時のみ自分で計算
+8) ★重要: 略称の優先
+   - 候補に略称（_phys_abbr）が存在する場合は、必ず略称を優先して使用
+   - 略称がない場合のみ、正式名称（_phys）を使用
 ### 物理名命名ルール（厳密）
 1) lowerCamelCase を必ず守る（例: shinseiDate）
-2) 文字数制限（match_typeによって異なる）★今回の修正ポイント:
+2) 文字数制限（match_typeによって異なる）:
    - 「完全一致（部品ごと）」: 文字数制限なし
      理由: 候補の物理名を全て連結するため、自然に15文字を超える場合がある
      例: "collection" + "RingiNo" = "collectionRingiNo" (17文字)
@@ -573,8 +588,17 @@ LLM_SYSTEM = """あなたは業務システム開発における命名規則の�
 3) 英語を基調。必要に応じヘボン式ローマ字（例: 稟議 → ringi）
 4) 1つの物理名内で英語とローマ字の混在は禁止（組織内の慣用のみ例外）
 5) 略語は 9 文字以上で明快さが増す場合のみ
-6) 候補の physical_name がある語は**必ず優先**して採用
-7) 余計な語を追加しない。画面項目の意味を最少構成で表現
+6) ★重要: 候補の physical_name がある語の優先順位
+   - 略称（_phys_abbr）が存在する場合は、必ず略称を優先して使用
+   - 略称がない場合は、正式名称（_phys）を使用
+   - 候補にある語の physical_name は**必ず優先**して採用
+7) ★重要: 数字の扱い
+   - 論理名に数字が含まれている場合、物理名にも必ず数字を含める
+   - 数字は物理名の適切な位置に配置する（例: 「顧客コード1」→「customerCode1」）
+   - 数字間のハイフン（-）は「and」に置き換える（例: 「1-1」→「1and1」、「項目2-3」→「item2and3」）
+   - ただし、数字は一致判定の対象外（候補の不足判定unmatched_termsには含めない）
+   - 数字以外の部分が全て一致していれば「完全一致（部品ごと）」として扱う
+8) 余計な語を追加しない。画面項目の意味を最少構成で表現
 ### 表記揺れの扱い（参考）
 - コード = CD = code / 番号 = No = number / 名称 = 名 = name / フラグ = flag
 ### 物理名生成の優先順位（最重要）
@@ -676,11 +700,11 @@ Output:
 例3（数字のみ）
 Input:
 """
-component_analysis: {"component_tokens":[],"unmatched_fragments":[],"digit_segments":["123"],"expected_match_hint":"digits_only","coverage_ratio":1.0}
+component_analysis: {"component_tokens":[],"unmatched_fragments":[],"digit_segments":["1","1"],"expected_match_hint":"digits_only","coverage_ratio":1.0}
 candidates: []
 """
 Output:
-{"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"画面項目名は数字のみで構成されており、数字は照合対象外のため、汎用的な識別子として物理名「id」を提案しました。","proposed_name":"id"}
+{"match_type":"完全一致（部品ごと）","matched_terms":[],"unmatched_terms":null,"unmatched_notes":null,"coverage_ratio":1.0,"reason":"画面項目名は数字のみ（1-1）で構成されており、数字は照合対象外ですが、物理名には数字を保持し、ハイフンは「and」に置き換えて「1and1」を提案しました。","proposed_name":"1and1"}
 
 例4（一致なし）
 Input:
@@ -720,9 +744,11 @@ $candidates_json
   * なぜその物理名を選んだのかの理由（業務的意味、英語/ローマ字の選択理由など）
 - coverage_ratio は component_analysis.coverage_ratio を使い、未提供時のみ自分で算出する。
 - 数字だけの差分は unmatched_terms に含めず、理由に明記する。
-- 候補との意味的整合性を必ず確認する（部分文字列一致だけで判断しない）。
-  * 例: 「重要」に対して「要」を一致とするのは不適切（意味が異なる）
-  * 例: 「担当者」に対して「担当」を一致とするのは適切（意味が包含関係）
+- 候補との意味的整合性を必ず確認する（最長一致の原則に従い、より長い文字列で一致する候補を優先）。
+- 論理名に数字が含まれる場合、物理名にも必ず数字を含める。
+  * 例: 「顧客コード1」→「customerCode1」（数字の1を含める）
+  * 例: 「申請日2」→「applicationDate2」（数字の2を含める）
+- 略称（physical_name_abbr）が存在する場合は、必ず略称を優先して使用する。
 ---
 タスク: 上記の画面項目名に対して、lowerCamelCaseの物理名を提案してください。
 処理ステップ:
@@ -990,7 +1016,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "matched_term": exact_term,
                 "matched_term_no": _format_no(m.get("_no")),
                 "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
-                "matched_terms": None,
+                "matched_terms": f"{exact_term}(1.00)",
                 "matched_terms_nos": None,
                 "matched_terms_phys": None,
                 "local_top_term": exact_term,
@@ -1003,100 +1029,32 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
                 "unmatched_terms": None,
                 "unmatched_note": None,
             }
-        # --- 1) ローカル候補生成（複合語＋ダイレクト＋ComponentMatcher）---
-        # ステップ1: phrase_candidates と direct_candidates で基本候補を収集
-        broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 6), cfg["FUZZY_THRESHOLD"])
+        # 1) ローカル候補生成
+        broad_candidates = phrase_candidates(screen_name, vocab_terms, max(cfg["TOP_K"], 10), cfg["FUZZY_THRESHOLD"])
         direct_candidates = top_k_candidates(screen_name, vocab_terms, cfg["TOP_K"], cfg["FUZZY_THRESHOLD"])
-        # ステップ2: ComponentMatcher で画面項目名を単語帳ベースで分割
-        # これにより、複数語からなる画面項目名を単語帳の語に分解できる
         comp_result = component_matcher.analyze(screen_name)
-        # ステップ3: ComponentMatcher から抽出した候補を最優先で保持
-        # ★重要: ComponentMatcher で見つかった候補は、LLMが判定に使用する必須情報
-        # そのため、これらは候補数制限の対象外とし、必ず LLM に渡す
+
+        # ComponentMatcher候補を最優先で保持（LLM判定に必須）
         component_candidates: List[Candidate] = []
         if comp_result.matched_terms:
             for term in comp_result.matched_terms:
                 score = local_similarity(screen_name, term)
                 component_candidates.append(Candidate(term, max(score, cfg["FUZZY_THRESHOLD"])))
-        # ステップ4: phrase/direct 候補をマージ（ComponentMatcher候補と重複しないもののみ）
+
+        # 候補をマージ（重複除外）
         component_terms_set = {c.term for c in component_candidates}
         other_candidates_scores: Dict[str, float] = {}
         for c in broad_candidates + direct_candidates:
-            if c.term not in component_terms_set:  # ComponentMatcher候補との重複を除外
+            if c.term not in component_terms_set:
                 other_candidates_scores[c.term] = max(other_candidates_scores.get(c.term, 0.0), c.score)
         other_candidates = [Candidate(t, s) for t, s in other_candidates_scores.items()]
         other_candidates.sort(key=lambda c: c.score, reverse=True)
-        # ステップ5: 最終候補リストを構築
-        # ComponentMatcher候補（必須）+ その他候補（上位のみ、ComponentMatcher候補数を考慮して制限）
-        # 例: ComponentMatcher候補が5個なら、その他候補は最大5個（合計10個）
-        max_other = max(cfg["TOP_K"], 10) - len(component_candidates)
-        merged = component_candidates + other_candidates[:max_other]
-        merged.sort(key=lambda c: c.score, reverse=True)
-        # --- 1.5) 部品ごと完全一致の早期リターン（LLM未使用）---
-        # ComponentMatcher で全ての部品が単語帳で充足した場合、LLMを呼ばずに即座に結果を返す
-        # ★重要: ここで生成する物理名は15文字制限を受けない（複数の物理名を連結するため）
-        if comp_result.matched_terms and not comp_result.unmatched_segments:
-            # 数字のみの差分は無視（digits_only ケース）
-            seg_terms_meta = [term_meta.get(t, {}) for t in comp_result.matched_terms]
-            phys_list = [(m.get("_phys_abbr") or m.get("_phys")) for m in seg_terms_meta if (m.get("_phys_abbr") or m.get("_phys"))]
-            if phys_list:
-                # lowerCamelCase連結: 最初の語は小文字で開始、2語目以降はそのまま連結
-                # 例: "collection" + "RingiNo" = "collectionRingiNo" (17文字でもOK)
-                proposed = phys_list[0][:1].lower() + phys_list[0][1:] + "".join(phys_list[1:])
-            else:
-                proposed = simple_proposal(screen_name)
-            return {
-                "source_file": src_file,
-                "source_sheet": src_sheet,
-                "screen_item": screen_name,
-                "match_type": "完全一致（部品ごと）",
-                "matched_term": None,
-                "matched_term_no": None,
-                "matched_term_phys": None,
-                "matched_terms": ", ".join(comp_result.matched_terms),
-                "matched_terms_nos": ", ".join([str(_format_no(term_meta.get(t,{}).get("_no"))) for t in comp_result.matched_terms if _format_no(term_meta.get(t,{}).get("_no")) is not None]) or None,
-                "matched_terms_phys": ", ".join([str((term_meta.get(t,{}).get("_phys_abbr") or term_meta.get(t,{}).get("_phys"))) for t in comp_result.matched_terms if (term_meta.get(t,{}).get("_phys_abbr") or term_meta.get(t,{}).get("_phys"))]) or None,
-                "local_top_term": comp_result.matched_terms[0] if comp_result.matched_terms else None,
-                "local_top_term_no": _format_no(term_meta.get(comp_result.matched_terms[0],{}).get("_no")) if comp_result.matched_terms else None,
-                "local_top_term_phys": (term_meta.get(comp_result.matched_terms[0],{}).get("_phys_abbr") or term_meta.get(comp_result.matched_terms[0],{}).get("_phys")) if comp_result.matched_terms else None,
-                "local_top_score": 1.0,
-                "coverage_ratio": 1.0,
-                "proposed_name": proposed,
-                "reason": "辞書最長一致で部品完全一致のため LLM 未使用",
-                "unmatched_terms": None,
-                "unmatched_note": None,
-            }
-        # --- 2) ローカル最高スコアが完全一致（1.0）→ 即決
-        if merged and merged[0].score >= HARD_EXACT_SCORE:
-            top = merged[0]
-            # 追加の完全一致チェック（正規化後の文字列比較）
-            norm_screen = zenkaku_hankaku_norm(screen_name)
-            norm_term = zenkaku_hankaku_norm(top.term)
-            if norm_screen == norm_term:  # 真の完全一致のみ
-                m = term_meta.get(top.term) or {}
-                return {
-                    "source_file": src_file,
-                    "source_sheet": src_sheet,
-                    "screen_item": screen_name,
-                    "match_type": "完全一致",
-                    "matched_term": top.term,
-                    "matched_term_no": _format_no(m.get("_no")),
-                    "matched_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
-                    "matched_terms": None,
-                    "matched_terms_nos": None,
-                    "matched_terms_phys": None,
-                    "local_top_term": top.term,
-                    "local_top_term_no": _format_no(m.get("_no")),
-                    "local_top_term_phys": (m.get("_phys_abbr") or m.get("_phys")),
-                    "local_top_score": top.score,
-                    "coverage_ratio": 1.0,
-                    "proposed_name": (m.get("_phys_abbr") or m.get("_phys") or simple_proposal(top.term)),
-                    "reason": f"ローカル完全一致（score={top.score:.2f}、LLM未呼び出し）",
-                    "unmatched_terms": None,
-                    "unmatched_note": None,
-                }
 
-        # --- 3) LLMに最終判定を委譲（一部一致/一致なし）
+        # 最終候補リスト（全候補をLLMに渡す）
+        merged = component_candidates + other_candidates
+        merged.sort(key=lambda c: c.score, reverse=True)
+
+        # 2) LLM判定（数字処理・略称優先・最長一致の原則を適用）
         llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta, comp_result)
         llm_match_type = llm.get("match_type")
         llm_matched_term = llm.get("matched_term")
@@ -1140,6 +1098,13 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             final_match_type = "一部一致" if comp_result.unmatched_segments else "完全一致（部品ごと）"
         elif final_match_type == "完全一致（部品ごと）":
             final_match_type = "一部一致"
+
+        # LLM候補表示（上位20件）
+        llm_candidates_display = ", ".join([
+            f"{c.term}({c.score:.2f})"
+            for c in merged[:20]
+        ]) if merged else None
+
         return {
             "source_file": src_file,
             "source_sheet": src_sheet,
@@ -1148,7 +1113,7 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
             "matched_term": matched_term_val,
             "matched_term_no": mt_meta["no"],
             "matched_term_phys": (mt_meta.get("phys_abbr") or mt_meta.get("phys")),
-            "matched_terms": ", ".join(matched_terms) or None,
+            "matched_terms": llm_candidates_display,
             "matched_terms_nos": ", ".join([str(m.get("no")) for m in mts_metas if m.get("no") is not None]) or None,
             "matched_terms_phys": ", ".join([str((m.get("phys_abbr") or m.get("phys"))) for m in mts_metas if (m.get("phys_abbr") or m.get("phys"))]) or None,
             "local_top_term": (merged[0].term if merged else None),
@@ -1210,8 +1175,8 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
     out_dir = Path(cfg["OUT_DIR"]).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     xlsx_path = out_dir / "match_result.xlsx"
-    # --- 1) まず一次元カラムで整える（この段階では MultiIndex にしない）
-    # 列順を変更: 一致した単語の後に複数一致した単語群を配置し、提案列をその後ろに移動
+
+    # 列順定義
     ordered_cols = [
         # 元情報
         "source_file","source_sheet",
@@ -1219,9 +1184,9 @@ def save_outputs(df: pd.DataFrame, cfg: Dict[str, Any]) -> None:
         "screen_item",
         # 結果
         "match_type",
-        # 一致した単語（主要）
+        # 一致した単語（完全一致）
         "matched_term","matched_term_no","matched_term_phys",
-        # 複数一致（補足）を先に配置
+        # 複数一致した単語群（部品ごと）
         "matched_terms","matched_terms_nos","matched_terms_phys",
         # 提案を後ろに移動
         "proposed_name",
