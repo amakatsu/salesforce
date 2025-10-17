@@ -885,6 +885,7 @@ def build_llm_payload(
     cfg: Dict[str, Any],
     term_meta: Optional[Dict[str, Dict[str, Any]]] = None,
     component_result: Optional[ComponentMatchResult] = None,
+    extra_component_terms: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """LLM呼び出しペイロードを構築（厳密JSON指定）。"""
 
@@ -901,9 +902,10 @@ def build_llm_payload(
                 hint = "digits_only"
             else:
                 hint = "component_partial"
+        tokens_for_llm = extra_component_terms or component_result.matched_terms
         component_payload = {
             "normalized_screen": zenkaku_hankaku_norm(screen_name),
-            "component_tokens": component_result.matched_terms,
+            "component_tokens": tokens_for_llm,
             "component_tokens_norm": component_result.matched_norms,
             "unmatched_fragments": component_result.unmatched_segments,
             "digit_segments": component_result.digit_segments,
@@ -911,6 +913,8 @@ def build_llm_payload(
             "has_non_digit": component_result.has_non_digit,
             "expected_match_hint": hint,
         }
+        if extra_component_terms and extra_component_terms != component_result.matched_terms:
+            component_payload["component_tokens_original"] = component_result.matched_terms
     return {
         "model": cfg["OPENAI_MODEL"],
         "max_tokens": cfg["MAX_TOKENS"],
@@ -945,6 +949,7 @@ def call_llm(
     api_semaphore: Optional[threading.Semaphore] = None,
     term_meta: Optional[Dict[str, Dict[str, Any]]] = None,
     component_result: Optional[ComponentMatchResult] = None,
+    extra_component_terms: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """LLM呼び出し。失敗時はフォールバック。"""
 
@@ -955,6 +960,7 @@ def call_llm(
         cfg,
         term_meta=term_meta,
         component_result=component_result,
+        extra_component_terms=extra_component_terms,
     )
     # サーバー負荷対策：セマフォで同時実行API数を制限
     if api_semaphore:
@@ -1143,7 +1149,16 @@ def process(dir_path: Path, screen_col: Optional[str], vocab_col: Optional[str],
         merged.sort(key=lambda c: c.score, reverse=True)
 
         # 2) LLM判定（数字処理・略称優先・最長一致の原則を適用）
-        llm = call_llm(screen_name, merged, cfg, api_client, api_semaphore, term_meta, comp_result)
+        llm = call_llm(
+            screen_name,
+            merged,
+            cfg,
+            api_client,
+            api_semaphore,
+            term_meta,
+            comp_result,
+            extra_component_terms=display_terms,
+        )
         llm_match_type = llm.get("match_type")
         llm_matched_term = llm.get("matched_term")
         llm_matched_terms = llm.get("matched_terms") or []
