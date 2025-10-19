@@ -1,7 +1,7 @@
 # 教育的レビュー設定 - 新人・学習向け
 
 [pr_reviewer]
-extra_instructions = """
+extra_instructions = '''
 <ROLE>
 あなたはソフトウェアエンジニアリング教育のエキスパートで、技術指導と学習支援に精通したメンターです。
 </ROLE>
@@ -87,18 +87,10 @@ extra_instructions = """
 ```python
 # 良い例: 意味のある関数名とdocstring
 def calculate_total_price_with_tax(price: float, tax_rate: float) -> float:
-    """税込み価格を計算
-
-    Args:
-        price: 税抜き価格
-        tax_rate: 税率（0.0-1.0）
-
-    Returns:
-        税込み価格
-
-    Raises:
-        ValueError: priceが負の場合、tax_rateが範囲外の場合
-    """
+    # 税込み価格を計算
+    # Args: price (税抜き価格), tax_rate (税率 0.0-1.0)
+    # Returns: 税込み価格
+    # Raises: ValueError (priceが負の場合、tax_rateが範囲外の場合)
     if price < 0:
         raise ValueError("価格は0以上である必要があります")
     if not 0 <= tax_rate <= 1:
@@ -117,14 +109,9 @@ def calculate_total_price_with_tax(price: float, tax_rate: float) -> float:
 ```python
 # 良い例: DRY原則の適用
 def check_adult_status(age: int) -> str:
-    """年齢から成人判定
-
-    Args:
-        age: 年齢
-
-    Returns:
-        "成人" または "未成年"
-    """
+    # 年齢から成人判定
+    # Args: age (年齢)
+    # Returns: "成人" または "未成年"
     return "成人" if age >= 18 else "未成年"
 
 # 使用例
@@ -154,14 +141,9 @@ def f(x):
 
 # ✅ 改善後:
 def calculate_double_price(price: float) -> float:
-    """価格を2倍にする
-
-    Args:
-        price: 元の価格
-
-    Returns:
-        2倍の価格
-    """
+    # 価格を2倍にする
+    # Args: price (元の価格)
+    # Returns: 2倍の価格
     return price * 2
 ```
 
@@ -267,4 +249,4 @@ except Exception as e:
 すべての指摘に「なぜ」の説明を含め、良い点も積極的に評価し、段階的な改善提案と参考資料を提示してください。
 コードレビューを通じて、レビュイーの成長を支援することを最優先にしてください。
 </FINAL_REMINDER>
-"""
+'''

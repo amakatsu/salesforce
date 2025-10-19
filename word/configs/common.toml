@@ -3,9 +3,14 @@
 [config]
 model = "gpt-4o"
 temperature = 0.2
+language = "ja"
 response_language = "ja-JP"
 max_model_tokens = 32000
 reasoning_effort = "medium"
+git_provider = "gitlab"
+# 日本語での出力を強制
+verbosity = 0
+enable_custom_labels = false
 
 [pr_reviewer]
 require_score_review = true
@@ -14,13 +19,35 @@ require_estimate_effort_to_review = true
 num_code_suggestions = 10
 enable_review_labels_effort = true
 enable_review_labels_security = true
+extra_instructions = """
+IMPORTANT: You MUST write ALL review comments, suggestions, and feedback in Japanese (日本語) ONLY.
+重要: すべてのレビューコメント、提案、フィードバックを必ず日本語で記述してください。
+All sections including 'General suggestions', 'Code feedback', 'Security concerns' must be written in Japanese.
+'General suggestions'、'Code feedback'、'Security concerns'を含むすべてのセクションを日本語で記述してください。
+Do not use English except for code snippets and technical terms that have no Japanese equivalent.
+コードスニペットと日本語訳がない技術用語を除いて、英語を使用しないでください。
+"""
 
 [pr_description]
 publish_description = true
 add_original_user_description = true
+extra_instructions = """
+必ず日本語で記述してください。すべての出力は日本語で行ってください。
+"""
 
 [pr_code_suggestions]
 num_code_suggestions = 10
+extra_instructions = """
+必ず日本語でコード提案を記述してください。すべての出力は日本語で行ってください。
+"""
 
 [pr_questions]
 enable_help_text = true
+extra_instructions = """
+必ず日本語で質問への回答を記述してください。すべての出力は日本語で行ってください。
+"""
+
+[gitlab]
+# GitLab Personal Access Token (環境変数GITLAB_TOKENから自動取得)
+# 手動設定する場合はここにトークンを記載
+# personal_access_token = "your-token-here"

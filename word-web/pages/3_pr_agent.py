@@ -20,7 +20,7 @@ if env_path.exists():
 
 # バックエンドモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from word.pr_agent_backend import PRAgentRunner, ConfigManager, Logger
+from word.pr_agent import PRAgentRunner, ConfigManager, Logger
 
 # ページ設定
 st.set_page_config(
@@ -87,18 +87,16 @@ available_configs = config_manager.get_available_configs()
 with st.sidebar:
     st.header("⚙️ 設定")
 
-    st.subheader("🔑 API認証情報")
+    st.subheader("🤖 AIモデル選択")
 
-    # OPENAI_HEADERS_JSONから値を抽出
-    import json
-    headers_json = os.getenv("OPENAI_HEADERS_JSON", "{}")
-    try:
-        headers_dict = json.loads(headers_json)
-        default_api_key = headers_dict.get("api-key", "")
-        default_user_id = headers_dict.get("apim-user-id", "")
-    except:
-        default_api_key = ""
-        default_user_id = ""
+    # モデルプロバイダー選択
+    ai_provider = st.selectbox(
+        "AIプロバイダー",
+        ["OpenAI (Azure)", "Gemini"],
+        help="使用するAIモデルのプロバイダーを選択"
+    )
+
+    st.subheader("🔑 API認証情報")
 
     # GitLab Token
     default_token = os.getenv("GITLAB_TOKEN", "")
@@ -109,19 +107,57 @@ with st.sidebar:
         help="GitLabリポジトリにアクセスするためのパーソナルアクセストークン（api scope必須）"
     )
 
-    # OpenAI API設定
-    api_key = st.text_input(
-        "OpenAI APIキー",
-        value=default_api_key,
-        type="password",
-        help="OpenAI APIのキーを入力してください（.envのOPENAI_HEADERS_JSONから自動取得）"
-    )
+    # プロバイダーに応じた認証情報入力
+    import json
 
-    user_id = st.text_input(
-        "ユーザID",
-        value=default_user_id,
-        help="APIユーザIDを入力してください（.envのOPENAI_HEADERS_JSONから自動取得）"
-    )
+    if ai_provider == "OpenAI (Azure)":
+        # OPENAI_HEADERS_JSONから値を抽出
+        headers_json = os.getenv("OPENAI_HEADERS_JSON", "{}")
+        try:
+            headers_dict = json.loads(headers_json)
+            default_api_key = headers_dict.get("api-key", "")
+            default_user_id = headers_dict.get("apim-user-id", "")
+        except:
+            default_api_key = ""
+            default_user_id = ""
+
+        # OpenAI API設定
+        api_key = st.text_input(
+            "OpenAI APIキー",
+            value=default_api_key,
+            type="password",
+            help="OpenAI APIのキーを入力してください（.envのOPENAI_HEADERS_JSONから自動取得）"
+        )
+
+        user_id = st.text_input(
+            "ユーザID",
+            value=default_user_id,
+            help="APIユーザIDを入力してください（.envのOPENAI_HEADERS_JSONから自動取得）"
+        )
+
+    else:  # Gemini
+        # Gemini API設定
+        default_gemini_key = os.getenv("GEMINI_API_KEY", "")
+        api_key = st.text_input(
+            "Gemini APIキー",
+            value=default_gemini_key,
+            type="password",
+            help="Google Gemini APIのキーを入力してください（.envのGEMINI_API_KEYから自動取得）"
+        )
+
+        # Geminiモデル選択
+        gemini_model = st.selectbox(
+            "Geminiモデル",
+            [
+                "gemini/gemini-2.0-flash-exp",
+                "gemini/gemini-1.5-pro-latest",
+                "gemini/gemini-1.5-flash-latest",
+                "gemini/gemini-1.5-flash-002"
+            ],
+            help="使用するGeminiモデルを選択"
+        )
+
+        user_id = None  # GeminiではユーザーID不要
 
     st.markdown("---")
 
@@ -333,93 +369,213 @@ else:
 
 st.markdown("---")
 
+# 実行状態の管理
+if 'is_running' not in st.session_state:
+    st.session_state.is_running = False
+if 'execute_params' not in st.session_state:
+    st.session_state.execute_params = None
+
 # 実行ボタン
-button_disabled = not (gitlab_token and api_key and user_id and pr_url)
+# Geminiの場合はuser_id不要
+if ai_provider == "Gemini":
+    button_disabled = not (gitlab_token and api_key and pr_url)
+else:
+    button_disabled = not (gitlab_token and api_key and user_id and pr_url)
+
 if pr_command == "ask":
     button_disabled = button_disabled or not question
 
+# 実行中は無効化
+button_disabled = button_disabled or st.session_state.is_running
+
+# 実行中の状態を表示
+if st.session_state.is_running:
+    st.info("⏳ PR-Agent実行中です...しばらくお待ちください")
+
 if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, disabled=button_disabled):
-    if not gitlab_token or not api_key or not user_id:
-        st.error("❌ GitLab Token、OpenAI APIキー、ユーザIDを入力してください")
+    # バリデーション
+    if not gitlab_token or not api_key:
+        st.error("❌ GitLab TokenとAPIキーを入力してください")
+    elif ai_provider == "OpenAI (Azure)" and not user_id:
+        st.error("❌ OpenAI (Azure)にはユーザIDが必要です")
     elif not pr_url:
         st.error("❌ MR URLを入力してください")
     elif pr_command == "ask" and not question:
         st.error("❌ askコマンドには質問内容が必要です")
     else:
-        try:
-            # API認証情報を環境変数に設定（GitLab用）
-            os.environ['GITLAB_TOKEN'] = gitlab_token
+        # 実行パラメータを保存
+        st.session_state.execute_params = {
+            'gitlab_token': gitlab_token,
+            'ai_provider': ai_provider,
+            'api_key': api_key,
+            'user_id': user_id,
+            'pr_url': pr_url,
+            'pr_command': pr_command,
+            'question': question,
+            'gemini_model': gemini_model,
+            'config_path': config_path,
+            'custom_prompt': custom_prompt,
+            'selected_config': selected_config
+        }
+        # 実行状態を設定して再レンダリング（二重クリック防止）
+        st.session_state.is_running = True
+        st.rerun()
 
-            # API設定を準備（PR-Agent設定ファイルに注入）
-            import json
+# 実行パラメータがある場合は実行
+if st.session_state.is_running and st.session_state.execute_params:
+    params = st.session_state.execute_params
+    st.session_state.execute_params = None  # パラメータをクリア
+
+    try:
+        # API認証情報を環境変数に設定（GitLab用）
+        os.environ['GITLAB_TOKEN'] = params['gitlab_token']
+        # GitプロバイダーをGitLabに固定（PR-AgentのURL自動判定をオーバーライド）
+        os.environ['GIT_PROVIDER'] = 'gitlab'
+
+        # API設定を準備（PR-Agent設定ファイルに注入）
+        import json
+
+        if params['ai_provider'] == "Gemini":
+            # Gemini用の設定
+            api_config = {
+                'provider': 'gemini',
+                'api_key': params['api_key'],
+                'model': params['gemini_model']
+            }
+            # Geminiの場合は環境変数でプロバイダーとモデルを明示
+            os.environ['AI_PROVIDER'] = 'google'
+            os.environ['GEMINI_API_KEY'] = params['api_key']
+            os.environ['GEMINI_MODEL'] = params['gemini_model']
+        else:
+            # OpenAI (Azure)用の設定
             base_url = os.getenv("OPENAI_BASE_URL", "")
             api_path = os.getenv("OPENAI_PATH", "/chat/completions")
             api_config = {
-                'api_key': api_key,
+                'provider': 'openai',
+                'api_key': params['api_key'],
                 'base_url': base_url,
                 'api_path': api_path,
-                'user_id': user_id,
+                'user_id': params['user_id'],
                 'custom_headers': {
-                    'api-key': api_key,
-                    'apim-user-id': user_id
+                    'api-key': params['api_key'],
+                    'apim-user-id': params['user_id']
                 }
             }
 
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+        progress_bar = st.progress(0)
+        status_text = st.empty()
 
-            # 設定ファイルを適用
-            status_text.text("⚙️ 設定ファイルを適用中...")
-            progress_bar.progress(10)
+        # 設定ファイルを適用
+        status_text.text("⚙️ 設定ファイルを適用中...")
+        progress_bar.progress(10)
 
-            if config_path:
-                # 選択された設定ファイルを適用
-                config_manager.apply_config(config_path, custom_prompt, api_config)
-            else:
-                # デフォルト設定を作成
-                config_manager.create_default_config(custom_prompt, api_config)
+        if params['config_path']:
+            # 選択された設定ファイルを適用
+            config_manager.apply_config(params['config_path'], params['custom_prompt'], api_config)
+        else:
+            # デフォルト設定を作成
+            config_manager.create_default_config(params['custom_prompt'], api_config)
 
-            status_text.text(f"🔄 PR-Agent {pr_command} コマンドを実行中...")
-            progress_bar.progress(30)
+        status_text.text(f"🔄 PR-Agent {params['pr_command']} コマンドを実行中...")
+        progress_bar.progress(30)
 
-            # PR-Agentを実行
-            extra_args = []
-            if pr_command == "ask" and question:
-                extra_args.append(question)
+        # ログ表示エリア
+        log_expander = st.expander("📋 実行ログをリアルタイム表示", expanded=True)
+        log_placeholder = log_expander.empty()
 
-            async def run_agent():
-                runner = PRAgentRunner()
-                return await runner.run(pr_url, pr_command, extra_args)
+        # PR-Agentを実行
+        extra_args = []
+        if params['pr_command'] == "ask" and params['question']:
+            extra_args.append(params['question'])
 
-            result = asyncio.run(run_agent())
+        # ログ収集用（標準出力/エラー出力をキャプチャ）
+        import sys
+        import io
+        import threading
+        import time
+        import concurrent.futures
 
-            progress_bar.progress(100)
+        log_lines = []
+        capture_running = True
 
-            if result:
-                status_text.text("✅ 実行完了！")
-                st.success("✅ PR-Agentコマンドが正常に完了しました！")
+        # 標準出力/エラー出力をキャプチャするクラス
+        class OutputCapture:
+            def __init__(self, original_stream):
+                self.original_stream = original_stream
+                self.buffer = io.StringIO()
 
-                st.markdown("### 📋 実行内容")
-                st.write(f"- **コマンド**: {pr_command}")
-                st.write(f"- **MR URL**: {pr_url}")
-                st.write(f"- **モデル**: gpt-4o (固定)")
-                st.write(f"- **設定**: {selected_config}")
-                if pr_command == "ask" and question:
-                    st.write(f"- **質問**: {question}")
-                if custom_prompt:
-                    st.write(f"- **カスタムプロンプト**: {custom_prompt}")
+            def write(self, text):
+                self.original_stream.write(text)
+                self.original_stream.flush()
+                if text.strip():
+                    log_lines.append(text.rstrip())
+                    # 最新100行のみ保持
+                    if len(log_lines) > 100:
+                        log_lines.pop(0)
 
-                st.info("💡 結果はGitLabのMRページに投稿されました")
-            else:
-                status_text.text("❌ レビュー失敗")
-                st.error("❌ レビュー中にエラーが発生しました")
+            def flush(self):
+                self.original_stream.flush()
 
-        except Exception as e:
-            st.error(f"❌ エラーが発生しました: {str(e)}")
-            st.exception(e)
+        # 標準出力/エラー出力をキャプチャ
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = OutputCapture(old_stdout)
+        sys.stderr = OutputCapture(old_stderr)
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # PR-Agentを非同期で実行
+                future = executor.submit(PRAgentRunner.run_sync, params['pr_url'], params['pr_command'], extra_args)
+
+                # 完了するまでログを更新
+                while not future.done():
+                    if log_lines:
+                        log_placeholder.code('\n'.join(log_lines[-50:]), language='log')
+                    time.sleep(0.5)  # 0.5秒ごとに更新
+
+                # 最終結果を取得
+                result = future.result()
+
+            # 最終ログを表示
+            if log_lines:
+                log_placeholder.code('\n'.join(log_lines[-50:]), language='log')
         finally:
-            progress_bar.progress(0)
-            status_text.text("")
+            # 標準出力/エラー出力を元に戻す
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            # 実行状態を解除
+            st.session_state.is_running = False
+
+        progress_bar.progress(100)
+
+        if result:
+            status_text.text("✅ 実行完了！")
+            st.success("✅ PR-Agentコマンドが正常に完了しました！")
+
+            st.markdown("### 📋 実行内容")
+            st.write(f"- **コマンド**: {params['pr_command']}")
+            st.write(f"- **MR URL**: {params['pr_url']}")
+            if params['ai_provider'] == "Gemini":
+                st.write(f"- **AIプロバイダー**: Google Gemini")
+                st.write(f"- **モデル**: {params['gemini_model']}")
+            else:
+                st.write(f"- **AIプロバイダー**: OpenAI (Azure)")
+                st.write(f"- **モデル**: gpt-4o")
+            st.write(f"- **設定**: {params.get('selected_config', 'デフォルト')}")
+            if params['pr_command'] == "ask" and params['question']:
+                st.write(f"- **質問**: {params['question']}")
+            if params['custom_prompt']:
+                st.write(f"- **カスタムプロンプト**: {params['custom_prompt']}")
+
+            st.info("💡 結果はGitLabのMRページに投稿されました")
+        else:
+            status_text.text("❌ レビュー失敗")
+            st.error("❌ レビュー中にエラーが発生しました")
+
+    except Exception as e:
+        st.session_state.is_running = False
+        st.error(f"❌ エラーが発生しました: {str(e)}")
+        st.exception(e)
 
 # フッター
 st.markdown("---")
