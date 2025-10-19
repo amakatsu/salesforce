@@ -22,6 +22,9 @@ if env_path.exists():
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from word.pr_agent import PRAgentRunner, ConfigManager, Logger
 
+# Geminiモデルのデフォルト値
+gemini_model = ""
+
 # ページ設定
 st.set_page_config(
     page_title="PR-Agent",
@@ -109,6 +112,8 @@ with st.sidebar:
 
     # プロバイダーに応じた認証情報入力
     import json
+
+    gemini_model = ''
 
     if ai_provider == "OpenAI (Azure)":
         # OPENAI_HEADERS_JSONから値を抽出
@@ -461,6 +466,11 @@ if st.session_state.is_running and st.session_state.execute_params:
                     'apim-user-id': params['user_id']
                 }
             }
+            # OpenAI利用時はGemini用の環境変数をリセット
+            os.environ.pop('AI_PROVIDER', None)
+            os.environ.pop('GEMINI_API_KEY', None)
+            os.environ.pop('GEMINI_MODEL', None)
+            os.environ['AI_PROVIDER'] = 'openai'
 
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -469,12 +479,31 @@ if st.session_state.is_running and st.session_state.execute_params:
         status_text.text("⚙️ 設定ファイルを適用中...")
         progress_bar.progress(10)
 
+        config_applied = False
         if params['config_path']:
             # 選択された設定ファイルを適用
-            config_manager.apply_config(params['config_path'], params['custom_prompt'], api_config)
+            config_applied = config_manager.apply_config(params['config_path'], params['custom_prompt'], api_config)
         else:
             # デフォルト設定を作成
             config_manager.create_default_config(params['custom_prompt'], api_config)
+            config_applied = True
+
+        if config_applied:
+            config_file_path = config_manager.config_file
+            params['resolved_config_file'] = str(config_file_path)
+            status_text.text(f"✅ 設定ファイルを適用しました ({config_file_path})")
+            try:
+                config_text = Path(config_file_path).read_text(encoding="utf-8")
+            except Exception as config_error:
+                st.warning(f".pr_agent.toml の読み込みに失敗しました: {config_error}")
+            else:
+                with st.expander("📄 適用された .pr_agent.toml を表示", expanded=False):
+                    preview = config_text if len(config_text) <= 4000 else config_text[:4000] + "\n... (truncated)"
+                    st.code(preview, language="toml")
+        else:
+            st.error("❌ 設定ファイルの適用に失敗しました")
+            st.session_state.is_running = False
+            raise RuntimeError("Failed to apply PR-Agent configuration")
 
         status_text.text(f"🔄 PR-Agent {params['pr_command']} コマンドを実行中...")
         progress_bar.progress(30)
@@ -525,7 +554,13 @@ if st.session_state.is_running and st.session_state.execute_params:
         try:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 # PR-Agentを非同期で実行
-                future = executor.submit(PRAgentRunner.run_sync, params['pr_url'], params['pr_command'], extra_args)
+                future = executor.submit(
+                    PRAgentRunner.run_sync,
+                    params['pr_url'],
+                    params['pr_command'],
+                    extra_args,
+                    params.get('resolved_config_file')
+                )
 
                 # 完了するまでログを更新
                 while not future.done():

@@ -7,6 +7,7 @@ import os
 import json
 import asyncio
 import aiohttp
+import re
 from typing import Tuple, Optional, Dict, Any
 from pr_agent.algo.ai_handlers.base_ai_handler import BaseAiHandler
 from pr_agent.config_loader import get_settings
@@ -43,8 +44,9 @@ class CustomAzureAIHandler(BaseAiHandler):
 
         # 共通設定
         self.timeout = settings.config.get("ai_timeout", 120)
-        self.max_retries = 3
-        self.retry_delay = 2
+        # レート制限対策：リトライ回数と待機時間を増やす
+        self.max_retries = 10  # 3 → 10に増加
+        self.retry_delay = 5   # 2 → 5秒に増加（初回待機時間）
 
         self.logger.info(f"CustomAIHandler initialized: provider={self.provider}")
 
@@ -59,20 +61,32 @@ class CustomAzureAIHandler(BaseAiHandler):
         if not self.api_base:
             raise ValueError("openai.api_base or OPENAI_BASE_URL is required")
 
+        # OPENAI_HEADERS_JSONからapi-keyとapim-user-idを抽出
+        headers_json_str = os.getenv("OPENAI_HEADERS_JSON", "")
+        parsed_headers = {}
+        if headers_json_str:
+            try:
+                parsed_headers = json.loads(headers_json_str)
+                self.logger.info(f"Parsed OPENAI_HEADERS_JSON: {list(parsed_headers.keys())}")
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"Failed to parse OPENAI_HEADERS_JSON: {e}")
+
         # API Key (複数のキーを試行)
         self.api_key = (
             settings.get("openai.key") or
             settings.get("OPENAI.KEY") or
-            os.getenv("OPENAI_API_KEY", "")
+            os.getenv("OPENAI_API_KEY", "") or
+            parsed_headers.get("api-key", "")
         )
         if not self.api_key:
-            raise ValueError("openai.key or OPENAI_API_KEY is required")
+            raise ValueError("openai.key or OPENAI_API_KEY or OPENAI_HEADERS_JSON['api-key'] is required")
 
         # User ID (Azure APIM用)
         self.user_id = (
             settings.get("openai.user_id") or
             settings.get("OPENAI.USER_ID") or
-            os.getenv("APIM_USER_ID", "")
+            os.getenv("APIM_USER_ID", "") or
+            parsed_headers.get("apim-user-id", "")
         )
 
         # API Path
@@ -85,7 +99,7 @@ class CustomAzureAIHandler(BaseAiHandler):
         # カスタムヘッダー（設定ファイルから取得）
         self.custom_headers = settings.get("config.custom_headers", {})
 
-        self.logger.info(f"OpenAI initialized: base_url={self.api_base}")
+        self.logger.info(f"OpenAI initialized: base_url={self.api_base}, has_api_key={bool(self.api_key)}, has_user_id={bool(self.user_id)}")
 
     def _init_gemini(self, settings):
         """Gemini設定を初期化"""
@@ -183,21 +197,22 @@ class CustomAzureAIHandler(BaseAiHandler):
         img_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """Gemini用リクエストボディを構築"""
-        # Gemini APIはsystem instructionとcontentsを分離
-        contents = [
-            {
-                "role": "user",
-                "parts": [{"text": f"{system}\n\n{user}"}]
-            }
-        ]
+        # Gemini APIはsystem instructionを専用フィールドで受け付ける
+        system_instruction = {"role": "system", "parts": [{"text": system}]}
+        user_parts = [{"text": user}]
 
         # 画像がある場合（Gemini Vision）
         if img_path:
-            # 実装が必要な場合は追加
             self.logger.warning("Image input not yet implemented for Gemini")
 
         body = {
-            "contents": contents,
+            "systemInstruction": system_instruction,
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": user_parts,
+                }
+            ],
             "generationConfig": {
                 "temperature": temperature,
                 "maxOutputTokens": get_settings().config.get("max_model_tokens", 8192),
@@ -238,6 +253,16 @@ class CustomAzureAIHandler(BaseAiHandler):
         self.logger.info(f"LLM request summary: {summary_json}")
 
         sanitized_headers = self._mask_sensitive_headers(headers)
+
+        # HTTPリクエストの詳細をINFOレベルで出力（画面に表示されるように）
+        self.logger.info(f"=== HTTP Request Details ===")
+        self.logger.info(f"URL: {url}")
+        self.logger.info(f"Headers: {json.dumps(sanitized_headers, ensure_ascii=False, indent=2)}")
+        # リクエストボディを全文表示
+        request_body_json = json.dumps(body, ensure_ascii=False, indent=2)
+        self.logger.info(f"Request Body (full):\n{request_body_json}")
+        self.logger.info(f"===========================")
+
         self.logger.debug(
             'LLM request payload',
             artifact={
@@ -252,40 +277,91 @@ class CustomAzureAIHandler(BaseAiHandler):
         headers: Dict[str, str],
         body: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """非同期HTTPリクエストを実行（リトライ機能付き）"""
+        """非同期HTTPリクエストを実行（リトライ機能付き・エクスポネンシャルバックオフ）"""
+        last_error = None
+
         for attempt in range(self.max_retries):
             try:
+                self.logger.info(f"API request attempt {attempt + 1}/{self.max_retries}")
                 timeout = aiohttp.ClientTimeout(total=self.timeout)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
                     async with session.post(url, headers=headers, json=body) as response:
                         if response.status == 200:
-                            return await response.json()
+                            response_data = await response.json()
+                            # レスポンスの詳細をINFOレベルで出力
+                            self.logger.info(f"=== HTTP Response Details ===")
+                            self.logger.info(f"Status: {response.status}")
+                            self.logger.info(f"Response Headers: {dict(response.headers)}")
+                            # レスポンスボディを全文表示
+                            response_body_json = json.dumps(response_data, ensure_ascii=False, indent=2)
+                            self.logger.info(f"Response Body (full):\n{response_body_json}")
+                            self.logger.info(f"============================")
+                            return response_data
                         elif response.status == 429:
-                            # Rate limit - リトライ
-                            retry_after = int(response.headers.get('Retry-After', self.retry_delay))
-                            self.logger.warning(f"Rate limit hit, retrying after {retry_after}s")
-                            await asyncio.sleep(retry_after)
-                            continue
+                            # Rate limit - エクスポネンシャルバックオフでリトライ
+                            retry_after_header = response.headers.get('Retry-After')
+                            if retry_after_header:
+                                try:
+                                    retry_after = int(retry_after_header)
+                                except ValueError:
+                                    retry_after = self.retry_delay * (2 ** attempt)
+                            else:
+                                # エクスポネンシャルバックオフ: 5, 10, 20, 40, 80... 秒
+                                retry_after = self.retry_delay * (2 ** attempt)
+
+                            self.logger.warning(
+                                f"⚠️ Rate limit hit (429) on attempt {attempt + 1}/{self.max_retries}. "
+                                f"Retrying after {retry_after}s (exponential backoff)"
+                            )
+
+                            if attempt < self.max_retries - 1:
+                                await asyncio.sleep(retry_after)
+                                continue
+                            else:
+                                error_text = await response.text()
+                                last_error = Exception(f"Rate limit exceeded after {self.max_retries} retries: {error_text}")
+                                raise last_error
                         else:
                             error_text = await response.text()
                             self.logger.error(f"API request failed: {response.status} - {error_text}")
-                            raise Exception(f"API request failed: {response.status} - {error_text}")
+                            last_error = Exception(f"API request failed: {response.status} - {error_text}")
+                            raise last_error
 
-            except asyncio.TimeoutError:
-                self.logger.warning(f"Request timeout (attempt {attempt + 1}/{self.max_retries})")
+            except asyncio.TimeoutError as e:
+                last_error = e
+                self.logger.warning(f"⏱️ Request timeout (attempt {attempt + 1}/{self.max_retries})")
                 if attempt < self.max_retries - 1:
-                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+                    backoff_time = self.retry_delay * (attempt + 1)
+                    self.logger.info(f"Retrying after {backoff_time}s...")
+                    await asyncio.sleep(backoff_time)
+                else:
+                    raise
+
+            except aiohttp.ClientError as e:
+                last_error = e
+                self.logger.error(f"❌ Client error (attempt {attempt + 1}/{self.max_retries}): {str(e)}")
+                if attempt < self.max_retries - 1:
+                    backoff_time = self.retry_delay * (attempt + 1)
+                    self.logger.info(f"Retrying after {backoff_time}s...")
+                    await asyncio.sleep(backoff_time)
                 else:
                     raise
 
             except Exception as e:
-                self.logger.error(f"Request error (attempt {attempt + 1}/{self.max_retries}): {str(e)}")
+                last_error = e
+                self.logger.error(f"❌ Unexpected error (attempt {attempt + 1}/{self.max_retries}): {str(e)}")
                 if attempt < self.max_retries - 1:
-                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+                    backoff_time = self.retry_delay * (attempt + 1)
+                    self.logger.info(f"Retrying after {backoff_time}s...")
+                    await asyncio.sleep(backoff_time)
                 else:
                     raise
 
-        raise Exception(f"Failed after {self.max_retries} retries")
+        # すべてのリトライが失敗した場合
+        error_msg = f"Failed after {self.max_retries} retries"
+        if last_error:
+            error_msg += f": {str(last_error)}"
+        raise Exception(error_msg)
 
     def _parse_openai_response(self, response_data: Dict[str, Any]) -> Tuple[str, str]:
         """OpenAIレスポンスを解析"""
@@ -297,6 +373,14 @@ class CustomAzureAIHandler(BaseAiHandler):
         finish_reason = choice.get("finish_reason", "stop")
 
         return resp, finish_reason
+
+
+    @staticmethod
+    def _contains_japanese(text: str) -> bool:
+        """日本語(ひらがな・カタカナ・漢字)が含まれるか判定"""
+        if not text:
+            return False
+        return bool(re.search(r'[\u3040-\u30ff\u31f0-\u31ff\u4e00-\u9faf]', text))
 
     def _parse_gemini_response(self, response_data: Dict[str, Any]) -> Tuple[str, str]:
         """Geminiレスポンスを解析"""
@@ -322,7 +406,8 @@ class CustomAzureAIHandler(BaseAiHandler):
         system: str,
         user: str,
         temperature: float = 0.2,
-        img_path: Optional[str] = None
+        img_path: Optional[str] = None,
+        _locale_retry: bool = False
     ) -> Tuple[str, str]:
         """
         チャット補完を実行
@@ -338,6 +423,18 @@ class CustomAzureAIHandler(BaseAiHandler):
             (response_text, finish_reason) のタプル
         """
         try:
+            # システムプロンプトに日本語指示を追加（PR-Agentのextra_instructionsが反映されない問題への対応）
+            japanese_instruction = """
+
+--- 重要な指示 / CRITICAL INSTRUCTION ---
+あなたは必ず日本語で出力してください。すべてのレビューコメント、提案、フィードバックは日本語で記述する必要があります。
+IMPORTANT: You MUST write ALL output, review comments, suggestions, and feedback in Japanese (日本語) ONLY.
+All sections including 'estimated_effort_to_review', 'relevant_tests', 'key_issues_to_review', 'security_concerns' must be written in Japanese.
+Do not use English except for code snippets, technical terms, and YAML field names.
+コードスニペット、技術用語、YAMLフィールド名を除いて、英語を使用しないでください。
+"""
+            system = system + japanese_instruction
+
             # デバッグログ
             self.logger.debug("Prompts", artifact={"system": system, "user": user})
             if get_settings().config.get("verbosity_level", 0) >= 2:
@@ -354,6 +451,21 @@ class CustomAzureAIHandler(BaseAiHandler):
                 self._log_request(self.provider, url, headers, body, self.model, temperature)
                 response_data = await self._make_request(url, headers, body)
                 resp, finish_reason = self._parse_gemini_response(response_data)
+                if not self._contains_japanese(resp):
+                    self.logger.warning("Gemini response may not contain Japanese characters.")
+                    if not _locale_retry:
+                        reinforce = (
+                            "\nIMPORTANT: これ以降の出力はすべて日本語で行ってください。"
+                            "英語で回答してはいけません。必ず日本語で丁寧に説明してください。"
+                        )
+                        return await self.chat_completion(
+                            model,
+                            system + reinforce,
+                            user,
+                            temperature,
+                            img_path,
+                            _locale_retry=True
+                        )
 
             else:
                 # OpenAI API (Azure)

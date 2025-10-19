@@ -50,7 +50,12 @@ class PRAgentRunner:
             return False
 
     @staticmethod
-    async def run(pr_url: str, command: str = "review", extra_args: Optional[List[str]] = None) -> bool:
+    async def run(
+        pr_url: str,
+        command: str = "review",
+        extra_args: Optional[List[str]] = None,
+        settings_path: Optional[str] = None
+    ) -> bool:
         """PR-Agentを実行"""
         resolved_path = Path(__file__).resolve()
         if len(resolved_path.parents) >= 3:
@@ -73,15 +78,58 @@ class PRAgentRunner:
             # GitLabプロバイダーを強制設定（URL判定前に設定を読み込ませる）
             os.environ['CONFIG__GIT_PROVIDER'] = 'gitlab'
 
-            config_path = project_root / ".pr_agent.toml"
-            os.environ.setdefault("PR_AGENT_SETTINGS_PATH", str(config_path))
+            if settings_path:
+                config_path = Path(settings_path).resolve(strict=False)
+            else:
+                config_path = project_root / ".pr_agent.toml"
+
+            os.environ['PR_AGENT_SETTINGS_PATH'] = str(config_path)
+            if not config_path.exists():
+                Logger.warning(f"設定ファイルが存在しません: {config_path}")
+            Logger.info(f"設定ファイルを使用: {config_path}")
 
             from pr_agent.agent.pr_agent import PRAgent
             from pr_agent.config_loader import get_settings
+            import toml
 
             # 設定を強制的に事前読み込み
             settings = get_settings()
             settings.config.git_provider = 'gitlab'
+
+            # TOMLファイルから直接extra_instructionsを読み込み
+            Logger.info("=== PR-Agent 設定確認 ===")
+            try:
+                # TOMLファイルを直接読み込み
+                toml_config = toml.load(str(config_path))
+                Logger.info(f"TOMLファイル読み込み成功: {config_path}")
+
+                # pr_reviewerセクションのextra_instructionsを取得
+                if 'pr_reviewer' in toml_config and 'extra_instructions' in toml_config['pr_reviewer']:
+                    extra_inst_from_file = toml_config['pr_reviewer']['extra_instructions']
+                    Logger.info(f"TOMLファイルからextra_instructions読み込み: 長さ={len(extra_inst_from_file)}")
+
+                    # dynaconf経由の設定を確認
+                    extra_inst_dynaconf = settings.pr_reviewer.extra_instructions
+                    Logger.info(f"dynaconf経由のextra_instructions: 長さ={len(extra_inst_dynaconf) if extra_inst_dynaconf else 0}")
+
+                    # dynaconfで読み込めていない場合は直接設定
+                    if not extra_inst_dynaconf or len(extra_inst_dynaconf) == 0:
+                        Logger.warning("dynaconfがextra_instructionsを読み込めていません。直接設定します。")
+                        settings.pr_reviewer.extra_instructions = extra_inst_from_file
+                        Logger.info(f"✅ extra_instructionsを直接設定しました（長さ: {len(extra_inst_from_file)}）")
+                        Logger.info(f"プレビュー: {extra_inst_from_file[:200]}...")
+                    else:
+                        Logger.info("✅ dynaconfでextra_instructionsが正しく読み込まれています")
+
+                else:
+                    Logger.warning("TOMLファイルにpr_reviewer.extra_instructionsが見つかりません")
+
+            except Exception as e:
+                Logger.error(f"TOML読み込みエラー: {str(e)}")
+                import traceback
+                Logger.error(traceback.format_exc())
+
+            Logger.info("==========================")
 
             # GitLab Tokenを環境変数から取得
             gitlab_token = os.getenv('GITLAB_TOKEN', '')
@@ -144,7 +192,12 @@ class PRAgentRunner:
                 Logger.debug(f"作業ディレクトリを復元: {original_cwd}")
 
     @staticmethod
-    def run_sync(pr_url: str, command: str = "review", extra_args: Optional[List[str]] = None) -> bool:
+    def run_sync(
+        pr_url: str,
+        command: str = "review",
+        extra_args: Optional[List[str]] = None,
+        settings_path: Optional[str] = None
+    ) -> bool:
         """PR-Agentを同期実行（Web環境用）
 
         Streamlit等の既存イベントループ内で動作する環境向けの同期ラッパー。
@@ -158,10 +211,10 @@ class PRAgentRunner:
                 import nest_asyncio
                 nest_asyncio.apply()
                 Logger.print_colored("🔄 既存イベントループを検出、nest_asyncioを適用", Colors.YELLOW)
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path))
             except RuntimeError:
                 # イベントループが実行中でない場合（通常のCLI実行）
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path))
         except ImportError:
             Logger.error("nest_asyncio がインストールされていません")
             Logger.print_colored("   pip install nest_asyncio でインストールしてください", Colors.WHITE)
