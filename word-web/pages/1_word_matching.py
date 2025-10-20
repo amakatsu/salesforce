@@ -21,12 +21,20 @@ if env_path.exists():
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from word.word import process, save_outputs, DEFAULT_CONFIG
 
+# トラッキングをインポート
+from usage_tracker import track_usage
+
 # ページ設定
 st.set_page_config(
     page_title="Excel単語照合ツール",
     page_icon="📝",
     layout="wide"
 )
+
+# ページ訪問記録（初回のみ）
+if 'visited_word_matching' not in st.session_state:
+    track_usage(action="ページ訪問", tool_name="単語照合")
+    st.session_state.visited_word_matching = True
 
 # タイトル
 st.title("📝 単語照合ツール")
@@ -244,6 +252,9 @@ if 'processing_done' not in st.session_state:
 # 実行ボタン（APIキーとユーザIDが入力されている場合のみ有効）
 button_disabled = not (api_key and user_id)
 if st.button("🚀 照合実行", type="primary", use_container_width=True, disabled=button_disabled):
+    # 実行ボタン押下を記録
+    track_usage(action="実行ボタン押下", tool_name="単語照合")
+
     # 前回の結果をクリア
     st.session_state.processing_done = False
     st.session_state.result_df = None

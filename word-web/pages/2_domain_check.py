@@ -18,12 +18,20 @@ from word.domain_check import (
 )
 import json
 
+# トラッキングをインポート
+from usage_tracker import track_usage
+
 # ページ設定
 st.set_page_config(
     page_title="ドメイン照合ツール",
     page_icon="🔍",
     layout="wide"
 )
+
+# ページ訪問記録（初回のみ）
+if 'visited_domain_check' not in st.session_state:
+    track_usage(action="ページ訪問", tool_name="ドメイン照合")
+    st.session_state.visited_domain_check = True
 
 # タイトル
 st.title("🔍 ドメイン照合ツール")
@@ -129,6 +137,9 @@ if 'processing_done' not in st.session_state:
 # 実行ボタン
 button_disabled = not (screen_files and domain_files)
 if st.button("🚀 チェック実行", type="primary", use_container_width=True, disabled=button_disabled):
+    # 実行ボタン押下を記録
+    track_usage(action="実行ボタン押下", tool_name="ドメイン照合")
+
     # 前回の結果をクリア
     st.session_state.processing_done = False
     st.session_state.result_df = None

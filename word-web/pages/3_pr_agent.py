@@ -20,7 +20,11 @@ if env_path.exists():
 
 # バックエンドモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from word.pr_agent import PRAgentRunner, ConfigManager, Logger
+from word.pr_agent import PRAgentRunner, ConfigManager, Logger, UrlValidator
+
+# トラッキングをインポート
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from usage_tracker import track_usage
 
 # Geminiモデルのデフォルト値
 gemini_model = ""
@@ -31,6 +35,11 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide"
 )
+
+# ページ訪問記録（初回のみ）
+if 'visited_pr_agent' not in st.session_state:
+    track_usage(action="ページ訪問", tool_name="PR-Agent")
+    st.session_state.visited_pr_agent = True
 
 # タイトル
 st.title("🤖 PR-Agent")
@@ -247,6 +256,41 @@ with st.sidebar:
     st.markdown("---")
 
     with st.expander("🔧 詳細設定", expanded=False):
+        # GitLab URL設定（独自ホスティング対応）
+        # .envまたは環境変数からデフォルト値を取得
+        default_gitlab_url = os.getenv("GITLAB_URL", "")
+
+        gitlab_url = st.text_input(
+            "GitLab URL（独自ホスティングの場合）",
+            value=default_gitlab_url,
+            placeholder="例: https://git.mycompany.com",
+            help="独自ホスティングのGitLab URLを指定（gitlab.com以外の場合のみ入力）。.envのGITLAB_URLから自動取得"
+        )
+
+        # GitLab URLのバリデーション
+        if gitlab_url:
+            normalized_url = UrlValidator.normalize_gitlab_url(gitlab_url)
+            if UrlValidator.validate_gitlab_url(normalized_url):
+                st.success(f"✅ 有効なGitLab URL: {normalized_url}")
+                # 正規化されたURLを使用
+                gitlab_url = normalized_url
+            else:
+                st.error("❌ 無効なGitLab URLです。https://git.example.com の形式で入力してください")
+
+        # デバッグレベル設定
+        debug_level = st.selectbox(
+            "デバッグレベル",
+            options=[0, 1, 2, 3],
+            index=1,
+            format_func=lambda x: {
+                0: "0 - エラーのみ",
+                1: "1 - 情報（デフォルト）",
+                2: "2 - デバッグ詳細",
+                3: "3 - HTTP通信詳細"
+            }[x],
+            help="ログの詳細度を設定。3にするとHTTPリクエスト/レスポンスの詳細が表示されます"
+        )
+
         # カスタムプロンプト
         custom_prompt = st.text_area(
             "カスタムプロンプト",
@@ -291,6 +335,13 @@ if input_method == "URLを直接入力":
         placeholder="https://gitlab.com/group/project/-/merge_requests/1",
         help="レビュー対象のマージリクエストURL"
     )
+
+    # MR URLのバリデーション
+    if pr_url:
+        if UrlValidator.validate_pr_url(pr_url):
+            st.success("✅ 有効なMR/PR URL")
+        else:
+            st.error("❌ 無効なMR/PR URLです。/merge_requests/ または /pull/ を含むURLを入力してください")
 else:
     # プロジェクトから選択
     project_url = st.text_input(
@@ -408,9 +459,13 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
     elif pr_command == "ask" and not question:
         st.error("❌ askコマンドには質問内容が必要です")
     else:
+        # 実行ボタン押下を記録
+        track_usage(action="実行ボタン押下", tool_name="PR-Agent", username=f"{pr_command}コマンド")
+
         # 実行パラメータを保存
         st.session_state.execute_params = {
             'gitlab_token': gitlab_token,
+            'gitlab_url': gitlab_url if gitlab_url else None,
             'ai_provider': ai_provider,
             'api_key': api_key,
             'user_id': user_id,
@@ -420,7 +475,8 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
             'gemini_model': gemini_model,
             'config_path': config_path,
             'custom_prompt': custom_prompt,
-            'selected_config': selected_config
+            'selected_config': selected_config,
+            'debug_level': debug_level
         }
         # 実行状態を設定して再レンダリング（二重クリック防止）
         st.session_state.is_running = True
@@ -480,12 +536,23 @@ if st.session_state.is_running and st.session_state.execute_params:
         progress_bar.progress(10)
 
         config_applied = False
+        gitlab_url_param = params.get('gitlab_url')
+
         if params['config_path']:
             # 選択された設定ファイルを適用
-            config_applied = config_manager.apply_config(params['config_path'], params['custom_prompt'], api_config)
+            config_applied = config_manager.apply_config(
+                params['config_path'],
+                params['custom_prompt'],
+                api_config,
+                gitlab_url=gitlab_url_param
+            )
         else:
             # デフォルト設定を作成
-            config_manager.create_default_config(params['custom_prompt'], api_config)
+            config_manager.create_default_config(
+                params['custom_prompt'],
+                api_config,
+                gitlab_url=gitlab_url_param
+            )
             config_applied = True
 
         if config_applied:
@@ -559,7 +626,9 @@ if st.session_state.is_running and st.session_state.execute_params:
                     params['pr_url'],
                     params['pr_command'],
                     extra_args,
-                    params.get('resolved_config_file')
+                    params.get('resolved_config_file'),
+                    params.get('gitlab_url'),
+                    params.get('debug_level', 1)
                 )
 
                 # 完了するまでログを更新
@@ -590,6 +659,8 @@ if st.session_state.is_running and st.session_state.execute_params:
             st.markdown("### 📋 実行内容")
             st.write(f"- **コマンド**: {params['pr_command']}")
             st.write(f"- **MR URL**: {params['pr_url']}")
+            if params.get('gitlab_url'):
+                st.write(f"- **GitLab URL**: {params['gitlab_url']} （独自ホスティング）")
             if params['ai_provider'] == "Gemini":
                 st.write(f"- **AIプロバイダー**: Google Gemini")
                 st.write(f"- **モデル**: {params['gemini_model']}")

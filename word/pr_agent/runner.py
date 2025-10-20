@@ -54,7 +54,9 @@ class PRAgentRunner:
         pr_url: str,
         command: str = "review",
         extra_args: Optional[List[str]] = None,
-        settings_path: Optional[str] = None
+        settings_path: Optional[str] = None,
+        gitlab_url: Optional[str] = None,
+        debug_level: Optional[int] = None
     ) -> bool:
         """PR-Agentを実行"""
         resolved_path = Path(__file__).resolve()
@@ -67,6 +69,14 @@ class PRAgentRunner:
         changed_cwd = False
 
         try:
+            # デバッグレベル設定
+            if debug_level is not None:
+                Logger.set_debug_level(debug_level)
+                # PR-Agentのログレベルも設定
+                os.environ['LOG_LEVEL'] = 'DEBUG' if debug_level >= 2 else 'INFO'
+                # verbosityも設定（PR-Agent内部）
+                os.environ['CONFIG__VERBOSITY_LEVEL'] = str(min(debug_level, 2))
+
             if original_cwd != project_root:
                 os.chdir(project_root)
                 changed_cwd = True
@@ -77,6 +87,15 @@ class PRAgentRunner:
 
             # GitLabプロバイダーを強制設定（URL判定前に設定を読み込ませる）
             os.environ['CONFIG__GIT_PROVIDER'] = 'gitlab'
+
+            # GitLab URLを環境変数に設定（カスタムホストの場合）
+            if gitlab_url:
+                # URLの正規化
+                normalized_url = gitlab_url.rstrip('/')
+                if not normalized_url.startswith(('http://', 'https://')):
+                    normalized_url = f'https://{normalized_url}'
+                os.environ['GITLAB__URL'] = normalized_url
+                Logger.info(f"GitLab URL環境変数を設定: {normalized_url}")
 
             if settings_path:
                 config_path = Path(settings_path).resolve(strict=False)
@@ -196,7 +215,9 @@ class PRAgentRunner:
         pr_url: str,
         command: str = "review",
         extra_args: Optional[List[str]] = None,
-        settings_path: Optional[str] = None
+        settings_path: Optional[str] = None,
+        gitlab_url: Optional[str] = None,
+        debug_level: Optional[int] = None
     ) -> bool:
         """PR-Agentを同期実行（Web環境用）
 
@@ -211,10 +232,10 @@ class PRAgentRunner:
                 import nest_asyncio
                 nest_asyncio.apply()
                 Logger.print_colored("🔄 既存イベントループを検出、nest_asyncioを適用", Colors.YELLOW)
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level))
             except RuntimeError:
                 # イベントループが実行中でない場合（通常のCLI実行）
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level))
         except ImportError:
             Logger.error("nest_asyncio がインストールされていません")
             Logger.print_colored("   pip install nest_asyncio でインストールしてください", Colors.WHITE)

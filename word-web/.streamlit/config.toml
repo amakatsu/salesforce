@@ -1,0 +1,7 @@
+[theme]
+base = "light"
+primaryColor = "#5E81AC"            # desaturated blue
+backgroundColor = "#ECEFF4"         # Nord6
+secondaryBackgroundColor = "#E5E9F0" # Nord5
+textColor = "#2E3440"               # Nord0
+font = "sans serif"

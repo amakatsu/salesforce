@@ -104,7 +104,7 @@ class ConfigManager:
 
         return None
 
-    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None) -> bool:
+    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None) -> bool:
         """指定された設定ファイルを適用（共通設定とマージ）"""
         config_file = Path(config_path)
 
@@ -121,6 +121,10 @@ class ConfigManager:
         if api_config:
             merged_config = self._inject_api_config(merged_config, api_config)
 
+        # GitLab URL設定を追加
+        if gitlab_url:
+            merged_config = self._inject_gitlab_url(merged_config, gitlab_url)
+
         # マージした設定を書き込み
         with open(self.config_file, 'w', encoding='utf-8') as f:
             toml.dump(merged_config, f)
@@ -135,7 +139,7 @@ class ConfigManager:
 
         return True
 
-    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None) -> None:
+    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None) -> None:
         """デフォルト設定ファイルを作成（共通設定ベース）"""
         self.backup_current_config()
 
@@ -147,6 +151,10 @@ class ConfigManager:
             # API設定を追加
             if api_config:
                 common_config = self._inject_api_config(common_config, api_config)
+
+            # GitLab URL設定を追加
+            if gitlab_url:
+                common_config = self._inject_gitlab_url(common_config, gitlab_url)
 
             # 共通設定を書き込み
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -360,5 +368,23 @@ num_code_suggestions = 4
                 config['config']['custom_headers'] = api_config['custom_headers']
 
             Logger.info(f"OpenAI設定を適用: プロバイダー={config['config'].get('ai_provider', 'openai')}")
+
+        return config
+
+    def _inject_gitlab_url(self, config: Dict, gitlab_url: str) -> Dict:
+        """GitLab URLを設定ファイルに注入"""
+        if 'gitlab' not in config:
+            config['gitlab'] = {}
+
+        # URLの正規化（trailing slashを削除）
+        normalized_url = gitlab_url.rstrip('/')
+
+        # スキームが指定されていない場合はhttpsを追加
+        if not normalized_url.startswith(('http://', 'https://')):
+            normalized_url = f'https://{normalized_url}'
+
+        config['gitlab']['url'] = normalized_url
+
+        Logger.info(f"GitLab URL設定を適用: {normalized_url}")
 
         return config

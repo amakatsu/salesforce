@@ -52,3 +52,8 @@ extra_instructions = """
 # GitLab Personal Access Token (環境変数GITLAB_TOKENから自動取得)
 # 手動設定する場合はここにトークンを記載
 # personal_access_token = "your-token-here"
+
+# GitLab URL (独自ホスティングの場合に設定)
+# デフォルトはhttps://gitlab.comが使用されます
+# 独自ホスティングの例: url = "https://git.example.com"
+# url = "https://gitlab.com"

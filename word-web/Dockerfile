@@ -17,6 +17,8 @@ RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY word-web/app.py /app/app.py
+COPY word-web/usage_tracker.py /app/usage_tracker.py
+COPY word-web/.streamlit /app/.streamlit
 COPY word-web/pages /app/pages
 COPY word /app/word
 
