@@ -1,0 +1,149 @@
+# API YAML用（OpenAPI、Kubernetes、Docker Compose、CI/CD）
+# OpenAPI/Swagger、Kubernetes、Docker Compose等のYAML設定ファイルのレビューに特化
+
+[pr_reviewer]
+extra_instructions = """
+必ず日本語でレビューしてください。
+
+**API YAML設定ファイルの観点でレビューしてください：**
+
+## 1. OpenAPI/Swagger定義
+
+### 基本構造
+- OpenAPI バージョン指定（3.0.x, 3.1.x）
+- info セクション（title, version, description, contact）
+- servers セクション（複数環境対応）
+
+### エンドポイント設計
+- RESTful 設計原則の遵守
+- HTTP メソッドの適切な使用（GET, POST, PUT, PATCH, DELETE）
+- パスパラメータ vs クエリパラメータ
+- 適切なステータスコード（200, 201, 204, 400, 401, 403, 404, 500等）
+
+### スキーマ定義
+- $ref による再利用
+- required フィールドの明示
+- データ型の明確な指定（type, format）
+- バリデーション（minLength, maxLength, pattern, minimum, maximum）
+- example の記載
+
+### セキュリティ
+- securitySchemes の定義
+- 各エンドポイントへの security 適用
+- OAuth2, Bearer Token, API Key等の適切な使用
+- スコープの定義
+
+### ドキュメント
+- description の充実
+- example の提供
+- deprecated の明示
+- tags によるグルーピング
+
+## 2. Kubernetes YAML
+
+### リソース定義
+- apiVersion, kind, metadata の正確性
+- labels と annotations の適切な使用
+- namespace の明示
+
+### Pod仕様
+- リソース制限（resources.limits, resources.requests）
+- ヘルスチェック（livenessProbe, readinessProbe）
+- セキュリティコンテキスト
+- イメージタグの固定（latest 回避）
+
+### ConfigMap/Secret
+- 機密情報の Secret 化
+- 環境変数の外部化
+- Secret のBase64エンコード
+
+### Service/Ingress
+- Service type の適切な選択（ClusterIP, NodePort, LoadBalancer）
+- ポート番号の一貫性
+- Ingress のルーティングルール
+
+## 3. Docker Compose
+
+### サービス定義
+- image vs build の選択
+- ポートマッピング（ports）
+- ボリュームマウント（volumes）
+- 環境変数（environment）
+
+### ネットワーク
+- networks の定義
+- サービス間通信
+- ポート露出の最小化
+
+### 依存関係
+- depends_on の使用
+- ヘルスチェック（healthcheck）
+- 起動順序制御
+
+## 4. CI/CD YAML（GitHub Actions, GitLab CI等）
+
+### ワークフロー
+- トリガー条件（on: push, pull_request等）
+- ジョブの依存関係（needs）
+- 並列実行の活用
+
+### セキュリティ
+- シークレットの使用（secrets）
+- 権限の最小化（permissions）
+- サードパーティアクションのバージョン固定
+
+### 効率化
+- キャッシュの活用
+- アーティファクトの保存（artifacts）
+- マトリックスビルド
+
+## 5. YAML一般
+
+### 構文
+- インデントの統一（スペース2または4）
+- クォートの一貫性
+- コメントの活用
+- アンカー＆エイリアス（&, *）の活用
+
+### ベストプラクティス
+- 長い行の折り返し（|, >）
+- 環境別設定の分離
+- デフォルト値の明示
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+必ず日本語でコード提案を記述してください。
+
+**API YAML改善の優先順位：**
+1. **Critical**: セキュリティ設定不足、機密情報のハードコード、構文エラー
+2. **Important**: リソース制限未設定、ヘルスチェック不足、ドキュメント不足
+3. **Nice to have**: コメント追加、可読性向上、example追加
+"""
+
+[pr_improve]
+num_code_suggestions = 10
+extra_instructions = """
+必ず日本語でAPI YAMLの改善提案を記述してください。
+
+**改善の観点：**
+- **セキュリティ**: securitySchemes定義、機密情報のSecret化、権限の最小化
+- **ドキュメント**: description充実、example提供、deprecated明示
+- **可読性**: インデント統一、コメント活用、環境別設定分離
+- **Kubernetes**: リソース制限、ヘルスチェック、イメージタグ固定
+- **OpenAPI**: スキーマ再利用、バリデーション、ステータスコード
+- **運用性**: ログ出力、監視、エラーハンドリング
+
+具体的なYAML設定例を必ず含めてください。
+"""
+
+[pr_description]
+extra_instructions = """
+必ず日本語でMR説明を記述してください。
+
+API YAMLの変更内容を以下の観点で説明してください：
+- 変更したYAMLファイルとその目的（OpenAPI、K8s、Docker Compose等）
+- APIエンドポイントの変更内容
+- セキュリティへの配慮（認証、認可、Secret管理等）
+- インフラへの影響（リソース、ネットワーク、依存関係等）
+"""

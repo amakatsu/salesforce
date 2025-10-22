@@ -1,0 +1,84 @@
+# Java開発用（設計パターン、パフォーマンス、並行処理）
+# Javaのベストプラクティス、設計パターン、パフォーマンスに焦点を当てたレビュー
+
+[pr_reviewer]
+extra_instructions = """
+必ず日本語でレビューしてください。
+
+**Java固有の観点でレビューしてください：**
+
+1. **設計パターン**
+   - 適切なデザインパターンの使用（Singleton, Factory, Builder等）
+   - SOLID原則の遵守
+   - 依存性注入（DI）の適切な使用
+
+2. **Javaベストプラクティス**
+   - Optional の適切な使用
+   - Stream API の効率的な利用
+   - try-with-resources の使用
+   - equals() と hashCode() の実装
+   - toString() の実装
+
+3. **パフォーマンス**
+   - 不要なオブジェクト生成の回避
+   - StringBuilder vs String 連結
+   - コレクションの適切な選択（ArrayList vs LinkedList等）
+   - ストリーム処理の最適化
+
+4. **並行処理**
+   - スレッドセーフティの確保
+   - synchronized の適切な使用
+   - Concurrent コレクションの活用
+   - volatile, AtomicXxx の使用
+
+5. **例外処理**
+   - チェック例外 vs 非チェック例外
+   - カスタム例外の設計
+   - リソースリーク防止
+
+6. **命名規則**
+   - クラス名: PascalCase
+   - メソッド名: camelCase
+   - 定数: UPPER_SNAKE_CASE
+   - パッケージ名: 小文字
+
+7. **JavaDoc**
+   - public メソッドへの適切なドキュメント
+   - @param, @return, @throws の記述
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+必ず日本語でコード提案を記述してください。
+
+**Java改善の優先順位：**
+1. **Critical**: NullPointerException リスク、リソースリーク、スレッド安全性
+2. **Important**: パフォーマンス問題、不適切なデザインパターン
+3. **Nice to have**: コードの可読性、JavaDoc追加
+"""
+
+[pr_improve]
+num_code_suggestions = 10
+extra_instructions = """
+必ず日本語でJavaコードの改善提案を記述してください。
+
+**Java改善の観点：**
+- **パフォーマンス**: Stream API最適化、不要なオブジェクト生成削減
+- **可読性**: メソッド分割、変数名改善、コメント追加
+- **保守性**: デザインパターン適用、SOLID原則遵守
+- **エラーハンドリング**: try-with-resources、適切な例外処理
+- **並行処理**: スレッドセーフ化、ConcurrentXxx使用
+
+具体的なJavaコード例を必ず含めてください。
+"""
+
+[pr_description]
+extra_instructions = """
+必ず日本語でMR説明を記述してください。
+
+Javaコードの変更内容を以下の観点で説明してください：
+- 変更したクラス/メソッドとその目的
+- 適用したデザインパターン
+- パフォーマンスへの影響
+- 下位互換性
+"""

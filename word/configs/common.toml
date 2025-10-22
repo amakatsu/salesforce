@@ -12,6 +12,12 @@ git_provider = "gitlab"
 # 日本語での出力を強制
 verbosity = 0
 enable_custom_labels = false
+# 精度向上のための設定
+max_description_tokens = 1000  # PR説明文の最大トークン数を増やす
+max_commits_tokens = 1000  # コミット情報の最大トークン数を増やす
+patch_extra_lines_before = 5  # パッチの前後行数を増やしてコンテキストを充実
+patch_extra_lines_after = 3
+enable_ai_metadata = true  # AI生成メタデータを有効化
 
 [pr_reviewer]
 require_score_review = true
@@ -32,20 +38,117 @@ Do not use English except for code snippets and technical terms that have no Jap
 [pr_description]
 publish_description = true
 add_original_user_description = true
+enable_pr_type = true  # PR種別を自動分類
+use_bullet_points = true  # 箇条書き形式を使用
+enable_semantic_files_types = true  # ファイルの意味的な分類を有効化
+collapsible_file_list = "adaptive"  # 変更ファイル一覧を適応的に折りたたみ
+generate_ai_title = false  # タイトル自動生成（必要に応じてtrue）
 extra_instructions = """
 必ず日本語で記述してください。すべての出力は日本語で行ってください。
+
+PR説明文には以下を含めてください：
+1. **変更の概要**：何を、なぜ変更したのか
+2. **主要な変更点**：重要な変更を箇条書きで
+3. **影響範囲**：どの機能/モジュールに影響するか
+4. **テスト方法**：どうやって動作確認するか
+5. **注意点**：レビュアーが特に注目すべき点
+6. **関連Issue/チケット**：関連する課題へのリンク
+
+技術的な詳細は適切に、ビジネス価値も明確に記述してください。
 """
 
 [pr_code_suggestions]
 num_code_suggestions = 10
+commitable_code_suggestions = true  # コミット可能な形式で提案
+enable_help_text = true
 extra_instructions = """
 必ず日本語でコード提案を記述してください。すべての出力は日本語で行ってください。
+
+コード提案は以下の観点から優先順位をつけて行ってください：
+1. **Critical（重大）**：バグ、セキュリティ脆弱性、パフォーマンス問題
+2. **Important（重要）**：保守性、可読性、ベストプラクティス違反
+3. **Nice to have（推奨）**：リファクタリング、最適化の余地
+
+各提案には以下を含めてください：
+- 問題点の明確な説明
+- なぜ変更が必要か（理由）
+- 具体的なコード例（before/after）
+- 優先度レベル
+- 影響範囲
+
+コミット可能な形式で、すぐに適用できる提案を心がけてください。
 """
 
 [pr_questions]
 enable_help_text = true
 extra_instructions = """
 必ず日本語で質問への回答を記述してください。すべての出力は日本語で行ってください。
+回答は具体的で実用的な内容にし、コード例を含めてください。
+"""
+
+[pr_improve]
+# コード改善提案の精度向上
+num_code_suggestions = 10
+enable_help_text = true
+extra_instructions = """
+必ず日本語でコード改善提案を記述してください。
+改善提案は以下の観点から行ってください：
+- パフォーマンスの最適化
+- 可読性の向上
+- 保守性の改善
+- エッジケースの処理
+- エラーハンドリングの強化
+具体的なコード例を必ず含めてください。
+"""
+
+[pr_add_docs]
+# ドキュメント生成の精度向上
+enable_help_text = true
+extra_instructions = """
+必ず日本語でドキュメントを生成してください。
+ドキュメントには以下を含めてください：
+- 関数/クラスの目的と責務
+- パラメータの詳細な説明（型、デフォルト値、制約）
+- 戻り値の詳細な説明
+- 使用例（実際のコード例）
+- 例外/エラーケース
+- 注意事項や制約
+Google Style、NumPy Style、またはJSDocなど適切なフォーマットを使用してください。
+"""
+
+[pr_update_changelog]
+# changelog更新の精度向上
+enable_help_text = true
+extra_instructions = """
+必ず日本語でchangelogを記述してください。
+変更内容を以下のカテゴリに分類してください：
+- Added（新機能）
+- Changed（既存機能の変更）
+- Deprecated（非推奨化）
+- Removed（削除）
+- Fixed（バグ修正）
+- Security（セキュリティ修正）
+セマンティックバージョニングの観点から影響度を明記してください。
+"""
+
+[pr_generate_labels]
+# ラベル生成の精度向上
+enable_help_text = true
+extra_instructions = """
+PRの内容を分析して、以下の観点から適切なラベルを提案してください：
+- 変更の種類（feature, bugfix, refactor, docs, test, chore）
+- 影響範囲（frontend, backend, database, api, ui）
+- 優先度（critical, high, medium, low）
+- 技術スタック（python, typescript, react, etc.）
+- レビュー状態（needs-review, approved, changes-requested）
+"""
+
+[pr_similar_issue]
+# 類似Issue検索の精度向上
+enable_help_text = true
+extra_instructions = """
+必ず日本語で類似Issueの分析を記述してください。
+類似度の根拠を明確に説明してください。
 """
 
 [gitlab]
@@ -56,4 +159,4 @@ extra_instructions = """
 # GitLab URL (独自ホスティングの場合に設定)
 # デフォルトはhttps://gitlab.comが使用されます
 # 独自ホスティングの例: url = "https://git.example.com"
-# url = "https://gitlab.com"
+url = "https://gitlab.rp.dss.itmufg"

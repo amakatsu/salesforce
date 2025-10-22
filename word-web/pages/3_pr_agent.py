@@ -17,6 +17,12 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent / '.env'
 if env_path.exists():
     load_dotenv(env_path)
+    # デバッグ: 環境変数の読み込み確認
+    import logging
+    logging.info(f"✅ .env loaded from: {env_path}")
+else:
+    import logging
+    logging.warning(f"⚠️ .env not found at: {env_path}")
 
 # バックエンドモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -155,7 +161,6 @@ with st.sidebar:
         api_key = st.text_input(
             "Gemini APIキー",
             value=default_gemini_key,
-            type="password",
             help="Google Gemini APIのキーを入力してください（.envのGEMINI_API_KEYから自動取得）"
         )
 
@@ -257,25 +262,37 @@ with st.sidebar:
 
     with st.expander("🔧 詳細設定", expanded=False):
         # GitLab URL設定（独自ホスティング対応）
-        # .envまたは環境変数からデフォルト値を取得
-        default_gitlab_url = os.getenv("GITLAB_URL", "")
+        # 優先順位: 1. ユーザー入力 > 2. MR URLから抽出 > 3. common.toml
+        st.markdown("#### 🌐 GitLab URL設定")
+        st.info("""
+**自動設定:**
+- MR URLから自動抽出されます
+- common.tomlの設定も適用されます
 
+**手動指定が必要な場合:**
+- 上記と異なるGitLabインスタンスを使いたい場合のみ入力してください
+        """)
+
+        default_gitlab_url = os.getenv("GITLAB_URL", "")
         gitlab_url = st.text_input(
-            "GitLab URL（独自ホスティングの場合）",
+            "GitLab URL（オプション）",
             value=default_gitlab_url,
-            placeholder="例: https://git.mycompany.com",
-            help="独自ホスティングのGitLab URLを指定（gitlab.com以外の場合のみ入力）。.envのGITLAB_URLから自動取得"
+            placeholder="例: https://gitlab.rp.dss.itmufg",
+            help="入力すると、MR URLやcommon.tomlの設定より優先されます"
         )
 
         # GitLab URLのバリデーション
         if gitlab_url:
             normalized_url = UrlValidator.normalize_gitlab_url(gitlab_url)
             if UrlValidator.validate_gitlab_url(normalized_url):
-                st.success(f"✅ 有効なGitLab URL: {normalized_url}")
+                st.success(f"✅ 指定されたGitLab URL: {normalized_url}")
                 # 正規化されたURLを使用
                 gitlab_url = normalized_url
             else:
-                st.error("❌ 無効なGitLab URLです。https://git.example.com の形式で入力してください")
+                st.error("❌ 無効なGitLab URLです。https://gitlab.example.com の形式で入力してください")
+                gitlab_url = None  # 無効な場合は自動抽出に任せる
+
+        st.markdown("---")
 
         # デバッグレベル設定
         debug_level = st.selectbox(
@@ -346,8 +363,8 @@ else:
     # プロジェクトから選択
     project_url = st.text_input(
         "プロジェクトURL",
-        placeholder="https://gitlab.com/group/project",
-        help="GitLabプロジェクトのURL"
+        placeholder="https://gitlab.rp.dss.itmufg/PIT03077/word",
+        help="GitLabプロジェクトのURL（例: https://gitlab.rp.dss.itmufg/グループ名/プロジェクト名）"
     )
 
     if project_url and gitlab_token:
@@ -357,9 +374,11 @@ else:
             import urllib.parse
 
             # GitLab MR一覧を取得
-            match = re.match(r'https://gitlab\.com/(.+)', project_url.rstrip('/'))
+            # 独自ホスティングにも対応
+            match = re.match(r'(https?://[^/]+)/(.+)', project_url.rstrip('/'))
             if match:
-                project_path = match.group(1)
+                gitlab_base_url = match.group(1)
+                project_path = match.group(2)
                 # URLエンコード
                 encoded_project = urllib.parse.quote(project_path, safe='')
 
@@ -367,7 +386,7 @@ else:
                 headers = {
                     "PRIVATE-TOKEN": gitlab_token
                 }
-                api_url = f"https://gitlab.com/api/v4/projects/{encoded_project}/merge_requests"
+                api_url = f"{gitlab_base_url}/api/v4/projects/{encoded_project}/merge_requests"
 
                 with st.spinner("MR一覧を取得中..."):
                     response = requests.get(
@@ -416,7 +435,15 @@ else:
                     elif response.status_code == 404:
                         st.error("プロジェクトが見つかりません")
             else:
-                st.warning("有効なGitLabプロジェクトURLを入力してください")
+                st.warning("⚠️ プロジェクトURLにはプロジェクトパスが必要です")
+                st.info("""
+**正しい形式:**
+- ✅ `https://gitlab.rp.dss.itmufg/グループ名/プロジェクト名`
+- ✅ `https://gitlab.rp.dss.itmufg/PIT03077/word`
+
+**間違った形式:**
+- ❌ `https://gitlab.rp.dss.itmufg` （プロジェクトパスが無い）
+                """)
 
         except Exception as e:
             st.error(f"エラー: {str(e)}")
@@ -572,7 +599,7 @@ if st.session_state.is_running and st.session_state.execute_params:
             st.session_state.is_running = False
             raise RuntimeError("Failed to apply PR-Agent configuration")
 
-        status_text.text(f"🔄 PR-Agent {params['pr_command']} コマンドを実行中...")
+        status_text.text(f"🔄 PR-Agent {params['pr_command']} コマンドを実行中...（2～3分程度かかります）")
         progress_bar.progress(30)
 
         # ログ表示エリア
@@ -652,15 +679,27 @@ if st.session_state.is_running and st.session_state.execute_params:
 
         progress_bar.progress(100)
 
+        # ログからエラー/警告を検出
+        errors = [line for line in log_lines if 'ERROR' in line or 'Exception' in line or 'Traceback' in line]
+        warnings = [line for line in log_lines if 'WARNING' in line or 'warning' in line or 'Failed to generate prediction' in line]
+
         if result:
             status_text.text("✅ 実行完了！")
-            st.success("✅ PR-Agentコマンドが正常に完了しました！")
+
+            # 警告があれば表示
+            if warnings:
+                st.warning(f"⚠️ PR-Agentコマンドが完了しましたが、{len(warnings)}件の警告がありました")
+                with st.expander(f"⚠️ 警告詳細 ({len(warnings)}件)", expanded=False):
+                    for warn in warnings[:10]:  # 最大10件表示
+                        st.code(warn, language='log')
+            else:
+                st.success("✅ PR-Agentコマンドが正常に完了しました！")
 
             st.markdown("### 📋 実行内容")
             st.write(f"- **コマンド**: {params['pr_command']}")
             st.write(f"- **MR URL**: {params['pr_url']}")
             if params.get('gitlab_url'):
-                st.write(f"- **GitLab URL**: {params['gitlab_url']} （独自ホスティング）")
+                st.write(f"- **GitLab URL**: {params['gitlab_url']} ✅ ユーザー指定")
             if params['ai_provider'] == "Gemini":
                 st.write(f"- **AIプロバイダー**: Google Gemini")
                 st.write(f"- **モデル**: {params['gemini_model']}")
@@ -674,14 +713,40 @@ if st.session_state.is_running and st.session_state.execute_params:
                 st.write(f"- **カスタムプロンプト**: {params['custom_prompt']}")
 
             st.info("💡 結果はGitLabのMRページに投稿されました")
+
+            # 実行完了後はexecute_paramsをクリアして再実行可能にする
+            st.session_state.execute_params = None
         else:
             status_text.text("❌ レビュー失敗")
             st.error("❌ レビュー中にエラーが発生しました")
 
+            # エラー詳細を表示
+            if errors:
+                with st.expander(f"🔍 エラー詳細 ({len(errors)}件)", expanded=True):
+                    for err in errors[:20]:  # 最大20件表示
+                        st.code(err, language='log')
+
+            # ログの詳細情報も表示
+            st.markdown("### 📋 実行内容")
+            st.write(f"- **コマンド**: {params['pr_command']}")
+            st.write(f"- **MR URL**: {params['pr_url']}")
+
+            st.warning("💡 上記のエラーログを確認して、問題を修正してください")
+
+            # 実行完了後はexecute_paramsをクリアして再実行可能にする
+            st.session_state.execute_params = None
+
+            # ページを再読み込みしてボタンを有効化
+            st.info("🔄 ページを更新してください（F5キーを押すか、ブラウザの更新ボタンをクリック）")
+
     except Exception as e:
         st.session_state.is_running = False
+        st.session_state.execute_params = None  # エラー時もクリア
         st.error(f"❌ エラーが発生しました: {str(e)}")
         st.exception(e)
+
+        # ページを再読み込みしてボタンを有効化
+        st.info("🔄 ページを更新してください（F5キーを押すか、ブラウザの更新ボタンをクリック）")
 
 # フッター
 st.markdown("---")

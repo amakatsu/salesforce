@@ -88,19 +88,55 @@ class PRAgentRunner:
             # GitLabプロバイダーを強制設定（URL判定前に設定を読み込ませる）
             os.environ['CONFIG__GIT_PROVIDER'] = 'gitlab'
 
-            # GitLab URLを環境変数に設定（カスタムホストの場合）
+            # GitLab URLを決定
+            # 優先順位: 1. ユーザー入力(gitlab_url) > 2. PR URLから抽出 > 3. common.toml
+            determined_gitlab_url = None
             if gitlab_url:
-                # URLの正規化
-                normalized_url = gitlab_url.rstrip('/')
-                if not normalized_url.startswith(('http://', 'https://')):
-                    normalized_url = f'https://{normalized_url}'
-                os.environ['GITLAB__URL'] = normalized_url
-                Logger.info(f"GitLab URL環境変数を設定: {normalized_url}")
+                # ユーザーが明示的に指定した場合（最優先）
+                determined_gitlab_url = gitlab_url
+                Logger.info(f"✅ ユーザー指定のGitLab URLを使用: {determined_gitlab_url}")
+            else:
+                # PR URLから自動抽出
+                import re
+                match = re.match(r'(https?://[^/]+)', pr_url)
+                if match:
+                    determined_gitlab_url = match.group(1)
+                    Logger.info(f"📍 PR URLからGitLab URLを自動抽出: {determined_gitlab_url}")
+                else:
+                    Logger.warning("⚠️ PR URLからGitLab URLを抽出できませんでした。common.tomlの設定が使われます")
 
+            # URLの正規化
+            if determined_gitlab_url:
+                determined_gitlab_url = determined_gitlab_url.rstrip('/')
+                if not determined_gitlab_url.startswith(('http://', 'https://')):
+                    determined_gitlab_url = f'https://{determined_gitlab_url}'
+
+            # 設定ファイルパスを決定
             if settings_path:
                 config_path = Path(settings_path).resolve(strict=False)
             else:
                 config_path = project_root / ".pr_agent.toml"
+
+            # GitLab URLが決定された場合、設定ファイルに書き出す
+            if determined_gitlab_url:
+                import toml
+
+                # 既存の設定ファイルを読み込む（存在する場合）
+                if config_path.exists():
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config_data = toml.load(f)
+                else:
+                    config_data = {}
+
+                # GitLab URLを設定に追加/上書き
+                if 'gitlab' not in config_data:
+                    config_data['gitlab'] = {}
+                config_data['gitlab']['url'] = determined_gitlab_url
+
+                # 設定ファイルに書き出し
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    toml.dump(config_data, f)
+                Logger.info(f"🔧 GitLab URLを設定ファイルに書き出しました: {determined_gitlab_url}")
 
             os.environ['PR_AGENT_SETTINGS_PATH'] = str(config_path)
             if not config_path.exists():
@@ -113,6 +149,13 @@ class PRAgentRunner:
 
             # 設定を強制的に事前読み込み
             settings = get_settings()
+
+            # .pr_agent.tomlをDynaconfに読み込ませる
+            if config_path.exists():
+                Logger.info(f"Dynaconfに設定ファイルを読み込ませます: {config_path}")
+                settings.load_file(str(config_path))
+                Logger.info("✅ Dynaconfが設定ファイルを読み込みました")
+
             settings.config.git_provider = 'gitlab'
 
             # TOMLファイルから直接extra_instructionsを読み込み

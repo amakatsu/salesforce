@@ -1,0 +1,96 @@
+# DTO用（単語帳準拠チェック、命名規則、バリデーション）
+# DTOの命名規則、必須項目、単語帳準拠のチェックに特化
+
+[pr_reviewer]
+extra_instructions = """
+必ず日本語でレビューしてください。
+
+**DTO（Data Transfer Object）の単語帳準拠チェック：**
+
+1. **命名規則チェック**
+   - クラス名が「〜Dto」「〜Request」「〜Response」で終わっているか
+   - プロパティ名が camelCase になっているか
+   - Boolean型プロパティが「is〜」「has〜」で始まっているか
+
+2. **単語帳の標準用語チェック**
+   以下の標準用語が使われているかチェックし、非標準の用語があれば指摘してください：
+
+   **標準用語（推奨）：**
+   - id, userId, customerId, accountId
+   - name, displayName, fullName, firstName, lastName
+   - type, status, statusCode
+   - createdAt, updatedAt, deletedAt
+   - isActive, isDeleted, isEnabled
+   - description, comment, remarks
+   - startDate, endDate, effectiveDate
+   - amount, price, total, subtotal
+   - count, quantity, number
+   - email, phoneNumber, address
+   - code, errorCode, messageCode
+
+   **非推奨用語（避けるべき）：**
+   - flg（→ isXxx に変更）
+   - datetime（→ xxxAt に変更）
+   - kbn（→ type, category に変更）
+   - kubun（→ type, category に変更）
+   - mei（→ name に変更）
+   - cd（→ code に変更）
+
+3. **必須項目チェック**
+   - ID項目の存在（id, xxxId）
+   - タイムスタンプ項目（createdAt, updatedAt）
+   - バリデーションアノテーション（@NotNull, @NotEmpty, @Valid等）
+
+4. **構造チェック**
+   - ネストしたDTOの適切な設計
+   - コレクション型の適切な使用（List, Set, Map）
+   - Optional の適切な使用
+
+5. **ドキュメント**
+   - クラスレベルのコメント
+   - 各プロパティの説明コメント
+   - 必須/任意の明示
+   - 値の制約（最大長、範囲等）
+
+6. **Lombokアノテーション（Java）**
+   - @Data, @Getter, @Setter の使用
+   - @Builder の使用（推奨）
+   - @NoArgsConstructor, @AllArgsConstructor
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+必ず日本語でコード提案を記述してください。
+
+**DTO改善の優先順位：**
+1. **Critical**: 非標準用語の使用、必須項目の欠如、命名規則違反
+2. **Important**: バリデーションアノテーション不足、ドキュメント不足
+3. **Nice to have**: Lombokアノテーション活用、Optional使用
+"""
+
+[pr_improve]
+num_code_suggestions = 10
+extra_instructions = """
+必ず日本語でDTOの改善提案を記述してください。
+
+**DTO改善の観点：**
+- **単語帳準拠**: 非標準用語を標準用語に変更（flg→isXxx, kbn→type, cd→code等）
+- **命名規則**: camelCase、Boolean型のis/has接頭辞の適用
+- **バリデーション**: @NotNull, @NotEmpty, @Valid, @Size等のアノテーション追加
+- **ドキュメント**: クラス・プロパティへのコメント、必須/任意の明示
+- **構造**: ネストDTO、コレクション型、Optionalの適切な使用
+- **Lombok**: @Data, @Builder, @NoArgsConstructor等の活用
+
+具体的なDTOコード例を必ず含めてください。
+"""
+
+[pr_description]
+extra_instructions = """
+必ず日本語でMR説明を記述してください。
+
+DTOの変更内容を以下の観点で説明してください：
+- 変更したDTOクラスとその目的
+- 単語帳準拠の改善内容（非標準用語の修正等）
+- 追加したバリデーション
+- APIへの影響（リクエスト/レスポンス形式の変更等）
+"""

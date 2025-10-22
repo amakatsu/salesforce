@@ -37,7 +37,7 @@ if 'visited_word_matching' not in st.session_state:
     st.session_state.visited_word_matching = True
 
 # タイトル
-st.title("📝 単語照合ツール")
+st.title("📝 Excel単語照合ツール")
 st.markdown("""
 <div style='background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             padding: 1rem;

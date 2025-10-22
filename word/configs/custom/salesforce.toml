@@ -1,0 +1,90 @@
+# Salesforce開発用（Apex、LWC、ガバナ制限、バルク処理）
+# Apex, Lightning Web Components (LWC), ガバナ制限に焦点を当てたレビュー
+
+[pr_reviewer]
+extra_instructions = """
+必ず日本語でレビューしてください。
+
+**Salesforce固有の観点でレビューしてください：**
+
+1. **ガバナ制限（Governor Limits）**
+   - SOQL クエリ数（100回制限）
+   - DML 操作数（150回制限）
+   - ヒープサイズ（6MB制限）
+   - CPU時間（10秒制限）
+   - ループ内での SOQL/DML の回避
+
+2. **Apex ベストプラクティス**
+   - バルク処理対応（Trigger Handler パターン）
+   - Selector パターンの使用
+   - トリガーロジックのクラス分離
+   - テストクラスのカバレッジ（75%以上）
+   - @TestSetup の活用
+
+3. **SOQL 最適化**
+   - SELECT 句の必要最小限のフィールド選択
+   - WHERE 句のインデックス活用
+   - クエリセレクタの使用
+   - 子レコードの取得（サブクエリ）
+
+4. **セキュリティ**
+   - with sharing / without sharing の適切な使用
+   - CRUD/FLS チェック
+   - SOQL インジェクション対策（String.escapeSingleQuotes）
+   - XSS 対策（ESAPI の使用）
+
+5. **Lightning Web Components (LWC)**
+   - @api, @track, @wire の適切な使用
+   - イベント駆動設計
+   - コンポーネント間通信
+   - エラーハンドリング
+
+6. **Visualforce**
+   - ViewState サイズの最小化
+   - Remote Action の活用
+   - JavaScript Remoting
+
+7. **非同期処理**
+   - @future メソッドの使用
+   - Queueable Apex
+   - Batch Apex
+   - Scheduled Apex
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+必ず日本語でコード提案を記述してください。
+
+**Salesforce改善の優先順位：**
+1. **Critical**: ガバナ制限違反、セキュリティ脆弱性、SOQL/DMLループ内実行
+2. **Important**: パフォーマンス問題、バルク処理未対応、テストカバレッジ不足
+3. **Nice to have**: コードの可読性、命名規則、コメント
+"""
+
+[pr_improve]
+num_code_suggestions = 10
+extra_instructions = """
+必ず日本語でSalesforceコードの改善提案を記述してください。
+
+**Salesforce改善の観点：**
+- **ガバナ制限対応**: SOQL/DMLのバルク化、ループ外への移動
+- **パフォーマンス**: クエリ最適化、不要なSOQL削減、キャッシュ活用
+- **可読性**: メソッド分割、変数名改善、コメント追加
+- **保守性**: Trigger Handlerパターン、Selectorパターン適用
+- **セキュリティ**: with sharing追加、CRUD/FLSチェック、インジェクション対策
+- **テスト**: テストカバレッジ向上、@TestSetup活用、アサーション追加
+
+具体的なApex/LWCコード例を必ず含めてください。
+"""
+
+[pr_description]
+extra_instructions = """
+必ず日本語でMR説明を記述してください。
+
+Salesforceコードの変更内容を以下の観点で説明してください：
+- 変更したApexクラス/Trigger/LWCとその目的
+- ガバナ制限への影響（SOQL/DML数、ヒープサイズ等）
+- 適用したデザインパターン（Trigger Handler、Selector等）
+- セキュリティへの配慮（sharing設定、CRUD/FLS等）
+- テストカバレッジへの影響
+"""
