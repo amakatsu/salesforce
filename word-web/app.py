@@ -51,9 +51,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # タブでツールを切り替え
-tab1, tab2, tab3= st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🏠 ツール一覧",
     "📊 システム構成",
+    "🔄 PR-Agent実行フロー",
     "🛠️ 技術スタック"])
 
 with tab1:
@@ -65,7 +66,7 @@ with tab1:
     with col_excel:
         st.markdown("""
         <div style='background: #e8f5e9; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #4caf50;'>
-            <h4 style='color: #2e7d32; margin-top: 0;'>📝 Excel単語照合ツール</h4>
+            <h4 style='color: #2e7d32; margin-top: 0;'>📝 単語マッチングツール</h4>
             <ul style='margin: 0;'>
                 <li>Excelファイルの単語照合</li>
                 <li>単語帳との突合チェック</li>
@@ -74,7 +75,7 @@ with tab1:
             </ul>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("📝 Excel単語照合ツールを開く", key="open_word_matching", type="primary", use_container_width=True):
+        if st.button("📝 単語マッチングツールを開く", key="open_word_matching", type="primary", use_container_width=True):
             st.switch_page("pages/1_word_matching.py")
 
     with col_domain:
@@ -114,7 +115,7 @@ with tab1:
         """, unsafe_allow_html=True)
         if st.button("🤖 PR-Agentを開く", key="open_pr_agent", type="primary", use_container_width=True):
             st.switch_page("pages/3_pr_agent.py")
-        st.info("⏱️ 実行時間: 2～3時間程度（AIによる詳細な分析を実施）")
+        st.info("⏱️ 実行時間: 2～3分程度（MRのサイズによって変動）")
 
 with tab2:
     st.header("システム構成")
@@ -129,8 +130,6 @@ with tab2:
         edge [color="#475569", arrowsize=0.8, fontname="MS Gothic"];
 
         user [shape=oval, fillcolor="#fde68a", label="ユーザー\n(Webブラウザ)"];
-        tracker [shape=note, fillcolor="#f3e8ff", label="usage_tracker.py"];
-        docker [fillcolor="#ddd6fe", label="Docker\nコンテナ"];
 
         subgraph cluster_ui {
             label="Streamlit UI";
@@ -148,7 +147,7 @@ with tab2:
             style="filled,rounded";
             fillcolor="#dcfce7";
             fontcolor="#1f2937";
-            tool_word [label="Excel照合\n(word/word_matching)"];
+            tool_word [label="単語マッチング\n(word/word_matching)"];
             tool_domain [label="ドメインチェック\n(word/domain_check)"];
             tool_pr [label="PR-Agent実行\n(word/pr_agent)"];
         }
@@ -164,89 +163,112 @@ with tab2:
             data_excel [label="Excel / CSV"];
         }
 
-        subgraph cluster_services {
-            label="外部サービス";
+        subgraph cluster_git {
+            label="Git サービス";
             color="#fecaca";
             style="filled,rounded";
             fillcolor="#fee2e2";
             fontcolor="#1f2937";
             svc_gitlab [label="GitLab API"];
+        }
+
+        subgraph cluster_llm {
+            label="LLM サービス";
+            color="#c7d2fe";
+            style="filled,rounded";
+            fillcolor="#e0e7ff";
+            fontcolor="#1f2937";
             svc_gemini [label="Gemini API"];
             svc_openai [label="OpenAI API"];
         }
 
         user -> app -> pages;
-        app -> tracker [style=dashed, label="利用記録"];
         app -> data_env [style=dashed, label="環境変数"];
+        user -> data_excel [label="アップロード"];
+        user -> data_configs [label="アップロード"];
         pages -> tool_word;
         pages -> tool_domain;
         pages -> tool_pr;
         data_excel -> tool_word;
         data_excel -> tool_domain;
-        data_configs -> tool_word [style=dashed];
-        data_configs -> tool_domain [style=dashed];
         data_configs -> tool_pr;
-        tool_pr -> docker;
-        docker -> svc_gitlab;
-        docker -> svc_gemini;
-        docker -> svc_openai;
+        tool_word -> svc_gemini [style=dashed, label="AI解析"];
+        tool_word -> svc_openai [style=dashed, label="AI解析"];
+        tool_pr -> svc_gitlab;
+        tool_pr -> svc_gemini;
+        tool_pr -> svc_openai;
     }
     """
     st.graphviz_chart(arch_diagram)
 
-    st.subheader("🔄 PR-Agent実行フロー")
+with tab3:
+    st.header("PR-Agent実行フロー")
+    st.markdown("PR-Agentがどのように動作するか、3つの層に分けて説明します。")
+    st.caption("💡 紫色=UI層 / 青色=自前バックエンド / 緑色=OSS(PR-Agent)")
+
     flow_diagram = """
     digraph PRAgentFlow {
-        rankdir=LR;
-        graph [fontname="MS Gothic", bgcolor="white", nodesep=1.0];
-        node [shape=box, style="rounded,filled", color="#475569", fontname="MS Gothic", fontcolor="#1f2937", fillcolor="#ffffff"];
+        rankdir=TB;
+        graph [fontname="MS Gothic", bgcolor="white"];
+        node [shape=box, style="rounded,filled", color="#475569", fontname="MS Gothic", fontcolor="#1f2937"];
         edge [color="#475569", arrowsize=0.8, fontname="MS Gothic"];
 
-        step1 [label="1. MR URL入力\n(ユーザー)"];
-        step2 [label="2. 入力検証\nStreamlit UI"];
-        step3 [label="3. 設定読込\nconfigs/*.toml"];
-        step4 [label="4. Dockerで\nPR-Agent起動"];
-        step5 [label="5. GitLabから\n差分を取得"];
-        step6 [label="6. LLMへレビュー依頼\n(Gemini / OpenAI)"];
-        step7 [label="7. 解析結果を整理"];
-        step8 [label="8. GitLabに\nコメント投稿"];
-        step9 [label="9. ログと結果を\nUIへ返却"];
+        subgraph cluster_ui {
+            label="🖥️ UI層 (Streamlit)";
+            style="filled,rounded";
+            color="#a855f7";
+            fillcolor="#f3e8ff";
+            fontcolor="#6b21a8";
 
-        step1 -> step2 -> step3 -> step4 -> step5 -> step6 -> step7 -> step8 -> step9;
+            step1 [label="① ユーザーがMR URL入力", fillcolor="#e9d5ff"];
+            step2 [label="② 設定ファイル選択/編集", fillcolor="#e9d5ff"];
+            step3 [label="③ AIプロバイダー選択", fillcolor="#e9d5ff"];
+            step9 [label="⑨ ログ・結果をUI表示", fillcolor="#e9d5ff"];
+        }
 
-        gitlab [shape=ellipse, fillcolor="#fecaca", label="GitLab API"];
-        llm [shape=ellipse, fillcolor="#bbf7d0", label="LLM"];
-        logs [shape=note, fillcolor="#bfdbfe", label="実行ログ"];
+        subgraph cluster_backend {
+            label="🔧 自前バックエンド";
+            style="filled,rounded";
+            color="#3b82f6";
+            fillcolor="#dbeafe";
+            fontcolor="#1e40af";
 
-        step5 -> gitlab [style=dashed, label="API呼び出し"];
-        step6 -> llm [style=dashed, label="プロンプト送信"];
-        step9 -> logs [style=dashed, label="画面表示"];
+            step4 [label="④ 設定適用・環境構築", fillcolor="#bfdbfe"];
+            step6 [label="⑥ カスタムLLMハンドラー\n(社内LLM対応)", fillcolor="#bfdbfe"];
+        }
+
+        subgraph cluster_oss {
+            label="📦 OSS (PR-Agent)";
+            style="filled,rounded";
+            color="#10b981";
+            fillcolor="#d1fae5";
+            fontcolor="#065f46";
+
+            step5 [label="⑤ GitLabからMR情報取得", fillcolor="#bbf7d0"];
+            step7 [label="⑦ レビュー結果を整形", fillcolor="#bbf7d0"];
+            step8 [label="⑧ GitLabにコメント投稿", fillcolor="#bbf7d0"];
+        }
+
+        gitlab [shape=cylinder, fillcolor="#fecaca", label="GitLab"];
+        ai [shape=ellipse, fillcolor="#c7d2fe", label="AI\n(Gemini/OpenAI)"];
+
+        step1 -> step2 -> step3;
+        step3 -> step4 [label="入力データ"];
+        step4 -> step5 [label="起動"];
+        step5 -> gitlab [label="API呼び出し", style=dashed];
+        gitlab -> step5 [label="差分返却", style=dashed];
+        step5 -> step6 [label="差分データ"];
+        step6 -> ai [label="プロンプト送信", style=dashed];
+        ai -> step6 [label="解析結果", style=dashed];
+        step6 -> step7 [label="AIレスポンス"];
+        step7 -> step8;
+        step8 -> gitlab [label="コメント投稿", style=dashed];
+        step8 -> step9 [label="結果データ"];
     }
     """
     st.graphviz_chart(flow_diagram)
 
-    st.subheader("📁 ディレクトリ構成")
-    st.code(
-        """word-web/
-├─ app.py            # ホーム+各タブ
-├─ pages/            # サブページ群
-│  ├─ 1_word_matching.py
-│  ├─ 2_domain_check.py
-│  ├─ 3_pr_agent.py
-│  ├─ 4_about.py
-│  └─ 99_admin.py
-└─ requirements.txt  # Webアプリ依存
-
-word/
-├─ configs/          # PR-Agent用TOML
-│  ├─ common.toml
-│  └─ custom/…
-├─ custom_llm_handler.py
-└─ Excelデータなど
-        """
-    )
-
-with tab3:
+with tab4:
     st.header("技術スタック")
     st.markdown("主要コンポーネントをカテゴリ別に整理しています。")
 
