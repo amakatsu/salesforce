@@ -5,12 +5,12 @@ model = "gpt-4o"
 temperature = 0.2
 language = "ja"
 response_language = "ja-JP"
-verbosity_level = 2
+verbosity_level = 1
 max_model_tokens = 32000
 reasoning_effort = "medium"
 git_provider = "gitlab"
 # 日本語での出力を強制
-verbosity = 0
+verbosity = 1
 enable_custom_labels = false
 # 精度向上のための設定
 max_description_tokens = 1000  # PR説明文の最大トークン数を増やす

@@ -104,7 +104,7 @@ class ConfigManager:
 
         return None
 
-    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None) -> bool:
+    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None) -> bool:
         """指定された設定ファイルを適用（共通設定とマージ）"""
         config_file = Path(config_path)
 
@@ -125,6 +125,10 @@ class ConfigManager:
         if gitlab_url:
             merged_config = self._inject_gitlab_url(merged_config, gitlab_url)
 
+        # Verbosity設定を追加
+        if verbosity is not None:
+            merged_config = self._inject_verbosity(merged_config, verbosity)
+
         # マージした設定を書き込み
         with open(self.config_file, 'w', encoding='utf-8') as f:
             toml.dump(merged_config, f)
@@ -139,7 +143,7 @@ class ConfigManager:
 
         return True
 
-    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None) -> None:
+    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None) -> None:
         """デフォルト設定ファイルを作成（共通設定ベース）"""
         self.backup_current_config()
 
@@ -155,6 +159,10 @@ class ConfigManager:
             # GitLab URL設定を追加
             if gitlab_url:
                 common_config = self._inject_gitlab_url(common_config, gitlab_url)
+
+            # Verbosity設定を追加
+            if verbosity is not None:
+                common_config = self._inject_verbosity(common_config, verbosity)
 
             # 共通設定を書き込み
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -338,7 +346,10 @@ num_code_suggestions = 4
                 # デフォルトモデル
                 config['config']['model'] = 'gemini/gemini-2.0-flash-exp'
 
-            Logger.info(f"Gemini設定を適用: モデル={config['config']['model']}")
+            # Gemini最大トークン数を設定（1M tokens for gemini-2.0-flash-exp）
+            config['config']['custom_model_max_tokens'] = 1000000
+
+            Logger.info(f"Gemini設定を適用: モデル={config['config']['model']}, max_tokens=1000000")
 
         else:
             # OpenAI設定（既存のロジック）
@@ -386,5 +397,18 @@ num_code_suggestions = 4
         config['gitlab']['url'] = normalized_url
 
         Logger.info(f"GitLab URL設定を適用: {normalized_url}")
+
+        return config
+
+    def _inject_verbosity(self, config: Dict, verbosity: int) -> Dict:
+        """Verbosity設定を設定ファイルに注入"""
+        if 'config' not in config:
+            config['config'] = {}
+
+        # verbosityとverbosity_levelの両方を設定
+        config['config']['verbosity'] = verbosity
+        config['config']['verbosity_level'] = verbosity
+
+        Logger.info(f"Verbosity設定を適用: verbosity={verbosity}, verbosity_level={verbosity}")
 
         return config

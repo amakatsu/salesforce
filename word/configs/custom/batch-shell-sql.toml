@@ -119,3 +119,74 @@ extra_instructions = """
 - パフォーマンスへの影響（処理時間、DB負荷等）
 - 運用への影響（ログ、監視、エラーハンドリング等）
 """
+
+[pr_questions]
+extra_instructions = """
+必ず日本語で質問への回答を記述してください。
+
+バッチ・Shell・SQLに関する質問には以下の観点で回答してください：
+- **セキュリティ**: インジェクション対策、機密情報の扱い
+- **パフォーマンス**: 処理時間、DB負荷、並列処理の可否
+- **エラーハンドリング**: 失敗時の動作、リトライ、ロールバック
+- **運用**: ログ出力、監視項目、アラート設定
+- **べき等性**: 再実行時の動作、データの重複防止
+
+具体的なShell/SQLコード例を含めて説明してください。
+"""
+
+[pr_add_docs]
+extra_instructions = """
+必ず日本語でドキュメントを生成してください。
+
+バッチ・Shell・SQLドキュメントには以下を含めてください：
+- **目的**: スクリプト/SQLの役割と実行タイミング
+- **前提条件**: 必要な環境変数、権限、依存ファイル
+- **実行方法**: コマンド例、引数の説明
+- **処理フロー**: 主要な処理ステップ
+- **エラーハンドリング**: 失敗時の動作、リトライ設定
+- **ログ**: 出力先、ログレベル、ローテーション
+- **監視**: チェック項目、アラート条件
+- **トラブルシューティング**: よくあるエラーと対処法
+
+シェルスクリプトにはコメント、SQLにはドキュメントコメントを記載してください。
+"""
+
+[pr_update_changelog]
+extra_instructions = """
+必ず日本語でchangelogを記述してください。
+
+バッチ・Shell・SQLの変更を以下のカテゴリで分類：
+- **Added**: 新しいスクリプト/SQL、新機能
+- **Changed**: 処理ロジック変更、SQL最適化
+- **Deprecated**: 非推奨化したスクリプト
+- **Removed**: 削除したスクリプト/機能
+- **Fixed**: バグ修正（エラーハンドリング、インジェクション対策等）
+- **Security**: セキュリティ修正（インジェクション対策、権限設定等）
+- **Performance**: パフォーマンス改善（バルク化、インデックス追加等）
+
+運用への影響（実行時間の変化、必要リソース等）を必ず記載してください。
+"""
+
+[pr_generate_labels]
+extra_instructions = """
+バッチ・Shell・SQLの変更内容を分析して適切なラベルを提案してください：
+
+- **変更の種類**: feature, bugfix, refactor, performance, security
+- **影響範囲**: batch, shell-script, sql, database
+- **セキュリティ**: injection-fix, security-hardening, credential-management
+- **パフォーマンス**: optimization, bulk-processing, index-added
+- **運用**: logging-improved, monitoring-added, error-handling-improved
+- **優先度**: critical, high, medium, low
+- **レビュー**: needs-dba-review, needs-security-review
+"""
+
+[pr_similar_issue]
+extra_instructions = """
+必ず日本語で類似Issueの分析を記述してください。
+
+バッチ・Shell・SQLの変更と類似Issueの関連性を以下の観点で分析：
+- 同じテーブル/スキーマへのSQL変更
+- 類似のバッチ処理パターン
+- 同様のセキュリティ対策
+- 類似のパフォーマンス最適化
+"""

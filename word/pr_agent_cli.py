@@ -46,6 +46,8 @@ def main():
     apply_parser.add_argument("config_name", help="設定名（例: educational）")
     apply_parser.add_argument("--prompt", help="カスタムプロンプト")
     apply_parser.add_argument("--gitlab-url", help="独自ホスティングのGitLab URL（例: https://git.example.com）")
+    apply_parser.add_argument("--verbosity", type=int, choices=[0, 1, 2], default=1,
+                               help="PR-Agentログレベル (0:最小限, 1:標準, 2:詳細)")
 
     # list-configs コマンド
     subparsers.add_parser("list-configs", help="利用可能な設定一覧を表示")
@@ -95,10 +97,14 @@ def main():
             # GitLab URL設定
             gitlab_url = args.gitlab_url if hasattr(args, 'gitlab_url') else None
 
+            # Verbosity設定
+            verbosity = args.verbosity if hasattr(args, 'verbosity') else 1
+
             success = config_manager.apply_config(
                 config_path,
                 custom_prompt=args.prompt,
-                gitlab_url=gitlab_url
+                gitlab_url=gitlab_url,
+                verbosity=verbosity
             )
             if not success:
                 sys.exit(1)

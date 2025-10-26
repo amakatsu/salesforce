@@ -6,10 +6,8 @@ PR-Agent - Webインターフェース (Streamlit)
 """
 import streamlit as st
 import sys
-import asyncio
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 
 # .envファイルを読み込み（存在する場合）
@@ -34,6 +32,62 @@ from usage_tracker import track_usage
 
 # Geminiモデルのデフォルト値
 gemini_model = ""
+
+
+def render_result_summary(placeholder, result_state):
+    """Render run result details that persist across reruns."""
+    with placeholder.container():
+        if not result_state:
+            st.info("実行結果はここに表示されます")
+            return
+
+        params = result_state.get('params', {})
+        warnings = result_state.get('warnings') or []
+        errors = result_state.get('errors') or []
+        status = result_state.get('status')
+
+        if status == 'success':
+            if warnings:
+                st.warning(f"⚠️ PR-Agentコマンドが完了しましたが、{len(warnings)}件の警告がありました")
+                with st.expander(f"⚠️ 警告詳細 ({len(warnings)}件)", expanded=False):
+                    for warn in warnings[:10]:
+                        st.code(warn, language='log')
+            else:
+                st.success("✅ PR-Agentコマンドが正常に完了しました！")
+        else:
+            st.error("❌ レビュー中にエラーが発生しました")
+            if errors:
+                with st.expander(f"🔍 エラー詳細 ({len(errors)}件)", expanded=True):
+                    for err in errors[:20]:
+                        st.code(err, language='log')
+
+        st.markdown("### 📋 実行内容")
+        if params.get('pr_command'):
+            st.write(f"- **コマンド**: {params['pr_command']}")
+        if params.get('pr_url'):
+            st.write(f"- **MR URL**: {params['pr_url']}")
+        if params.get('gitlab_url'):
+            st.write(f"- **GitLab URL**: {params['gitlab_url']} ✅ ユーザー指定")
+        ai_provider = params.get('ai_provider')
+        if ai_provider:
+            if ai_provider == "Gemini":
+                st.write("- **AIプロバイダー**: Google Gemini")
+                if params.get('gemini_model'):
+                    st.write(f"- **モデル**: {params['gemini_model']}")
+            else:
+                st.write("- **AIプロバイダー**: OpenAI (Azure)")
+                st.write("- **モデル**: gpt-4o")
+        if params.get('selected_config'):
+            st.write(f"- **設定**: {params['selected_config']}")
+        if params.get('pr_command') == "ask" and params.get('question'):
+            st.write(f"- **質問**: {params['question']}")
+        if params.get('custom_prompt'):
+            st.write(f"- **カスタムプロンプト**: {params['custom_prompt']}")
+
+        if status == 'success':
+            st.info("💡 結果はGitLabのMRページに投稿されました")
+        else:
+            st.warning("💡 上記のエラーログを確認して、問題を修正してください")
 
 # ページ設定
 st.set_page_config(
@@ -105,24 +159,23 @@ available_configs = config_manager.get_available_configs()
 with st.sidebar:
     st.header("⚙️ 設定")
 
-    st.subheader("🤖 AIモデル選択")
-
-    # モデルプロバイダー選択
+    # AIプロバイダー選択
     ai_provider = st.selectbox(
-        "AIプロバイダー",
+        "🤖 AIプロバイダー",
         ["OpenAI (Azure)", "Gemini"],
         help="使用するAIモデルのプロバイダーを選択"
     )
 
-    st.subheader("🔑 API認証情報")
+    # API認証情報
+    st.markdown("---")
 
     # GitLab Token
     default_token = os.getenv("GITLAB_TOKEN", "")
     gitlab_token = st.text_input(
-        "GitLab Token",
+        "🔑 GitLab Token",
         value=default_token,
         type="password",
-        help="GitLabリポジトリにアクセスするためのパーソナルアクセストークン（api scope必須）"
+        help="GitLabアクセストークン（api scope必須）"
     )
 
     # プロバイダーに応じた認証情報入力
@@ -238,6 +291,7 @@ with st.sidebar:
         config_options[name] = path
         config_descriptions[name] = extract_description(path)
 
+
     selected_config = st.selectbox(
         "設定ファイル",
         options=list(config_options.keys()),
@@ -249,71 +303,161 @@ with st.sidebar:
     # 設定ファイルの説明を下に表示
     st.info(config_descriptions.get(selected_config, "標準設定を使用"))
 
-    # 選択された設定の内容を確認可能に
+    # 選択された設定の内容を確認・編集可能に
     if selected_config != "デフォルト":
-        with st.expander("📖 設定ファイルの内容を確認", expanded=False):
+        # タブで表示と編集を切り替え
+        view_tab, edit_tab = st.tabs(["📖 設定を確認", "✏️ 設定を編集"])
+
+        with view_tab:
             try:
+                import toml
                 with open(config_path, "r", encoding="utf-8") as f:
-                    st.code(f.read(), language="toml")
+                    full_config = toml.load(f)
+
+                # コマンドに応じてセクションをフィルタリング
+                command_section_map = {
+                    "review": ["pr_reviewer"],
+                    "improve": ["pr_improve", "pr_code_suggestions"],
+                    "describe": ["pr_description"],
+                    "ask": ["pr_questions"],
+                    "generate_labels": ["pr_generate_labels"],
+                    "add_docs": ["pr_add_docs"]
+                }
+
+                # 選択されたコマンドに対応するセクションを取得
+                relevant_sections = command_section_map.get(pr_command, [])
+
+                # 常に表示する共通セクション
+                common_sections = []  # configやgitlabは表示しない
+
+                # フィルタリングされた設定を作成
+                filtered_config = {}
+                for section in common_sections + relevant_sections:
+                    if section in full_config:
+                        filtered_config[section] = full_config[section]
+
+                # フィルタリング情報を表示
+                if relevant_sections:
+                    st.info(f"💡 {pr_command}コマンドに関連する設定のみ表示しています: {', '.join(relevant_sections)}")
+
+                # フィルタリングされた設定をTOML形式で表示
+                filtered_toml = toml.dumps(filtered_config)
+                st.code(filtered_toml, language="toml")
+
+                # 全設定を見るオプション
+                with st.expander("🔍 全設定を表示", expanded=False):
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        st.code(f.read(), language="toml")
+
+            except Exception as e:
+                st.error(f"設定ファイルの読み込みに失敗: {e}")
+
+        with edit_tab:
+            try:
+                import toml
+
+                # 現在の設定を読み込み
+                with open(config_path, "r", encoding="utf-8") as f:
+                    current_config_text = f.read()
+
+                st.info("💡 設定ファイルを直接編集できます。保存後、PR-Agent実行時に反映されます。")
+
+                # 編集用テキストエリア
+                edited_config_text = st.text_area(
+                    f"{selected_config} の内容を編集",
+                    value=current_config_text,
+                    height=400,
+                    help="TOML形式で設定を編集してください"
+                )
+
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    save_button = st.button("💾 保存", type="primary", use_container_width=True)
+                with col2:
+                    if st.button("🔄 元に戻す", use_container_width=True):
+                        st.rerun()
+
+                if save_button:
+                    try:
+                        # TOML構文チェック
+                        import io
+                        toml.load(io.StringIO(edited_config_text))
+
+                        # バックアップを作成
+                        import shutil
+                        from datetime import datetime
+                        backup_path = f"{config_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                        shutil.copy(config_path, backup_path)
+
+                        # 設定ファイルを更新
+                        with open(config_path, "w", encoding="utf-8") as f:
+                            f.write(edited_config_text)
+
+                        st.success(f"✅ 設定ファイルを保存しました！")
+                        st.info(f"📋 バックアップ: {backup_path}")
+
+                        # 実行記録
+                        track_usage(action="設定ファイル編集", tool_name="PR-Agent", username=selected_config)
+
+                    except toml.TomlDecodeError as e:
+                        st.error(f"❌ TOML構文エラー: {str(e)}")
+                        st.warning("修正してから再度保存してください")
+                    except Exception as e:
+                        st.error(f"❌ 保存エラー: {str(e)}")
+
             except Exception as e:
                 st.error(f"設定ファイルの読み込みに失敗: {e}")
 
     st.markdown("---")
 
     with st.expander("🔧 詳細設定", expanded=False):
-        # GitLab URL設定（独自ホスティング対応）
-        # 優先順位: 1. ユーザー入力 > 2. MR URLから抽出 > 3. common.toml
-        st.markdown("#### 🌐 GitLab URL設定")
-        st.info("""
-**自動設定:**
-- MR URLから自動抽出されます
-- common.tomlの設定も適用されます
+        col1, col2 = st.columns(2)
 
-**手動指定が必要な場合:**
-- 上記と異なるGitLabインスタンスを使いたい場合のみ入力してください
-        """)
+        with col1:
+            # デバッグレベル設定
+            st.markdown("#### 🔍 ログレベル")
+            debug_level = st.selectbox(
+                "ログ出力レベル",
+                options=[0, 1, 2],
+                index=1,
+                format_func=lambda x: {
+                    0: "エラーのみ",
+                    1: "標準（推奨）",
+                    2: "詳細"
+                }[x],
+                help="0:エラーのみ / 1:進捗情報 / 2:デバッグ詳細"
+            )
+            # verbosity_levelを自動計算
+            verbosity_level = min(debug_level, 2)
 
-        default_gitlab_url = os.getenv("GITLAB_URL", "")
-        gitlab_url = st.text_input(
-            "GitLab URL（オプション）",
-            value=default_gitlab_url,
-            placeholder="例: https://gitlab.rp.dss.itmufg",
-            help="入力すると、MR URLやcommon.tomlの設定より優先されます"
-        )
+        with col2:
+            # GitLab URL設定
+            st.markdown("#### 🌐 GitLab URL")
+            default_gitlab_url = os.getenv("GITLAB_URL", "")
+            gitlab_url = st.text_input(
+                "GitLab URL（任意）",
+                value=default_gitlab_url,
+                placeholder="例: https://gitlab.example.com",
+                help="通常はMR URLから自動抽出されます"
+            )
 
         # GitLab URLのバリデーション
         if gitlab_url:
             normalized_url = UrlValidator.normalize_gitlab_url(gitlab_url)
             if UrlValidator.validate_gitlab_url(normalized_url):
-                st.success(f"✅ 指定されたGitLab URL: {normalized_url}")
-                # 正規化されたURLを使用
                 gitlab_url = normalized_url
             else:
-                st.error("❌ 無効なGitLab URLです。https://gitlab.example.com の形式で入力してください")
-                gitlab_url = None  # 無効な場合は自動抽出に任せる
+                st.error("❌ 無効なGitLab URL")
+                gitlab_url = None
 
         st.markdown("---")
 
-        # デバッグレベル設定
-        debug_level = st.selectbox(
-            "デバッグレベル",
-            options=[0, 1, 2, 3],
-            index=1,
-            format_func=lambda x: {
-                0: "0 - エラーのみ",
-                1: "1 - 情報（デフォルト）",
-                2: "2 - デバッグ詳細",
-                3: "3 - HTTP通信詳細"
-            }[x],
-            help="ログの詳細度を設定。3にするとHTTPリクエスト/レスポンスの詳細が表示されます"
-        )
-
         # カスタムプロンプト
         custom_prompt = st.text_area(
-            "カスタムプロンプト",
-            placeholder="例: XSS脆弱性を重点的にチェック\nメモリ使用量を最適化",
-            height=100,
-            help="レビューに適用する追加の指示やコンテキスト情報"
+            "📝 カスタムプロンプト（任意）",
+            placeholder="例: セキュリティ脆弱性を重点的にチェック",
+            height=80,
+            help="レビューに適用する追加の指示"
         )
 
         # コマンド別の設定
@@ -333,6 +477,8 @@ with st.sidebar:
                 value=30,
                 help="レビューコメントの最大数"
             )
+
+    st.markdown("---")
 
 # メインエリア
 st.subheader("📍 マージリクエスト情報")
@@ -457,6 +603,10 @@ if 'is_running' not in st.session_state:
     st.session_state.is_running = False
 if 'execute_params' not in st.session_state:
     st.session_state.execute_params = None
+if 'log_text' not in st.session_state:
+    st.session_state.log_text = ""
+if 'last_result' not in st.session_state:
+    st.session_state.last_result = None
 
 # 実行ボタン
 # Geminiの場合はuser_id不要
@@ -489,6 +639,9 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
         # 実行ボタン押下を記録
         track_usage(action="実行ボタン押下", tool_name="PR-Agent", username=f"{pr_command}コマンド")
 
+        st.session_state.log_text = ""
+        st.session_state.last_result = None
+
         # 実行パラメータを保存
         st.session_state.execute_params = {
             'gitlab_token': gitlab_token,
@@ -503,11 +656,13 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
             'config_path': config_path,
             'custom_prompt': custom_prompt,
             'selected_config': selected_config,
-            'debug_level': debug_level
+            'debug_level': debug_level,
+            'verbosity_level': verbosity_level
         }
         # 実行状態を設定して再レンダリング（二重クリック防止）
         st.session_state.is_running = True
         st.rerun()
+
 
 # 実行パラメータがある場合は実行
 if st.session_state.is_running and st.session_state.execute_params:
@@ -571,14 +726,16 @@ if st.session_state.is_running and st.session_state.execute_params:
                 params['config_path'],
                 params['custom_prompt'],
                 api_config,
-                gitlab_url=gitlab_url_param
+                gitlab_url=gitlab_url_param,
+                verbosity=params.get('verbosity_level', 1)
             )
         else:
             # デフォルト設定を作成
             config_manager.create_default_config(
                 params['custom_prompt'],
                 api_config,
-                gitlab_url=gitlab_url_param
+                gitlab_url=gitlab_url_param,
+                verbosity=params.get('verbosity_level', 1)
             )
             config_applied = True
 
@@ -587,13 +744,42 @@ if st.session_state.is_running and st.session_state.execute_params:
             params['resolved_config_file'] = str(config_file_path)
             status_text.text(f"✅ 設定ファイルを適用しました ({config_file_path})")
             try:
-                config_text = Path(config_file_path).read_text(encoding="utf-8")
+                import toml
+                with open(config_file_path, 'r', encoding='utf-8') as f:
+                    applied_config = toml.load(f)
+
+                # コマンドに応じてフィルタリング
+                command_section_map = {
+                    "review": ["pr_reviewer"],
+                    "improve": ["pr_improve", "pr_code_suggestions"],
+                    "describe": ["pr_description"],
+                    "ask": ["pr_questions"],
+                    "generate_labels": ["pr_generate_labels"],
+                    "add_docs": ["pr_add_docs"]
+                }
+
+                relevant_sections = command_section_map.get(params['pr_command'], [])
+                filtered_config = {}
+                for section in relevant_sections:
+                    if section in applied_config:
+                        filtered_config[section] = applied_config[section]
+
+                # フィルタリングされた設定を表示
+                filtered_toml = toml.dumps(filtered_config)
+
+                with st.expander(f"📄 適用された設定 ({params['pr_command']}コマンド用)", expanded=False):
+                    if relevant_sections:
+                        st.info(f"💡 {params['pr_command']}コマンドに関連する設定のみ表示: {', '.join(relevant_sections)}")
+                        st.code(filtered_toml, language="toml")
+
+                    # 全設定を見るオプション
+                    with st.expander("🔍 全設定を表示", expanded=False):
+                        config_text = Path(config_file_path).read_text(encoding="utf-8")
+                        preview = config_text if len(config_text) <= 4000 else config_text[:4000] + "\n... (truncated)"
+                        st.code(preview, language="toml")
+
             except Exception as config_error:
                 st.warning(f".pr_agent.toml の読み込みに失敗しました: {config_error}")
-            else:
-                with st.expander("📄 適用された .pr_agent.toml を表示", expanded=False):
-                    preview = config_text if len(config_text) <= 4000 else config_text[:4000] + "\n... (truncated)"
-                    st.code(preview, language="toml")
         else:
             st.error("❌ 設定ファイルの適用に失敗しました")
             st.session_state.is_running = False
@@ -602,9 +788,17 @@ if st.session_state.is_running and st.session_state.execute_params:
         status_text.text(f"🔄 PR-Agent {params['pr_command']} コマンドを実行中...（2～3分程度かかります）")
         progress_bar.progress(30)
 
-        # ログ表示エリア
-        log_expander = st.expander("📋 実行ログをリアルタイム表示", expanded=True)
-        log_placeholder = log_expander.empty()
+        # 実行中の操作ガイド
+        st.info("💡 **実行中の操作:** 途中で中断したい場合は、ブラウザをリロード（F5キー）してください。失敗した場合は、実行結果タブでエラーログを確認できます。")
+
+        # タブで実行ログと結果を分ける
+        log_tab, result_tab = st.tabs(["📋 実行ログ", "✅ 実行結果"])
+
+        with log_tab:
+            log_placeholder = st.empty()
+
+        with result_tab:
+            result_placeholder = st.empty()
 
         # PR-Agentを実行
         extra_args = []
@@ -614,12 +808,18 @@ if st.session_state.is_running and st.session_state.execute_params:
         # ログ収集用（標準出力/エラー出力をキャプチャ）
         import sys
         import io
-        import threading
         import time
         import concurrent.futures
 
         log_lines = []
         capture_running = True
+
+        def update_log_display(text):
+            st.session_state.log_text = text
+            if text:
+                log_placeholder.text(text)
+            else:
+                log_placeholder.info("実行ログはここに表示されます")
 
         # 標準出力/エラー出力をキャプチャするクラス
         class OutputCapture:
@@ -646,6 +846,15 @@ if st.session_state.is_running and st.session_state.execute_params:
         sys.stderr = OutputCapture(old_stderr)
 
         try:
+            # Streamlitセッションステートからセッション IDを取得
+            from streamlit.runtime.scriptrunner import get_script_run_ctx
+            ctx = get_script_run_ctx()
+            session_id = ctx.session_id if ctx else None
+
+            # セッションログをクリア（前回実行のログが残らないように）
+            if session_id:
+                Logger.clear_session_logs(session_id)
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 # PR-Agentを非同期で実行
                 future = executor.submit(
@@ -655,21 +864,37 @@ if st.session_state.is_running and st.session_state.execute_params:
                     extra_args,
                     params.get('resolved_config_file'),
                     params.get('gitlab_url'),
-                    params.get('debug_level', 1)
+                    params.get('debug_level', 1),
+                    session_id  # セッションIDを渡す
                 )
 
                 # 完了するまでログを更新
                 while not future.done():
-                    if log_lines:
-                        log_placeholder.code('\n'.join(log_lines[-50:]), language='log')
+                    # セッションログを取得して表示
+                    if session_id:
+                        session_logs = Logger.get_session_logs(session_id)
+                        if session_logs:
+                            log_text = '\n'.join([log['message'] for log in session_logs])
+                            update_log_display(log_text)
+                    elif log_lines:
+                        # フォールバック: 標準出力キャプチャ
+                        log_text = '\n'.join(log_lines)
+                        update_log_display(log_text)
                     time.sleep(0.5)  # 0.5秒ごとに更新
 
                 # 最終結果を取得
                 result = future.result()
 
             # 最終ログを表示
-            if log_lines:
-                log_placeholder.code('\n'.join(log_lines[-50:]), language='log')
+            if session_id:
+                session_logs = Logger.get_session_logs(session_id)
+                if session_logs:
+                    log_text = '\n'.join([log['message'] for log in session_logs])
+                    update_log_display(log_text)
+            elif log_lines:
+                # フォールバック: 標準出力キャプチャ
+                log_text = '\n'.join(log_lines)
+                update_log_display(log_text)
         finally:
             # 標準出力/エラー出力を元に戻す
             sys.stdout = old_stdout
@@ -683,65 +908,31 @@ if st.session_state.is_running and st.session_state.execute_params:
         errors = [line for line in log_lines if 'ERROR' in line or 'Exception' in line or 'Traceback' in line]
         warnings = [line for line in log_lines if 'WARNING' in line or 'warning' in line or 'Failed to generate prediction' in line]
 
-        if result:
-            status_text.text("✅ 実行完了！")
+        result_state = {
+            'status': 'success' if result else 'error',
+            'warnings': warnings,
+            'errors': [] if result else errors,
+            'params': {
+                'pr_command': params['pr_command'],
+                'pr_url': params['pr_url'],
+                'gitlab_url': params.get('gitlab_url'),
+                'ai_provider': params['ai_provider'],
+                'gemini_model': params.get('gemini_model'),
+                'selected_config': params.get('selected_config', 'デフォルト'),
+                'question': params.get('question'),
+                'custom_prompt': params.get('custom_prompt')
+            }
+        }
 
-            # 警告があれば表示
-            if warnings:
-                st.warning(f"⚠️ PR-Agentコマンドが完了しましたが、{len(warnings)}件の警告がありました")
-                with st.expander(f"⚠️ 警告詳細 ({len(warnings)}件)", expanded=False):
-                    for warn in warnings[:10]:  # 最大10件表示
-                        st.code(warn, language='log')
-            else:
-                st.success("✅ PR-Agentコマンドが正常に完了しました！")
-
-            st.markdown("### 📋 実行内容")
-            st.write(f"- **コマンド**: {params['pr_command']}")
-            st.write(f"- **MR URL**: {params['pr_url']}")
-            if params.get('gitlab_url'):
-                st.write(f"- **GitLab URL**: {params['gitlab_url']} ✅ ユーザー指定")
-            if params['ai_provider'] == "Gemini":
-                st.write(f"- **AIプロバイダー**: Google Gemini")
-                st.write(f"- **モデル**: {params['gemini_model']}")
-            else:
-                st.write(f"- **AIプロバイダー**: OpenAI (Azure)")
-                st.write(f"- **モデル**: gpt-4o")
-            st.write(f"- **設定**: {params.get('selected_config', 'デフォルト')}")
-            if params['pr_command'] == "ask" and params['question']:
-                st.write(f"- **質問**: {params['question']}")
-            if params['custom_prompt']:
-                st.write(f"- **カスタムプロンプト**: {params['custom_prompt']}")
-
-            st.info("💡 結果はGitLabのMRページに投稿されました")
-
-            # 実行完了後はexecute_paramsをクリアして再実行可能にする
-            st.session_state.execute_params = None
-        else:
-            status_text.text("❌ レビュー失敗")
-            st.error("❌ レビュー中にエラーが発生しました")
-
-            # エラー詳細を表示
-            if errors:
-                with st.expander(f"🔍 エラー詳細 ({len(errors)}件)", expanded=True):
-                    for err in errors[:20]:  # 最大20件表示
-                        st.code(err, language='log')
-
-            # ログの詳細情報も表示
-            st.markdown("### 📋 実行内容")
-            st.write(f"- **コマンド**: {params['pr_command']}")
-            st.write(f"- **MR URL**: {params['pr_url']}")
-
-            st.warning("💡 上記のエラーログを確認して、問題を修正してください")
-
-            # 実行完了後はexecute_paramsをクリアして再実行可能にする
-            st.session_state.execute_params = None
-
-            # ページを再読み込みしてボタンを有効化
-            st.info("🔄 ページを更新してください（F5キーを押すか、ブラウザの更新ボタンをクリック）")
+        status_text.text("✅ 実行完了！" if result else "❌ レビュー失敗")
+        st.session_state.last_result = result_state
+        render_result_summary(result_placeholder, result_state)
+        st.session_state.execute_params = None
 
     except Exception as e:
         st.session_state.is_running = False
         st.session_state.execute_params = None  # エラー時もクリア
+        st.session_state.last_result = None
         st.error(f"❌ エラーが発生しました: {str(e)}")
         st.exception(e)
 

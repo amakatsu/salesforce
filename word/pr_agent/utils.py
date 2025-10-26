@@ -5,6 +5,9 @@ PR-Agent ユーティリティモジュール
 """
 import os
 import logging
+import threading
+from typing import Optional, List, Dict
+from datetime import datetime
 
 
 class Colors:
@@ -20,8 +23,36 @@ class Colors:
     END = '\033[0m'
 
 
+class SessionLogBuffer:
+    """セッションごとのログバッファ"""
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.logs: List[Dict] = []
+        self.lock = threading.Lock()
+
+    def add_log(self, level: str, message: str, color: str):
+        """ログエントリを追加"""
+        with self.lock:
+            self.logs.append({
+                'timestamp': datetime.now().isoformat(),
+                'level': level,
+                'message': message,
+                'color': color
+            })
+
+    def get_logs(self) -> List[Dict]:
+        """ログエントリを取得"""
+        with self.lock:
+            return self.logs.copy()
+
+    def clear(self):
+        """ログをクリア"""
+        with self.lock:
+            self.logs.clear()
+
+
 class Logger:
-    """カラー出力付きロガー"""
+    """セッション対応カラー出力付きロガー"""
 
     # デバッグレベル（環境変数 DEBUG_LEVEL で設定可能）
     # 0: エラーのみ
@@ -30,11 +61,54 @@ class Logger:
     # 3: 上記 + HTTPリクエスト詳細
     DEBUG_LEVEL = int(os.getenv('DEBUG_LEVEL', '1'))
 
+    # セッションログバッファ（スレッドローカル）
+    _local = threading.local()
+    _buffers: Dict[str, SessionLogBuffer] = {}
+    _buffers_lock = threading.Lock()
+
+    @staticmethod
+    def set_session(session_id: Optional[str] = None) -> None:
+        """現在のスレッドにセッションIDを設定"""
+        Logger._local.session_id = session_id
+        if session_id:
+            with Logger._buffers_lock:
+                if session_id not in Logger._buffers:
+                    Logger._buffers[session_id] = SessionLogBuffer(session_id)
+
+    @staticmethod
+    def get_session_id() -> Optional[str]:
+        """現在のスレッドのセッションIDを取得"""
+        return getattr(Logger._local, 'session_id', None)
+
+    @staticmethod
+    def get_session_logs(session_id: str) -> List[Dict]:
+        """指定セッションのログを取得"""
+        with Logger._buffers_lock:
+            if session_id in Logger._buffers:
+                return Logger._buffers[session_id].get_logs()
+            return []
+
+    @staticmethod
+    def clear_session_logs(session_id: str) -> None:
+        """指定セッションのログをクリア"""
+        with Logger._buffers_lock:
+            if session_id in Logger._buffers:
+                Logger._buffers[session_id].clear()
+
     @staticmethod
     def set_debug_level(level: int) -> None:
         """デバッグレベルを設定"""
         Logger.DEBUG_LEVEL = level
         Logger.info(f"デバッグレベルを {level} に設定しました")
+
+    @staticmethod
+    def _log_to_buffer(level: str, message: str, color: str) -> None:
+        """セッションバッファにログを追加"""
+        session_id = Logger.get_session_id()
+        if session_id:
+            with Logger._buffers_lock:
+                if session_id in Logger._buffers:
+                    Logger._buffers[session_id].add_log(level, message, color)
 
     @staticmethod
     def print_colored(message: str, color: str = Colors.WHITE) -> None:
@@ -44,30 +118,40 @@ class Logger:
     @staticmethod
     def success(message: str) -> None:
         """成功メッセージ"""
-        Logger.print_colored(f"✅ {message}", Colors.GREEN)
+        formatted = f"✅ {message}"
+        Logger._log_to_buffer('SUCCESS', formatted, Colors.GREEN)
+        Logger.print_colored(formatted, Colors.GREEN)
 
     @staticmethod
     def error(message: str) -> None:
         """エラーメッセージ（常に表示）"""
-        Logger.print_colored(f"❌ {message}", Colors.RED)
+        formatted = f"❌ {message}"
+        Logger._log_to_buffer('ERROR', formatted, Colors.RED)
+        Logger.print_colored(formatted, Colors.RED)
 
     @staticmethod
     def warning(message: str) -> None:
         """警告メッセージ（DEBUG_LEVEL >= 1）"""
         if Logger.DEBUG_LEVEL >= 1:
-            Logger.print_colored(f"⚠️  {message}", Colors.YELLOW)
+            formatted = f"⚠️  {message}"
+            Logger._log_to_buffer('WARNING', formatted, Colors.YELLOW)
+            Logger.print_colored(formatted, Colors.YELLOW)
 
     @staticmethod
     def info(message: str) -> None:
         """情報メッセージ（DEBUG_LEVEL >= 1）"""
         if Logger.DEBUG_LEVEL >= 1:
-            Logger.print_colored(f"📄 {message}", Colors.CYAN)
+            formatted = f"📄 {message}"
+            Logger._log_to_buffer('INFO', formatted, Colors.CYAN)
+            Logger.print_colored(formatted, Colors.CYAN)
 
     @staticmethod
     def debug(message: str) -> None:
         """デバッグメッセージ（DEBUG_LEVEL >= 2）"""
         if Logger.DEBUG_LEVEL >= 2:
-            Logger.print_colored(f"🔍 {message}", Colors.BLUE)
+            formatted = f"🔍 {message}"
+            Logger._log_to_buffer('DEBUG', formatted, Colors.BLUE)
+            Logger.print_colored(formatted, Colors.BLUE)
 
     @staticmethod
     def http_request(method: str, url: str, headers: dict = None, body: str = None) -> None:

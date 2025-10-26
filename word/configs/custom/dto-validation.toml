@@ -94,3 +94,73 @@ DTOの変更内容を以下の観点で説明してください：
 - 追加したバリデーション
 - APIへの影響（リクエスト/レスポンス形式の変更等）
 """
+
+[pr_questions]
+extra_instructions = """
+必ず日本語で質問への回答を記述してください。
+
+DTOに関する質問には以下の観点で回答してください：
+- **単語帳準拠**: 使用している用語が標準用語かどうか
+- **命名規則**: プロパティ名、クラス名の妥当性
+- **バリデーション**: 必要なバリデーションルール
+- **API互換性**: 既存APIへの影響、破壊的変更の有無
+- **ネスト構造**: DTOの階層設計の妥当性
+
+具体的なDTOコード例を含めて説明してください。
+"""
+
+[pr_add_docs]
+extra_instructions = """
+必ず日本語でDTOドキュメントを生成してください。
+
+DTOドキュメントには以下を含めてください：
+- クラスの目的（どのAPIで使用されるか）
+- 各プロパティの説明
+  - 意味・用途
+  - 必須/任意
+  - 型と制約（最大長、範囲、パターン等）
+  - デフォルト値
+- リクエスト/レスポンスの具体例（JSON形式）
+- バリデーションルール一覧
+- 関連するDTO（ネストDTO、継承元等）
+
+JavaDoc/TSDoc標準形式に従ってください。
+"""
+
+[pr_update_changelog]
+extra_instructions = """
+必ず日本語でchangelogを記述してください。
+
+DTOの変更を以下のカテゴリで分類：
+- **Added**: 新しいDTOクラス/プロパティ
+- **Changed**: プロパティ名変更、型変更、バリデーション追加
+- **Deprecated**: 非推奨化したプロパティ/DTO
+- **Removed**: 削除したプロパティ/DTO
+- **Fixed**: バグ修正（バリデーション不足、命名規則違反等）
+- **Standardized**: 単語帳準拠への修正（flg→isXxx, kbn→type等）
+
+破壊的変更（API互換性に影響）は必ず明記してください。
+"""
+
+[pr_generate_labels]
+extra_instructions = """
+DTOの変更内容を分析して適切なラベルを提案してください：
+
+- **変更の種類**: feature, bugfix, refactor, standardization
+- **影響範囲**: api-breaking-change, backward-compatible, new-dto
+- **品質**: validation-added, documentation-added, naming-convention-fixed
+- **単語帳**: standardized-terminology, non-standard-terms-remain
+- **優先度**: critical, high, medium, low
+- **レビュー**: needs-api-review, needs-validation-review
+"""
+
+[pr_similar_issue]
+extra_instructions = """
+必ず日本語で類似Issueの分析を記述してください。
+
+DTOの変更と類似Issueの関連性を以下の観点で分析：
+- 同じAPI/エンドポイントへのDTO変更
+- 類似の単語帳準拠対応
+- 同様のバリデーション追加
+- 類似の命名規則修正
+"""

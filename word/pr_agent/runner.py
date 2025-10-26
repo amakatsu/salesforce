@@ -56,9 +56,19 @@ class PRAgentRunner:
         extra_args: Optional[List[str]] = None,
         settings_path: Optional[str] = None,
         gitlab_url: Optional[str] = None,
-        debug_level: Optional[int] = None
+        debug_level: Optional[int] = None,
+        session_id: Optional[str] = None
     ) -> bool:
-        """PR-Agentを実行"""
+        """PR-Agentを実行
+
+        Args:
+            session_id: セッションID（Streamlitなどのマルチセッション環境でログを分離するため）
+        """
+        # セッションIDを設定（ログ分離のため）
+        if session_id:
+            Logger.set_session(session_id)
+            Logger.info(f"セッションIDを設定: {session_id}")
+
         resolved_path = Path(__file__).resolve()
         if len(resolved_path.parents) >= 3:
             project_root = resolved_path.parents[2]
@@ -69,13 +79,18 @@ class PRAgentRunner:
         changed_cwd = False
 
         try:
-            # デバッグレベル設定
+            # デバッグレベル設定（ツールのログ出力 + PR-Agentログレベル）
+            pr_agent_log_level = "WARNING"  # デフォルト: 警告以上のみ
             if debug_level is not None:
                 Logger.set_debug_level(debug_level)
-                # PR-Agentのログレベルも設定
-                os.environ['LOG_LEVEL'] = 'DEBUG' if debug_level >= 2 else 'INFO'
-                # verbosityも設定（PR-Agent内部）
-                os.environ['CONFIG__VERBOSITY_LEVEL'] = str(min(debug_level, 2))
+                # debug_levelに応じてPR-Agentのログレベルを設定
+                if debug_level >= 2:
+                    pr_agent_log_level = "DEBUG"  # 詳細ログ
+                elif debug_level >= 1:
+                    pr_agent_log_level = "INFO"   # 情報ログ
+                else:
+                    pr_agent_log_level = "ERROR"  # エラーのみ
+                Logger.info(f"PR-Agentログレベルを設定: {pr_agent_log_level} (debug_level={debug_level})")
 
             if original_cwd != project_root:
                 os.chdir(project_root)
@@ -147,23 +162,44 @@ class PRAgentRunner:
             from pr_agent.config_loader import get_settings
             import toml
 
-            # 設定を強制的に事前読み込み
+            # 設定を強制的にリロード（キャッシュをクリア）
+            Logger.info("🔄 PR-Agent設定をリロードします...")
+
+            # Dynaconfのキャッシュをクリア
+            import importlib
+            import pr_agent.config_loader
+            importlib.reload(pr_agent.config_loader)
+
             settings = get_settings()
 
             # .pr_agent.tomlをDynaconfに読み込ませる
             if config_path.exists():
                 Logger.info(f"Dynaconfに設定ファイルを読み込ませます: {config_path}")
+                # 強制的にリロード
+                settings.reload()
                 settings.load_file(str(config_path))
                 Logger.info("✅ Dynaconfが設定ファイルを読み込みました")
 
             settings.config.git_provider = 'gitlab'
 
-            # TOMLファイルから直接extra_instructionsを読み込み
-            Logger.info("=== PR-Agent 設定確認 ===")
+            # TOMLファイルから直接設定を読み込んで強制適用
+            Logger.info("=== PR-Agent 設定確認・強制適用 ===")
             try:
                 # TOMLファイルを直接読み込み
                 toml_config = toml.load(str(config_path))
                 Logger.info(f"TOMLファイル読み込み成功: {config_path}")
+
+                # verbosity設定を強制適用
+                if 'config' in toml_config:
+                    if 'verbosity' in toml_config['config']:
+                        verbosity_value = toml_config['config']['verbosity']
+                        settings.config.verbosity = verbosity_value
+                        Logger.info(f"✅ verbosity を強制設定: {verbosity_value}")
+
+                    if 'verbosity_level' in toml_config['config']:
+                        verbosity_level_value = toml_config['config']['verbosity_level']
+                        settings.config.verbosity_level = verbosity_level_value
+                        Logger.info(f"✅ verbosity_level を強制設定: {verbosity_level_value}")
 
                 # pr_reviewerセクションのextra_instructionsを取得
                 if 'pr_reviewer' in toml_config and 'extra_instructions' in toml_config['pr_reviewer']:
@@ -192,6 +228,46 @@ class PRAgentRunner:
                 Logger.error(traceback.format_exc())
 
             Logger.info("==========================")
+
+            # PR-Agentのloggerをリセット（verbosity設定適用後に実行）
+            from pr_agent.log import setup_logger, get_logger
+            # TOML設定よりdebug_levelを優先
+            final_log_level = settings.get("config.log_level") if settings.get("config.log_level") else pr_agent_log_level
+            if debug_level is not None:
+                final_log_level = pr_agent_log_level  # debug_levelが指定されている場合は優先
+            Logger.info(f"🔄 PR-Agentロガーを再初期化します (log_level={final_log_level})")
+            setup_logger(level=final_log_level)
+
+            # loguruログをセッションバッファにもリダイレクト
+            if session_id:
+                pr_logger = get_logger()
+
+                def loguru_to_session_buffer(message):
+                    """loguruのログをセッションバッファに追加"""
+                    record = message.record
+                    level = record["level"].name
+                    text = record["message"]
+
+                    # レベルに応じた色設定
+                    from .utils import Colors
+                    color_map = {
+                        "DEBUG": Colors.BLUE,
+                        "INFO": Colors.CYAN,
+                        "SUCCESS": Colors.GREEN,
+                        "WARNING": Colors.YELLOW,
+                        "ERROR": Colors.RED,
+                        "CRITICAL": Colors.RED
+                    }
+                    color = color_map.get(level, Colors.WHITE)
+
+                    # セッションバッファに追加
+                    Logger._log_to_buffer(level, text, color)
+
+                # loguruハンドラーを追加
+                pr_logger.add(loguru_to_session_buffer, level=final_log_level, format="{message}")
+                Logger.info("✅ PR-Agentログをセッションバッファにリダイレクトしました")
+
+            Logger.info("✅ PR-Agentロガーを再初期化しました")
 
             # GitLab Tokenを環境変数から取得
             gitlab_token = os.getenv('GITLAB_TOKEN', '')
@@ -260,12 +336,16 @@ class PRAgentRunner:
         extra_args: Optional[List[str]] = None,
         settings_path: Optional[str] = None,
         gitlab_url: Optional[str] = None,
-        debug_level: Optional[int] = None
+        debug_level: Optional[int] = None,
+        session_id: Optional[str] = None
     ) -> bool:
         """PR-Agentを同期実行（Web環境用）
 
         Streamlit等の既存イベントループ内で動作する環境向けの同期ラッパー。
         既にイベントループが実行中の場合はnest_asyncioを使用して実行。
+
+        Args:
+            session_id: セッションID（Streamlitなどのマルチセッション環境でログを分離するため）
         """
         try:
             # 既存のイベントループをチェック
@@ -275,10 +355,10 @@ class PRAgentRunner:
                 import nest_asyncio
                 nest_asyncio.apply()
                 Logger.print_colored("🔄 既存イベントループを検出、nest_asyncioを適用", Colors.YELLOW)
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level, session_id))
             except RuntimeError:
                 # イベントループが実行中でない場合（通常のCLI実行）
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level, session_id))
         except ImportError:
             Logger.error("nest_asyncio がインストールされていません")
             Logger.print_colored("   pip install nest_asyncio でインストールしてください", Colors.WHITE)
