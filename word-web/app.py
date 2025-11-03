@@ -125,9 +125,9 @@ with tab2:
     arch_diagram = """
     digraph Architecture {
         rankdir=LR;
-        graph [fontname="MS Gothic", bgcolor="white", ranksep=1.0];
+        graph [fontname="MS Gothic", bgcolor="white", ranksep=1.5, compound=true];
         node [shape=box, style="rounded,filled", color="#475569", fontname="MS Gothic", fontcolor="#1f2937", fillcolor="#ffffff"];
-        edge [color="#475569", arrowsize=0.8, fontname="MS Gothic"];
+        edge [color="#475569", arrowsize=0.8, fontname="MS Gothic", penwidth=2.0];
 
         user [shape=oval, fillcolor="#fde68a", label="ユーザー\n(Webブラウザ)"];
 
@@ -182,21 +182,13 @@ with tab2:
             svc_openai [label="OpenAI API"];
         }
 
-        user -> app -> pages;
-        app -> data_env [style=dashed, label="環境変数"];
-        user -> data_excel [label="アップロード"];
-        user -> data_configs [label="アップロード"];
-        pages -> tool_word;
-        pages -> tool_domain;
-        pages -> tool_pr;
-        data_excel -> tool_word;
-        data_excel -> tool_domain;
-        data_configs -> tool_pr;
-        tool_word -> svc_gemini [style=dashed, label="AI解析"];
-        tool_word -> svc_openai [style=dashed, label="AI解析"];
-        tool_pr -> svc_gitlab;
-        tool_pr -> svc_gemini;
-        tool_pr -> svc_openai;
+        // クラスター間の接続（矢印を大幅削減）
+        user -> app [lhead=cluster_ui, label="操作"];
+        app -> data_excel [ltail=cluster_ui, lhead=cluster_data, label="アップロード"];
+        app -> tool_word [ltail=cluster_ui, lhead=cluster_tools, label="実行"];
+        data_env -> tool_word [ltail=cluster_data, lhead=cluster_tools, style=dashed, label="設定読込"];
+        tool_pr -> svc_gitlab [ltail=cluster_tools, lhead=cluster_git, label="API"];
+        tool_pr -> svc_gemini [ltail=cluster_tools, lhead=cluster_llm, label="AI解析"];
     }
     """
     st.graphviz_chart(arch_diagram)

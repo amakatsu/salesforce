@@ -104,7 +104,7 @@ class ConfigManager:
 
         return None
 
-    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None) -> bool:
+    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> bool:
         """指定された設定ファイルを適用（共通設定とマージ）"""
         config_file = Path(config_path)
 
@@ -129,6 +129,13 @@ class ConfigManager:
         if verbosity is not None:
             merged_config = self._inject_verbosity(merged_config, verbosity)
 
+        # プレビューモード設定を追加
+        if preview_mode and pr_command:
+            Logger.info(f"🔍 プレビューモードが有効です（コマンド: {pr_command}）")
+            merged_config = self._inject_preview_mode(merged_config, pr_command)
+        elif preview_mode:
+            Logger.warning("⚠️ プレビューモードが指定されていますが、コマンドが不明です")
+
         # マージした設定を書き込み
         with open(self.config_file, 'w', encoding='utf-8') as f:
             toml.dump(merged_config, f)
@@ -143,7 +150,7 @@ class ConfigManager:
 
         return True
 
-    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None) -> None:
+    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> None:
         """デフォルト設定ファイルを作成（共通設定ベース）"""
         self.backup_current_config()
 
@@ -163,6 +170,13 @@ class ConfigManager:
             # Verbosity設定を追加
             if verbosity is not None:
                 common_config = self._inject_verbosity(common_config, verbosity)
+
+            # プレビューモード設定を追加
+            if preview_mode and pr_command:
+                Logger.info(f"🔍 プレビューモードが有効です（コマンド: {pr_command}）")
+                common_config = self._inject_preview_mode(common_config, pr_command)
+            elif preview_mode:
+                Logger.warning("⚠️ プレビューモードが指定されていますが、コマンドが不明です")
 
             # 共通設定を書き込み
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -410,5 +424,18 @@ num_code_suggestions = 4
         config['config']['verbosity_level'] = verbosity
 
         Logger.info(f"Verbosity設定を適用: verbosity={verbosity}, verbosity_level={verbosity}")
+
+        return config
+
+    def _inject_preview_mode(self, config: Dict, pr_command: str) -> Dict:
+        """プレビューモード設定を設定ファイルに注入（GitLabへの投稿を無効化）"""
+        # グローバル設定でpublish_outputを無効化
+        if 'config' not in config:
+            config['config'] = {}
+
+        config['config']['publish_output'] = False
+        config['config']['publish_output_progress'] = False
+
+        Logger.info(f"プレビューモード設定を適用: config.publish_output = False, config.publish_output_progress = False")
 
         return config

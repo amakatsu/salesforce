@@ -62,6 +62,10 @@ def render_result_summary(placeholder, result_state):
                         st.code(err, language='log')
 
         st.markdown("### 📋 実行内容")
+        if params.get('is_preview_mode'):
+            st.write("- **実行モード**: 📋 プレビューのみ（投稿なし）")
+        else:
+            st.write("- **実行モード**: ✅ 実行して投稿")
         if params.get('pr_command'):
             st.write(f"- **コマンド**: {params['pr_command']}")
         if params.get('pr_url'):
@@ -85,7 +89,10 @@ def render_result_summary(placeholder, result_state):
             st.write(f"- **カスタムプロンプト**: {params['custom_prompt']}")
 
         if status == 'success':
-            st.info("💡 結果はGitLabのMRページに投稿されました")
+            if params.get('is_preview_mode'):
+                st.info("💡 プレビューモードで実行されました。結果はGitLabに投稿されていません。")
+            else:
+                st.info("💡 結果はGitLabのMRページに投稿されました")
         else:
             st.warning("💡 上記のエラーログを確認して、問題を修正してください")
 
@@ -157,7 +164,31 @@ available_configs = config_manager.get_available_configs()
 
 # サイドバーで設定
 with st.sidebar:
-    st.header("⚙️ 設定")
+    # サイドバーの間隔を狭くするカスタムCSS
+    st.markdown("""
+    <style>
+    /* サイドバーの要素間のマージンを削減 */
+    .stSidebar [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"] {
+        gap: 0.5rem;
+    }
+    /* セレクトボックス、テキスト入力の下マージンを削減 */
+    .stSidebar .stSelectbox, .stSidebar .stTextInput, .stSidebar .stNumberInput {
+        margin-bottom: 0.5rem;
+    }
+    /* マークダウンの上下マージンを削減 */
+    .stSidebar .stMarkdown {
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+    }
+    /* 区切り線の上下マージンを削減 */
+    .stSidebar hr {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.header("⚙️ 1.設定")
 
     # AIプロバイダー選択
     ai_provider = st.selectbox(
@@ -233,7 +264,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    st.subheader("🎯 PR-Agentコマンド")
+    st.subheader("🎯 2.PR-Agentコマンド")
 
     # コマンドの説明
     command_descriptions = {
@@ -265,7 +296,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    st.subheader("⚙️ コンテキスト設定")
+    st.subheader("⚙️ 3.コンテキスト設定")
 
     # 設定選択
     config_options = {"デフォルト": None}
@@ -314,10 +345,10 @@ with st.sidebar:
                 with open(config_path, "r", encoding="utf-8") as f:
                     full_config = toml.load(f)
 
-                # コマンドに応じてセクションをフィルタリング
+                # コマンドに応じてセクションをフィルタリング（PR-Agent公式仕様に準拠）
                 command_section_map = {
                     "review": ["pr_reviewer"],
-                    "improve": ["pr_improve", "pr_code_suggestions"],
+                    "improve": ["pr_code_suggestions"],  # improveコマンドはpr_code_suggestionsを使用
                     "describe": ["pr_description"],
                     "ask": ["pr_questions"],
                     "generate_labels": ["pr_generate_labels"],
@@ -358,52 +389,136 @@ with st.sidebar:
 
                 # 現在の設定を読み込み
                 with open(config_path, "r", encoding="utf-8") as f:
-                    current_config_text = f.read()
+                    full_config = toml.load(f)
 
-                st.info("💡 設定ファイルを直接編集できます。保存後、PR-Agent実行時に反映されます。")
+                # コマンドに応じてセクションをフィルタリング（PR-Agent公式仕様に準拠）
+                command_section_map = {
+                    "review": ["pr_reviewer"],
+                    "improve": ["pr_code_suggestions"],  # improveコマンドはpr_code_suggestionsを使用
+                    "describe": ["pr_description"],
+                    "ask": ["pr_questions"],
+                    "generate_labels": ["pr_generate_labels"],
+                    "add_docs": ["pr_add_docs"]
+                }
 
-                # 編集用テキストエリア
-                edited_config_text = st.text_area(
-                    f"{selected_config} の内容を編集",
-                    value=current_config_text,
-                    height=400,
-                    help="TOML形式で設定を編集してください"
-                )
+                # 選択されたコマンドに対応するセクションを取得
+                relevant_sections = command_section_map.get(pr_command, [])
 
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    save_button = st.button("💾 保存", type="primary", use_container_width=True)
-                with col2:
-                    if st.button("🔄 元に戻す", use_container_width=True):
-                        st.rerun()
+                # フィルタリングされた設定を作成
+                filtered_config = {}
+                for section in relevant_sections:
+                    if section in full_config:
+                        filtered_config[section] = full_config[section]
 
-                if save_button:
-                    try:
-                        # TOML構文チェック
-                        import io
-                        toml.load(io.StringIO(edited_config_text))
+                if not filtered_config:
+                    st.warning(f"⚠️ {pr_command}コマンドに関連する設定が見つかりませんでした")
+                else:
+                    st.info(f"💡 {pr_command}コマンドに関連する設定のみ編集できます: {', '.join(relevant_sections)}")
 
-                        # バックアップを作成
-                        import shutil
-                        from datetime import datetime
-                        backup_path = f"{config_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                        shutil.copy(config_path, backup_path)
+                    # フィルタリングされた設定をTOML形式で表示
+                    filtered_toml = toml.dumps(filtered_config)
 
-                        # 設定ファイルを更新
-                        with open(config_path, "w", encoding="utf-8") as f:
-                            f.write(edited_config_text)
+                    # 編集開始時の状態を保存（セッションステートキーを設定ファイルごとに分ける）
+                    session_key = f'original_config_{selected_config}_{pr_command}'
+                    if session_key not in st.session_state:
+                        st.session_state[session_key] = filtered_toml
 
-                        st.success(f"✅ 設定ファイルを保存しました！")
-                        st.info(f"📋 バックアップ: {backup_path}")
+                    # 元に戻すボタンが押された場合の処理
+                    if st.session_state.get(f'restore_original_{session_key}', False):
+                        current_value = st.session_state[session_key]
+                        st.session_state[f'restore_original_{session_key}'] = False
+                    else:
+                        current_value = filtered_toml
 
-                        # 実行記録
-                        track_usage(action="設定ファイル編集", tool_name="PR-Agent", username=selected_config)
+                    # 編集用テキストエリア
+                    edited_config_text = st.text_area(
+                        f"{selected_config} の内容を編集（{pr_command}コマンド関連のみ）",
+                        value=current_value,
+                        height=400,
+                        help=f"TOML形式で{pr_command}コマンドの設定を編集してください",
+                        key=f'config_editor_{session_key}'
+                    )
 
-                    except toml.TomlDecodeError as e:
-                        st.error(f"❌ TOML構文エラー: {str(e)}")
-                        st.warning("修正してから再度保存してください")
-                    except Exception as e:
-                        st.error(f"❌ 保存エラー: {str(e)}")
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        save_button = st.button("💾 保存", type="primary", use_container_width=True)
+                    with col2:
+                        # 元に戻すボタン（編集開始時の状態に戻す）
+                        if st.button("🔄 元に戻す", use_container_width=True):
+                            st.session_state[f'restore_original_{session_key}'] = True
+                            st.rerun()
+
+                    if save_button:
+                        try:
+                            # TOML構文チェック
+                            import io
+                            edited_sections = toml.load(io.StringIO(edited_config_text))
+
+                            # バックアップを作成
+                            import shutil
+                            from datetime import datetime
+                            backup_path = f"{config_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                            shutil.copy(config_path, backup_path)
+
+                            # 元のファイルの該当セクションを更新
+                            for section_name, section_content in edited_sections.items():
+                                full_config[section_name] = section_content
+
+                            # 更新された設定ファイルを保存
+                            with open(config_path, "w", encoding="utf-8") as f:
+                                toml.dump(full_config, f)
+
+                            st.success(f"✅ 設定ファイルを保存しました！（{', '.join(edited_sections.keys())}セクションを更新）")
+                            st.info(f"📋 バックアップ: {backup_path}")
+
+                            # 保存後、新しい状態を「元の状態」として更新
+                            st.session_state[session_key] = edited_config_text
+
+                            # 実行記録
+                            track_usage(action="設定ファイル編集", tool_name="PR-Agent", username=selected_config)
+
+                        except toml.TomlDecodeError as e:
+                            st.error(f"❌ TOML構文エラー: {str(e)}")
+                            st.warning("修正してから再度保存してください")
+                        except Exception as e:
+                            st.error(f"❌ 保存エラー: {str(e)}")
+
+                # 全設定を見るオプション
+                with st.expander("🔍 全設定を編集（上級者向け）", expanded=False):
+                    st.warning("⚠️ すべてのセクションを編集できますが、他のコマンドにも影響します")
+
+                    # ファイル全体の内容
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        full_config_text = f.read()
+
+                    full_edited_text = st.text_area(
+                        "設定ファイル全体",
+                        value=full_config_text,
+                        height=400,
+                        help="すべてのセクションを編集できます",
+                        key="full_config_edit"
+                    )
+
+                    if st.button("💾 全設定を保存", key="save_full_config"):
+                        try:
+                            import io
+                            toml.load(io.StringIO(full_edited_text))
+
+                            import shutil
+                            from datetime import datetime
+                            backup_path = f"{config_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                            shutil.copy(config_path, backup_path)
+
+                            with open(config_path, "w", encoding="utf-8") as f:
+                                f.write(full_edited_text)
+
+                            st.success("✅ 全設定を保存しました！")
+                            st.info(f"📋 バックアップ: {backup_path}")
+
+                        except toml.TomlDecodeError as e:
+                            st.error(f"❌ TOML構文エラー: {str(e)}")
+                        except Exception as e:
+                            st.error(f"❌ 保存エラー: {str(e)}")
 
             except Exception as e:
                 st.error(f"設定ファイルの読み込みに失敗: {e}")
@@ -621,11 +736,23 @@ if pr_command == "ask":
 # 実行中は無効化
 button_disabled = button_disabled or st.session_state.is_running
 
-# 実行中の状態を表示
-if st.session_state.is_running:
-    st.info("⏳ PR-Agent実行中です...しばらくお待ちください")
+if st.session_state.is_running and not st.session_state.execute_params:
+    # 実行が完了した状態（paramsはクリアされている）
+    st.session_state.is_running = False  # 状態をクリア
 
-if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, disabled=button_disabled):
+# 実行ボタンを2つに分割
+col_execute1, col_execute2 = st.columns(2)
+
+with col_execute1:
+    preview_button = st.button("📋 プレビュー実行（投稿しない）", use_container_width=True, disabled=button_disabled)
+
+with col_execute2:
+    execute_button = st.button("🚀 実行して投稿", type="primary", use_container_width=True, disabled=button_disabled)
+
+# プレビューボタンまたは実行ボタンが押された場合
+if preview_button or execute_button:
+    is_preview_mode = preview_button  # プレビューボタンが押された場合はTrue
+
     # バリデーション
     if not gitlab_token or not api_key:
         st.error("❌ GitLab TokenとAPIキーを入力してください")
@@ -637,7 +764,8 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
         st.error("❌ askコマンドには質問内容が必要です")
     else:
         # 実行ボタン押下を記録
-        track_usage(action="実行ボタン押下", tool_name="PR-Agent", username=f"{pr_command}コマンド")
+        mode_label = "プレビュー実行" if is_preview_mode else "実行して投稿"
+        track_usage(action=f"{mode_label}ボタン押下", tool_name="PR-Agent", username=f"{pr_command}コマンド")
 
         st.session_state.log_text = ""
         st.session_state.last_result = None
@@ -657,12 +785,30 @@ if st.button("🚀 PR-Agent実行", type="primary", use_container_width=True, di
             'custom_prompt': custom_prompt,
             'selected_config': selected_config,
             'debug_level': debug_level,
-            'verbosity_level': verbosity_level
+            'verbosity_level': verbosity_level,
+            'is_preview_mode': is_preview_mode  # プレビューモードフラグ
         }
         # 実行状態を設定して再レンダリング（二重クリック防止）
         st.session_state.is_running = True
         st.rerun()
 
+# 前回の実行結果を表示（実行ボタンの下）
+if st.session_state.get('last_result') and not st.session_state.is_running:
+    st.markdown("---")
+    st.subheader("📊 前回の実行結果")
+
+    # タブで実行ログと結果を分ける
+    log_tab_prev, result_tab_prev = st.tabs(["📋 実行ログ", "✅ 実行結果"])
+
+    with log_tab_prev:
+        if st.session_state.get('last_log'):
+            st.text(st.session_state.last_log)
+        else:
+            st.info("実行ログはありません")
+
+    with result_tab_prev:
+        result_placeholder_prev = st.empty()
+        render_result_summary(result_placeholder_prev, st.session_state.last_result)
 
 # 実行パラメータがある場合は実行
 if st.session_state.is_running and st.session_state.execute_params:
@@ -727,7 +873,9 @@ if st.session_state.is_running and st.session_state.execute_params:
                 params['custom_prompt'],
                 api_config,
                 gitlab_url=gitlab_url_param,
-                verbosity=params.get('verbosity_level', 1)
+                verbosity=params.get('verbosity_level', 1),
+                preview_mode=params.get('is_preview_mode', False),
+                pr_command=params['pr_command']
             )
         else:
             # デフォルト設定を作成
@@ -735,7 +883,9 @@ if st.session_state.is_running and st.session_state.execute_params:
                 params['custom_prompt'],
                 api_config,
                 gitlab_url=gitlab_url_param,
-                verbosity=params.get('verbosity_level', 1)
+                verbosity=params.get('verbosity_level', 1),
+                preview_mode=params.get('is_preview_mode', False),
+                pr_command=params['pr_command']
             )
             config_applied = True
 
@@ -763,6 +913,19 @@ if st.session_state.is_running and st.session_state.execute_params:
                 for section in relevant_sections:
                     if section in applied_config:
                         filtered_config[section] = applied_config[section]
+
+                # プレビューモードの場合、設定を確認
+                if params.get('is_preview_mode'):
+                    st.info("💡 プレビューモードで実行されました（GitLabに投稿されていません）")
+                    with st.expander("📄 適用された設定（全体）を確認", expanded=False):
+                        config_text = Path(config_file_path).read_text(encoding="utf-8")
+                        st.code(config_text, language="toml")
+
+                        # publish_output の確認
+                        if 'publish_output = false' in config_text.lower():
+                            st.success("✅ publish_output = false が設定されています")
+                        else:
+                            st.error("❌ publish_output = false が設定されていません！")
 
                 # フィルタリングされた設定を表示
                 filtered_toml = toml.dumps(filtered_config)
@@ -899,8 +1062,6 @@ if st.session_state.is_running and st.session_state.execute_params:
             # 標準出力/エラー出力を元に戻す
             sys.stdout = old_stdout
             sys.stderr = old_stderr
-            # 実行状態を解除
-            st.session_state.is_running = False
 
         progress_bar.progress(100)
 
@@ -920,7 +1081,8 @@ if st.session_state.is_running and st.session_state.execute_params:
                 'gemini_model': params.get('gemini_model'),
                 'selected_config': params.get('selected_config', 'デフォルト'),
                 'question': params.get('question'),
-                'custom_prompt': params.get('custom_prompt')
+                'custom_prompt': params.get('custom_prompt'),
+                'is_preview_mode': params.get('is_preview_mode')
             }
         }
 
@@ -928,6 +1090,20 @@ if st.session_state.is_running and st.session_state.execute_params:
         st.session_state.last_result = result_state
         render_result_summary(result_placeholder, result_state)
         st.session_state.execute_params = None
+
+        # 最終ログを session_state に保存（ページ更新後も表示できるように）
+        if session_id:
+            session_logs = Logger.get_session_logs(session_id)
+            if session_logs:
+                st.session_state.last_log = '\n'.join([log['message'] for log in session_logs])
+        elif log_lines:
+            st.session_state.last_log = '\n'.join(log_lines)
+
+        # 実行状態を解除（最後に設定）
+        st.session_state.is_running = False
+
+        # 実行完了後、ボタンを有効化するためにページを更新（結果はlast_resultから表示される）
+        st.rerun()
 
     except Exception as e:
         st.session_state.is_running = False
