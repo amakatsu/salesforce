@@ -103,13 +103,13 @@ SCREENSHOT_PATH="./screenshots/linux/linux-settings.png" SCREENSHOT_VIEW=setting
 ## 7. Reference map
 | トピック | ファイル |
 | --- | --- |
-| 最高レベルの紹介 | `README.md`
-| 発表・トーク台本 | このファイル（ドキュメントハブ）
-| 実装状況/未完了タスク | `STATUS.md`
-| 5分間クイックスタート | `QUICKSTART.md`
-| 詳細プレゼン資料 | `PRESENTATION.md`
-| Windows ビルド手順 | `WINDOWS_BUILD.md`
-| スクリーンUI(ASCII) | `VISUAL_GUIDE.md`
-| バックログ/課題リスト | `issues.md`
+| プロダクト概要 / デモ台本 | `docs/external/README.md`（このファイル） |
+| クイックスタート | `docs/external/QUICKSTART.md` |
+| プレゼン資料 | `docs/external/PRESENTATION.md` |
+| UI レイアウト（ASCII） | `docs/external/VISUAL_GUIDE.md` |
+| 実装状況・未完了タスク | `docs/internal/STATUS.md` |
+| 変更履歴 / リリースノート | `docs/internal/CHANGELOG.md`, `docs/internal/RELEASE_NOTES_v1.0.0.md` |
+| Windows ビルド手順 | `docs/internal/WINDOWS_BUILD.md` |
+| バックログ / 課題リスト | `docs/internal/issues.md` |
 
 Use the hub as the canonical entry point; other files dive deeper when needed.

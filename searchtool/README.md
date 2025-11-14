@@ -2,14 +2,14 @@
 
 > **⚠️ 開発状況** > **コア機能は 95% 完成**。ビルドは成功し、Linux AppImage (156MB) が生成されています。
 > 実際の動作には外部依存関係（ripgrep, Playwright ブラウザ）のインストールと環境変数の設定が必要です。
-> 詳細は [STATUS.md](./STATUS.md) を参照してください。
+> 詳細は [docs/internal/STATUS.md](./docs/internal/STATUS.md) を参照してください。
 >
 > **目的**:
 > ローカルファイル、Redmine、SharePoint、Teams、社内ドキュメントを一括検索し、AI が検索結果を要約することで情報収集の効率を大幅に向上させる
 
 ---
 
-> 📚 ドキュメント一式は `docs/README.md`（Documentation Hub）に集約しました。まずそこを開けば主要な説明とリンクが揃っています。
+> 📚 ドキュメント一式は `docs/external/README.md`（Documentation Hub）に集約しました。まずそこを開けば主要な説明とリンクが揃っています。
 
 ## 🧭 要約
 
