@@ -9,24 +9,42 @@ export const limitsSchema = z.object({
 
 export const settingsSchema = z.object({
   keyword: z.string().trim().default(''),
-  local: z.object({
-    root: z.array(z.string().min(1, 'Path is required')).default([]),
-  }),
-  redmine: z.object({
-    urls: z.array(z.string().url('Redmine URL is invalid')).default([]),
-  }),
-  sharepoint: z.object({
-    urls: z.array(z.string().url('SharePoint URL is invalid')).default([]),
-  }),
-  teams: z.object({
-    urls: z.array(z.string().url('Teams URL is invalid')).default([]),
-  }),
-  internalDocs: z.object({
-    baseUrl: z.string().url('Internal docs URL is invalid').or(z.literal('')).default(''),
-  }),
-  browser: z.object({
-    userDataDir: z.string().trim().default(''),
-  }),
+  ai: z
+    .object({
+      apiKey: z.string().trim().default(''),
+      modelId: z.string().trim().default('openai/gpt-4o-mini'),
+    })
+    .default({}),
+  local: z
+    .object({
+      root: z.array(z.string().min(1, 'Path is required')).default([]),
+    })
+    .default({}),
+  redmine: z
+    .object({
+      urls: z.array(z.string().url('Redmine URL is invalid')).default([]),
+    })
+    .default({}),
+  sharepoint: z
+    .object({
+      urls: z.array(z.string().url('SharePoint URL is invalid')).default([]),
+    })
+    .default({}),
+  teams: z
+    .object({
+      urls: z.array(z.string().url('Teams URL is invalid')).default([]),
+    })
+    .default({}),
+  internalDocs: z
+    .object({
+      baseUrl: z.string().url('Internal docs URL is invalid').or(z.literal('')).default(''),
+    })
+    .default({}),
+  browser: z
+    .object({
+      userDataDir: z.string().trim().default(''),
+    })
+    .default({}),
   excludeGlobs: z.array(z.string().min(1)).default(['.git', 'node_modules', '.venv', 'target', 'dist']),
   limits: limitsSchema.default({}),
 })

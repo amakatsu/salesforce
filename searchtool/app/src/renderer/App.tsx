@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import Settings from './components/Settings'
-import SearchPane from './components/SearchPane'
+import SearchPane, { type ResultTab } from './components/SearchPane'
 import Metrics from './components/Metrics'
 import type { AppSettings } from '../shared/settings'
-import type { SearchResponse } from '../shared/contracts'
+import type { SearchResponse, SearchSource } from '../shared/contracts'
 import './App.css'
 
 type View = 'search' | 'settings' | 'metrics'
+
+type ScreenshotConfig = {
+  view?: View
+  keyword?: string
+  searchResult?: SearchResponse
+  searchTab?: ResultTab | 'summary'
+}
 
 const App = () => {
   const [view, setView] = useState<View>('search')
@@ -14,6 +21,8 @@ const App = () => {
   const [saving, setSaving] = useState(false)
   const [searching, setSearching] = useState(false)
   const [searchResult, setSearchResult] = useState<SearchResponse | null>(null)
+  const [searchTabOverride, setSearchTabOverride] = useState<ResultTab | undefined>(undefined)
+  const [pendingKeyword, setPendingKeyword] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
 
@@ -34,6 +43,40 @@ const App = () => {
     }
   }, [])
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<ScreenshotConfig>).detail
+      if (!detail) {
+        return
+      }
+      if (detail.view) {
+        setView(detail.view)
+      }
+      if (detail.keyword) {
+        setPendingKeyword(detail.keyword)
+        setSettings((prev) => (prev ? { ...prev, keyword: detail.keyword ?? '' } : prev))
+      }
+      if (detail.searchResult) {
+        setSearchResult(detail.searchResult)
+      }
+      if (detail.searchTab) {
+        setSearchTabOverride(detail.searchTab === 'summary' ? 'combined' : detail.searchTab)
+      }
+    }
+    window.addEventListener('screenshot-config', handler)
+    return () => {
+      window.removeEventListener('screenshot-config', handler)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!pendingKeyword || !settings) {
+      return
+    }
+    setSettings({ ...settings, keyword: pendingKeyword })
+    setPendingKeyword(null)
+  }, [pendingKeyword, settings])
+
   const updateSettings = (next: AppSettings) => {
     setSettings(next)
   }
@@ -52,7 +95,9 @@ const App = () => {
     }
   }
 
-  const handleSearch = async () => {
+  type SearchRunOptions = { sources: SearchSource[]; maxCombinedHits: number }
+
+  const handleSearch = async (options: SearchRunOptions) => {
     if (!settings?.keyword.trim()) {
       setSearchError('検索キーワードを入力してください')
       return
@@ -60,7 +105,11 @@ const App = () => {
     setSearching(true)
     setSearchError(null)
     try {
-      const response = await window.app.search({ keyword: settings.keyword })
+      const response = await window.app.search({
+        keyword: settings.keyword,
+        sources: options.sources,
+        maxCombinedHits: options.maxCombinedHits,
+      })
       setSearchResult(response)
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : '検索に失敗しました')
@@ -82,7 +131,7 @@ const App = () => {
       <header>
         <div>
           <h1>Search Agent</h1>
-          <p>ローカルとRedmineを一括サーチ</p>
+          <p>社内の複数ソースを横断検索して要約</p>
         </div>
         <nav>
           <button className={view === 'search' ? 'active' : ''} onClick={() => setView('search')}>
@@ -108,6 +157,7 @@ const App = () => {
             searching={searching}
             result={searchResult}
             error={searchError}
+            initialTab={searchTabOverride}
           />
         ) : view === 'metrics' ? (
           <Metrics />

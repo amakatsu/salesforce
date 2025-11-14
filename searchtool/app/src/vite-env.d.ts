@@ -4,6 +4,14 @@ import type { AppSettings } from './shared/settings'
 import type { SearchPayload, SearchResponse, MetricsSummary } from './shared/contracts'
 
 declare global {
+  interface WindowEventMap {
+    'screenshot-config': CustomEvent<{
+      view?: 'search' | 'settings' | 'metrics'
+      keyword?: string
+      searchResult?: SearchResponse
+      searchTab?: 'summary' | 'combined' | 'local' | 'redmine' | 'sharepoint' | 'teams' | 'internalDocs'
+    }>
+  }
   interface Window {
     app: {
       settings: {

@@ -57,6 +57,13 @@ export class MetricsService {
     return this.searchHistory.slice(0, limit)
   }
 
+  seed(records: SearchRecord[]): void {
+    if (!Array.isArray(records) || records.length === 0) {
+      return
+    }
+    this.searchHistory = records.slice(0, this.maxHistorySize)
+  }
+
   clear(): void {
     this.searchHistory = []
   }

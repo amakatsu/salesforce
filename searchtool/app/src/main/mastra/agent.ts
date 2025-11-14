@@ -1,7 +1,7 @@
 import { Agent } from '@mastra/core/agent'
 import { z } from 'zod'
 import { AppSettings } from '../../shared/settings'
-import type { SearchHit } from '../../shared/contracts'
+import { SEARCH_SOURCES, type SearchHit, type SearchSource } from '../../shared/contracts'
 import { invokeMcp } from './tools/mcpClient'
 import { localSearchTool } from './tools/localTool'
 import { redmineSearchTool } from './tools/redmineTool'
@@ -63,23 +63,38 @@ export interface AgentSummaryResult {
 interface AgentRequest {
   keyword: string
   settings: AppSettings
+  enabledSources: SearchSource[]
 }
 
 let cachedAgent: Agent | null = null
+let cachedApiKey: string | null = null
 
 const SEARCH_AGENT_PROMPT = `あなたは社内ナレッジ検索エージェントです。以下を厳密に守ってください。
-- まず mcp_local_search を1回だけ呼び、ローカル資料を取得して要点を整理する
-- 次に (Redmineが設定されている場合) mcp_redmine_search を1回だけ呼ぶ
-- local -> redmine の順序を守り、重複URL/パスを統合し上位20件以内に収める
+- ユーザーが有効化した検索ソース（local/redmine/sharepoint/teams/internalDocs）のみを対象とすること
+- mcp_local_search を最優先で実行し、必要に応じて他ソースを1回ずつ実行する
+- 重複URL/パスを統合し、ソースごとに上位20件以内に収める
 - 最終出力は JSON (summary, reasons, local[], redmine[] で構成) のみを返す` as const
 
 const summarySchema = structuredOutputSchema
+const SOURCE_LABELS: Record<typeof SEARCH_SOURCES[number], string> = {
+  local: 'Local',
+  redmine: 'Redmine',
+  sharepoint: 'SharePoint',
+  teams: 'Teams',
+  internalDocs: '社内Docs',
+}
 
-export const generateAgentSummary = async ({ keyword, settings }: AgentRequest): Promise<AgentSummaryResult> => {
-  const agent = ensureAgent()
+const buildSummaryFromCounts = (counts: Record<typeof SEARCH_SOURCES[number], number>, enabledSet: Set<SearchSource>) => {
+  const parts = SEARCH_SOURCES.filter((source) => enabledSet.has(source)).map((source) => `${SOURCE_LABELS[source]} ${counts[source] ?? 0}件`)
+  return parts.length ? `検索結果: ${parts.join(', ')}` : '検索対象が選択されていません'
+}
+
+export const generateAgentSummary = async ({ keyword, settings, enabledSources }: AgentRequest): Promise<AgentSummaryResult> => {
+  const enabledSet = new Set<SearchSource>(enabledSources)
+  const agent = ensureAgent(settings)
   if (agent) {
     try {
-      const prompt = buildAgentPrompt(keyword, settings)
+      const prompt = buildAgentPrompt(keyword, settings, enabledSources)
       const full = await agent.generate(
         [
           {
@@ -100,18 +115,27 @@ export const generateAgentSummary = async ({ keyword, settings }: AgentRequest):
       const teamsHits = dedupeHits(toolHits.teams)
       const internalDocsHits = dedupeHits(toolHits.internalDocs)
 
+      const filteredHits = {
+        local: enabledSet.has('local') ? localHits : [],
+        redmine: enabledSet.has('redmine') ? redmineHits : [],
+        sharepoint: enabledSet.has('sharepoint') ? sharepointHits : [],
+        teams: enabledSet.has('teams') ? teamsHits : [],
+        internalDocs: enabledSet.has('internalDocs') ? internalDocsHits : [],
+      }
+
+      const filteredErrors = {
+        redmine: enabledSet.has('redmine') ? toolHits.errors.redmine : null,
+        sharepoint: enabledSet.has('sharepoint') ? toolHits.errors.sharepoint : null,
+        teams: enabledSet.has('teams') ? toolHits.errors.teams : null,
+        internalDocs: enabledSet.has('internalDocs') ? toolHits.errors.internalDocs : null,
+      }
+
       if (structured) {
         return {
           summary: structured.summary || 'No summary available',
           reasoning: structured.reasons.length ? structured.reasons : ['No reasoning available'],
-          hits: {
-            local: localHits,
-            redmine: redmineHits,
-            sharepoint: sharepointHits,
-            teams: teamsHits,
-            internalDocs: internalDocsHits,
-          },
-          errors: toolHits.errors,
+          hits: filteredHits,
+          errors: filteredErrors,
           usedAgent: true,
         }
       }
@@ -120,9 +144,19 @@ export const generateAgentSummary = async ({ keyword, settings }: AgentRequest):
     }
   }
 
-  const fallback = await runDirectSearch(keyword, settings)
+  const fallback = await runDirectSearch(keyword, settings, enabledSources)
+  const summaryText = buildSummaryFromCounts(
+    {
+      local: fallback.localHits.length,
+      redmine: fallback.redmineHits.length,
+      sharepoint: fallback.sharepointHits.length,
+      teams: fallback.teamsHits.length,
+      internalDocs: fallback.internalDocsHits.length,
+    },
+    enabledSet,
+  )
   return {
-    summary: `検索結果: Local ${fallback.localHits.length}件, Redmine ${fallback.redmineHits.length}件, SharePoint ${fallback.sharepointHits.length}件, Teams ${fallback.teamsHits.length}件, 社内ドキュメント ${fallback.internalDocsHits.length}件`,
+    summary: summaryText,
     reasoning: ['Fallback search completed'],
     hits: {
       local: fallback.localHits,
@@ -136,14 +170,23 @@ export const generateAgentSummary = async ({ keyword, settings }: AgentRequest):
   }
 }
 
-const ensureAgent = () => {
+const ensureAgent = (settings: AppSettings) => {
+  // APIキーが変更されたらキャッシュをクリア
+  const currentApiKey = settings.ai.apiKey || process.env.OPENAI_API_KEY || process.env.MASTRA_OPENAI_API_KEY || ''
+  if (cachedAgent && cachedApiKey !== currentApiKey) {
+    cachedAgent = null
+  }
+
   if (cachedAgent) {
     return cachedAgent
   }
-  const model = resolveModelConfig()
+
+  const model = resolveModelConfig(settings)
   if (!model) {
     return null
   }
+
+  cachedApiKey = currentApiKey
   cachedAgent = new Agent({
     name: 'search-agent',
     instructions: SEARCH_AGENT_PROMPT,
@@ -160,40 +203,63 @@ const ensureAgent = () => {
   return cachedAgent
 }
 
-const resolveModelConfig = () => {
-  const openAiKey = process.env.OPENAI_API_KEY ?? process.env.MASTRA_OPENAI_API_KEY
+const resolveModelConfig = (settings: AppSettings) => {
+  // 設定画面のAPIキーを優先、なければ環境変数
+  const openAiKey = settings.ai.apiKey || process.env.OPENAI_API_KEY || process.env.MASTRA_OPENAI_API_KEY
   if (!openAiKey) {
     return null
   }
-  const envModel = process.env.MASTRA_MODEL_ID
-  const modelId = (envModel && envModel.includes('/') ? envModel : 'openai/gpt-4o-mini') as `${string}/${string}`
+
+  // 設定画面のモデルIDを優先、なければ環境変数、デフォルトはgpt-4o-mini
+  let modelId = settings.ai.modelId || process.env.MASTRA_MODEL_ID || 'openai/gpt-4o-mini'
+
+  // モデルIDに'/'が含まれていない場合は'openai/'を付ける
+  if (!modelId.includes('/')) {
+    modelId = `openai/${modelId}`
+  }
+
   return {
-    id: modelId,
+    id: modelId as `${string}/${string}`,
     apiKey: openAiKey,
   }
 }
 
-const buildAgentPrompt = (keyword: string, settings: AppSettings) => {
+const buildAgentPrompt = (keyword: string, settings: AppSettings, enabledSources: SearchSource[]) => {
+  const enabledSet = new Set<SearchSource>(enabledSources)
   const localParams = {
-    root: settings.local.root,
+    root: enabledSet.has('local') ? settings.local.root : [],
     query: keyword,
     max: settings.limits.localMaxResults,
     excludeGlobs: settings.excludeGlobs,
   }
 
   const webSearchInfo = {
-    redmineUrls: settings.redmine.urls.filter((u) => u.trim()),
-    sharepointUrls: settings.sharepoint.urls.filter((u) => u.trim()),
-    teamsUrls: settings.teams.urls.filter((u) => u.trim()),
-    internalDocsUrl: settings.internalDocs.baseUrl || '',
+    redmineUrls: enabledSet.has('redmine') ? settings.redmine.urls.filter((u) => u.trim()) : [],
+    sharepointUrls: enabledSet.has('sharepoint') ? settings.sharepoint.urls.filter((u) => u.trim()) : [],
+    teamsUrls: enabledSet.has('teams') ? settings.teams.urls.filter((u) => u.trim()) : [],
+    internalDocsUrl: enabledSet.has('internalDocs') ? settings.internalDocs.baseUrl || '' : '',
     userDataDir: settings.browser.userDataDir,
     max: settings.limits.redmineMaxResults,
     timeoutSeconds: settings.limits.timeoutSeconds,
   }
 
-  return `# ユーザー入力\n${keyword}\n\n# ローカル検索パラメータ\n${JSON.stringify(localParams, null, 2)}\n\n# Web検索設定\n${JSON.stringify(webSearchInfo, null, 2)}\n\n- local.searchは必ず上記JSONを参考に入力を作成すること\n- Web検索は設定されたURLが空でない場合のみ実行すること\n- すべての回答は日本語で書き、JSON以外のテキストを含めないこと`
-}
+  return `# ユーザー入力
+${keyword}
 
+# 有効な検索対象
+${JSON.stringify(enabledSources)}
+
+# ローカル検索パラメータ
+${JSON.stringify(localParams, null, 2)}
+
+# Web検索設定
+${JSON.stringify(webSearchInfo, null, 2)}
+
+- enabledSources に含まれないソースは絶対に検索しないこと
+- local.searchは必ず上記JSONを参考に入力を作成すること
+- Web検索は設定されたURLが空でない場合のみ実行すること
+- すべての回答は日本語で書き、JSON以外のテキストを含めないこと`
+}
 const collectToolHits = (toolResults: any[]) => {
   const local: SearchHit[] = []
   const redmine: SearchHit[] = []
@@ -326,15 +392,10 @@ const dedupeHits = (hits: SearchHit[]) => {
   return result
 }
 
-const runDirectSearch = async (keyword: string, settings: AppSettings) => {
-  const localResponse = (await invokeMcp('local.search', {
-    root: settings.local.root,
-    query: keyword,
-    max: settings.limits.localMaxResults,
-    excludeGlobs: settings.excludeGlobs,
-  })) as { results: LocalSearchHit[] }
+const runDirectSearch = async (keyword: string, settings: AppSettings, enabledSources: SearchSource[]) => {
+  const enabledSet = new Set<SearchSource>(enabledSources)
+  const shouldRun = (source: SearchSource) => enabledSet.has(source)
 
-  const localHits = dedupeHits(mapLocalHits(localResponse.results ?? []))
   const errors = {
     redmine: null as string | null,
     sharepoint: null as string | null,
@@ -342,112 +403,124 @@ const runDirectSearch = async (keyword: string, settings: AppSettings) => {
     internalDocs: null as string | null,
   }
 
+  let localHits: SearchHit[] = []
+  if (shouldRun('local')) {
+    const localResponse = (await invokeMcp('local.search', {
+      root: settings.local.root,
+      query: keyword,
+      max: settings.limits.localMaxResults,
+      excludeGlobs: settings.excludeGlobs,
+    })) as { results: LocalSearchHit[] }
+    localHits = dedupeHits(mapLocalHits(localResponse.results ?? []))
+  }
+
   let redmineHits: SearchHit[] = []
+  if (shouldRun('redmine')) {
+    const redmineUrls = settings.redmine.urls.filter((url) => url.trim())
+    if (redmineUrls.length > 0) {
+      const redmineResults = await Promise.allSettled(
+        redmineUrls.map(async (baseUrl) => {
+          const response = (await invokeMcp('redmine.search', {
+            baseUrl,
+            keyword,
+            max: settings.limits.redmineMaxResults,
+            timeoutSeconds: settings.limits.timeoutSeconds,
+            userDataDir: settings.browser.userDataDir || undefined,
+          })) as { results: RedmineSearchHit[] }
+          return response.results ?? []
+        }),
+      )
+
+      const allRedmineHits: RedmineSearchHit[] = []
+      const redmineErrors: string[] = []
+
+      redmineResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          allRedmineHits.push(...result.value)
+        } else {
+          redmineErrors.push(`${redmineUrls[index]}: ${result.reason}`)
+        }
+      })
+
+      redmineHits = dedupeHits(mapRedmineHits(allRedmineHits))
+      if (redmineErrors.length > 0) {
+        errors.redmine = redmineErrors.join('; ')
+      }
+    }
+  }
+
   let sharepointHits: SearchHit[] = []
+  if (shouldRun('sharepoint')) {
+    const sharepointUrls = settings.sharepoint.urls.filter((url) => url.trim())
+    if (sharepointUrls.length > 0) {
+      const sharepointResults = await Promise.allSettled(
+        sharepointUrls.map(async (baseUrl) => {
+          const response = (await invokeMcp('sharepoint.search' as const, {
+            baseUrl,
+            keyword,
+            max: settings.limits.redmineMaxResults,
+            timeoutSeconds: settings.limits.timeoutSeconds,
+            userDataDir: settings.browser.userDataDir || undefined,
+          })) as { results: SharePointSearchHit[] }
+          return response.results ?? []
+        }),
+      )
+
+      const allSharePointHits: SharePointSearchHit[] = []
+      const sharepointErrors: string[] = []
+
+      sharepointResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          allSharePointHits.push(...result.value)
+        } else {
+          sharepointErrors.push(`${sharepointUrls[index]}: ${result.reason}`)
+        }
+      })
+
+      sharepointHits = dedupeHits(mapSharePointHits(allSharePointHits))
+      if (sharepointErrors.length > 0) {
+        errors.sharepoint = sharepointErrors.join('; ')
+      }
+    }
+  }
+
   let teamsHits: SearchHit[] = []
+  if (shouldRun('teams')) {
+    const teamsUrls = settings.teams.urls.filter((url) => url.trim())
+    if (teamsUrls.length > 0) {
+      const teamsResults = await Promise.allSettled(
+        teamsUrls.map(async (baseUrl) => {
+          const response = (await invokeMcp('teams.search' as const, {
+            baseUrl,
+            keyword,
+            max: settings.limits.redmineMaxResults,
+            timeoutSeconds: settings.limits.timeoutSeconds,
+            userDataDir: settings.browser.userDataDir || undefined,
+          })) as { results: TeamsSearchHit[] }
+          return response.results ?? []
+        }),
+      )
+
+      const allTeamsHits: TeamsSearchHit[] = []
+      const teamsErrors: string[] = []
+
+      teamsResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          allTeamsHits.push(...result.value)
+        } else {
+          teamsErrors.push(`${teamsUrls[index]}: ${result.reason}`)
+        }
+      })
+
+      teamsHits = dedupeHits(mapTeamsHits(allTeamsHits))
+      if (teamsErrors.length > 0) {
+        errors.teams = teamsErrors.join('; ')
+      }
+    }
+  }
+
   let internalDocsHits: SearchHit[] = []
-
-  // Redmine検索（複数URL対応）
-  const redmineUrls = settings.redmine.urls.filter((url) => url.trim())
-  if (redmineUrls.length > 0) {
-    const redmineResults = await Promise.allSettled(
-      redmineUrls.map(async (baseUrl) => {
-        const response = (await invokeMcp('redmine.search', {
-          baseUrl,
-          keyword,
-          max: settings.limits.redmineMaxResults,
-          timeoutSeconds: settings.limits.timeoutSeconds,
-          userDataDir: settings.browser.userDataDir || undefined,
-        })) as { results: RedmineSearchHit[] }
-        return response.results ?? []
-      }),
-    )
-
-    const allRedmineHits: RedmineSearchHit[] = []
-    const redmineErrors: string[] = []
-
-    redmineResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        allRedmineHits.push(...result.value)
-      } else {
-        redmineErrors.push(`${redmineUrls[index]}: ${result.reason}`)
-      }
-    })
-
-    redmineHits = dedupeHits(mapRedmineHits(allRedmineHits))
-    if (redmineErrors.length > 0) {
-      errors.redmine = redmineErrors.join('; ')
-    }
-  }
-
-  // SharePoint検索（複数URL対応）
-  const sharepointUrls = settings.sharepoint.urls.filter((url) => url.trim())
-  if (sharepointUrls.length > 0) {
-    const sharepointResults = await Promise.allSettled(
-      sharepointUrls.map(async (baseUrl) => {
-        const response = (await invokeMcp('sharepoint.search' as const, {
-          baseUrl,
-          keyword,
-          max: settings.limits.redmineMaxResults,
-          timeoutSeconds: settings.limits.timeoutSeconds,
-          userDataDir: settings.browser.userDataDir || undefined,
-        })) as { results: SharePointSearchHit[] }
-        return response.results ?? []
-      }),
-    )
-
-    const allSharePointHits: SharePointSearchHit[] = []
-    const sharepointErrors: string[] = []
-
-    sharepointResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        allSharePointHits.push(...result.value)
-      } else {
-        sharepointErrors.push(`${sharepointUrls[index]}: ${result.reason}`)
-      }
-    })
-
-    sharepointHits = dedupeHits(mapSharePointHits(allSharePointHits))
-    if (sharepointErrors.length > 0) {
-      errors.sharepoint = sharepointErrors.join('; ')
-    }
-  }
-
-  // Teams検索（複数URL対応）
-  const teamsUrls = settings.teams.urls.filter((url) => url.trim())
-  if (teamsUrls.length > 0) {
-    const teamsResults = await Promise.allSettled(
-      teamsUrls.map(async (baseUrl) => {
-        const response = (await invokeMcp('teams.search' as const, {
-          baseUrl,
-          keyword,
-          max: settings.limits.redmineMaxResults,
-          timeoutSeconds: settings.limits.timeoutSeconds,
-          userDataDir: settings.browser.userDataDir || undefined,
-        })) as { results: TeamsSearchHit[] }
-        return response.results ?? []
-      }),
-    )
-
-    const allTeamsHits: TeamsSearchHit[] = []
-    const teamsErrors: string[] = []
-
-    teamsResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        allTeamsHits.push(...result.value)
-      } else {
-        teamsErrors.push(`${teamsUrls[index]}: ${result.reason}`)
-      }
-    })
-
-    teamsHits = dedupeHits(mapTeamsHits(allTeamsHits))
-    if (teamsErrors.length > 0) {
-      errors.teams = teamsErrors.join('; ')
-    }
-  }
-
-  // 社内ドキュメント検索
-  if (settings.internalDocs.baseUrl?.trim()) {
+  if (shouldRun('internalDocs') && settings.internalDocs.baseUrl?.trim()) {
     try {
       const internalDocsResponse = (await invokeMcp('internalDocs.search' as const, {
         baseUrl: settings.internalDocs.baseUrl,

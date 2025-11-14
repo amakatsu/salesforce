@@ -1,9 +1,13 @@
 import { AppSettings } from './settings'
 
 export type SearchSource = 'local' | 'redmine' | 'sharepoint' | 'teams' | 'internalDocs' | 'combined'
+export const SEARCH_SOURCES = ['local', 'redmine', 'sharepoint', 'teams', 'internalDocs'] as const
+export type PrimarySearchSource = (typeof SEARCH_SOURCES)[number]
 
 export interface SearchPayload {
   keyword: string
+  sources?: SearchSource[]
+  maxCombinedHits?: number
 }
 
 export interface SearchHit {

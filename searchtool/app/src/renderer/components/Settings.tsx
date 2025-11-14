@@ -23,86 +23,136 @@ const Settings = ({ value, saving, onChange, onSave }: Props) => {
 
   return (
     <div className="settings-panel">
-      <div className="field-group">
-        <label>デフォルトキーワード</label>
-        <input
-          value={value.keyword}
-          placeholder="例: 監査"
-          onChange={(event) => update({ keyword: event.target.value })}
-        />
+      <div className="info-box">
+        <div className="info-box-icon">🆕</div>
+        <div>
+          <div className="info-box-title">新機能: 設定画面からAPIキーを登録可能に！</div>
+          <div className="info-box-text">
+            環境変数の設定が不要になりました。この画面から直接OpenAI APIキーを入力できます。
+          </div>
+        </div>
       </div>
 
-      <div className="field-group">
-        <label>ローカル検索ルート (複数行で指定)</label>
-        <textarea
-          rows={3}
-          value={value.local.root.join('\n')}
-          onChange={(event) => update({ local: { ...value.local, root: normaliseList(event.target.value) } })}
-          placeholder={'C:\\docs\nD:\\knowledge'}
-        />
+      <div className="section-card ai-section">
+        <div className="section-header">
+          <h3>AI設定</h3>
+          <span className="badge badge-new">NEW</span>
+        </div>
+
+        <div className="field-group">
+          <label>OpenAI API キー</label>
+          <input
+            type="password"
+            value={value.ai.apiKey}
+            placeholder="sk-..."
+            onChange={(event) => update({ ai: { ...value.ai, apiKey: event.target.value } })}
+          />
+          <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+            AI要約機能を使用する場合は必須です。取得方法: https://platform.openai.com/api-keys
+          </small>
+        </div>
+
+        <div className="field-group">
+          <label>AI モデル ID</label>
+          <input
+            value={value.ai.modelId}
+            placeholder="openai/gpt-4o-mini"
+            onChange={(event) => update({ ai: { ...value.ai, modelId: event.target.value } })}
+          />
+          <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+            例: openai/gpt-4o-mini, openai/gpt-4o, openai/gpt-3.5-turbo
+          </small>
+        </div>
       </div>
 
-      <div className="field-group">
-        <label>除外グロブ</label>
-        <textarea
-          rows={2}
-          value={value.excludeGlobs.join('\n')}
-          onChange={(event) => update({ excludeGlobs: normaliseList(event.target.value) })}
-          placeholder={'.git\nnode_modules'}
-        />
+      <div className="section-card">
+        <h3>ローカル検索設定</h3>
+
+        <div className="field-group">
+          <label>デフォルトキーワード</label>
+          <input
+            value={value.keyword}
+            placeholder="例: 監査"
+            onChange={(event) => update({ keyword: event.target.value })}
+          />
+        </div>
+
+        <div className="field-group">
+          <label>ローカル検索ルート (複数行で指定)</label>
+          <textarea
+            rows={3}
+            value={value.local.root.join('\n')}
+            onChange={(event) => update({ local: { ...value.local, root: normaliseList(event.target.value) } })}
+            placeholder={'C:\\docs\nD:\\knowledge'}
+          />
+        </div>
+
+        <div className="field-group">
+          <label>除外グロブ</label>
+          <textarea
+            rows={2}
+            value={value.excludeGlobs.join('\n')}
+            onChange={(event) => update({ excludeGlobs: normaliseList(event.target.value) })}
+            placeholder={'.git\nnode_modules'}
+          />
+        </div>
+
+        <div className="field-group">
+          <label>ブラウザ userDataDir</label>
+          <input
+            value={value.browser.userDataDir}
+            onChange={(event) => update({ browser: { ...value.browser, userDataDir: event.target.value } })}
+            placeholder="C:\\Users\\me\\AppData\\Local\\Microsoft\\Edge\\User Data"
+          />
+        </div>
       </div>
 
-      <div className="field-group">
-        <label>ブラウザ userDataDir</label>
-        <input
-          value={value.browser.userDataDir}
-          onChange={(event) => update({ browser: { ...value.browser, userDataDir: event.target.value } })}
-          placeholder="C:\\Users\\me\\AppData\\Local\\Microsoft\\Edge\\User Data"
-        />
+      <div className="section-card">
+        <h3>Web検索ソース（複数指定可能）</h3>
+
+        <div className="field-group">
+          <label>Redmine URLs (複数行で指定)</label>
+          <textarea
+            rows={3}
+            value={value.redmine.urls.join('\n')}
+            onChange={(event) => update({ redmine: { urls: normaliseList(event.target.value) } })}
+            placeholder={'https://redmine1.example.com\nhttps://redmine2.example.com'}
+          />
+        </div>
+
+        <div className="field-group">
+          <label>SharePoint URLs (複数行で指定)</label>
+          <textarea
+            rows={3}
+            value={value.sharepoint.urls.join('\n')}
+            onChange={(event) => update({ sharepoint: { urls: normaliseList(event.target.value) } })}
+            placeholder={'https://company1.sharepoint.com\nhttps://company2.sharepoint.com'}
+          />
+        </div>
+
+        <div className="field-group">
+          <label>Teams URLs (複数行で指定)</label>
+          <textarea
+            rows={3}
+            value={value.teams.urls.join('\n')}
+            onChange={(event) => update({ teams: { urls: normaliseList(event.target.value) } })}
+            placeholder={'https://teams.microsoft.com/_#/discover\nhttps://teams.microsoft.com'}
+          />
+        </div>
+
+        <div className="field-group">
+          <label>社内ドキュメントサイト URL</label>
+          <input
+            value={value.internalDocs.baseUrl}
+            onChange={(event) => update({ internalDocs: { ...value.internalDocs, baseUrl: event.target.value } })}
+            placeholder="https://docs.company.com"
+          />
+        </div>
       </div>
 
-      <h3 style={{ margin: '24px 0 12px 0', fontSize: '1.2rem' }}>Web検索ソース（複数指定可能）</h3>
-
-      <div className="field-group">
-        <label>Redmine URLs (複数行で指定)</label>
-        <textarea
-          rows={3}
-          value={value.redmine.urls.join('\n')}
-          onChange={(event) => update({ redmine: { urls: normaliseList(event.target.value) } })}
-          placeholder={'https://redmine1.example.com\nhttps://redmine2.example.com'}
-        />
-      </div>
-
-      <div className="field-group">
-        <label>SharePoint URLs (複数行で指定)</label>
-        <textarea
-          rows={3}
-          value={value.sharepoint.urls.join('\n')}
-          onChange={(event) => update({ sharepoint: { urls: normaliseList(event.target.value) } })}
-          placeholder={'https://company1.sharepoint.com\nhttps://company2.sharepoint.com'}
-        />
-      </div>
-
-      <div className="field-group">
-        <label>Teams URLs (複数行で指定)</label>
-        <textarea
-          rows={3}
-          value={value.teams.urls.join('\n')}
-          onChange={(event) => update({ teams: { urls: normaliseList(event.target.value) } })}
-          placeholder={'https://teams.microsoft.com/_#/discover\nhttps://teams.microsoft.com'}
-        />
-      </div>
-
-      <div className="field-group">
-        <label>社内ドキュメントサイト URL</label>
-        <input
-          value={value.internalDocs.baseUrl}
-          onChange={(event) => update({ internalDocs: { ...value.internalDocs, baseUrl: event.target.value } })}
-          placeholder="https://docs.company.com"
-        />
-      </div>
-
-      <div className="limits-grid">
+      <div className="section-card">
+        <h3>制限設定</h3>
+        <div className="limits-grid">
         <div className="field-group">
           <label>Local max results</label>
           <input
@@ -133,15 +183,16 @@ const Settings = ({ value, saving, onChange, onSave }: Props) => {
             onChange={(event) => update({ limits: { ...value.limits, timeoutSeconds: Number(event.target.value) } })}
           />
         </div>
-        <div className="field-group">
-          <label>Scroll steps</label>
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={value.limits.scrollSteps}
-            onChange={(event) => update({ limits: { ...value.limits, scrollSteps: Number(event.target.value) } })}
-          />
+          <div className="field-group">
+            <label>Scroll steps</label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={value.limits.scrollSteps}
+              onChange={(event) => update({ limits: { ...value.limits, scrollSteps: Number(event.target.value) } })}
+            />
+          </div>
         </div>
       </div>
 
