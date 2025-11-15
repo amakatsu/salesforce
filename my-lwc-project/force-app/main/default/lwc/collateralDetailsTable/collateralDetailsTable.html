@@ -1,0 +1,54 @@
+<template>
+  <lightning-card title="担保情報">
+    <lightning-accordion active-section-name="section1">
+      <lightning-accordion-section name="section1" label="担保詳細情報">
+        <lightning-layout multiple-rows>
+          <lightning-layout-item size="6" padding="around-small">
+            <lightning-layout>
+              <lightning-layout-item size="6" padding="horizontal-small">
+                <lightning-input
+                  label="Collateral/Guarantee"
+                  value={collateralGuarantee}
+                  onchange={handleCollateralChange}
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="6" padding="horizontal-small">
+                <lightning-combobox
+                  label="担保詳細（一般条項(S-7条)）"
+                  value={selectedDetail}
+                  options={detailOptions}
+                  onchange={handleDetailChange}
+                  placeholder="選択してください"
+                ></lightning-combobox>
+              </lightning-layout-item>
+            </lightning-layout>
+            <lightning-layout>
+              <lightning-layout-item size="6" padding="horizontal-small">
+                <lightning-input
+                  label="Jurisdiction(許可住地)"
+                  value={jurisdiction}
+                  onchange={handleJurisdictionChange}
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="6" padding="horizontal-small">
+                <lightning-input
+                  label="Governing Law(準拠法)"
+                  value={governingLaw}
+                  onchange={handleGoverningLawChange}
+                ></lightning-input>
+              </lightning-layout-item>
+            </lightning-layout>
+          </lightning-layout-item>
+          <lightning-layout-item size="6" padding="around-small">
+            <lightning-textarea
+              label="Note(備考)"
+              value={note}
+              onchange={handleNoteChange}
+              rows="12"
+            ></lightning-textarea>
+          </lightning-layout-item>
+        </lightning-layout>
+      </lightning-accordion-section>
+    </lightning-accordion>
+  </lightning-card>
+</template>
