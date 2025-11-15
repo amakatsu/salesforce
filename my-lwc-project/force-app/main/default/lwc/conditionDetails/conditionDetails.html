@@ -1,5 +1,5 @@
 <template>
-  <lightning-card title="条件詳細">
+  <lightning-card title="本件条件">
     <!-- 本件条件入力欄① -->
     <lightning-accordion
       active-section-name="section1"
@@ -34,13 +34,15 @@
                 ></lightning-input>
               </lightning-layout-item>
               <lightning-layout-item size="3" padding="horizontal-small">
-                <lightning-input
+                <lightning-combobox
                   label="履行タイミング"
                   value={row.timing}
+                  options={timingOptions}
                   data-id={row.id}
                   data-field="timing"
                   onchange={handleTopRowChange}
-                ></lightning-input>
+                  placeholder="タイミングを選択"
+                ></lightning-combobox>
               </lightning-layout-item>
               <lightning-layout-item size="3" padding="horizontal-small">
                 <lightning-input
@@ -91,13 +93,15 @@
                 ></lightning-input>
               </lightning-layout-item>
               <lightning-layout-item size="3" padding="horizontal-small">
-                <lightning-input
+                <lightning-combobox
                   label="履行タイミング"
                   value={row.timing}
+                  options={timingOptions}
                   data-id={row.id}
                   data-field="timing"
                   onchange={handleRowChange}
-                ></lightning-input>
+                  placeholder="タイミングを選択"
+                ></lightning-combobox>
               </lightning-layout-item>
               <lightning-layout-item size="3" padding="horizontal-small">
                 <lightning-input
@@ -113,10 +117,9 @@
                 size="2"
                 padding="horizontal-small"
                 alignment="end"
-                class="slds-p-top_small"
+                class="slds-p-top_large"
               >
                 <lightning-button
-                  class="slds-m-top_small"
                   label="削除"
                   onclick={handleRemoveRow}
                   data-id={row.id}
@@ -130,6 +133,7 @@
         <div class="slds-var-m-top_medium">
           <lightning-textarea
             label="備考"
+            value={remarks}
             placeholder="備考を入力してください"
             rows="5"
           ></lightning-textarea>

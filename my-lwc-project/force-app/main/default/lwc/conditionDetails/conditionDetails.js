@@ -1,143 +1,143 @@
-import { LightningElement, track } from 'lwc';
+import { LightningElement } from 'lwc';
+
+const BLANK_DETAIL_ROW = {
+  condition: '',
+  timing: '',
+  dueDate: ''
+};
+
+const BLANK_TOP_ROW = {
+  ...BLANK_DETAIL_ROW,
+  conditionSupplement: ''
+};
+
+const SAMPLE_TEXT_32 = '〇'.repeat(32);
+const SAMPLE_TEXT_366 = '〇'.repeat(366);
+
+const SAMPLE_TOP_ROWS = [
+  {
+    condition: '与信審査報告受領',
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '融資実行前',
+    dueDate: '2025-03-15'
+  },
+  {
+    condition: '信用限度管理表提出',
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '四半期末',
+    dueDate: '2025-06-30'
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '融資実行前',
+    dueDate: '2025-04-10'
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '半期末',
+    dueDate: '2025-07-15'
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '四半期末',
+    dueDate: '2025-09-30'
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: 'その他',
+    dueDate: '2025-12-15'
+  }
+];
+
+const SAMPLE_DETAIL_ROWS = [
+  {
+    condition: SAMPLE_TEXT_32,
+    timing: '半期末',
+    dueDate: '2025-07-31'
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    timing: '契約更新時',
+    dueDate: '2025-08-15'
+  },
+  {
+    condition: '信用供与枠確認',
+    timing: '融資実行前',
+    dueDate: '2025-04-10'
+  },
+  {
+    condition: '信用状況ヒアリング',
+    timing: '四半期末',
+    dueDate: '2025-06-30'
+  },
+  {
+    condition: '信用保証料支払明細',
+    timing: '半期末',
+    dueDate: '2025-09-30'
+  },
+  {
+    condition: '信用情報照会結果提出',
+    timing: 'その他',
+    dueDate: '2025-12-15'
+  }
+];
+
+const CONDITION_OPTIONS = [
+  { label: '与信審査報告受領', value: '与信審査報告受領' },
+  { label: '信用限度管理表提出', value: '信用限度管理表提出' },
+  { label: '信用リスク見直し', value: '信用リスク見直し' },
+  { label: '信用保証更新', value: '信用保証更新' },
+  { label: 'その他', value: 'その他' }
+];
+
+const TIMING_OPTIONS = [
+  { label: '融資実行前', value: '融資実行前' },
+  { label: '四半期末', value: '四半期末' },
+  { label: '半期末', value: '半期末' },
+  { label: '契約更新時', value: '契約更新時' },
+  { label: 'その他', value: 'その他' }
+];
+
+const buildRows = (rows, prefix, blankRow) =>
+  rows.map((row, index) => ({
+    id: `${prefix}-${index + 1}`,
+    ...blankRow,
+    ...row
+  }));
 
 export default class ConditionDetails extends LightningElement {
-  // 上部入力欄データ
-  @track topRows = [
-    {
-      id: '1',
-      condition: '条件1',
-      timing: '契約締結時',
-      dueDate: '2025-03-31'
-    },
-    {
-      id: '2',
-      condition: '条件2',
-      timing: '融資実行前',
-      dueDate: '2025-04-15'
-    }
-  ];
+  topRows = buildRows(SAMPLE_TOP_ROWS, 'top', BLANK_TOP_ROW);
+  conditionRows = buildRows(SAMPLE_DETAIL_ROWS, 'detail', BLANK_DETAIL_ROW);
 
-  // 条件行データ
-  @track conditionRows = [
-    {
-      id: '1',
-      condition: '決算書提出',
-      conditionSupplement: '直近3期分',
-      timing: '年度末',
-      dueDate: '2025-05-31'
-    },
-    {
-      id: '2',
-      condition: '試算表提出',
-      conditionSupplement: '四半期ごと',
-      timing: '各四半期末',
-      dueDate: '2025-06-30'
-    },
-    {
-      id: '3',
-      condition: '資金使途報告',
-      conditionSupplement: '設備投資計画',
-      timing: '融資実行後',
-      dueDate: '2025-07-15'
-    },
-    {
-      id: '4',
-      condition: '担保物件保険',
-      conditionSupplement: '火災保険加入',
-      timing: '契約時',
-      dueDate: '2025-03-31'
-    },
-    {
-      id: '5',
-      condition: '事業計画書提出',
-      conditionSupplement: '向こう3年分',
-      timing: '年度初め',
-      dueDate: '2025-04-30'
-    },
-    {
-      id: '6',
-      condition: '財務制限条項',
-      conditionSupplement: '自己資本比率維持',
-      timing: '継続',
-      dueDate: ''
-    }
-  ];
+  nextDetailId = this.conditionRows.length + 1;
+  conditionOptions = CONDITION_OPTIONS;
+  timingOptions = TIMING_OPTIONS;
+  relatedInquiryNumber = SAMPLE_TEXT_32;
+  remarks = SAMPLE_TEXT_366;
 
-  nextTopId = 3;
-  nextId = 7;
-
-  // 本件条件のコンボボックスオプション
-  conditionOptions = [
-    { label: '条件1', value: '条件1' },
-    { label: '条件2', value: '条件2' },
-    { label: '条件3', value: '条件3' },
-    { label: '条件4', value: '条件4' },
-    { label: '条件5', value: '条件5' }
-  ];
-
-  relatedInquiryNumber = '';
-
-  // 上部行追加
-  handleAddTopRow() {
-    const newRow = {
-      id: String(this.nextTopId++),
-      condition: '',
-      timing: '',
-      dueDate: ''
-    };
-    this.topRows = [...this.topRows, newRow];
-  }
-
-  // 上部行削除
-  handleRemoveTopRow(event) {
-    const rowId = event.target.dataset.id;
-    this.topRows = this.topRows.filter(row => row.id !== rowId);
-  }
-
-  // 上部行データ変更
   handleTopRowChange(event) {
-    const rowId = event.target.dataset.id;
-    const field = event.target.dataset.field;
-    const value = event.target.value;
-
-    this.topRows = this.topRows.map(row => {
-      if (row.id === rowId) {
-        return { ...row, [field]: value };
-      }
-      return row;
-    });
+    this.topRows = this.updateRows(this.topRows, event);
   }
 
-  // 行追加
   handleAddRow() {
     const newRow = {
-      id: String(this.nextId++),
-      condition: '',
-      conditionSupplement: '',
-      timing: '',
-      dueDate: ''
+      id: `detail-${this.nextDetailId++}`,
+      ...BLANK_DETAIL_ROW
     };
     this.conditionRows = [...this.conditionRows, newRow];
   }
 
-  // 行削除
   handleRemoveRow(event) {
     const rowId = event.target.dataset.id;
     this.conditionRows = this.conditionRows.filter(row => row.id !== rowId);
   }
 
-  // 行データ変更
   handleRowChange(event) {
-    const rowId = event.target.dataset.id;
-    const field = event.target.dataset.field;
-    const value = event.target.value;
-
-    this.conditionRows = this.conditionRows.map(row => {
-      if (row.id === rowId) {
-        return { ...row, [field]: value };
-      }
-      return row;
-    });
+    this.conditionRows = this.updateRows(this.conditionRows, event);
   }
 
   handleRelatedInquiryNumberChange(event) {
@@ -145,8 +145,14 @@ export default class ConditionDetails extends LightningElement {
   }
 
   handleRelatedInquiry() {
-    // 実際の照会処理が接続された際に差し替える
+    // 実装接続時に差し替え予定のスタブ
     // eslint-disable-next-line no-console
     console.log('関連厘差照会番号', this.relatedInquiryNumber);
+  }
+
+  updateRows(rows, event) {
+    const { id, field } = event.target.dataset;
+    const { value } = event.target;
+    return rows.map(row => (row.id === id ? { ...row, [field]: value } : row));
   }
 }
