@@ -1,5 +1,5 @@
 <template>
-  <lightning-card title="担保情報">
+  <lightning-card>
     <lightning-accordion active-section-name="section1">
       <lightning-accordion-section name="section1" label="担保詳細情報">
         <lightning-layout multiple-rows>
@@ -14,7 +14,7 @@
               </lightning-layout-item>
               <lightning-layout-item size="6" padding="horizontal-small">
                 <lightning-combobox
-                  label="担保詳細（一般条項(S-7条)）"
+                  label="担保/保証"
                   value={selectedDetail}
                   options={detailOptions}
                   onchange={handleDetailChange}
@@ -25,7 +25,7 @@
             <lightning-layout>
               <lightning-layout-item size="6" padding="horizontal-small">
                 <lightning-input
-                  label="Jurisdiction(許可住地)"
+                  label="Jurisdiction(裁判管轄地)"
                   value={jurisdiction}
                   onchange={handleJurisdictionChange}
                 ></lightning-input>
@@ -45,7 +45,7 @@
               value={note}
               onchange={handleNoteChange}
               rows="4"
-              style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 4);"
+              style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 4)"
             ></lightning-textarea>
           </lightning-layout-item>
         </lightning-layout>

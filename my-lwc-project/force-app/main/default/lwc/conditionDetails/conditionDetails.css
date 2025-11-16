@@ -7,3 +7,10 @@
 .related-inquiry-actions lightning-input {
   width: 12rem;
 }
+
+.input-section-header {
+  padding: 0 0.75rem;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
