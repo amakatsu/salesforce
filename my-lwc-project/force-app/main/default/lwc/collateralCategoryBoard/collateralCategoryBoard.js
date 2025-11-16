@@ -1,3 +1,12 @@
+import { LightningElement, api, track } from 'lwc';
+
+// ========================================
+// 定数定義: 選択肢オプション
+// ========================================
+
+/**
+ * 科目の選択肢
+ */
 const SUBJECT_OPTIONS = [
   { label: '輸入L/C', value: '輸入L/C' },
   { label: '輸出手形', value: '輸出手形' },
@@ -7,8 +16,10 @@ const SUBJECT_OPTIONS = [
   { label: 'その他', value: 'その他' }
 ];
 
-import { LightningElement, api, track } from 'lwc';
-
+/**
+ * 大分類カテゴリ設定
+ * 各大分類に対応する小分類の選択肢を定義
+ */
 const MAJOR_CATEGORY_CONFIG = {
   importCollateral: {
     label: '担保種類：商工・電保（輸入）',
@@ -50,72 +61,110 @@ const MAJOR_CATEGORY_CONFIG = {
   }
 };
 
+/**
+ * 大分類の選択肢
+ * MAJOR_CATEGORY_CONFIGから生成
+ */
 const MAJOR_OPTIONS = Object.entries(MAJOR_CATEGORY_CONFIG).map(([value, config]) => ({
   label: config.label,
   value
 }));
 
-const DEAL_TYPE_OPTIONS = [
-  { label: '新規', value: 'new' },
-  { label: '既存', value: 'existing' }
-];
-const SETUP_CATEGORY_OPTIONS = [
-  { label: '包括枠', value: 'package' },
-  { label: '個別設定', value: 'single' }
-];
-const COLLATERAL_CLASS_OPTIONS = [
-  { label: '商工', value: 'commerce' },
-  { label: '電保', value: 'electric' },
-  { label: 'その他', value: 'other' }
-];
-const SHARE_OPTIONS = [
-  { label: '100%', value: 'share100' },
-  { label: '90%', value: 'share90' },
-  { label: '80%', value: 'share80' },
-  { label: '70%', value: 'share70' }
-];
-const EXTINGUISH_OPTIONS = [
-  { label: '期日一括', value: 'bullet' },
-  { label: '分割返済', value: 'installment' },
-  { label: '随時', value: 'as-needed' }
-];
-const ROOT_LINK_OPTIONS = [
-  { label: '根担保に紐づく', value: 'link' },
-  { label: '独立設定', value: 'independent' }
-];
-const GUARANTEE_TYPE_OPTIONS = [
-  { label: '親会社', value: 'parent' },
-  { label: 'オーナー', value: 'owner' },
-  { label: 'その他', value: 'other' }
-];
-const GUARANTOR_CATEGORY_OPTIONS = [
-  { label: '個人', value: 'individual' },
-  { label: '法人', value: 'corporate' }
-];
-const DEBTOR_RELATIONSHIP_OPTIONS = [
-  { label: '個人', value: 'individual' },
-  { label: '法人', value: 'corporate' }
-];
-const CORPORATE_GUARANTEE_CATEGORY_OPTIONS = [
-  { label: '経営者保証', value: 'management-guarantee' },
-  { label: '第三者保証', value: 'third-party-guarantee' }
-];
-const GUARANTEE_PERIOD_OPTIONS = [
-  { label: '有期', value: 'fixed-term' },
-  { label: '無期', value: 'indefinite' }
-];
-const ASSOCIATION_TYPE_OPTIONS = [
-  { label: '普通保証', value: 'basic' },
-  { label: '超短期', value: 'short' }
-];
-const ASSOCIATION_EXISTING_CONDITION_OPTIONS = [
-  { label: '既存保証料立替', value: 'existing-fee-advance' },
-  { label: 'その他', value: 'other' }
-];
-const ASSOCIATION_APPROVAL_CONDITION_OPTIONS = [
-  { label: '承諾条件：財務維持', value: 'financial-maintenance' },
-  { label: 'その他', value: 'other' }
-];
+/**
+ * 共通の選択肢を生成するヘルパー関数
+ * @param {Array} items - ラベルと値のペアの配列
+ * @returns {Array} オプションリスト
+ */
+const createOptions = items => items.map(([label, value]) => ({ label, value }));
+
+/** 新規・既存の選択肢 */
+const DEAL_TYPE_OPTIONS = createOptions([
+  ['新規', 'new'],
+  ['既存', 'existing']
+]);
+
+/** 設定区分の選択肢 */
+const SETUP_CATEGORY_OPTIONS = createOptions([
+  ['包括枠', 'package'],
+  ['個別設定', 'single']
+]);
+
+/** 種類区分の選択肢 */
+const COLLATERAL_CLASS_OPTIONS = createOptions([
+  ['商工', 'commerce'],
+  ['電保', 'electric'],
+  ['その他', 'other']
+]);
+
+/** 取分の選択肢 */
+const SHARE_OPTIONS = createOptions([
+  ['100%', 'share100'],
+  ['90%', 'share90'],
+  ['80%', 'share80'],
+  ['70%', 'share70']
+]);
+
+/** 消火方法の選択肢 */
+const EXTINGUISH_OPTIONS = createOptions([
+  ['期日一括', 'bullet'],
+  ['分割返済', 'installment'],
+  ['随時', 'as-needed']
+]);
+
+/** 根担保紐付けの選択肢 */
+const ROOT_LINK_OPTIONS = createOptions([
+  ['根担保に紐づく', 'link'],
+  ['独立設定', 'independent']
+]);
+
+/** 保証種別の選択肢 */
+const GUARANTEE_TYPE_OPTIONS = createOptions([
+  ['親会社', 'parent'],
+  ['オーナー', 'owner'],
+  ['その他', 'other']
+]);
+
+/** 個人・法人の共通選択肢 */
+const INDIVIDUAL_CORPORATE_OPTIONS = createOptions([
+  ['個人', 'individual'],
+  ['法人', 'corporate']
+]);
+
+/** 保証人区分の選択肢（個人・法人と同じ） */
+const GUARANTOR_CATEGORY_OPTIONS = INDIVIDUAL_CORPORATE_OPTIONS;
+
+/** 債務者との関係の選択肢（個人・法人と同じ） */
+const DEBTOR_RELATIONSHIP_OPTIONS = INDIVIDUAL_CORPORATE_OPTIONS;
+
+/** 規定区分の選択肢 */
+const CORPORATE_GUARANTEE_CATEGORY_OPTIONS = createOptions([
+  ['経営者保証', 'management-guarantee'],
+  ['第三者保証', 'third-party-guarantee']
+]);
+
+/** 保証期間の選択肢 */
+const GUARANTEE_PERIOD_OPTIONS = createOptions([
+  ['有期', 'fixed-term'],
+  ['無期', 'indefinite']
+]);
+
+/** 協会保証種別の選択肢 */
+const ASSOCIATION_TYPE_OPTIONS = createOptions([
+  ['普通保証', 'basic'],
+  ['超短期', 'short']
+]);
+
+/** 既存保証条件の選択肢 */
+const ASSOCIATION_EXISTING_CONDITION_OPTIONS = createOptions([
+  ['既存保証料立替', 'existing-fee-advance'],
+  ['その他', 'other']
+]);
+
+/** 承諾条件の選択肢 */
+const ASSOCIATION_APPROVAL_CONDITION_OPTIONS = createOptions([
+  ['承諾条件：財務維持', 'financial-maintenance'],
+  ['その他', 'other']
+]);
 
 const COLUMN_TEMPLATES = {
   pattern1: [
@@ -284,9 +333,23 @@ const COLUMN_TEMPLATES = {
   ]
 };
 
+// ========================================
+// ユーティリティ関数
+// ========================================
+
+/**
+ * 大分類の値から小分類の選択肢を取得
+ * @param {string} majorValue - 大分類の値
+ * @returns {Array} 小分類の選択肢リスト
+ */
 const getMinorOptions = majorValue =>
   MAJOR_CATEGORY_CONFIG[majorValue]?.minors ?? [];
 
+/**
+ * 列データに表示用のプロパティを追加
+ * @param {Object} column - 元の列データ
+ * @returns {Object} デコレートされた列データ
+ */
 const decorateColumn = column => ({
   ...column,
   minorOptions: getMinorOptions(column.majorValue),
@@ -295,6 +358,14 @@ const decorateColumn = column => ({
   isCorporateGuarantor: column.guarantorCategory === 'corporate'
 });
 
+// ========================================
+// コンポーネントクラス
+// ========================================
+
+/**
+ * 担保カテゴリボードコンポーネント
+ * 親画面タイプに応じて列データのテンプレートを切り替える
+ */
 export default class CollateralCategoryBoard extends LightningElement {
   _parentScreenType = 'pattern1';
   subjectOptions = SUBJECT_OPTIONS;
@@ -317,25 +388,58 @@ export default class CollateralCategoryBoard extends LightningElement {
 
   @track columns = COLUMN_TEMPLATES.pattern1.map(decorateColumn);
 
+  // ========================================
+  // 公開プロパティ
+  // ========================================
+
+  /**
+   * 親画面タイプを取得
+   * @returns {string} 親画面タイプ
+   */
   @api
   get parentScreenType() {
     return this._parentScreenType;
   }
 
+  /**
+   * 親画面タイプを設定し、対応するパターンを適用
+   * @param {string} value - 親画面タイプ
+   */
   set parentScreenType(value) {
     this._parentScreenType = value || 'pattern1';
     this.applyPattern(this._parentScreenType);
   }
 
+  // ========================================
+  // ゲッタープロパティ
+  // ========================================
+
+  /**
+   * 科目列の表示フラグ
+   * @returns {boolean} pattern1の場合のみtrue
+   */
   get showSubjectColumn() {
     return this.parentScreenType === 'pattern1';
   }
 
+  // ========================================
+  // メソッド
+  // ========================================
+
+  /**
+   * パターンに応じた列データテンプレートを適用
+   * @param {string} screenType - 画面タイプ
+   */
   applyPattern(screenType) {
     const templates = COLUMN_TEMPLATES[screenType] || COLUMN_TEMPLATES.pattern1;
     this.columns = templates.map(decorateColumn);
   }
 
+  /**
+   * 大分類変更ハンドラー
+   * 大分類が変更されたら小分類を最初の選択肢に設定
+   * @param {Event} event - 変更イベント
+   */
   handleMajorChange(event) {
     const { columnId } = event.target.dataset;
     const nextValue = event.detail.value;
@@ -352,6 +456,11 @@ export default class CollateralCategoryBoard extends LightningElement {
     );
   }
 
+  /**
+   * フィールド変更ハンドラー
+   * 各フィールドの値を更新
+   * @param {Event} event - 変更イベント
+   */
   handleFieldChange(event) {
     const { columnId, field } = event.target.dataset;
     const value = event.detail.value;
@@ -366,6 +475,11 @@ export default class CollateralCategoryBoard extends LightningElement {
     );
   }
 
+  /**
+   * 保証人区分変更ハンドラー
+   * 保証人区分が変更されたら列データを再デコレート
+   * @param {Event} event - 変更イベント
+   */
   handleGuarantorCategoryChange(event) {
     const { columnId, field } = event.target.dataset;
     const value = event.detail.value;
@@ -380,6 +494,10 @@ export default class CollateralCategoryBoard extends LightningElement {
     );
   }
 
+  /**
+   * 備考変更ハンドラー
+   * @param {Event} event - 変更イベント
+   */
   handleRemarkChange(event) {
     this.globalRemark = event.detail.value;
   }

@@ -200,6 +200,7 @@
             label="備考"
             value={remarks}
             placeholder="備考を入力してください"
+            onchange={handleRemarksChange}
             style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 3)"
           ></lightning-textarea>
         </section>
@@ -209,14 +210,14 @@
         <section class="slds-var-m-around_medium">
           <div class="related-inquiry-actions">
             <lightning-input
-              label="他与信圧縮・極度内運用の本体ああ番号"
+              label="他与信圧縮・極度内運用の本体照会番号"
               placeholder="番号を入力"
               value={relatedInquiryNumber}
               onchange={handleRelatedInquiryNumberChange}
             ></lightning-input>
             <lightning-button
               variant="brand"
-              label="ああ照会"
+              label="照会"
               onclick={handleRelatedInquiry}
             ></lightning-button>
           </div>
