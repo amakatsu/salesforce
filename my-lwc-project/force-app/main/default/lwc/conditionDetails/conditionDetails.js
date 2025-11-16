@@ -1,5 +1,6 @@
-import { LightningElement } from 'lwc';
+import { LightningElement, api } from 'lwc';
 import LightningConfirm from 'lightning/confirm';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 const BLANK_DETAIL_ROW = {
   condition: '',
@@ -51,6 +52,42 @@ const SAMPLE_TOP_ROWS = [
     conditionSupplement: SAMPLE_TEXT_32,
     timing: 'その他',
     dueDate: '2025-12-15'
+  },
+  {
+    condition: '信用審査資料更新',
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '年次決算後',
+    dueDate: '2026-03-31'
+  },
+  {
+    condition: '保証契約見直し',
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '契約更新時',
+    dueDate: '2025-10-01'
+  },
+  {
+    condition: 'モニタリング報告書',
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '四半期末',
+    dueDate: '2025-12-31'
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '半期末',
+    dueDate: '2026-01-31'
+  },
+  {
+    condition: '資金繰り予定提出',
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: '月末',
+    dueDate: '2025-11-30'
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: 'その他',
+    dueDate: '2026-02-28'
   }
 ];
 
@@ -103,6 +140,45 @@ const TIMING_OPTIONS = [
   { label: 'その他', value: 'その他' }
 ];
 
+const SUPPORTED_PARENT_SCREENS = ['patternImport', 'patternExport', 'patternAbcp'];
+const SCREEN_BEHAVIOR_BY_PARENT = {
+  default: {
+    sections: {
+      topInput: true,
+      detailInput: true,
+      remarks: true,
+      inquiry: true
+    },
+    topInputLimit: 6
+  },
+  patternImport: {
+    sections: {
+      topInput: true,
+      detailInput: true,
+      remarks: true,
+      inquiry: true
+    },
+    topInputLimit: 6
+  },
+  patternExport: {
+    sections: {
+      topInput: true,
+      detailInput: true,
+      remarks: true,
+      inquiry: true
+    },
+    topInputLimit: 12
+  },
+  patternAbcp: {
+    sections: {
+      topInput: false,
+      detailInput: true,
+      remarks: true,
+      inquiry: false
+    },
+    topInputLimit: 0
+  }
+};
 const MAX_DETAIL_ROWS = 6;
 
 const buildRows = (rows, prefix, blankRow) =>
@@ -116,6 +192,7 @@ export default class ConditionDetails extends LightningElement {
   topRows = buildRows(SAMPLE_TOP_ROWS, 'top', BLANK_TOP_ROW);
   conditionRows = buildRows(SAMPLE_DETAIL_ROWS, 'detail', BLANK_DETAIL_ROW);
 
+  @api parentScreenType;
   nextDetailId = this.conditionRows.length + 1;
   conditionOptions = CONDITION_OPTIONS;
   timingOptions = TIMING_OPTIONS;
@@ -189,4 +266,51 @@ export default class ConditionDetails extends LightningElement {
     const { value } = event.target;
     return rows.map(row => (row.id === id ? { ...row, [field]: value } : row));
   }
+
+  get screenBehavior() {
+    return (
+      SCREEN_BEHAVIOR_BY_PARENT[this.parentScreenType] ||
+      SCREEN_BEHAVIOR_BY_PARENT.default
+    );
+  }
+
+  get sectionVisibility() {
+    return this.screenBehavior.sections;
+  }
+
+  get showTopInputSection() {
+    return this.sectionVisibility.topInput;
+  }
+
+  get showDetailInputSection() {
+    return this.sectionVisibility.detailInput;
+  }
+
+  get showRemarksSection() {
+    return this.sectionVisibility.remarks;
+  }
+
+  get showInquirySection() {
+    return this.sectionVisibility.inquiry;
+  }
+
+  get topInputLimit() {
+    return this.screenBehavior.topInputLimit;
+  }
+
+  get topRowsForDisplay() {
+    return this.topRows.slice(0, this.topInputLimit);
+  }
+
+  get isTopRowLimitExceeded() {
+    return this.topRows.length > this.topInputLimit;
+  }
+
+  get isVisible() {
+    return (
+      !this.parentScreenType ||
+      SUPPORTED_PARENT_SCREENS.includes(this.parentScreenType)
+    );
+  }
+
 }

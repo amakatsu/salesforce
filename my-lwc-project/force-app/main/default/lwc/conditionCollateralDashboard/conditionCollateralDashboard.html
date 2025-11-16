@@ -1,0 +1,43 @@
+<template>
+  <article class="dashboard slds-var-p-around_medium">
+    <header class="page-header slds-var-m-bottom_large">
+      <div class="title-block">
+        <p class="eyebrow">与信案件概要</p>
+        <h1 class="heading">{borrowerName}</h1>
+        <p class="sub">案件番号: {creditNumber}</p>
+      </div>
+      <div class="meta-block">
+        <lightning-badge
+          label={reviewStatus}
+          class={statusClass}
+        ></lightning-badge>
+        <div class="meta-info">
+          <span>担当: {ownerName}</span>
+          <span>最終更新: {lastUpdated}</span>
+        </div>
+        <div class="credit-limit">極度額 {creditLimit} 円</div>
+      </div>
+    </header>
+
+    <lightning-layout multiple-rows class="content-grid">
+      <lightning-layout-item
+        size="12"
+        large-device-size="12"
+        padding="around-small"
+        class="grid-item pattern-column"
+      >
+        <template for:each={patternCards} for:item="pattern">
+          <section key={pattern.id} class="pattern-block">
+            <div class="pattern-header">
+              <p class="pattern-label">{pattern.label}</p>
+              <p class="pattern-desc">{pattern.description}</p>
+            </div>
+            <c-condition-details
+              parent-screen-type={pattern.screenType}
+            ></c-condition-details>
+          </section>
+        </template>
+      </lightning-layout-item>
+    </lightning-layout>
+  </article>
+</template>
