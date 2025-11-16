@@ -287,6 +287,12 @@ export default class CollateralCategoryBoard extends LightningElement {
     return this.parentScreenType === 'pattern1';
   }
 
+  get rightColumnClass() {
+    return this.showSubjectColumn
+      ? 'slds-size_1-of-1 slds-medium-size_10-of-12'
+      : 'slds-size_1-of-1';
+  }
+
   get majorClass() {
     return this.showSubjectColumn
       ? 'slds-size_1-of-1 slds-medium-size_2-of-12'

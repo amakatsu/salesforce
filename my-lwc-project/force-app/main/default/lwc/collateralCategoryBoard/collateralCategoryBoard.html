@@ -2,11 +2,10 @@
   <lightning-card title="担保カテゴリ">
     <div class="slds-p-around_medium">
       <template for:each={columns} for:item="column">
-      <div key={column.id} class="slds-box slds-m-bottom_medium">
-        <div class="slds-grid slds-wrap slds-gutters_small">
-          <template if:true={showSubjectColumn}>
-            <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-              <div class="slds-grid slds-wrap slds-gutters_small">
+        <div key={column.id} class="slds-grid slds-wrap slds-gutters_small slds-m-bottom_medium">
+          <div class="left-column slds-p-around_small">
+            <div class="slds-grid slds-gutters_xx-small">
+              <template if:true={showSubjectColumn}>
                 <div class="slds-size_1-of-2">
                   <lightning-combobox
                     label="科目"
@@ -26,152 +25,221 @@
                     onchange={handleMajorChange}
                   ></lightning-combobox>
                 </div>
+              </template>
+              <template if:false={showSubjectColumn}>
+                <div class="slds-size_1-of-1">
+                  <lightning-combobox
+                    label="大分類"
+                    value={column.majorValue}
+                    options={majorOptions}
+                    data-column-id={column.id}
+                    onchange={handleMajorChange}
+                  ></lightning-combobox>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="right-column slds-box slds-p-around_medium slds-size_1-of-1 slds-medium-size_10-of-12 slds-m-left_small">
+            <div class="slds-grid slds-wrap slds-gutters_small">
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-combobox
+                  label="小分類"
+                  value={column.minorValue}
+                  options={column.minorOptions}
+                  data-column-id={column.id}
+                  data-field="minorValue"
+                  onchange={handleFieldChange}
+                ></lightning-combobox>
+              </div>
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-combobox
+                  label="新規・既存"
+                  value={column.dealType}
+                  options={dealTypeOptions}
+                  data-column-id={column.id}
+                  data-field="dealType"
+                  onchange={handleFieldChange}
+                ></lightning-combobox>
+              </div>
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-combobox
+                  label="設定区分"
+                  value={column.setupCategory}
+                  options={setupCategoryOptions}
+                  data-column-id={column.id}
+                  data-field="setupCategory"
+                  onchange={handleFieldChange}
+                ></lightning-combobox>
+              </div>
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-combobox
+                  label="種類区分"
+                  value={column.collateralCategory}
+                  options={collateralClassOptions}
+                  data-column-id={column.id}
+                  data-field="collateralCategory"
+                  onchange={handleFieldChange}
+                ></lightning-combobox>
+              </div>
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-input
+                  label="設定額"
+                  value={column.amount}
+                  data-column-id={column.id}
+                  data-field="amount"
+                  onchange={handleFieldChange}
+                ></lightning-input>
+              </div>
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-combobox
+                  label="取分"
+                  value={column.share}
+                  options={shareOptions}
+                  data-column-id={column.id}
+                  data-field="share"
+                  onchange={handleFieldChange}
+                ></lightning-combobox>
+              </div>
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-combobox
+                  label="消火方法"
+                  value={column.extinguish}
+                  options={extinguishOptions}
+                  data-column-id={column.id}
+                  data-field="extinguish"
+                  onchange={handleFieldChange}
+                ></lightning-combobox>
+              </div>
+              <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
+                <lightning-combobox
+                  label="根担保紐付け"
+                  value={column.rootLink}
+                  options={rootLinkOptions}
+                  data-column-id={column.id}
+                  data-field="rootLink"
+                  onchange={handleFieldChange}
+                ></lightning-combobox>
               </div>
             </div>
-          </template>
-          <template if:false={showSubjectColumn}>
-            <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-              <lightning-combobox
-                label="大分類"
-                value={column.majorValue}
-                options={majorOptions}
-                data-column-id={column.id}
-                onchange={handleMajorChange}
-              ></lightning-combobox>
-            </div>
-          </template>
-          <div class="slds-size_1-of-1 slds-medium-size_2-of-12 slds-p-around_xx-small">
-            <lightning-combobox
-              label="小分類"
-              value={column.minorValue}
-              options={column.minorOptions}
-              data-column-id={column.id}
-              data-field="minorValue"
-              onchange={handleFieldChange}
-            ></lightning-combobox>
-          </div>
-          <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-            <lightning-combobox
-              label="新規・既存"
-              value={column.dealType}
-              options={dealTypeOptions}
-              data-column-id={column.id}
-              data-field="dealType"
-              onchange={handleFieldChange}
-            ></lightning-combobox>
-          </div>
-          <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-            <lightning-combobox
-              label="設定区分"
-              value={column.setupCategory}
-              options={setupCategoryOptions}
-              data-column-id={column.id}
-              data-field="setupCategory"
-              onchange={handleFieldChange}
-            ></lightning-combobox>
-          </div>
-          <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-            <lightning-combobox
-              label="種類区分"
-              value={column.collateralCategory}
-              options={collateralClassOptions}
-              data-column-id={column.id}
-              data-field="collateralCategory"
-              onchange={handleFieldChange}
-            ></lightning-combobox>
-          </div>
-          <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-            <lightning-input
-              label="設定額"
-              value={column.amount}
-              data-column-id={column.id}
-              data-field="amount"
-              onchange={handleFieldChange}
-            ></lightning-input>
-          </div>
-          <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-            <lightning-combobox
-              label="取分"
-              value={column.share}
-              options={shareOptions}
-              data-column-id={column.id}
-              data-field="share"
-              onchange={handleFieldChange}
-            ></lightning-combobox>
-          </div>
-          <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-            <lightning-combobox
-              label="消火方法"
-              value={column.extinguish}
-              options={extinguishOptions}
-              data-column-id={column.id}
-              data-field="extinguish"
-              onchange={handleFieldChange}
-            ></lightning-combobox>
-          </div>
-          <div class="slds-size_1-of-1 slds-medium-size_1-of-12 slds-p-around_xx-small">
-            <lightning-combobox
-              label="根担保紐付け"
-              value={column.rootLink}
-              options={rootLinkOptions}
-              data-column-id={column.id}
-              data-field="rootLink"
-              onchange={handleFieldChange}
-            ></lightning-combobox>
+
+            <template if:true={column.isGuarantee}>
+              <div class="slds-box slds-theme_shade slds-m-top_small">
+                <div class="slds-grid slds-wrap slds-gutters_small">
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-combobox
+                      label="保証種別"
+                      value={column.guaranteeType}
+                      options={guaranteeTypeOptions}
+                      data-column-id={column.id}
+                      data-field="guaranteeType"
+                      onchange={handleFieldChange}
+                    ></lightning-combobox>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-input
+                      label="保証番号"
+                      value={column.guaranteeNumber}
+                      data-column-id={column.id}
+                      data-field="guaranteeNumber"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-3">
+                    <lightning-input
+                      label="保証条件"
+                      value={column.guaranteeCondition}
+                      data-column-id={column.id}
+                      data-field="guaranteeCondition"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-input
+                      type="date"
+                      label="期間（自）"
+                      value={column.guaranteeTermStart}
+                      data-column-id={column.id}
+                      data-field="guaranteeTermStart"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-input
+                      type="date"
+                      label="期間（至）"
+                      value={column.guaranteeTermEnd}
+                      data-column-id={column.id}
+                      data-field="guaranteeTermEnd"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template if:true={column.isAssociation}>
+              <div class="slds-box slds-theme_shade slds-m-top_small">
+                <div class="slds-grid slds-wrap slds-gutters_small">
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-combobox
+                      label="協会保証種別"
+                      value={column.associationType}
+                      options={associationTypeOptions}
+                      data-column-id={column.id}
+                      data-field="associationType"
+                      onchange={handleFieldChange}
+                    ></lightning-combobox>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-input
+                      label="協会保証番号"
+                      value={column.associationNumber}
+                      data-column-id={column.id}
+                      data-field="associationNumber"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-3">
+                    <lightning-input
+                      label="条件"
+                      value={column.associationCondition}
+                      data-column-id={column.id}
+                      data-field="associationCondition"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-input
+                      type="date"
+                      label="期間（自）"
+                      value={column.associationTermStart}
+                      data-column-id={column.id}
+                      data-field="associationTermStart"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6">
+                    <lightning-input
+                      type="date"
+                      label="期間（至）"
+                      value={column.associationTermEnd}
+                      data-column-id={column.id}
+                      data-field="associationTermEnd"
+                      onchange={handleFieldChange}
+                    ></lightning-input>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
-
-        <template if:true={column.isGuarantee}>
-          <div class="slds-box slds-theme_shade slds-m-top_small">
-            <div class="slds-grid slds-wrap slds-gutters_small">
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-combobox label="保証種別" value={column.guaranteeType} options={guaranteeTypeOptions} data-column-id={column.id} data-field="guaranteeType" onchange={handleFieldChange}></lightning-combobox>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-input label="保証番号" value={column.guaranteeNumber} data-column-id={column.id} data-field="guaranteeNumber" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-3 slds-p-around_xx-small">
-                    <lightning-input label="保証条件" value={column.guaranteeCondition} data-column-id={column.id} data-field="guaranteeCondition" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-input type="date" label="期間（自）" value={column.guaranteeTermStart} data-column-id={column.id} data-field="guaranteeTermStart" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-input type="date" label="期間（至）" value={column.guaranteeTermEnd} data-column-id={column.id} data-field="guaranteeTermEnd" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                </div>
-          </div>
-        </template>
-
-        <template if:true={column.isAssociation}>
-          <div class="slds-box slds-theme_shade slds-m-top_small">
-            <div class="slds-grid slds-wrap slds-gutters_small">
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-combobox label="協会保証種別" value={column.associationType} options={associationTypeOptions} data-column-id={column.id} data-field="associationType" onchange={handleFieldChange}></lightning-combobox>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-input label="協会保証番号" value={column.associationNumber} data-column-id={column.id} data-field="associationNumber" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-3 slds-p-around_xx-small">
-                    <lightning-input label="条件" value={column.associationCondition} data-column-id={column.id} data-field="associationCondition" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-input type="date" label="期間（自）" value={column.associationTermStart} data-column-id={column.id} data-field="associationTermStart" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                  <div class="slds-size_1-of-1 slds-medium-size_1-of-6 slds-p-around_xx-small">
-                    <lightning-input type="date" label="期間（至）" value={column.associationTermEnd} data-column-id={column.id} data-field="associationTermEnd" onchange={handleFieldChange}></lightning-input>
-                  </div>
-                </div>
-          </div>
-        </template>
-      </div>
-    </template>
+      </template>
 
       <section class="slds-card slds-m-top_large">
-      <div class="slds-card__body">
-        <lightning-textarea label="備考" value={globalRemark} onchange={handleRemarkChange}></lightning-textarea>
-      </div>
-    </section>
+        <div class="slds-card__body">
+          <lightning-textarea label="備考" value={globalRemark} onchange={handleRemarkChange}></lightning-textarea>
+        </div>
+      </section>
     </div>
   </lightning-card>
 </template>
