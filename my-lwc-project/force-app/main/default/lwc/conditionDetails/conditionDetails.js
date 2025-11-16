@@ -124,21 +124,72 @@ const SAMPLE_DETAIL_ROWS = [
   }
 ];
 
-const CONDITION_OPTIONS = [
-  { label: '与信審査報告受領', value: '与信審査報告受領' },
-  { label: '信用限度管理表提出', value: '信用限度管理表提出' },
-  { label: '信用リスク見直し', value: '信用リスク見直し' },
-  { label: '信用保証更新', value: '信用保証更新' },
-  { label: 'その他', value: 'その他' }
-];
-
-const TIMING_OPTIONS = [
-  { label: '融資実行前', value: '融資実行前' },
-  { label: '四半期末', value: '四半期末' },
-  { label: '半期末', value: '半期末' },
-  { label: '契約更新時', value: '契約更新時' },
-  { label: 'その他', value: 'その他' }
-];
+const SCREEN_OPTION_SETS = {
+  default: {
+    condition: [
+      { label: '与信審査報告受領', value: '与信審査報告受領' },
+      { label: '信用限度管理表提出', value: '信用限度管理表提出' },
+      { label: '信用リスク見直し', value: '信用リスク見直し' },
+      { label: '信用保証更新', value: '信用保証更新' },
+      { label: 'その他', value: 'その他' }
+    ],
+    timing: [
+      { label: '融資実行前', value: '融資実行前' },
+      { label: '四半期末', value: '四半期末' },
+      { label: '半期末', value: '半期末' },
+      { label: '契約更新時', value: '契約更新時' },
+      { label: 'その他', value: 'その他' }
+    ]
+  },
+  patternImport: {
+    condition: [
+      { label: '輸入信用状開設', value: '輸入信用状開設' },
+      { label: '与信審査報告受領', value: '与信審査報告受領' },
+      { label: '在庫調達確認', value: '在庫調達確認' },
+      { label: '信用保証更新', value: '信用保証更新' },
+      { label: 'その他', value: 'その他' }
+    ],
+    timing: [
+      { label: '輸入契約締結時', value: '輸入契約締結時' },
+      { label: '船積前', value: '船積前' },
+      { label: '通関後', value: '通関後' },
+      { label: '決済前', value: '決済前' },
+      { label: 'その他', value: 'その他' }
+    ]
+  },
+  patternExport: {
+    condition: [
+      { label: '輸出信用状確認', value: '輸出信用状確認' },
+      { label: '船積書類受領', value: '船積書類受領' },
+      { label: '輸出保険付保', value: '輸出保険付保' },
+      { label: '為替予約締結', value: '為替予約締結' },
+      { label: 'その他', value: 'その他' }
+    ],
+    timing: [
+      { label: '船積前', value: '船積前' },
+      { label: '船積後', value: '船積後' },
+      { label: '支払期限前', value: '支払期限前' },
+      { label: '為替決済時', value: '為替決済時' },
+      { label: 'その他', value: 'その他' }
+    ]
+  },
+  patternAbcp: {
+    condition: [
+      { label: 'SPC情報更新', value: 'SPC情報更新' },
+      { label: '資産プール点検', value: '資産プール点検' },
+      { label: '信用補完確認', value: '信用補完確認' },
+      { label: '流動化契約遵守確認', value: '流動化契約遵守確認' },
+      { label: 'その他', value: 'その他' }
+    ],
+    timing: [
+      { label: '月次期日', value: '月次期日' },
+      { label: '四半期期末', value: '四半期期末' },
+      { label: '年次期末', value: '年次期末' },
+      { label: '償還期限前', value: "償還期限前" },
+      { label: 'その他', value: 'その他' }
+    ]
+  }
+};
 
 const SUPPORTED_PARENT_SCREENS = ['patternImport', 'patternExport', 'patternAbcp'];
 const SCREEN_BEHAVIOR_BY_PARENT = {
@@ -194,8 +245,6 @@ export default class ConditionDetails extends LightningElement {
 
   @api parentScreenType;
   nextDetailId = this.conditionRows.length + 1;
-  conditionOptions = CONDITION_OPTIONS;
-  timingOptions = TIMING_OPTIONS;
   relatedInquiryNumber = SAMPLE_TEXT_32;
   remarks = SAMPLE_TEXT_366;
   activeTopSections = ['section1'];
@@ -272,6 +321,21 @@ export default class ConditionDetails extends LightningElement {
       SCREEN_BEHAVIOR_BY_PARENT[this.parentScreenType] ||
       SCREEN_BEHAVIOR_BY_PARENT.default
     );
+  }
+
+  get optionSet() {
+    return (
+      SCREEN_OPTION_SETS[this.parentScreenType] ||
+      SCREEN_OPTION_SETS.default
+    );
+  }
+
+  get conditionOptions() {
+    return this.optionSet.condition;
+  }
+
+  get timingOptions() {
+    return this.optionSet.timing;
   }
 
   get sectionVisibility() {
