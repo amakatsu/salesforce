@@ -85,7 +85,24 @@ const ROOT_LINK_OPTIONS = [
 ];
 const GUARANTEE_TYPE_OPTIONS = [
   { label: '親会社', value: 'parent' },
-  { label: 'オーナー', value: 'owner' }
+  { label: 'オーナー', value: 'owner' },
+  { label: 'その他', value: 'other' }
+];
+const GUARANTOR_CATEGORY_OPTIONS = [
+  { label: '個人', value: 'individual' },
+  { label: '法人', value: 'corporate' }
+];
+const DEBTOR_RELATIONSHIP_OPTIONS = [
+  { label: '個人', value: 'individual' },
+  { label: '法人', value: 'corporate' }
+];
+const CORPORATE_GUARANTEE_CATEGORY_OPTIONS = [
+  { label: '経営者保証', value: 'management-guarantee' },
+  { label: '第三者保証', value: 'third-party-guarantee' }
+];
+const GUARANTEE_PERIOD_OPTIONS = [
+  { label: '有期', value: 'fixed-term' },
+  { label: '無期', value: 'indefinite' }
 ];
 const ASSOCIATION_TYPE_OPTIONS = [
   { label: '普通保証', value: 'basic' },
@@ -136,10 +153,14 @@ const COLUMN_TEMPLATES = {
       rootLink: 'independent',
       dueDate: '無期限',
       guaranteeType: 'parent',
-      guaranteeNumber: 'GUA-2024-001',
-      guaranteeCondition: '財務維持条項あり',
-      guaranteeTermStart: '2024-04-01',
-      guaranteeTermEnd: '2027-03-31'
+      guarantorName: '株式会社サンプル',
+      guarantorCategory: 'corporate',
+      corporateGuaranteeCategory: 'management-guarantee',
+      debtorRelationship: 'corporate',
+      guaranteePeriod: 'fixed-term',
+      guaranteePeriodYears: '3',
+      guaranteePeriodMonths: '0',
+      guaranteeDeadline: '2027-03-31'
     },
     {
       id: 'col-association',
@@ -154,11 +175,13 @@ const COLUMN_TEMPLATES = {
       extinguish: 'installment',
       rootLink: 'independent',
       dueDate: '2026-05-31',
-      associationType: 'basic',
-      associationNumber: 'ASSOC-0032',
-      associationCondition: '保証料立替',
-      associationTermStart: '2024-05-01',
-      associationTermEnd: '2026-05-01'
+      associationGuaranteeNumber: 'ASSOC-2024-0032',
+      associationExistingCondition: '既存保証料立替',
+      associationApprovalCondition: '承諾条件：財務維持',
+      associationGuaranteePeriod: 'fixed-term',
+      associationPeriodYears: '2',
+      associationPeriodMonths: '0',
+      associationDeadline: '2026-05-01'
     }
   ],
   pattern2: [
@@ -204,10 +227,14 @@ const COLUMN_TEMPLATES = {
       rootLink: 'independent',
       dueDate: '無期限',
       guaranteeType: 'parent',
-      guaranteeNumber: 'GUA-2024-001',
-      guaranteeCondition: '財務維持条項あり',
-      guaranteeTermStart: '2024-04-01',
-      guaranteeTermEnd: '2027-03-31'
+      guarantorName: '株式会社サンプル',
+      guarantorCategory: 'corporate',
+      corporateGuaranteeCategory: 'management-guarantee',
+      debtorRelationship: 'corporate',
+      guaranteePeriod: 'fixed-term',
+      guaranteePeriodYears: '3',
+      guaranteePeriodMonths: '0',
+      guaranteeDeadline: '2027-03-31'
     },
     {
       id: 'col-association',
@@ -222,11 +249,13 @@ const COLUMN_TEMPLATES = {
       extinguish: 'installment',
       rootLink: 'independent',
       dueDate: '2026-05-31',
-      associationType: 'basic',
-      associationNumber: 'ASSOC-0032',
-      associationCondition: '保証料立替',
-      associationTermStart: '2024-05-01',
-      associationTermEnd: '2026-05-01'
+      associationGuaranteeNumber: 'ASSOC-2024-0032',
+      associationExistingCondition: '既存保証料立替',
+      associationApprovalCondition: '承諾条件：財務維持',
+      associationGuaranteePeriod: 'fixed-term',
+      associationPeriodYears: '2',
+      associationPeriodMonths: '0',
+      associationDeadline: '2026-05-01'
     }
   ],
   pattern3: [
@@ -253,8 +282,9 @@ const getMinorOptions = majorValue =>
 const decorateColumn = column => ({
   ...column,
   minorOptions: getMinorOptions(column.majorValue),
-  isGuarantee: column.majorValue === 'guaranteeCollateral',
-  isAssociation: column.majorValue === 'associationCollateral'
+  isGuaranteeCategory: column.majorValue === 'guaranteeCollateral',
+  isAssociationCategory: column.majorValue === 'associationCollateral',
+  isCorporateGuarantor: column.guarantorCategory === 'corporate'
 });
 
 export default class CollateralCategoryBoard extends LightningElement {
@@ -269,6 +299,10 @@ export default class CollateralCategoryBoard extends LightningElement {
   extinguishOptions = EXTINGUISH_OPTIONS;
   rootLinkOptions = ROOT_LINK_OPTIONS;
   guaranteeTypeOptions = GUARANTEE_TYPE_OPTIONS;
+  guarantorCategoryOptions = GUARANTOR_CATEGORY_OPTIONS;
+  debtorRelationshipOptions = DEBTOR_RELATIONSHIP_OPTIONS;
+  corporateGuaranteeCategoryOptions = CORPORATE_GUARANTEE_CATEGORY_OPTIONS;
+  guaranteePeriodOptions = GUARANTEE_PERIOD_OPTIONS;
   associationTypeOptions = ASSOCIATION_TYPE_OPTIONS;
 
   @track columns = COLUMN_TEMPLATES.pattern1.map(decorateColumn);
@@ -285,22 +319,6 @@ export default class CollateralCategoryBoard extends LightningElement {
 
   get showSubjectColumn() {
     return this.parentScreenType === 'pattern1';
-  }
-
-  get rightColumnClass() {
-    return this.showSubjectColumn
-      ? 'slds-size_1-of-1 slds-medium-size_10-of-12'
-      : 'slds-size_1-of-1';
-  }
-
-  get majorClass() {
-    return this.showSubjectColumn
-      ? 'slds-size_1-of-1 slds-medium-size_2-of-12'
-      : 'slds-size_1-of-1 slds-medium-size_2-of-12';
-  }
-
-  get minorClass() {
-    return 'slds-size_1-of-1 slds-medium-size_2-of-12';
   }
 
   applyPattern(screenType) {
@@ -334,6 +352,20 @@ export default class CollateralCategoryBoard extends LightningElement {
             ...column,
             [field]: value
           }
+        : column
+    );
+  }
+
+  handleGuarantorCategoryChange(event) {
+    const { columnId, field } = event.target.dataset;
+    const value = event.detail.value;
+
+    this.columns = this.columns.map(column =>
+      column.id === columnId
+        ? decorateColumn({
+            ...column,
+            [field]: value
+          })
         : column
     );
   }
