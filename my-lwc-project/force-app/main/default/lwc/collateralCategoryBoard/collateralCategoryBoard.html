@@ -72,6 +72,7 @@
                 </div>
                 <div class="slds-col slds-p-around_xx-small">
                   <lightning-input
+                    type="number"
                     label="設定額"
                     value={column.amount}
                     data-column-id={column.id}
@@ -114,6 +115,7 @@
               <!-- 保証情報（大分類に応じて表示） -->
               <template if:true={column.isGuaranteeCategory}>
                 <div class="slds-m-top_small">
+                  <!-- 1行目：保証種別、保証人名、保証人区分、規定区分、債務者との関係 -->
                   <div class="slds-grid slds-wrap slds-gutters_small">
                     <div class="slds-col slds-p-around_xx-small">
                       <lightning-combobox
@@ -164,7 +166,10 @@
                         onchange={handleFieldChange}
                       ></lightning-combobox>
                     </div>
-                    <div class="slds-col slds-p-around_xx-small">
+                  </div>
+                  <!-- 2行目：保証期間、期間（年）、期間（月）、期限 -->
+                  <div class="slds-grid slds-wrap slds-gutters_small slds-m-top_x-small">
+                    <div class="slds-col guarantee-period-field slds-p-around_xx-small">
                       <lightning-combobox
                         label="保証期間"
                         value={column.guaranteePeriod}
@@ -211,9 +216,11 @@
               <!-- 協会保証情報（大分類に応じて表示） -->
               <template if:true={column.isAssociationCategory}>
                 <div class="slds-m-top_small">
+                  <!-- 1行目：保証番号、既存保証条件、承諾条件 -->
                   <div class="slds-grid slds-wrap slds-gutters_small">
                     <div class="slds-col slds-p-around_xx-small">
                       <lightning-input
+                        type="number"
                         label="保証番号"
                         value={column.associationGuaranteeNumber}
                         data-column-id={column.id}
@@ -222,24 +229,29 @@
                       ></lightning-input>
                     </div>
                     <div class="slds-col slds-p-around_xx-small">
-                      <lightning-input
+                      <lightning-combobox
                         label="既存保証条件"
                         value={column.associationExistingCondition}
+                        options={associationExistingConditionOptions}
                         data-column-id={column.id}
                         data-field="associationExistingCondition"
                         onchange={handleFieldChange}
-                      ></lightning-input>
+                      ></lightning-combobox>
                     </div>
                     <div class="slds-col slds-p-around_xx-small">
-                      <lightning-input
+                      <lightning-combobox
                         label="承諾条件"
                         value={column.associationApprovalCondition}
+                        options={associationApprovalConditionOptions}
                         data-column-id={column.id}
                         data-field="associationApprovalCondition"
                         onchange={handleFieldChange}
-                      ></lightning-input>
+                      ></lightning-combobox>
                     </div>
-                    <div class="slds-col slds-p-around_xx-small">
+                  </div>
+                  <!-- 2行目：保証期間、期間（年）、期間（月）、期限 -->
+                  <div class="slds-grid slds-wrap slds-gutters_small slds-m-top_x-small">
+                    <div class="slds-col guarantee-period-field slds-p-around_xx-small">
                       <lightning-combobox
                         label="保証期間"
                         value={column.associationGuaranteePeriod}

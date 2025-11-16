@@ -108,18 +108,26 @@ const ASSOCIATION_TYPE_OPTIONS = [
   { label: '普通保証', value: 'basic' },
   { label: '超短期', value: 'short' }
 ];
+const ASSOCIATION_EXISTING_CONDITION_OPTIONS = [
+  { label: '既存保証料立替', value: 'existing-fee-advance' },
+  { label: 'その他', value: 'other' }
+];
+const ASSOCIATION_APPROVAL_CONDITION_OPTIONS = [
+  { label: '承諾条件：財務維持', value: 'financial-maintenance' },
+  { label: 'その他', value: 'other' }
+];
 
 const COLUMN_TEMPLATES = {
   pattern1: [
     {
       id: 'col-import',
-      subject: '輸入L/C',
+      subject: '01',
       majorValue: 'importCollateral',
       minorValue: 'import-lc',
       dealType: 'new',
       setupCategory: 'package',
       collateralCategory: 'commerce',
-      amount: '1,234,567',
+      amount: '1234567',
       share: 'share80',
       extinguish: 'bullet',
       rootLink: 'link',
@@ -127,13 +135,13 @@ const COLUMN_TEMPLATES = {
     },
     {
       id: 'col-export',
-      subject: '輸出手形',
+      subject: '02',
       majorValue: 'exportCollateral',
       minorValue: 'export-lc',
       dealType: 'existing',
       setupCategory: 'single',
       collateralCategory: 'commerce',
-      amount: '2,500,000',
+      amount: '2500000',
       share: 'share90',
       extinguish: 'installment',
       rootLink: 'independent',
@@ -141,19 +149,19 @@ const COLUMN_TEMPLATES = {
     },
     {
       id: 'col-guarantee',
-      subject: '保証枠',
+      subject: '03',
       majorValue: 'guaranteeCollateral',
       minorValue: 'guarantee-parent',
       dealType: 'new',
       setupCategory: 'single',
       collateralCategory: 'commerce',
-      amount: '上限 10,000,000',
+      amount: '10000000',
       share: 'share100',
       extinguish: 'as-needed',
       rootLink: 'independent',
       dueDate: '無期限',
       guaranteeType: 'parent',
-      guarantorName: '株式会社サンプル',
+      guarantorName: '○○',
       guarantorCategory: 'corporate',
       corporateGuaranteeCategory: 'management-guarantee',
       debtorRelationship: 'corporate',
@@ -164,20 +172,20 @@ const COLUMN_TEMPLATES = {
     },
     {
       id: 'col-association',
-      subject: '協会保証',
+      subject: '04',
       majorValue: 'associationCollateral',
       minorValue: 'association-basic',
       dealType: 'new',
       setupCategory: 'single',
       collateralCategory: 'electric',
-      amount: '2,000,000',
+      amount: '2000000',
       share: 'share100',
       extinguish: 'installment',
       rootLink: 'independent',
       dueDate: '2026-05-31',
-      associationGuaranteeNumber: 'ASSOC-2024-0032',
-      associationExistingCondition: '既存保証料立替',
-      associationApprovalCondition: '承諾条件：財務維持',
+      associationGuaranteeNumber: '12345',
+      associationExistingCondition: 'existing-fee-advance',
+      associationApprovalCondition: 'financial-maintenance',
       associationGuaranteePeriod: 'fixed-term',
       associationPeriodYears: '2',
       associationPeriodMonths: '0',
@@ -187,13 +195,13 @@ const COLUMN_TEMPLATES = {
   pattern2: [
     {
       id: 'col-import',
-      subject: '',
+      subject: '01',
       majorValue: 'importCollateral',
       minorValue: 'import-lc',
       dealType: 'new',
       setupCategory: 'package',
       collateralCategory: 'commerce',
-      amount: '1,234,567',
+      amount: '1234567',
       share: 'share80',
       extinguish: 'bullet',
       rootLink: 'link',
@@ -201,13 +209,13 @@ const COLUMN_TEMPLATES = {
     },
     {
       id: 'col-export',
-      subject: '',
+      subject: '02',
       majorValue: 'exportCollateral',
       minorValue: 'export-lc',
       dealType: 'existing',
       setupCategory: 'single',
       collateralCategory: 'commerce',
-      amount: '2,500,000',
+      amount: '2500000',
       share: 'share90',
       extinguish: 'installment',
       rootLink: 'independent',
@@ -215,19 +223,19 @@ const COLUMN_TEMPLATES = {
     },
     {
       id: 'col-guarantee',
-      subject: '',
+      subject: '03',
       majorValue: 'guaranteeCollateral',
       minorValue: 'guarantee-parent',
       dealType: 'new',
       setupCategory: 'single',
       collateralCategory: 'commerce',
-      amount: '上限 10,000,000',
+      amount: '10000000',
       share: 'share100',
       extinguish: 'as-needed',
       rootLink: 'independent',
       dueDate: '無期限',
       guaranteeType: 'parent',
-      guarantorName: '株式会社サンプル',
+      guarantorName: '○○',
       guarantorCategory: 'corporate',
       corporateGuaranteeCategory: 'management-guarantee',
       debtorRelationship: 'corporate',
@@ -238,20 +246,20 @@ const COLUMN_TEMPLATES = {
     },
     {
       id: 'col-association',
-      subject: '',
+      subject: '04',
       majorValue: 'associationCollateral',
       minorValue: 'association-basic',
       dealType: 'new',
       setupCategory: 'single',
       collateralCategory: 'electric',
-      amount: '2,000,000',
+      amount: '2000000',
       share: 'share100',
       extinguish: 'installment',
       rootLink: 'independent',
       dueDate: '2026-05-31',
-      associationGuaranteeNumber: 'ASSOC-2024-0032',
-      associationExistingCondition: '既存保証料立替',
-      associationApprovalCondition: '承諾条件：財務維持',
+      associationGuaranteeNumber: '12345',
+      associationExistingCondition: 'existing-fee-advance',
+      associationApprovalCondition: 'financial-maintenance',
       associationGuaranteePeriod: 'fixed-term',
       associationPeriodYears: '2',
       associationPeriodMonths: '0',
@@ -261,13 +269,13 @@ const COLUMN_TEMPLATES = {
   pattern3: [
     {
       id: 'col-single',
-      subject: '',
+      subject: '01',
       majorValue: 'assetCollateral',
       minorValue: 'asset-hq',
       dealType: 'existing',
       setupCategory: 'package',
       collateralCategory: 'other',
-      amount: '3,000,000',
+      amount: '3000000',
       share: 'share70',
       extinguish: 'bullet',
       rootLink: 'link',
@@ -291,7 +299,7 @@ export default class CollateralCategoryBoard extends LightningElement {
   _parentScreenType = 'pattern1';
   subjectOptions = SUBJECT_OPTIONS;
   majorOptions = MAJOR_OPTIONS;
-  globalRemark = '全案件共通メモをここに入力';
+  globalRemark = '○○';
   dealTypeOptions = DEAL_TYPE_OPTIONS;
   setupCategoryOptions = SETUP_CATEGORY_OPTIONS;
   collateralClassOptions = COLLATERAL_CLASS_OPTIONS;
@@ -304,6 +312,8 @@ export default class CollateralCategoryBoard extends LightningElement {
   corporateGuaranteeCategoryOptions = CORPORATE_GUARANTEE_CATEGORY_OPTIONS;
   guaranteePeriodOptions = GUARANTEE_PERIOD_OPTIONS;
   associationTypeOptions = ASSOCIATION_TYPE_OPTIONS;
+  associationExistingConditionOptions = ASSOCIATION_EXISTING_CONDITION_OPTIONS;
+  associationApprovalConditionOptions = ASSOCIATION_APPROVAL_CONDITION_OPTIONS;
 
   @track columns = COLUMN_TEMPLATES.pattern1.map(decorateColumn);
 
