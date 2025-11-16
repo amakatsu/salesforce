@@ -1,4 +1,5 @@
 import { LightningElement } from 'lwc';
+import LightningConfirm from 'lightning/confirm';
 
 const BLANK_DETAIL_ROW = {
   condition: '',
@@ -102,6 +103,8 @@ const TIMING_OPTIONS = [
   { label: 'その他', value: 'その他' }
 ];
 
+const MAX_DETAIL_ROWS = 6;
+
 const buildRows = (rows, prefix, blankRow) =>
   rows.map((row, index) => ({
     id: `${prefix}-${index + 1}`,
@@ -118,12 +121,25 @@ export default class ConditionDetails extends LightningElement {
   timingOptions = TIMING_OPTIONS;
   relatedInquiryNumber = SAMPLE_TEXT_32;
   remarks = SAMPLE_TEXT_366;
+  activeTopSections = ['section1'];
+  activeDetailSections = ['section2'];
 
   handleTopRowChange(event) {
     this.topRows = this.updateRows(this.topRows, event);
   }
 
   handleAddRow() {
+    if (this.conditionRows.length >= MAX_DETAIL_ROWS) {
+      this.dispatchEvent(
+        new ShowToastEvent({
+          title: '上限に達しました',
+          message: `明細は最大${MAX_DETAIL_ROWS}件まで追加できます`,
+          variant: 'warning'
+        })
+      );
+      return;
+    }
+
     const newRow = {
       id: `detail-${this.nextDetailId++}`,
       ...BLANK_DETAIL_ROW
@@ -131,8 +147,18 @@ export default class ConditionDetails extends LightningElement {
     this.conditionRows = [...this.conditionRows, newRow];
   }
 
-  handleRemoveRow(event) {
+  async handleRemoveRow(event) {
     const rowId = event.target.dataset.id;
+    const confirmed = await LightningConfirm.open({
+      label: '削除の確認',
+      message: '選択した行を削除しますか？',
+      theme: 'warning'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     this.conditionRows = this.conditionRows.filter(row => row.id !== rowId);
   }
 
@@ -148,6 +174,14 @@ export default class ConditionDetails extends LightningElement {
     // 実装接続時に差し替え予定のスタブ
     // eslint-disable-next-line no-console
     console.log('関連厘差照会番号', this.relatedInquiryNumber);
+  }
+
+  handleTopAccordionToggle(event) {
+    this.activeTopSections = event.detail.openSections;
+  }
+
+  handleDetailAccordionToggle(event) {
+    this.activeDetailSections = event.detail.openSections;
   }
 
   updateRows(rows, event) {
