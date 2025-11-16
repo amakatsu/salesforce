@@ -1,0 +1,338 @@
+const SUBJECT_OPTIONS = [
+  { label: '輸入L/C', value: '輸入L/C' },
+  { label: '輸出手形', value: '輸出手形' },
+  { label: '保証枠', value: '保証枠' },
+  { label: '協会保証', value: '協会保証' },
+  { label: '動産担保', value: '動産担保' },
+  { label: 'その他', value: 'その他' }
+];
+
+import { LightningElement, api, track } from 'lwc';
+
+const MAJOR_CATEGORY_CONFIG = {
+  importCollateral: {
+    label: '担保種類：商工・電保（輸入）',
+    minors: [
+      { label: '輸入信用状開設', value: 'import-lc' },
+      { label: '輸入送金保証', value: 'import-wire' },
+      { label: '船積書類精査', value: 'import-doc' }
+    ]
+  },
+  exportCollateral: {
+    label: '担保種類：輸出信用',
+    minors: [
+      { label: '輸出信用状確認', value: 'export-lc' },
+      { label: '輸出保険付保', value: 'export-ins' },
+      { label: '為替予約', value: 'export-fx' }
+    ]
+  },
+  assetCollateral: {
+    label: '担保種類：動産・不動産',
+    minors: [
+      { label: '本社ビル', value: 'asset-hq' },
+      { label: '物流倉庫', value: 'asset-warehouse' },
+      { label: '製造設備', value: 'asset-factory' }
+    ]
+  },
+  guaranteeCollateral: {
+    label: '担保種類：保証',
+    minors: [
+      { label: '親会社保証', value: 'guarantee-parent' },
+      { label: 'オーナー保証', value: 'guarantee-owner' }
+    ]
+  },
+  associationCollateral: {
+    label: '担保種類：協会保証',
+    minors: [
+      { label: '普通保証', value: 'association-basic' },
+      { label: '流動資産対応', value: 'association-flow' }
+    ]
+  }
+};
+
+const MAJOR_OPTIONS = Object.entries(MAJOR_CATEGORY_CONFIG).map(([value, config]) => ({
+  label: config.label,
+  value
+}));
+
+const DEAL_TYPE_OPTIONS = [
+  { label: '新規', value: 'new' },
+  { label: '既存', value: 'existing' }
+];
+const SETUP_CATEGORY_OPTIONS = [
+  { label: '包括枠', value: 'package' },
+  { label: '個別設定', value: 'single' }
+];
+const COLLATERAL_CLASS_OPTIONS = [
+  { label: '商工', value: 'commerce' },
+  { label: '電保', value: 'electric' },
+  { label: 'その他', value: 'other' }
+];
+const SHARE_OPTIONS = [
+  { label: '100%', value: 'share100' },
+  { label: '90%', value: 'share90' },
+  { label: '80%', value: 'share80' },
+  { label: '70%', value: 'share70' }
+];
+const EXTINGUISH_OPTIONS = [
+  { label: '期日一括', value: 'bullet' },
+  { label: '分割返済', value: 'installment' },
+  { label: '随時', value: 'as-needed' }
+];
+const ROOT_LINK_OPTIONS = [
+  { label: '根担保に紐づく', value: 'link' },
+  { label: '独立設定', value: 'independent' }
+];
+const GUARANTEE_TYPE_OPTIONS = [
+  { label: '親会社', value: 'parent' },
+  { label: 'オーナー', value: 'owner' }
+];
+const ASSOCIATION_TYPE_OPTIONS = [
+  { label: '普通保証', value: 'basic' },
+  { label: '超短期', value: 'short' }
+];
+
+const COLUMN_TEMPLATES = {
+  pattern1: [
+    {
+      id: 'col-import',
+      subject: '輸入L/C',
+      majorValue: 'importCollateral',
+      minorValue: 'import-lc',
+      dealType: 'new',
+      setupCategory: 'package',
+      collateralCategory: 'commerce',
+      amount: '1,234,567',
+      share: 'share80',
+      extinguish: 'bullet',
+      rootLink: 'link',
+      dueDate: '2025-12-31'
+    },
+    {
+      id: 'col-export',
+      subject: '輸出手形',
+      majorValue: 'exportCollateral',
+      minorValue: 'export-lc',
+      dealType: 'existing',
+      setupCategory: 'single',
+      collateralCategory: 'commerce',
+      amount: '2,500,000',
+      share: 'share90',
+      extinguish: 'installment',
+      rootLink: 'independent',
+      dueDate: '2026-03-31'
+    },
+    {
+      id: 'col-guarantee',
+      subject: '保証枠',
+      majorValue: 'guaranteeCollateral',
+      minorValue: 'guarantee-parent',
+      dealType: 'new',
+      setupCategory: 'single',
+      collateralCategory: 'commerce',
+      amount: '上限 10,000,000',
+      share: 'share100',
+      extinguish: 'as-needed',
+      rootLink: 'independent',
+      dueDate: '無期限',
+      guaranteeType: 'parent',
+      guaranteeNumber: 'GUA-2024-001',
+      guaranteeCondition: '財務維持条項あり',
+      guaranteeTermStart: '2024-04-01',
+      guaranteeTermEnd: '2027-03-31'
+    },
+    {
+      id: 'col-association',
+      subject: '協会保証',
+      majorValue: 'associationCollateral',
+      minorValue: 'association-basic',
+      dealType: 'new',
+      setupCategory: 'single',
+      collateralCategory: 'electric',
+      amount: '2,000,000',
+      share: 'share100',
+      extinguish: 'installment',
+      rootLink: 'independent',
+      dueDate: '2026-05-31',
+      associationType: 'basic',
+      associationNumber: 'ASSOC-0032',
+      associationCondition: '保証料立替',
+      associationTermStart: '2024-05-01',
+      associationTermEnd: '2026-05-01'
+    }
+  ],
+  pattern2: [
+    {
+      id: 'col-import',
+      subject: '',
+      majorValue: 'importCollateral',
+      minorValue: 'import-lc',
+      dealType: 'new',
+      setupCategory: 'package',
+      collateralCategory: 'commerce',
+      amount: '1,234,567',
+      share: 'share80',
+      extinguish: 'bullet',
+      rootLink: 'link',
+      dueDate: '2025-12-31'
+    },
+    {
+      id: 'col-export',
+      subject: '',
+      majorValue: 'exportCollateral',
+      minorValue: 'export-lc',
+      dealType: 'existing',
+      setupCategory: 'single',
+      collateralCategory: 'commerce',
+      amount: '2,500,000',
+      share: 'share90',
+      extinguish: 'installment',
+      rootLink: 'independent',
+      dueDate: '2026-03-31'
+    },
+    {
+      id: 'col-guarantee',
+      subject: '',
+      majorValue: 'guaranteeCollateral',
+      minorValue: 'guarantee-parent',
+      dealType: 'new',
+      setupCategory: 'single',
+      collateralCategory: 'commerce',
+      amount: '上限 10,000,000',
+      share: 'share100',
+      extinguish: 'as-needed',
+      rootLink: 'independent',
+      dueDate: '無期限',
+      guaranteeType: 'parent',
+      guaranteeNumber: 'GUA-2024-001',
+      guaranteeCondition: '財務維持条項あり',
+      guaranteeTermStart: '2024-04-01',
+      guaranteeTermEnd: '2027-03-31'
+    },
+    {
+      id: 'col-association',
+      subject: '',
+      majorValue: 'associationCollateral',
+      minorValue: 'association-basic',
+      dealType: 'new',
+      setupCategory: 'single',
+      collateralCategory: 'electric',
+      amount: '2,000,000',
+      share: 'share100',
+      extinguish: 'installment',
+      rootLink: 'independent',
+      dueDate: '2026-05-31',
+      associationType: 'basic',
+      associationNumber: 'ASSOC-0032',
+      associationCondition: '保証料立替',
+      associationTermStart: '2024-05-01',
+      associationTermEnd: '2026-05-01'
+    }
+  ],
+  pattern3: [
+    {
+      id: 'col-single',
+      subject: '',
+      majorValue: 'assetCollateral',
+      minorValue: 'asset-hq',
+      dealType: 'existing',
+      setupCategory: 'package',
+      collateralCategory: 'other',
+      amount: '3,000,000',
+      share: 'share70',
+      extinguish: 'bullet',
+      rootLink: 'link',
+      dueDate: '2026-09-30'
+    }
+  ]
+};
+
+const getMinorOptions = majorValue =>
+  MAJOR_CATEGORY_CONFIG[majorValue]?.minors ?? [];
+
+const decorateColumn = column => ({
+  ...column,
+  minorOptions: getMinorOptions(column.majorValue),
+  isGuarantee: column.majorValue === 'guaranteeCollateral',
+  isAssociation: column.majorValue === 'associationCollateral'
+});
+
+export default class CollateralCategoryBoard extends LightningElement {
+  _parentScreenType = 'pattern1';
+  subjectOptions = SUBJECT_OPTIONS;
+  majorOptions = MAJOR_OPTIONS;
+  globalRemark = '全案件共通メモをここに入力';
+  dealTypeOptions = DEAL_TYPE_OPTIONS;
+  setupCategoryOptions = SETUP_CATEGORY_OPTIONS;
+  collateralClassOptions = COLLATERAL_CLASS_OPTIONS;
+  shareOptions = SHARE_OPTIONS;
+  extinguishOptions = EXTINGUISH_OPTIONS;
+  rootLinkOptions = ROOT_LINK_OPTIONS;
+  guaranteeTypeOptions = GUARANTEE_TYPE_OPTIONS;
+  associationTypeOptions = ASSOCIATION_TYPE_OPTIONS;
+
+  @track columns = COLUMN_TEMPLATES.pattern1.map(decorateColumn);
+
+  @api
+  get parentScreenType() {
+    return this._parentScreenType;
+  }
+
+  set parentScreenType(value) {
+    this._parentScreenType = value || 'pattern1';
+    this.applyPattern(this._parentScreenType);
+  }
+
+  get showSubjectColumn() {
+    return this.parentScreenType === 'pattern1';
+  }
+
+  get majorClass() {
+    return this.showSubjectColumn
+      ? 'slds-size_1-of-1 slds-medium-size_2-of-12'
+      : 'slds-size_1-of-1 slds-medium-size_2-of-12';
+  }
+
+  get minorClass() {
+    return 'slds-size_1-of-1 slds-medium-size_2-of-12';
+  }
+
+  applyPattern(screenType) {
+    const templates = COLUMN_TEMPLATES[screenType] || COLUMN_TEMPLATES.pattern1;
+    this.columns = templates.map(decorateColumn);
+  }
+
+  handleMajorChange(event) {
+    const { columnId } = event.target.dataset;
+    const nextValue = event.detail.value;
+    const minorOptions = getMinorOptions(nextValue);
+
+    this.columns = this.columns.map(column =>
+      column.id === columnId
+        ? decorateColumn({
+            ...column,
+            majorValue: nextValue,
+            minorValue: minorOptions[0]?.value || ''
+          })
+        : column
+    );
+  }
+
+  handleFieldChange(event) {
+    const { columnId, field } = event.target.dataset;
+    const value = event.detail.value;
+
+    this.columns = this.columns.map(column =>
+      column.id === columnId
+        ? {
+            ...column,
+            [field]: value
+          }
+        : column
+    );
+  }
+
+  handleRemarkChange(event) {
+    this.globalRemark = event.detail.value;
+  }
+}
