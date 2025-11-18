@@ -1,0 +1,283 @@
+@startuml 導線と画面遷移シーケンス図
+
+' 参加者の定義
+actor ユーザー as User
+
+box "画面 (Frontend)" #LightBlue
+    participant "稟議査定一覧" as ListView
+    participant "基本情報入力" as InputForm
+    participant "稟議の本体画面(遷移元)" as MainScreenSource
+    participant "稟議の本体画面(遷移先)" as MainScreenDest
+end box
+
+box "バックエンド" #LightGreen
+    participant "案件基本API" as BasicAPI
+    participant "一覧検索API" as ListSearchAPI
+    participant "基本情報登録API" as BasicInfoRegisterAPI
+    participant "稟議本体の初期表示API" as InitAPI
+    participant "稟議本体の保存API" as SaveAPI
+    participant "稟議本体の継続起票API" as ContinueAPI
+    database "DB" as DB
+end box
+
+title 稟議査定システム - 明細選択・継続起票のシーケンス図
+
+'========================================
+' グループ1: 照会系ユースケース
+'========================================
+
+== 【照会系】一覧画面で検索 ==
+User -> ListView: 検索条件入力・検索ボタン押下
+activate ListView
+
+ListView -> ListSearchAPI: 一覧データ検索\nsearch(検索条件)
+activate ListSearchAPI
+
+ListSearchAPI -> DB: 検索条件に基づくデータ取得\n(SELECT WHERE 検索条件)
+activate DB
+DB --> ListSearchAPI: 検索結果データ
+deactivate DB
+
+ListSearchAPI --> ListView: 検索結果データ
+deactivate ListSearchAPI
+
+ListView -> User: 稟議査定一覧表示\n(検索結果)
+deactivate ListView
+
+== 【照会系】一覧から明細を選択（リンク/ボタン両方OK - 画面に必要な情報が表示の際にあり） ==
+User -> ListView: 明細選択\n(レコードリンククリック or ボタン押下)
+activate ListView
+note right: 稟議番号: 0004\n枝番: 003\n画面ID: (JSに保持済み)\n案件番号(12桁): (JSに保持済み)\n稟議本体URL: (JSに構築済み)
+
+ListView -> MainScreenDest: 画面遷移\n(JSに保持済みのURL使用)\nパラメータ: 案件番号(12桁)
+deactivate ListView
+activate MainScreenDest
+note right: 遷移先:\n稟議番号: 0004\n枝番: 003\n案件番号(12桁)
+
+MainScreenDest -> InitAPI: 稟議データ取得\ninit(案件番号(12桁))
+activate InitAPI
+InitAPI -> DB: 稟議情報取得\n(SELECT WHERE 案件番号(12桁))
+activate DB
+DB --> InitAPI: 稟議データ\n(稟議番号、枝番、対象期間、\n稟議項目等)
+deactivate DB
+InitAPI --> MainScreenDest: 稟議データ返却
+deactivate InitAPI
+
+MainScreenDest -> User: 稟議本体画面表示\n(稟議データを表示)
+deactivate MainScreenDest
+
+== 【照会系】本体画面から関連稟議査定画面で過去稟議参照（ボタンのみ - 枝番指定後、案件番号取得が必要 / リンクにする場合は動的なURL作成、JSで非同期のバックエンド通信が必要） ==
+User -> MainScreenSource: 関連稟議査定画面を開く
+activate MainScreenSource
+note right: 現在表示中:\n稟議番号: 0004\n枝番: 003\n画面ID: (保持済み)
+
+User -> MainScreenSource: 過去稟議ボタン押下\n枝番を指定 (例: 001)
+note right: ※ボタンのため\n押下時に案件番号を取得可能
+
+MainScreenSource -> BasicAPI: 案件番号取得\ngetCaseNumber(稟議番号=0004, 枝番=001)
+activate BasicAPI
+note right: 稟議番号は現在と同じ、\n枝番のみ指定して案件番号を取得
+
+BasicAPI -> DB: 案件番号取得\n(SELECT 案件番号(12桁)\nWHERE 稟議番号=0004 AND 枝番=001)
+activate DB
+DB --> BasicAPI: 案件番号(12桁)
+deactivate DB
+
+BasicAPI --> MainScreenSource: 案件番号(12桁)
+deactivate BasicAPI
+
+MainScreenSource -> MainScreenDest: 画面遷移\nパラメータ: 案件番号(12桁)
+deactivate MainScreenSource
+activate MainScreenDest
+note right: 遷移先:\n稟議番号: 0004\n枝番: 001（過去）\n案件番号(12桁)\n※画面IDは遷移元と同じ
+
+MainScreenDest -> InitAPI: 初期表示\ninit(案件番号(12桁))
+activate InitAPI
+
+InitAPI -> DB: 稟議データ取得\n(SELECT WHERE 案件番号(12桁))
+activate DB
+DB --> InitAPI: 稟議データ
+deactivate DB
+
+InitAPI --> MainScreenDest: 稟議データ
+deactivate InitAPI
+
+MainScreenDest -> User: 稟議本体画面表示\n(過去稟議: 0004-001を表示)
+deactivate MainScreenDest
+
+== 【照会系】本体画面から稟議照会（ボタンのみ - 稟議番号指定し最新情報取得が必要 / リンクにする場合は動的なURL作成、JSで非同期のバックエンド通信が必要） ==
+User -> MainScreenSource: 稟議照会ボタン押下\n稟議番号を指定 (例: 0004)
+activate MainScreenSource
+note right: ※稟議照会はボタンのみ\n※リンクは不可
+
+MainScreenSource -> BasicAPI: 最新稟議情報取得\ngetLatestRingi(稟議番号=0004)
+activate BasicAPI
+note right: 指定された稟議番号の\n最新情報を取得
+
+BasicAPI -> DB: 最新枝番・画面ID・案件番号取得\n(SELECT MAX(枝番), 画面ID, 案件番号(12桁)\nWHERE 稟議番号=0004)
+activate DB
+DB --> BasicAPI: 最新枝番: 003,\n画面ID,\n案件番号(12桁)
+deactivate DB
+
+BasicAPI --> MainScreenSource: 最新枝番: 003,\n画面ID,\n案件番号(12桁)
+deactivate BasicAPI
+
+MainScreenSource -> MainScreenDest: 画面遷移\nパラメータ: 案件番号(12桁)
+deactivate MainScreenSource
+activate MainScreenDest
+note right: 遷移先:\n稟議番号: 0004\n枝番: 003（最新）\n案件番号(12桁)
+
+MainScreenDest -> InitAPI: 初期表示\ninit(案件番号(12桁))
+activate InitAPI
+
+InitAPI -> DB: 稟議データ取得\n(SELECT WHERE 案件番号(12桁))
+activate DB
+DB --> InitAPI: 稟議データ
+deactivate DB
+
+InitAPI --> MainScreenDest: 稟議データ
+deactivate InitAPI
+
+MainScreenDest -> User: 稟議本体画面表示\n(稟議番号: 0004の最新版を表示)
+deactivate MainScreenDest
+
+'========================================
+' グループ2: 新規採番を伴うユースケース
+'========================================
+
+== 【新規採番】回収新規、利率変更（ボタンのみ ） ==
+User -> ListView: ボタン押下
+activate ListView
+
+ListView -> InputForm: 画面遷移\n基本情報入力URL（固定）\nパラメータ:\n【回収新規の場合】\n店番, 取引先番号, 実行区分, 回収対象の稟議番号\n【利率変更の場合】\n店番, 取引先番号, 科目(利率変更), 変更対象の稟議番号
+deactivate ListView
+activate InputForm
+note right: パラメータを受け取り\n基本情報入力画面を表示
+
+InputForm -> User: 基本情報入力画面表示
+User -> InputForm: 基本情報入力
+User -> InputForm: 登録ボタン押下
+
+InputForm -> BasicInfoRegisterAPI: 基本情報登録\nregister(基本情報)
+activate BasicInfoRegisterAPI
+
+BasicInfoRegisterAPI -> DB: 採番処理\n(INSERT)
+activate DB
+note right: 稟議番号は同じ(0004)、\n枝番が繰り上がり(006)、\n案件番号は新規
+DB --> BasicInfoRegisterAPI: 稟議番号: 0004,\n新規枝番: 006,\n新規案件番号(12桁),\n画面ID
+deactivate DB
+
+BasicInfoRegisterAPI --> InputForm: 稟議番号: 0004,\n新規枝番: 006,\n新規案件番号(12桁),\n画面ID
+deactivate BasicInfoRegisterAPI
+
+InputForm -> MainScreenDest: 画面遷移\nパラメータ: 新規案件番号(12桁)
+deactivate InputForm
+activate MainScreenDest
+note right: 遷移先:\n稟議番号: 0004\n枝番: 006\n新規案件番号(12桁)
+
+MainScreenDest -> InitAPI: 初期表示\ninit(新規案件番号(12桁))
+activate InitAPI
+
+InitAPI -> DB: 稟議データ取得\n(SELECT WHERE 新規案件番号(12桁))
+activate DB
+DB --> InitAPI: 稟議データ
+deactivate DB
+
+InitAPI --> MainScreenDest: 稟議データ
+deactivate InitAPI
+
+MainScreenDest -> User: 稟議本体画面表示\n(新規稟議番号: 0004, 枝番: 006)
+deactivate MainScreenDest
+
+== 【新規採番】一覧から継続で新規登録（ボタンのみ - 遷移前に採番可能 / リンクにする場合は動的なURL作成、JSで非同期のバックエンド通信が必要） ==
+User -> ListView: 継続ボタン押下
+activate ListView
+note right: 稟議番号: 0004\n枝番: 003\n案件番号(12桁): (保持済み)
+
+ListView -> ContinueAPI: 継続起票\ncontinueRingi(案件番号(12桁))
+activate ContinueAPI
+note right: 一覧で採番\n(継続起票APIで実施)
+
+ContinueAPI -> DB: 採番処理\nnumberingWithValidation(案件番号(12桁))
+activate DB
+note right: 稟議番号は同じ(0004)、\n枝番が繰り上がり(006)、\n案件番号は新規、\n最新明細かどうかを判定
+
+alt 最新明細の場合（正常ケース）
+    DB --> ContinueAPI: 稟議番号: 0004,\n新規枝番: 006,\n新規案件番号(12桁),\n画面ID
+    deactivate DB
+
+    ContinueAPI --> ListView: 稟議番号: 0004,\n新規枝番: 006,\n新規案件番号(12桁),\n画面ID
+    deactivate ContinueAPI
+
+    ListView -> MainScreenDest: 画面遷移\nパラメータ: 新規案件番号(12桁)
+    deactivate ListView
+    activate MainScreenDest
+    note right: 遷移先:\n稟議番号: 0004\n枝番: 006\n新規案件番号(12桁)
+
+    MainScreenDest -> InitAPI: 初期表示\ninit(新規案件番号(12桁))
+    activate InitAPI
+
+    InitAPI -> DB: 稟議データ取得\n(SELECT WHERE 新規案件番号(12桁))
+    activate DB
+    DB --> InitAPI: 稟議データ
+    deactivate DB
+
+    InitAPI --> MainScreenDest: 稟議データ
+    deactivate InitAPI
+
+    MainScreenDest -> User: 稟議本体画面表示\n(新規稟議番号: 0004, 枝番: 006,\n新規案件番号(12桁))
+    deactivate MainScreenDest
+
+else 最新明細でない場合（エラーケース）
+    DB --> ContinueAPI: エラー返却\n(最新明細ではありません)
+    deactivate DB
+
+    ContinueAPI --> ListView: エラー返却\n(最新明細ではありません)
+    deactivate ContinueAPI
+
+    ListView -> User: エラー画面表示\n「最新明細でないため継続起票できません」
+    deactivate ListView
+end
+
+== 【新規採番】一覧から継続で新規登録（リンクのみ - 遷移先で採番） ==
+User -> ListView: 継続リンク押下
+activate ListView
+note right: 稟議番号: 0004\n枝番: 003\n案件番号(12桁): (保持済み)\n※リンククリック時はバックエンド通信不可
+
+ListView -> MainScreenDest: 画面遷移\nパラメータ: \n案件番号(12桁), 継続フラグ=true
+deactivate ListView
+activate MainScreenDest
+note right: 遷移先:\n新規稟議を作成して表示
+
+MainScreenDest -> InitAPI: 初期表示・継続起票\ninit(案件番号(12桁), 継続フラグ=true)
+activate InitAPI
+note right: 遷移先で採番\n(初期表示APIで実施)
+
+InitAPI -> DB: 採番処理\nnumberingWithValidation(案件番号(12桁))
+activate DB
+note right: 稟議番号は同じ(0004)、\n枝番が繰り上がり(006)、\n案件番号は新規、\n最新明細かどうかを判定
+
+alt 最新明細の場合（正常ケース）
+    DB --> InitAPI: 稟議番号: 0004,\n新規枝番: 006,\n新規案件番号(12桁),\n画面ID
+    deactivate DB
+
+    InitAPI -> DB: 稟議データ取得\n(SELECT WHERE 新規案件番号(12桁))
+    activate DB
+    DB --> InitAPI: 稟議データ
+    deactivate DB
+
+    InitAPI --> MainScreenDest: 稟議番号: 0004,\n新規枝番: 006,\n新規案件番号(12桁),\n画面ID,\n稟議データ
+    deactivate InitAPI
+
+    MainScreenDest -> User: 稟議本体画面表示\n(新規稟議番号: 0004, 枝番: 006,\n新規案件番号(12桁),\n稟議データを表示)
+    deactivate MainScreenDest
+
+else 最新明細でない場合（エラーケース）
+    InitAPI --> MainScreenDest: エラー返却\n(最新明細ではありません)
+    deactivate InitAPI
+
+    MainScreenDest -> User: エラー画面表示\n「最新明細でないため継続起票できません」
+    deactivate MainScreenDest
+end
+
+@enduml
