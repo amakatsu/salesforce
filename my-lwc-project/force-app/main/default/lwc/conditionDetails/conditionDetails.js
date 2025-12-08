@@ -27,7 +27,7 @@ const BLANK_TOP_ROW = {
 // 定数定義: サンプルテキスト
 // ========================================
 
-const generatePatternStringWithNumbers = (pattern, length) => {
+const generateData = (pattern, length) => {
   if (!Number.isInteger(length) || length <= 0) {
     throw new Error("length は 1 以上の整数を指定してください。");
   }
@@ -117,11 +117,13 @@ const generatePatternStringWithNumbers = (pattern, length) => {
   );
 };
 
-/** 32文字のサンプルテキスト */
-const SAMPLE_TEXT_32 = generatePatternStringWithNumbers("mixedByte", 28);
+/** 28文字のサンプルテキスト */
+const SAMPLE_TEXT_28 = generateData("mixedByte", 28);
 
-/** 366文字のサンプルテキスト */
-const SAMPLE_TEXT_366 = generatePatternStringWithNumbers("mixedByte", 280);
+/** 280文字のサンプルテキスト */
+const SAMPLE_TEXT_280 = generateData("mixedByte", 280);
+
+const SAMPLE_TEXT_200 = generateData("mixedByte", 200);
 
 // ========================================
 // 定数定義: サンプルデータ
@@ -133,73 +135,73 @@ const SAMPLE_TEXT_366 = generatePatternStringWithNumbers("mixedByte", 280);
 const SAMPLE_TOP_ROWS = [
   {
     condition: "極度内運用○○○○○○○○○○",
-    conditionSupplement: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-03-15"
   },
   {
     condition: "極度内運用○○○○○○○○○○",
-    conditionSupplement: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-06-30"
   },
   {
     condition: "極度内運用○○○○○○○○○○",
-    conditionSupplement: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-04-10"
   },
   {
     condition: "極度内運用○○○○○○○○○○",
-    conditionSupplement: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-07-15"
   },
   {
     condition: "極度内運用○○○○○○○○○○",
-    conditionSupplement: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-09-30"
   },
   {
     condition: "極度内運用○○○○○○○○○○",
-    conditionSupplement: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-12-15"
   },
   {
-    condition: "信用審査資料更新",
-    conditionSupplement: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2026-03-31"
   },
   {
-    condition: "保証契約見直し",
-    conditionSupplement: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-10-01"
   },
   {
-    condition: "モニタリング報告書",
-    conditionSupplement: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-12-31"
   },
   {
-    condition: SAMPLE_TEXT_32,
-    conditionSupplement: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2026-01-31"
   },
   {
-    condition: "資金繰り予定提出",
-    conditionSupplement: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2025-11-30"
   },
   {
-    condition: SAMPLE_TEXT_32,
-    conditionSupplement: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
+    conditionSupplement: SAMPLE_TEXT_28,
     timing: "取引開始前/同時",
     dueDate: "2026-02-28"
   }
@@ -210,47 +212,47 @@ const SAMPLE_TOP_ROWS = [
  */
 const SAMPLE_DETAIL_ROWS = [
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-07-31"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-08-15"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-04-10"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-06-30"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-09-30"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-12-15"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-04-10"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-06-30"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: SAMPLE_TEXT_200,
     timing: "取引開始前/同時",
     dueDate: "2025-09-30"
   }
@@ -283,7 +285,6 @@ const SCREEN_OPTION_SETS = {
   },
   patternImport: {
     condition: [
-      { label: "極度内運用○○○○○○○○○○", value: "輸入信用状開設" },
       { label: "極度内運用○○○○○○○○○○", value: "極度内運用○○○○○○○○○○" },
       { label: "在庫調達確認", value: "在庫調達確認" },
       { label: "信用保証更新", value: "信用保証更新" },
@@ -299,7 +300,7 @@ const SCREEN_OPTION_SETS = {
   },
   patternExport: {
     condition: [
-      { label: "極度内運用○○○○○○○○○○", value: "輸出信用状確認" },
+      { label: "極度内運用○○○○○○○○○○", value: "極度内運用○○○○○○○○○○" },
       { label: "船積書類受領", value: "船積書類受領" },
       { label: "輸出保険付保", value: "輸出保険付保" },
       { label: "為替予約締結", value: "為替予約締結" },
@@ -412,8 +413,8 @@ export default class f003RgV9951HonkenJokenBasicC1 extends LightningElement {
 
   @api parentScreenType;
   nextDetailId = this.conditionRows.length + 1;
-  relatedInquiryNumber = SAMPLE_TEXT_32;
-  remarks = SAMPLE_TEXT_366;
+  relatedInquiryNumber = SAMPLE_TEXT_28;
+  remarks = SAMPLE_TEXT_280;
   activeTopSections = ["section1"];
   activeDetailSections = ["section2"];
 
