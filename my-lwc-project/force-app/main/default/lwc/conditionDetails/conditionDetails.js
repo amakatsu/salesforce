@@ -1,6 +1,6 @@
-import { LightningElement, api } from 'lwc';
-import LightningConfirm from 'lightning/confirm';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { LightningElement, api } from "lwc";
+import LightningConfirm from "lightning/confirm";
+import { ShowToastEvent } from "lightning/platformShowToastEvent";
 
 // ========================================
 // 定数定義: ブランク行テンプレート
@@ -10,9 +10,9 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
  * 明細行の空白テンプレート
  */
 const BLANK_DETAIL_ROW = {
-  condition: '',
-  timing: '',
-  dueDate: ''
+  condition: "",
+  timing: "",
+  dueDate: ""
 };
 
 /**
@@ -20,18 +20,108 @@ const BLANK_DETAIL_ROW = {
  */
 const BLANK_TOP_ROW = {
   ...BLANK_DETAIL_ROW,
-  conditionSupplement: ''
+  conditionSupplement: ""
 };
 
 // ========================================
 // 定数定義: サンプルテキスト
 // ========================================
 
+const generatePatternStringWithNumbers = (pattern, length) => {
+  if (!Number.isInteger(length) || length <= 0) {
+    throw new Error("length は 1 以上の整数を指定してください。");
+  }
+
+  const FULL = "〇";
+  const MARK = "●"; // 5の位置用
+  const HALF = "W";
+  const DIGIT = "9";
+
+  // 10,20,30,... → "10","20","30"...（3桁以上は末尾2桁だけ）
+  const twoDigitLabel = (n) => String(n).slice(-2);
+
+  // 10文字ブロックごとに「ベース文字＋末尾2桁ラベル」を作るパターン
+  //   baseChar: 〇 / W
+  //   markChar: mixedChar のときだけ ●（half のときは null）
+  const generateLabeledByChars = (n, baseChar, markChar) => {
+    let result = "";
+
+    for (let pos = 1; pos <= n; pos++) {
+      const indexInBlock = ((pos - 1) % 10) + 1; // 1〜10
+      const blockNumber = Math.floor((pos - 1) / 10) + 1; // 1,2,3,...
+
+      let ch = baseChar;
+
+      // 5文字目は ●（mixedChar のみ）
+      if (markChar && indexInBlock === 5) {
+        ch = markChar;
+      }
+
+      // 9–10文字目は "10","20","30"... の末尾2桁
+      if (indexInBlock === 9 || indexInBlock === 10) {
+        const label = twoDigitLabel(blockNumber * 10); // 10→"10", 100→"00"
+        const digitIndex = indexInBlock - 9; // 9→0, 10→1
+        ch = label[digitIndex];
+      }
+
+      result += ch;
+    }
+
+    return result;
+  };
+
+  // --- half / numeric ---
+  if (pattern === "half") {
+    // ベースW＋各10文字ブロックの末尾2桁に "10","20"... を入れる
+    return generateLabeledByChars(length, HALF, null);
+  }
+  if (pattern === "numeric") {
+    return DIGIT.repeat(length);
+  }
+
+  // --- mixedChar（全角・文字数指定） ---
+  if (pattern === "mixedChar") {
+    // ベース〇＋5文字目●＋9,10文字目に "10","20"...（末尾2桁）
+    return generateLabeledByChars(length, FULL, MARK);
+  }
+
+  // --- mixedByte（全角=2B / 半角=1B・バイト数指定） ---
+  if (pattern === "mixedByte") {
+    // ブロック番号ごとのトークン（どれも「2バイトぶん」として扱う）
+    const tokenForBlock = (block) => {
+      if (block % 10 === 0) return twoDigitLabel(block); // 10→"10", 20→"20", 100→"00"
+      if (block % 5 === 0) return MARK; // 5,15,25,...ブロック
+      return FULL; // それ以外は〇
+    };
+
+    let result = "";
+    let usedBytes = 0;
+    let block = 1;
+
+    // 2バイト単位でトークンを詰める
+    while (length - usedBytes >= 2) {
+      result += tokenForBlock(block++);
+      usedBytes += 2;
+    }
+
+    // 端数 1 バイトがあれば W で埋める
+    if (usedBytes < length) {
+      result += HALF;
+    }
+
+    return result;
+  }
+
+  throw new Error(
+    'pattern は "mixedByte" / "mixedChar" / "half" / "numeric" のいずれかを指定してください。'
+  );
+};
+
 /** 32文字のサンプルテキスト */
-const SAMPLE_TEXT_32 = '〇'.repeat(32);
+const SAMPLE_TEXT_32 = generatePatternStringWithNumbers("mixedByte", 28);
 
 /** 366文字のサンプルテキスト */
-const SAMPLE_TEXT_366 = '〇'.repeat(366);
+const SAMPLE_TEXT_366 = generatePatternStringWithNumbers("mixedByte", 280);
 
 // ========================================
 // 定数定義: サンプルデータ
@@ -42,76 +132,76 @@ const SAMPLE_TEXT_366 = '〇'.repeat(366);
  */
 const SAMPLE_TOP_ROWS = [
   {
-    condition: '与信審査報告受領',
+    condition: "極度内運用○○○○○○○○○○",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '融資実行前',
-    dueDate: '2025-03-15'
+    timing: "取引開始前/同時",
+    dueDate: "2025-03-15"
   },
   {
-    condition: '信用限度管理表提出',
+    condition: "極度内運用○○○○○○○○○○",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '四半期末',
-    dueDate: '2025-06-30'
+    timing: "取引開始前/同時",
+    dueDate: "2025-06-30"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '融資実行前',
-    dueDate: '2025-04-10'
+    timing: "取引開始前/同時",
+    dueDate: "2025-04-10"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '半期末',
-    dueDate: '2025-07-15'
+    timing: "取引開始前/同時",
+    dueDate: "2025-07-15"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '四半期末',
-    dueDate: '2025-09-30'
+    timing: "取引開始前/同時",
+    dueDate: "2025-09-30"
   },
   {
-    condition: SAMPLE_TEXT_32,
+    condition: "極度内運用○○○○○○○○○○",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: 'その他',
-    dueDate: '2025-12-15'
+    timing: "取引開始前/同時",
+    dueDate: "2025-12-15"
   },
   {
-    condition: '信用審査資料更新',
+    condition: "信用審査資料更新",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '年次決算後',
-    dueDate: '2026-03-31'
+    timing: "取引開始前/同時",
+    dueDate: "2026-03-31"
   },
   {
-    condition: '保証契約見直し',
+    condition: "保証契約見直し",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '契約更新時',
-    dueDate: '2025-10-01'
+    timing: "取引開始前/同時",
+    dueDate: "2025-10-01"
   },
   {
-    condition: 'モニタリング報告書',
+    condition: "モニタリング報告書",
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: '四半期末',
-    dueDate: '2025-12-31'
-  },
-  {
-    condition: SAMPLE_TEXT_32,
-    conditionSupplement: SAMPLE_TEXT_32,
-    timing: '半期末',
-    dueDate: '2026-01-31'
-  },
-  {
-    condition: '資金繰り予定提出',
-    conditionSupplement: SAMPLE_TEXT_32,
-    timing: '月末',
-    dueDate: '2025-11-30'
+    timing: "取引開始前/同時",
+    dueDate: "2025-12-31"
   },
   {
     condition: SAMPLE_TEXT_32,
     conditionSupplement: SAMPLE_TEXT_32,
-    timing: 'その他',
-    dueDate: '2026-02-28'
+    timing: "取引開始前/同時",
+    dueDate: "2026-01-31"
+  },
+  {
+    condition: "資金繰り予定提出",
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-11-30"
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    conditionSupplement: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2026-02-28"
   }
 ];
 
@@ -121,33 +211,48 @@ const SAMPLE_TOP_ROWS = [
 const SAMPLE_DETAIL_ROWS = [
   {
     condition: SAMPLE_TEXT_32,
-    timing: '半期末',
-    dueDate: '2025-07-31'
+    timing: "取引開始前/同時",
+    dueDate: "2025-07-31"
   },
   {
     condition: SAMPLE_TEXT_32,
-    timing: '契約更新時',
-    dueDate: '2025-08-15'
+    timing: "取引開始前/同時",
+    dueDate: "2025-08-15"
   },
   {
-    condition: '信用供与枠確認',
-    timing: '融資実行前',
-    dueDate: '2025-04-10'
+    condition: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-04-10"
   },
   {
-    condition: '信用状況ヒアリング',
-    timing: '四半期末',
-    dueDate: '2025-06-30'
+    condition: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-06-30"
   },
   {
-    condition: '信用保証料支払明細',
-    timing: '半期末',
-    dueDate: '2025-09-30'
+    condition: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-09-30"
   },
   {
-    condition: '信用情報照会結果提出',
-    timing: 'その他',
-    dueDate: '2025-12-15'
+    condition: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-12-15"
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-04-10"
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-06-30"
+  },
+  {
+    condition: SAMPLE_TEXT_32,
+    timing: "取引開始前/同時",
+    dueDate: "2025-09-30"
   }
 ];
 
@@ -162,66 +267,66 @@ const SAMPLE_DETAIL_ROWS = [
 const SCREEN_OPTION_SETS = {
   default: {
     condition: [
-      { label: '与信審査報告受領', value: '与信審査報告受領' },
-      { label: '信用限度管理表提出', value: '信用限度管理表提出' },
-      { label: '信用リスク見直し', value: '信用リスク見直し' },
-      { label: '信用保証更新', value: '信用保証更新' },
-      { label: 'その他', value: 'その他' }
+      { label: "極度内運用○○○○○○○○○○", value: "極度内運用○○○○○○○○○○" },
+      { label: "信用限度管理表提出", value: "信用限度管理表提出" },
+      { label: "信用リスク見直し", value: "信用リスク見直し" },
+      { label: "信用保証更新", value: "信用保証更新" },
+      { label: "その他", value: "その他" }
     ],
     timing: [
-      { label: '融資実行前', value: '融資実行前' },
-      { label: '四半期末', value: '四半期末' },
-      { label: '半期末', value: '半期末' },
-      { label: '契約更新時', value: '契約更新時' },
-      { label: 'その他', value: 'その他' }
+      { label: "取引開始前/同時", value: "取引開始前/同時" },
+      { label: "四半期末", value: "四半期末" },
+      { label: "半期末", value: "半期末" },
+      { label: "契約更新時", value: "契約更新時" },
+      { label: "その他", value: "その他" }
     ]
   },
   patternImport: {
     condition: [
-      { label: '輸入信用状開設', value: '輸入信用状開設' },
-      { label: '与信審査報告受領', value: '与信審査報告受領' },
-      { label: '在庫調達確認', value: '在庫調達確認' },
-      { label: '信用保証更新', value: '信用保証更新' },
-      { label: 'その他', value: 'その他' }
+      { label: "極度内運用○○○○○○○○○○", value: "輸入信用状開設" },
+      { label: "極度内運用○○○○○○○○○○", value: "極度内運用○○○○○○○○○○" },
+      { label: "在庫調達確認", value: "在庫調達確認" },
+      { label: "信用保証更新", value: "信用保証更新" },
+      { label: "その他", value: "その他" }
     ],
     timing: [
-      { label: '輸入契約締結時', value: '輸入契約締結時' },
-      { label: '船積前', value: '船積前' },
-      { label: '通関後', value: '通関後' },
-      { label: '決済前', value: '決済前' },
-      { label: 'その他', value: 'その他' }
+      { label: "取引開始前/同時", value: "取引開始前/同時" },
+      { label: "船積前", value: "船積前" },
+      { label: "通関後", value: "通関後" },
+      { label: "決済前", value: "決済前" },
+      { label: "その他", value: "その他" }
     ]
   },
   patternExport: {
     condition: [
-      { label: '輸出信用状確認', value: '輸出信用状確認' },
-      { label: '船積書類受領', value: '船積書類受領' },
-      { label: '輸出保険付保', value: '輸出保険付保' },
-      { label: '為替予約締結', value: '為替予約締結' },
-      { label: 'その他', value: 'その他' }
+      { label: "極度内運用○○○○○○○○○○", value: "輸出信用状確認" },
+      { label: "船積書類受領", value: "船積書類受領" },
+      { label: "輸出保険付保", value: "輸出保険付保" },
+      { label: "為替予約締結", value: "為替予約締結" },
+      { label: "その他", value: "その他" }
     ],
     timing: [
-      { label: '船積前', value: '船積前' },
-      { label: '船積後', value: '船積後' },
-      { label: '支払期限前', value: '支払期限前' },
-      { label: '為替決済時', value: '為替決済時' },
-      { label: 'その他', value: 'その他' }
+      { label: "取引開始前/同時", value: "取引開始前/同時" },
+      { label: "船積後", value: "船積後" },
+      { label: "支払期限前", value: "支払期限前" },
+      { label: "為替決済時", value: "為替決済時" },
+      { label: "その他", value: "その他" }
     ]
   },
   patternAbcp: {
     condition: [
-      { label: 'SPC情報更新', value: 'SPC情報更新' },
-      { label: '資産プール点検', value: '資産プール点検' },
-      { label: '信用補完確認', value: '信用補完確認' },
-      { label: '流動化契約遵守確認', value: '流動化契約遵守確認' },
-      { label: 'その他', value: 'その他' }
+      { label: "SPC情報更新", value: "SPC情報更新" },
+      { label: "資産プール点検", value: "資産プール点検" },
+      { label: "信用補完確認", value: "信用補完確認" },
+      { label: "流動化契約遵守確認", value: "流動化契約遵守確認" },
+      { label: "その他", value: "その他" }
     ],
     timing: [
-      { label: '月次期日', value: '月次期日' },
-      { label: '四半期期末', value: '四半期期末' },
-      { label: '年次期末', value: '年次期末' },
-      { label: '償還期限前', value: "償還期限前" },
-      { label: 'その他', value: 'その他' }
+      { label: "取引開始前/同時", value: "取引開始前/同時" },
+      { label: "四半期期末", value: "四半期期末" },
+      { label: "年次期末", value: "年次期末" },
+      { label: "償還期限前", value: "償還期限前" },
+      { label: "その他", value: "その他" }
     ]
   }
 };
@@ -231,7 +336,11 @@ const SCREEN_OPTION_SETS = {
 // ========================================
 
 /** サポートされている親画面タイプ */
-const SUPPORTED_PARENT_SCREENS = ['patternImport', 'patternExport', 'patternAbcp'];
+const SUPPORTED_PARENT_SCREENS = [
+  "patternImport",
+  "patternExport",
+  "patternAbcp"
+];
 
 /** デフォルトのセクション表示設定 */
 const DEFAULT_SECTIONS = {
@@ -269,7 +378,7 @@ const SCREEN_BEHAVIOR_BY_PARENT = {
 };
 
 /** 明細行の最大追加可能件数 */
-const MAX_DETAIL_ROWS = 6;
+const MAX_DETAIL_ROWS = 9;
 
 // ========================================
 // ユーティリティ関数
@@ -297,16 +406,16 @@ const buildRows = (rows, prefix, blankRow) =>
  * 本件条件コンポーネント
  * 親画面タイプに応じて条件入力欄の表示内容を切り替える
  */
-export default class ConditionDetails extends LightningElement {
-  topRows = buildRows(SAMPLE_TOP_ROWS, 'top', BLANK_TOP_ROW);
-  conditionRows = buildRows(SAMPLE_DETAIL_ROWS, 'detail', BLANK_DETAIL_ROW);
+export default class f003RgV9951HonkenJokenBasicC1 extends LightningElement {
+  topRows = buildRows(SAMPLE_TOP_ROWS, "top", BLANK_TOP_ROW);
+  conditionRows = buildRows(SAMPLE_DETAIL_ROWS, "detail", BLANK_DETAIL_ROW);
 
   @api parentScreenType;
   nextDetailId = this.conditionRows.length + 1;
   relatedInquiryNumber = SAMPLE_TEXT_32;
   remarks = SAMPLE_TEXT_366;
-  activeTopSections = ['section1'];
-  activeDetailSections = ['section2'];
+  activeTopSections = ["section1"];
+  activeDetailSections = ["section2"];
 
   // ========================================
   // イベントハンドラー
@@ -336,9 +445,9 @@ export default class ConditionDetails extends LightningElement {
     if (this.conditionRows.length >= MAX_DETAIL_ROWS) {
       this.dispatchEvent(
         new ShowToastEvent({
-          title: '上限に達しました',
+          title: "上限に達しました",
           message: `明細は最大${MAX_DETAIL_ROWS}件まで追加できます`,
-          variant: 'warning'
+          variant: "warning"
         })
       );
       return;
@@ -359,16 +468,16 @@ export default class ConditionDetails extends LightningElement {
   async handleRemoveRow(event) {
     const rowId = event.target.dataset.id;
     const confirmed = await LightningConfirm.open({
-      label: '削除の確認',
-      message: '選択した行を削除しますか？',
-      theme: 'warning'
+      label: "削除の確認",
+      message: "選択した行を削除しますか？",
+      theme: "warning"
     });
 
     if (!confirmed) {
       return;
     }
 
-    this.conditionRows = this.conditionRows.filter(row => row.id !== rowId);
+    this.conditionRows = this.conditionRows.filter((row) => row.id !== rowId);
   }
 
   /**
@@ -393,7 +502,7 @@ export default class ConditionDetails extends LightningElement {
    */
   handleRelatedInquiry() {
     // eslint-disable-next-line no-console
-    console.log('関連厘差照会番号', this.relatedInquiryNumber);
+    console.log("関連厘差照会番号", this.relatedInquiryNumber);
   }
 
   /**
@@ -425,7 +534,9 @@ export default class ConditionDetails extends LightningElement {
   updateRows(rows, event) {
     const { id, field } = event.target.dataset;
     const { value } = event.target;
-    return rows.map(row => (row.id === id ? { ...row, [field]: value } : row));
+    return rows.map((row) =>
+      row.id === id ? { ...row, [field]: value } : row
+    );
   }
 
   // ========================================
@@ -448,7 +559,9 @@ export default class ConditionDetails extends LightningElement {
    * @returns {Array} 条件オプションリスト
    */
   get conditionOptions() {
-    return (SCREEN_OPTION_SETS[this.parentScreenType] || SCREEN_OPTION_SETS.default).condition;
+    return (
+      SCREEN_OPTION_SETS[this.parentScreenType] || SCREEN_OPTION_SETS.default
+    ).condition;
   }
 
   /**
@@ -456,7 +569,9 @@ export default class ConditionDetails extends LightningElement {
    * @returns {Array} タイミングオプションリスト
    */
   get timingOptions() {
-    return (SCREEN_OPTION_SETS[this.parentScreenType] || SCREEN_OPTION_SETS.default).timing;
+    return (
+      SCREEN_OPTION_SETS[this.parentScreenType] || SCREEN_OPTION_SETS.default
+    ).timing;
   }
 
   /**

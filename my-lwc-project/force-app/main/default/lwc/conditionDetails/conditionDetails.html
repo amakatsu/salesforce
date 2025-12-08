@@ -1,15 +1,15 @@
 <template>
   <template if:true={isVisible}>
-    <lightning-card title="本件条件">
-      <template if:true={showTopInputSection}>
-        <!-- 本件条件入力欄① -->
-        <lightning-accordion
-          allow-multiple
-          active-section-name={activeTopSections}
-          onsectiontoggle={handleTopAccordionToggle}
-          class="slds-var-m-around_medium"
-        >
-          <lightning-accordion-section name="section1" label="本件条件入力欄①">
+    <template if:true={showTopInputSection}>
+      <!-- 本件条件入力欄① -->
+      <lightning-accordion
+        allow-multiple
+        active-section-name={activeTopSections}
+        onsectiontoggle={handleTopAccordionToggle}
+        class="slds-var-m-around_medium"
+      >
+        <lightning-accordion-section name="section1" label="本件条件１">
+          <lightning-card>
             <lightning-layout
               class="slds-grid slds-p-horizontal_medium slds-m-bottom_x-small slds-text-title_caps"
             >
@@ -25,13 +25,13 @@
               >
               <lightning-layout-item
                 size="3"
-                class="slds-col slds-text-title_caps slds-p-horizontal_small"
+                class="slds-col slds-text-title_caps slds-m-left_small"
                 >履行タイミング</lightning-layout-item
               >
               <lightning-layout-item
                 size="2"
-                class="slds-col slds-text-title_caps slds-p-horizontal_small"
-                >期日</lightning-layout-item
+                class="slds-col slds-text-title_caps slds-m-left_small"
+                >履行期限</lightning-layout-item
               >
             </lightning-layout>
             <template for:each={topRowsForDisplay} for:item="row">
@@ -78,7 +78,7 @@
                   <lightning-layout-item size="1" padding="horizontal-small">
                     <lightning-input
                       type="date"
-                      label="期日"
+                      label="履行期限"
                       value={row.dueDate}
                       data-id={row.id}
                       data-field="dueDate"
@@ -89,44 +89,42 @@
                 </lightning-layout>
               </div>
             </template>
-          </lightning-accordion-section>
-        </lightning-accordion>
-      </template>
+          </lightning-card>
+        </lightning-accordion-section>
+      </lightning-accordion>
+    </template>
 
-      <template if:true={showDetailInputSection}>
-        <!-- 本件条件入力欄② -->
-        <lightning-accordion
-          allow-multiple
-          active-section-name={activeDetailSections}
-          onsectiontoggle={handleDetailAccordionToggle}
-          class="slds-var-m-around_medium"
+    <template if:true={showDetailInputSection}>
+      <!-- 本件条件入力欄② -->
+      <lightning-accordion
+        allow-multiple
+        active-section-name={activeDetailSections}
+        onsectiontoggle={handleDetailAccordionToggle}
+        class="slds-var-m-around_medium"
+      >
+        <lightning-accordion-section
+          name="section2"
+          label="本件条件２（１で選択できない本件条件が存在する場合や上限件数以上となる場合はこちらへ記載）"
         >
-          <lightning-accordion-section
-            name="section2"
-            label="本件条件入力欄②（①で選択できない本件条件が存在する場合や上限件数以上となる場合は下記へ記載）"
-          >
+          <lightning-card>
             <lightning-layout
               class="slds-grid slds-p-horizontal_medium slds-m-bottom_x-small slds-text-title_caps"
             >
               <lightning-layout-item
                 size="6"
                 class="slds-col slds-text-title_caps"
-                >本件条件</lightning-layout-item
+                >本件条件（追加）</lightning-layout-item
               >
               <lightning-layout-item
                 size="3"
-                class="slds-col slds-text-title_caps slds-p-horizontal_small"
+                class="slds-col slds-text-title_caps slds-m-left_small"
                 >履行タイミング</lightning-layout-item
               >
               <lightning-layout-item
                 size="1"
-                class="slds-col slds-text-title_caps slds-p-horizontal_small"
-                >期日</lightning-layout-item
+                class="slds-col slds-text-title_caps slds-m-left_small"
+                >履行期限</lightning-layout-item
               >
-              <lightning-layout-item
-                size="1"
-                class="slds-col slds-text-title_caps slds-p-horizontal_small"
-              ></lightning-layout-item>
             </lightning-layout>
             <div slot="actions">
               <lightning-button
@@ -144,7 +142,7 @@
                 >
                   <lightning-layout-item size="6" padding="horizontal-small">
                     <lightning-input
-                      label="本件条件"
+                      label="本件条件（追加）"
                       value={row.condition}
                       data-id={row.id}
                       data-field="condition"
@@ -167,7 +165,7 @@
                   <lightning-layout-item size="1" padding="horizontal-small">
                     <lightning-input
                       type="date"
-                      label="期日"
+                      label="履行期限"
                       value={row.dueDate}
                       data-id={row.id}
                       data-field="dueDate"
@@ -190,39 +188,51 @@
                 </lightning-layout>
               </div>
             </template>
-          </lightning-accordion-section>
-        </lightning-accordion>
-      </template>
+          </lightning-card>
+        </lightning-accordion-section>
+      </lightning-accordion>
+    </template>
 
-      <template if:true={showRemarksSection}>
-        <section class="slds-var-m-around_medium">
-          <lightning-textarea
-            label="備考"
-            value={remarks}
-            placeholder="備考を入力してください"
-            onchange={handleRemarksChange}
-            style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 3)"
-          ></lightning-textarea>
-        </section>
-      </template>
-
-      <template if:true={showInquirySection}>
-        <section class="slds-var-m-around_medium">
-          <div class="related-inquiry-actions">
-            <lightning-input
-              label="他与信圧縮・極度内運用の本体照会番号"
-              placeholder="番号を入力"
-              value={relatedInquiryNumber}
-              onchange={handleRelatedInquiryNumberChange}
-            ></lightning-input>
-            <lightning-button
-              variant="brand"
-              label="照会"
-              onclick={handleRelatedInquiry}
-            ></lightning-button>
-          </div>
-        </section>
-      </template>
-    </lightning-card>
+    <!-- 備考と照会 -->
+    <lightning-accordion
+      allow-multiple
+      active-section-name={activeDetailSections}
+      onsectiontoggle={handleDetailAccordionToggle}
+      class="slds-var-m-around_medium"
+    >
+      <lightning-accordion-section
+        name="section3"
+        label="本件条件コメント/照会"
+      >
+        <lightning-card>
+          <lightning-layout multiple-rows class="slds-p-horizontal_medium">
+            <lightning-layout-item size="7">
+              <lightning-textarea
+                label="本件条件コメント"
+                value={remarks}
+                placeholder="備考を入力してください"
+                onchange={handleRemarksChange}
+                style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 5)"
+              ></lightning-textarea>
+            </lightning-layout-item>
+            <lightning-layout-item size="12">
+              <div class="related-inquiry-actions">
+                <lightning-input
+                  label="他与信圧縮・極度内運用の本体禀査番号"
+                  placeholder="番号を入力"
+                  value="0001"
+                  onchange={handleRelatedInquiryNumberChange}
+                ></lightning-input>
+                <lightning-button
+                  variant="brand"
+                  label="禀査照会"
+                  onclick={handleRelatedInquiry}
+                ></lightning-button>
+              </div>
+            </lightning-layout-item>
+          </lightning-layout>
+        </lightning-card>
+      </lightning-accordion-section>
+    </lightning-accordion>
   </template>
 </template>
