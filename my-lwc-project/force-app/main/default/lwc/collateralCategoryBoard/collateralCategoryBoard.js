@@ -182,8 +182,8 @@ const OPTIONS = {
       ["特定極度根保証", "03"], // 特定極度根保証
       ["特定根保証", "04"], // 特定根保証
       ["包括根保証", "05"], // 包括根保証
-      ["包括根(極度付)", "06"], // 包括根(極度付)
-      ["包括根(期限付)", "07"], // 包括根(期限付)
+      ["包括根（極度付）", "06"], // 包括根（極度付）
+      ["包括根（期限付）", "07"], // 包括根（期限付）
       ["その他", "99"] // その他
     ]),
     "02": createOptions([
@@ -213,12 +213,12 @@ const OPTIONS = {
     ["取締役・理事・執行役", "02"], // 取締役・理事・執行役
     ["大株主", "03"], // 大株主
     ["共同事業者", "04"], // 共同事業者
-    ["配偶者(事業性)", "05"], // 配偶者(事業性)
-    ["配偶者(非事業性)", "06"], // 配偶者(非事業性)
-    ["第三者個人(事業性)", "07"], // 第三者個人(事業性)
-    ["第三者個人(非事業性)", "08"], // 第三者個人(非事業性)
-    ["法人(上場)", "09"], // 法人(上場)
-    ["法人(非上場)", "10"], // 法人(非上場)
+    ["配偶者（事業性）", "05"], // 配偶者（事業性）
+    ["配偶者（非事業性）", "06"], // 配偶者（非事業性）
+    ["第三者個人（事業性）", "07"], // 第三者個人（事業性）
+    ["第三者個人（非事業性）", "08"], // 第三者個人（非事業性）
+    ["法人（上場）", "09"], // 法人（上場）
+    ["法人（非上場）", "10"], // 法人（非上場）
     ["金融機関", "11"], // 金融機関
     ["国際協力銀行", "12"], // 国際協力銀行
     ["全石協", "13"], // 全石協
@@ -520,9 +520,18 @@ const MAJOR_OPTIONS = Object.entries(MAJOR_CATEGORY_CONFIG).map(
 );
 
 /**
- * 履行期限と保証期間入力を許可する協会保証の保証種別
+ * 履行期限・保証期間を入力可能とする保証種別
  */
-const ASSOCIATION_EXECUTION_ALLOWED_TYPES = ["32", "34"];
+const EXECUTION_ALLOWED_TYPES = {
+  association: ["32", "34"],
+  guarantee: [
+    "03", // 特定極度根保証
+    "04", // 特定根保証
+    "05", // 包括根保証
+    "06", // 包括根（極度付）
+    "07" // 包括根（期限付）
+  ]
+};
 
 // ========================================
 // 定数: 担保種類（小分類）と保証人区分のマッピング
@@ -537,14 +546,14 @@ const COLLATERAL_TO_GUARANTOR_MAPPING = {
   31: ["21"], // 国・地公体 → 国・地方公共団体
   32: ["15", "18"], // 公益法人 → その他社団法人、その他財団法人
   33: ["20"], // 特殊法人 → その他特殊法人
-  34: ["09"], // 一般法人・上場 → 法人(上場)
-  35: ["10"], // 一般法人・非上場 → 法人(非上場)
+  34: ["09"], // 一般法人・上場 → 法人（上場）
+  35: ["10"], // 一般法人・非上場 → 法人（非上場）
   36: ["25"], // TKK → TKK
   37: ["17"], // VEC → VEC
   38: ["13"], // 全石協 → 全石協
   39: ["19"], // IPA → IPA
   40: ["14"], // ECFA → ECFA
-  41: ["01", "02", "03", "04", "05", "06", "07", "08"], // 個人保証 → 代表取締役、取締役・理事・執行役、大株主、共同事業者、配偶者(事業性)、配偶者(非事業性)、第三者個人(事業性)、第三者個人(非事業性)
+  41: ["01", "02", "03", "04", "05", "06", "07", "08"], // 個人保証 → 代表取締役、取締役・理事・執行役、大株主、共同事業者、配偶者（事業性）、配偶者（非事業性）、第三者個人（事業性）、第三者個人（非事業性）
   42: ["22"], // 外国政府 → 外国政府
   43: ["24"], // 外国法人 → 外国法人
   44: ["23"], // 国際機関 → 国際機関
@@ -795,62 +804,122 @@ const getGuarantorCategoryOptions = (majorValue, minorValue) => {
 };
 
 /**
+ * 履行期限・保証期間項目の活性制御
+ * 協会保証/一般保証ごとの許可パターンをまとめる
+ */
+const canEditExecutionFields = (column) =>
+  EXECUTION_ALLOWED_TYPES.association.includes(column.associationType) ||
+  EXECUTION_ALLOWED_TYPES.guarantee.includes(column.guaranteeType);
+
+/**
+ * 履行関連項目を許可状態に合わせて初期化
+ */
+const sanitizeExecutionFields = (column) => {
+  if (canEditExecutionFields(column)) {
+    return column;
+  }
+
+  return {
+    ...column,
+    dueDate: "",
+    guaranteePeriod: "",
+    guaranteePeriodYears: "",
+    guaranteePeriodMonths: "",
+    guaranteeDeadline: "",
+    associationGuaranteePeriod: "",
+    associationPeriodYears: "",
+    associationPeriodMonths: "",
+    associationDeadline: ""
+  };
+};
+
+/**
+ * 保証期間・期日項目のフィールド名と値を取得
+ */
+const getExecutionFieldConfig = (column, isAssociation) => {
+  if (isAssociation) {
+    return {
+      periodField: "associationGuaranteePeriod",
+      periodValue: column.associationGuaranteePeriod,
+      periodYearsField: "associationPeriodYears",
+      periodYearsValue: column.associationPeriodYears,
+      periodMonthsField: "associationPeriodMonths",
+      periodMonthsValue: column.associationPeriodMonths,
+      deadlineField: "associationDeadline",
+      deadlineValue: column.associationDeadline
+    };
+  }
+
+  return {
+    periodField: "guaranteePeriod",
+    periodValue: column.guaranteePeriod,
+    periodYearsField: "guaranteePeriodYears",
+    periodYearsValue: column.guaranteePeriodYears,
+    periodMonthsField: "guaranteePeriodMonths",
+    periodMonthsValue: column.guaranteePeriodMonths,
+    deadlineField: "guaranteeDeadline",
+    deadlineValue: column.guaranteeDeadline
+  };
+};
+
+/**
  * 列データに表示用のプロパティを追加
  * @param {Object} column - 元の列データ
  * @returns {Object} デコレートされた列データ
  */
 const decorateColumn = (column) => {
-  const isGuarantee = column.majorValue === "03"; // 一般保証
-  const isAssociation = column.majorValue === "04"; // 協会保証
-  const isAsset = column.majorValue === "05"; // 動産・不動産
+  const normalizedColumn = sanitizeExecutionFields(column);
+  const isGuarantee = normalizedColumn.majorValue === "03"; // 一般保証
+  const isAssociation = normalizedColumn.majorValue === "04"; // 協会保証
+  const isAsset = normalizedColumn.majorValue === "05"; // 動産・不動産
   const isGuaranteeOrAssociation = isGuarantee || isAssociation;
+  const optionsForMajor = getOptionsByMajorValue(normalizedColumn.majorValue);
 
   // 保証種別の値を取得（一般保証 or 協会保証）
   const guaranteeTypeValue = isAssociation
-    ? column.associationType
-    : column.guaranteeType;
+    ? normalizedColumn.associationType
+    : normalizedColumn.guaranteeType;
 
-  // 履行期限と保証期間の入力を許容する協会保証かを判定
-  const canEditAssociationExecution =
-    isAssociation &&
-    ASSOCIATION_EXECUTION_ALLOWED_TYPES.includes(column.associationType);
+  // 履行期限と保証期間の入力を許容する協会保証・一般保証かを判定
+  const canEditExecution = canEditExecutionFields(normalizedColumn);
+  const executionFieldConfig = getExecutionFieldConfig(
+    normalizedColumn,
+    isAssociation
+  );
 
   // 保証期間入力の制御フラグ
-  const basePeriodDisabled = isAssociation
-    ? column.associationGuaranteePeriod === "02"
-    : column.guaranteePeriod === "02";
-  const baseDateDisabled = isAssociation
-    ? column.associationGuaranteePeriod === "01"
-    : column.guaranteePeriod === "01";
+  const basePeriodDisabled = executionFieldConfig.periodValue === "02";
+  const baseDateDisabled = executionFieldConfig.periodValue === "01";
 
   return {
-    ...column,
-    minorOptions: getOptionsByMajorValue(column.majorValue).minorOptions,
-    collateralSettingOptions: getOptionsByMajorValue(column.majorValue)
-      .collateralSettingOptions,
-    collateralTypeOptions: getOptionsByMajorValue(column.majorValue)
-      .collateralTypeOptions,
+    ...normalizedColumn,
+    minorOptions: optionsForMajor.minorOptions,
+    collateralSettingOptions: optionsForMajor.collateralSettingOptions,
+    collateralTypeOptions: optionsForMajor.collateralTypeOptions,
     guaranteeTypeOptions: getGuaranteeTypeOptions(
-      column.majorValue,
-      column.minorValue
+      normalizedColumn.majorValue,
+      normalizedColumn.minorValue
     ),
     // 保証人区分の動的選択肢を追加
     guarantorCategoryOptions: getGuarantorCategoryOptions(
-      column.majorValue,
-      column.minorValue
+      normalizedColumn.majorValue,
+      normalizedColumn.minorValue
     ),
     isGuaranteeCategory: isGuarantee,
     isAssociationCategory: isAssociation,
     isGuaranteeOrAssociation,
-    isCorporateGuarantor: column.guarantorCategory === "corporate",
+    isCorporateGuarantor: normalizedColumn.guarantorCategory === "corporate",
     // 規定区分の入力制御（一般保証の個人保証以外の時のみ有効）
     isCorporateGuaranteeCategoryDisabled:
-      !isGuarantee || column.minorValue === "41",
+      !isGuarantee || normalizedColumn.minorValue === "41",
     // 保証種別の統一プロパティ
     guaranteeTypeValue: guaranteeTypeValue,
     guaranteeTypeOptionsForDisplay: isAssociation
       ? OPTIONS.guaranteeType["04"]
-      : getGuaranteeTypeOptions(column.majorValue, column.minorValue), // 協会保証は"04"パターン
+      : getGuaranteeTypeOptions(
+          normalizedColumn.majorValue,
+          normalizedColumn.minorValue
+        ), // 協会保証は"04"パターン
     guaranteeTypeField: isAssociation ? "associationType" : "guaranteeType",
     guaranteeTypeHelp: isAssociation
       ? "協会保証のインフォメーション情報がここにでます"
@@ -858,36 +927,13 @@ const decorateColumn = (column) => {
     // 評価方法の入力制御（動産・不動産のみ有効）
     isExtinguishDisabled: !isAsset,
     // 履行期限と保証期間入力の共通制御
-    isDueDateDisabled: !canEditAssociationExecution,
-    isExecutionScheduleDisabled: !canEditAssociationExecution,
+    isDueDateDisabled: !canEditExecution,
+    isExecutionScheduleDisabled: !canEditExecution,
     // 保証期間の統一プロパティ
-    periodField: isAssociation
-      ? "associationGuaranteePeriod"
-      : "guaranteePeriod",
-    periodValue: isAssociation
-      ? column.associationGuaranteePeriod
-      : column.guaranteePeriod,
-    periodYearsField: isAssociation
-      ? "associationPeriodYears"
-      : "guaranteePeriodYears",
-    periodYearsValue: isAssociation
-      ? column.associationPeriodYears
-      : column.guaranteePeriodYears,
-    periodMonthsField: isAssociation
-      ? "associationPeriodMonths"
-      : "guaranteePeriodMonths",
-    periodMonthsValue: isAssociation
-      ? column.associationPeriodMonths
-      : column.guaranteePeriodMonths,
-    deadlineField: isAssociation ? "associationDeadline" : "guaranteeDeadline",
-    deadlineValue: isAssociation
-      ? column.associationDeadline
-      : column.guaranteeDeadline,
+    ...executionFieldConfig,
     // 保証期間の入力制御（協会保証の指定条件時のみ有効）
-    isPeriodInputDisabled:
-      !canEditAssociationExecution || basePeriodDisabled,
-    isDateInputDisabled:
-      !canEditAssociationExecution || baseDateDisabled
+    isPeriodInputDisabled: !canEditExecution || basePeriodDisabled,
+    isDateInputDisabled: !canEditExecution || baseDateDisabled
   };
 };
 
