@@ -1,13 +1,17 @@
+/**
+ * 担保カテゴリボードコンポーネント
+ * 担保条件の登録・編集を行うフォームコンポーネント
+ */
 import { LightningElement, api, track } from "lwc";
 import LightningConfirm from "lightning/confirm";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 
 // ========================================
-// 定数定義: ブランク行テンプレート
+// 定数: テンプレート
 // ========================================
 
 /**
- * 担保条件２の空白テンプレート
+ * 担保条件２の空白行テンプレート
  */
 const BLANK_COLLATERAL_DETAIL_ROW = {
   condition: "",
@@ -15,12 +19,15 @@ const BLANK_COLLATERAL_DETAIL_ROW = {
   dueDate: ""
 };
 
+/** 担保条件２の最大追加可能件数 */
+const MAX_COLLATERAL_DETAIL_ROWS = 9;
+
 // ========================================
-// 定数定義: サンプルテキスト
+// ユーティリティ: サンプルテキスト生成
 // ========================================
 
 /**
- * conditionDetails で利用しているパターン付きサンプル文字列生成ロジックを転用
+ * パターン化されたサンプル文字列を生成する
  * @param {string} pattern - mixedByte / mixedChar / half / numeric
  * @param {number} length - 生成する文字（またはバイト）長
  * @returns {string} パターン化されたサンプル文字列
@@ -99,17 +106,20 @@ const generateData = (pattern, length) => {
   );
 };
 
-/** 28文字相当のサンプルテキスト */
-const SAMPLE_TEXT_28 = generateData("mixedByte", 28);
+/** サンプルテキスト（30バイト） */
+const SAMPLE_TEXT_30 = generateData("mixedByte", 30);
 
-/** 280文字相当のサンプルテキスト */
+/** サンプルテキスト（60バイト） */
+const SAMPLE_TEXT_60 = generateData("mixedByte", 60);
+
+/** サンプルテキスト（140バイト） */
+const SAMPLE_TEXT_140 = generateData("mixedByte", 140);
+
+/** サンプルテキスト（280バイト） */
 const SAMPLE_TEXT_280 = generateData("mixedByte", 280);
 
-/** 400バイト相当のサンプルテキスト */
-const SAMPLE_TEXT_400 = generateData("mixedByte", 400);
-
 // ========================================
-// 定数定義: 選択肢オプション（統合版）
+// 定数: 選択肢オプション
 // ========================================
 
 /**
@@ -129,176 +139,372 @@ const OPTIONS = {
     { label: "01", value: "01" },
     { label: "02", value: "02" },
     { label: "03", value: "03" },
-    { label: "04", value: "04" },
-    { label: "動産担保", value: "動産担保" },
-    { label: "その他", value: "その他" }
+    { label: "04", value: "04" }
   ],
 
   // 新規・既存の選択肢
   dealType: createOptions([
-    ["新規・協会優先", "new"],
-    ["新規・協会優先", "existing"]
+    ["新規", "01"], // 新規
+    ["既存", "02"], // 既存
+    ["新規協会優先", "03"], // 新規協会優先
+    ["既存協会優先", "04"], // 既存協会優先
+    ["新規DHC優先", "05"], // 新規DHC優先
+    ["既存DHC優先", "06"] // 既存DHC優先
   ]),
 
   // 設定区分の選択肢
   setupCategory: createOptions([
-    ["緊急措置", "package"],
-    ["緊急措置", "single"]
+    ["緊急措置", "01"], // 緊急措置
+    ["緊急措置", "02"] // 緊急措置
   ]),
 
-  // 担保種類区分の選択肢（パターン別）
-  collateralClass: {
-    normal: createOptions([
-      ["特定債務保証", "parent"],
-      ["オーナー", "owner"],
-      ["その他", "other"]
-    ]),
-    association: createOptions([
-      ["貸付個別保証", "loan-individual-guarantee"],
-      ["貸付根保証", "loan-root-guarantee"],
-      ["手割個別保証", "bill-discount-individual"],
-      ["手割根保証", "bill-discount-root"],
-      ["その他", "other"]
-    ])
-  },
-
-  // 取分の選択肢
-  share: createOptions([
-    ["100%", "100"],
-    ["90%", "90"],
-    ["80%", "80"],
-    ["70%", "70"]
-  ]),
-
-  // 消火方法の選択肢
+  // 評価方法の選択肢
   extinguish: createOptions([
-    ["その他", "bullet"],
-    ["その他", "installment"],
-    ["その他", "as-needed"]
+    ["DPR", "01"], // DPR
+    ["自店", "02"] // 自店
   ]),
 
   // 根担保紐付けの選択肢
   rootLink: createOptions([
-    ["極度", "link"],
-    ["極度", "independent"]
+    ["極度", "01"], // 極度
+    ["実残", "02"] // 実残
   ]),
 
   // 保証種別の選択肢（パターン別）
+  // "01": normalパターン（一般的な保証）
+  // "02": tkkパターン（ＴＫＫ、全石協）
+  // "03": dhcパターン（ＤＨＣ保証）
+  // "04": associationGuaranteeパターン（協会保証）
   guaranteeType: {
-    normal: createOptions([
-      ["包括根", "comprehensive-root"],
-      ["包括根（極度付）", "comprehensive-root-limit"],
-      ["包括根（期限付き）", "comprehensive-root-term"],
-      ["極度期限付", "limit-term"],
-      ["特定債務", "specific-debt"],
-      ["得手根", "tokune"]
+    "01": createOptions([
+      ["特定債務保証", "01"], // 特定債務保証
+      ["極度期限付保証", "02"], // 極度期限付保証
+      ["特定極度根保証", "03"], // 特定極度根保証
+      ["特定根保証", "04"], // 特定根保証
+      ["包括根保証", "05"], // 包括根保証
+      ["包括根(極度付)", "06"], // 包括根(極度付)
+      ["包括根(期限付)", "07"], // 包括根(期限付)
+      ["その他", "99"] // その他
     ]),
-    tkk: createOptions([
-      ["貸付個別", "loan-individual"],
-      ["貸付根", "loan-root"],
-      ["手割", "bill-discount"],
-      ["その他", "other"]
+    "02": createOptions([
+      ["貸付個別保証", "11"], // 貸付個別保証
+      ["貸付根保証", "12"], // 貸付根保証
+      ["手割個別保証", "13"], // 手割個別保証
+      ["手割根保証", "14"], // 手割根保証
+      ["その他", "99"] // その他
     ]),
-    dhc: createOptions([
-      ["極度期限付", "limit-term"],
-      ["貸付個別", "loan-individual"],
-      ["その他", "other"]
+    "03": createOptions([
+      ["極度期限付保証", "21"], // 極度期限付保証
+      ["貸付個別保証", "22"], // 貸付個別保証
+      ["その他", "99"] // その他
+    ]),
+    "04": createOptions([
+      ["貸付個別保証", "31"], // 貸付個別保証
+      ["貸付根保証", "32"], // 貸付根保証
+      ["手割個別保証", "33"], // 手割個別保証
+      ["手割根保証", "34"], // 手割根保証
+      ["その他", "99"] // その他
     ])
   },
 
-  // 個人・法人の選択肢
+  // 保証人区分の選択肢
   individualCorporate: createOptions([
-    ["個人", "individual"],
-    ["法人（上場）", "corporate"]
+    ["代表取締役", "01"], // 代表取締役
+    ["取締役・理事・執行役", "02"], // 取締役・理事・執行役
+    ["大株主", "03"], // 大株主
+    ["共同事業者", "04"], // 共同事業者
+    ["配偶者(事業性)", "05"], // 配偶者(事業性)
+    ["配偶者(非事業性)", "06"], // 配偶者(非事業性)
+    ["第三者個人(事業性)", "07"], // 第三者個人(事業性)
+    ["第三者個人(非事業性)", "08"], // 第三者個人(非事業性)
+    ["法人(上場)", "09"], // 法人(上場)
+    ["法人(非上場)", "10"], // 法人(非上場)
+    ["金融機関", "11"], // 金融機関
+    ["国際協力銀行", "12"], // 国際協力銀行
+    ["全石協", "13"], // 全石協
+    ["ECFA", "14"], // ECFA
+    ["その他社団法人", "15"], // その他社団法人
+    ["DHC", "16"], // DHC
+    ["VEC", "17"], // VEC
+    ["その他財団法人", "18"], // その他財団法人
+    ["IPA", "19"], // IPA
+    ["その他特殊法人", "20"], // その他特殊法人
+    ["国・地方公共団体", "21"], // 国・地方公共団体
+    ["外国政府", "22"], // 外国政府
+    ["国際機関", "23"], // 国際機関
+    ["外国法人", "24"], // 外国法人
+    ["TKK", "25"] // TKK
   ]),
 
-  // 規定区分の選択肢
+  // 規定区分の選択肢（法人保証の場合のみ）
   corporateGuaranteeCategory: createOptions([
-    ["規定外・優良", "management-guarantee"],
-    ["第三者保証", "third-party-guarantee"]
+    ["規定・優良", "01"], // 規定・優良
+    ["規定・一般", "02"], // 規定・一般
+    ["規定・その他", "03"], // 規定・その他
+    ["規定外・優良", "04"], // 規定外・優良
+    ["規定外・一般", "05"], // 規定外・一般
+    ["規定外・その他", "06"] // 規定外・その他
   ]),
 
   // 保証期間の選択肢
   guaranteePeriod: createOptions([
-    ["期間", "period"],
-    ["日付", "date"]
+    ["期間", "01"], // 期間
+    ["日付", "02"] // 日付
   ]),
 
   // 協会保証種別の選択肢
   associationType: createOptions([
-    ["普通保証", "basic"],
-    ["超短期", "short"]
+    ["普通保証", "01"], // 普通保証
+    ["超短期", "02"] // 超短期
   ]),
 
   // 既存保証条件の選択肢
   associationExistingCondition: createOptions([
-    ["無", "existing-fee-advance"],
-    ["その他", "other"]
+    ["有", "01"], // 有
+    ["無", "02"] // 無
   ]),
 
   // 承諾条件の選択肢
   associationApprovalCondition: createOptions([
-    ["優先充当", "financial-maintenance"],
-    ["その他", "other"]
+    ["条件なし", "01"], // 条件なし
+    ["不動産優先充当", "02"], // 不動産優先充当
+    ["連帯保証人", "03"], // 連帯保証人
+    ["不動産優先充当（付保免除）", "04"], // 不動産優先充当（付保免除）
+    ["不動産優先充当・連帯保証人", "05"], // 不動産優先充当・連帯保証人
+    ["不動産優先充当（付保免除）・連帯保証人", "06"], // 不動産優先充当（付保免除）・連帯保証人
+    ["その他", "99"] // その他
   ]),
 
   // 履行タイミングの選択肢
   timing: createOptions([
     ["取引開始前/同時", "取引開始前/同時"],
-    ["四半期末", "四半期末"],
-    ["半期末", "半期末"],
-    ["契約更新時", "契約更新時"],
-    ["その他", "その他"]
+    ["取引都度", "取引都度"],
+    ["取引開始後", "取引開始後"]
   ])
 };
 
-// 後方互換性のための旧定数名
-const SUBJECT_OPTIONS = OPTIONS.subject;
+// ========================================
+// 定数: 大分類・小分類の設定
+// ========================================
 
 /**
  * 大分類カテゴリ設定
  * 各大分類に対応する小分類の選択肢を定義
  */
 const MAJOR_CATEGORY_CONFIG = {
-  importCollateral: {
+  "01": {
+    // 預金
     label: "預金",
     minors: [
-      { label: "なし", value: "import-lc" },
-      { label: "なし", value: "import-wire" },
-      { label: "なし", value: "import-doc" }
+      { label: "預金・規制", value: "01" },
+      { label: "預金・自由", value: "02" },
+      { label: "外貨預金", value: "03" },
+      { label: "NCD", value: "04" }
     ]
   },
-  exportCollateral: {
-    label: "有価証券・債権",
+  "02": {
+    // 電債
+    label: "電債",
     minors: [
-      { label: "なし", value: "export-lc" },
-      { label: "なし", value: "export-ins" },
-      { label: "なし", value: "export-fx" }
+      { label: "規定手形", value: "05" },
+      { label: "規定外手形", value: "07" }
     ]
   },
-  assetCollateral: {
-    label: "動産・不動産",
+  "03": {
+    // 一般保証
+    label: "一般保証",
     minors: [
-      { label: "なし", value: "asset-hq" },
-      { label: "なし", value: "asset-warehouse" },
-      { label: "なし", value: "asset-factory" }
+      { label: "個人保証", value: "41" },
+      { label: "一般法人・上場", value: "34" },
+      { label: "一般法人・非上場", value: "35" },
+      { label: "金融機関", value: "30" },
+      { label: "国・地公体", value: "31" },
+      { label: "公益法人", value: "32" },
+      { label: "特殊法人", value: "33" },
+      { label: "ＴＫＫ", value: "36" },
+      { label: "ＶＥＣ", value: "37" },
+      { label: "全石協", value: "38" },
+      { label: "ＩＰＡ", value: "39" },
+      { label: "ＥＣＦＡ", value: "40" },
+      { label: "外国政府", value: "42" },
+      { label: "外国法人", value: "43" },
+      { label: "国際機関", value: "44" },
+      { label: "貿易金融保険", value: "73" },
+      { label: "輸出入銀行", value: "74" },
+      { label: "提携先保証", value: "80" },
+      { label: "保証会社保証", value: "81" },
+      { label: "保証保険", value: "82" },
+      { label: "ＤＣ保証", value: "83" },
+      { label: "ジャックス保証", value: "84" },
+      { label: "ＤＨＣ保証", value: "85" },
+      { label: "ＭＵＬＢ保証", value: "86" }
     ]
   },
-  guaranteeCollateral: {
-    label: "保証",
-    minors: [
-      { label: "通常保証", value: "guarantee-normal" },
-      { label: "TKK", value: "guarantee-tkk" },
-      { label: "全石協", value: "guarantee-zenseki" },
-      { label: "DHC", value: "guarantee-dhc" }
-    ]
-  },
-  associationCollateral: {
+  "04": {
+    // 協会保証
     label: "協会保証",
     minors: [
-      { label: "なし", value: "association-basic" },
-      { label: "なし", value: "association-flow" }
+      { label: "東京（環）", value: "45" },
+      { label: "東京（極）", value: "46" },
+      { label: "東京（活）", value: "47" },
+      { label: "東京（体）", value: "48" },
+      { label: "東京（一般）", value: "51" },
+      { label: "東京（振興）", value: "52" },
+      { label: "東京（改）", value: "53" },
+      { label: "東京（都）", value: "54" },
+      { label: "東京（小企）", value: "55" },
+      { label: "東京（直）", value: "56" },
+      { label: "東京（小特）", value: "57" },
+      { label: "東京（公）", value: "58" },
+      { label: "東京（その他）", value: "59" },
+      { label: "神奈川（一般）", value: "61" },
+      { label: "千葉（一般）", value: "62" },
+      { label: "大阪（一般）", value: "63" },
+      { label: "愛知（一般）", value: "64" },
+      { label: "埼玉（一般）", value: "65" },
+      { label: "京都（一般）", value: "66" },
+      { label: "兵庫（一般）", value: "67" },
+      { label: "その他協会（一般）", value: "69" },
+      { label: "神奈川（制度）", value: "91" },
+      { label: "千葉（制度）", value: "92" },
+      { label: "大阪（制度）", value: "93" },
+      { label: "愛知（制度）", value: "94" },
+      { label: "埼玉（制度）", value: "95" },
+      { label: "京都（制度）", value: "96" },
+      { label: "兵庫（制度）", value: "97" },
+      { label: "その他協会・制度", value: "99" },
+      { label: "ＤＨＣ保証", value: "85" },
+      { label: "ＭＵＬＢ保証", value: "86" }
     ]
+  },
+  "05": {
+    // 動産・不動産
+    label: "動産・不動産",
+    minors: [
+      { label: "商品", value: "11" },
+      { label: "機械・器具", value: "12" },
+      { label: "不動産", value: "13" },
+      { label: "工場", value: "14" },
+      { label: "工場財団", value: "15" },
+      { label: "その他財団", value: "16" },
+      { label: "船舶", value: "17" }
+    ]
+  },
+  "06": {
+    // 有価証券・債権
+    label: "有価証券・債権",
+    minors: [
+      { label: "有価証券", value: "08" },
+      { label: "債権", value: "09" },
+      { label: "債権・一括支払", value: "10" }
+    ]
+  },
+  "09": {
+    // その他担保
+    label: "その他担保",
+    minors: [
+      { label: "入居保証金", value: "18" },
+      { label: "ゴルフ会員権", value: "19" },
+      { label: "記名式信託受益証券", value: "20" },
+      { label: "その他", value: "90" }
+    ]
+  }
+};
+
+//担保設定区分
+const COLLATERAL_SETTING_CONFIG = {
+  "01": {
+    // 預金
+    label: "預金",
+    minors: [{ label: "正式", value: "1" }]
+  },
+  "02": {
+    // 電債
+    label: "電債",
+    minors: [{ label: "正式", value: "1" }]
+  },
+  "03": {
+    // 一般保証
+    label: "一般保証",
+    minors: [
+      { label: "正式", value: "1" },
+      { label: "その他", value: "9" }
+    ]
+  },
+  "04": {
+    // 協会保証
+    label: "協会保証",
+    minors: [{ label: "正式", value: "1" }]
+  },
+  "05": {
+    // 動産・不動産
+    label: "動産・不動産",
+    minors: [
+      { label: "正式", value: "1" },
+      { label: "見返", value: "2" },
+      { label: "権利証", value: "5" },
+      { label: "Ｎ／Ｃ", value: "6" },
+      { label: "その他", value: "9" }
+    ]
+  },
+  "06": {
+    // 有価証券・債権
+    label: "有価証券・債権",
+    minors: [{ label: "正式", value: "1" }]
+  },
+  "09": {
+    // その他担保
+    label: "その他担保",
+    minors: [{ label: "正式", value: "1" }]
+  }
+};
+
+//担保種類区分
+const COLLATERAL_TYPE_CONFIG = {
+  "01": {
+    // 預金
+    label: "預金",
+    minors: [{ label: "その他", value: "9" }]
+  },
+  "02": {
+    // 電債
+    label: "電債",
+    minors: [
+      { label: "返済充当", value: "3" },
+      { label: "預金入金", value: "4" }
+    ]
+  },
+  "03": {
+    // 一般保証
+    label: "一般保証",
+    minors: [
+      { label: "個別保証", value: "5" },
+      { label: "根保証", value: "6" }
+    ]
+  },
+  "04": {
+    // 協会保証
+    label: "協会保証",
+    minors: [{ label: "根保証", value: "6" }]
+  },
+  "05": {
+    // 動産・不動産
+    label: "動産・不動産",
+    minors: [
+      { label: "抵当権", value: "1" },
+      { label: "根抵当権", value: "2" },
+      { label: "その他", value: "9" }
+    ]
+  },
+  "06": {
+    // 有価証券・債権
+    label: "有価証券・債権",
+    minors: [{ label: "その他", value: "9" }]
+  },
+  "09": {
+    // その他担保
+    label: "その他担保",
+    minors: [{ label: "その他", value: "9" }]
   }
 };
 
@@ -313,24 +519,48 @@ const MAJOR_OPTIONS = Object.entries(MAJOR_CATEGORY_CONFIG).map(
   })
 );
 
-// 後方互換性のための旧定数名（継続使用）
-const DEAL_TYPE_OPTIONS = OPTIONS.dealType;
-const SETUP_CATEGORY_OPTIONS = OPTIONS.setupCategory;
-const COLLATERAL_CLASS_OPTIONS = OPTIONS.collateralClass.normal;
-const EXTINGUISH_OPTIONS = OPTIONS.extinguish;
-const ROOT_LINK_OPTIONS = OPTIONS.rootLink;
-const GUARANTEE_TYPE_OPTIONS = OPTIONS.guaranteeType.normal;
-const GUARANTOR_CATEGORY_OPTIONS = OPTIONS.individualCorporate;
-const DEBTOR_RELATIONSHIP_OPTIONS = OPTIONS.individualCorporate;
-const CORPORATE_GUARANTEE_CATEGORY_OPTIONS = OPTIONS.corporateGuaranteeCategory;
-const GUARANTEE_PERIOD_OPTIONS = OPTIONS.guaranteePeriod;
-const ASSOCIATION_TYPE_OPTIONS = OPTIONS.associationType;
-const ASSOCIATION_EXISTING_CONDITION_OPTIONS = OPTIONS.associationExistingCondition;
-const ASSOCIATION_APPROVAL_CONDITION_OPTIONS = OPTIONS.associationApprovalCondition;
-const TIMING_OPTIONS = OPTIONS.timing;
+/**
+ * 履行期限と保証期間入力を許可する協会保証の保証種別
+ */
+const ASSOCIATION_EXECUTION_ALLOWED_TYPES = ["32", "34"];
 
 // ========================================
-// 定数定義: 動的選択肢の連動ルール
+// 定数: 担保種類（小分類）と保証人区分のマッピング
+// ========================================
+
+/**
+ * 担保種類（小分類）に応じた保証人区分のマッピング
+ * 各担保種類の値に対して、表示すべき保証人区分の値の配列を定義
+ */
+const COLLATERAL_TO_GUARANTOR_MAPPING = {
+  30: ["11"], // 金融機関 → 金融機関
+  31: ["21"], // 国・地公体 → 国・地方公共団体
+  32: ["15", "18"], // 公益法人 → その他社団法人、その他財団法人
+  33: ["20"], // 特殊法人 → その他特殊法人
+  34: ["09"], // 一般法人・上場 → 法人(上場)
+  35: ["10"], // 一般法人・非上場 → 法人(非上場)
+  36: ["25"], // TKK → TKK
+  37: ["17"], // VEC → VEC
+  38: ["13"], // 全石協 → 全石協
+  39: ["19"], // IPA → IPA
+  40: ["14"], // ECFA → ECFA
+  41: ["01", "02", "03", "04", "05", "06", "07", "08"], // 個人保証 → 代表取締役、取締役・理事・執行役、大株主、共同事業者、配偶者(事業性)、配偶者(非事業性)、第三者個人(事業性)、第三者個人(非事業性)
+  42: ["22"], // 外国政府 → 外国政府
+  43: ["24"], // 外国法人 → 外国法人
+  44: ["23"], // 国際機関 → 国際機関
+  73: ["18", "20", "21"], // 貿易金融保険 → その他財団法人、その他特殊法人、国・地方公共団体
+  74: ["21", "22"], // 輸出入銀行 → 国・地方公共団体、外国政府
+  80: ["16"], // 提携先保証 → DHC
+  81: ["16", "21"], // 保証会社保証 → DHC、国・地方公共団体
+  82: ["16", "21"], // 保証保険 → DHC、国・地方公共団体
+  83: ["16"], // DC保証 → DHC
+  84: ["16"], // ジャックス保証 → DHC
+  85: ["16"], // DHC保証 → DHC
+  86: ["16"] // MULB保証 → DHC
+};
+
+// ========================================
+// 定数: 動的選択肢の連動ルール
 // ========================================
 
 /**
@@ -338,35 +568,29 @@ const TIMING_OPTIONS = OPTIONS.timing;
  * 小分類や大分類に応じて選択肢を切り替えるロジックを定義
  */
 const DYNAMIC_OPTIONS_CONFIG = {
-  // 担保種類区分の連動ルール
-  collateralClass: {
-    // 常に適用
-    shouldApply: () => true,
-    // 大分類の値に応じたパターンのマッピング
-    getPattern: (column) => {
-      return column.majorValue === "associationCollateral" ? "association" : "normal";
-    }
-  },
-
   // 保証種別の連動ルール
   guaranteeType: {
-    // 保証の場合のみ連動
-    shouldApply: (column) => column.majorValue === "guaranteeCollateral",
+    // 保証の場合のみ連動（大分類："03"=一般保証）
+    shouldApply: (column) => column.majorValue === "03",
     // 小分類の値に応じたパターンのマッピング
     getPattern: (column) => {
       const minorValue = column.minorValue;
-      if (minorValue === "guarantee-tkk" || minorValue === "guarantee-zenseki") {
-        return "tkk";
-      } else if (minorValue === "guarantee-dhc") {
-        return "dhc";
+      // ＴＫＫ（36）、全石協（38） → "02" tkkパターン（保証種別：11-14, 99）
+      if (minorValue === "36" || minorValue === "38") {
+        return "02";
       }
-      return "normal";
+      // ＤＨＣ保証（85） → "03" dhcパターン（保証種別：21-22, 99）
+      if (minorValue === "85") {
+        return "03";
+      }
+      // その他の小分類 → "01" normalパターン（保証種別：01-07, 99）
+      return "01";
     }
   }
 };
 
 // ========================================
-// 定数定義: サンプルデータ
+// 定数: サンプルデータ
 // ========================================
 
 /**
@@ -374,218 +598,118 @@ const DYNAMIC_OPTIONS_CONFIG = {
  */
 const SAMPLE_COLLATERAL_DETAIL_ROWS = [
   {
-    condition: SAMPLE_TEXT_400,
+    condition: SAMPLE_TEXT_140,
     timing: "取引開始前/同時",
     dueDate: "2025-06-30"
   },
   {
-    condition: SAMPLE_TEXT_400,
-    timing: "四半期末",
+    condition: SAMPLE_TEXT_140,
+    timing: "取引開始前/同時",
     dueDate: "2025-09-30"
   },
   {
-    condition: SAMPLE_TEXT_400,
-    timing: "契約更新時",
+    condition: SAMPLE_TEXT_140,
+    timing: "取引開始前/同時",
     dueDate: "2026-03-31"
   },
   {
-    condition: SAMPLE_TEXT_400,
-    timing: "半期末",
+    condition: SAMPLE_TEXT_140,
+    timing: "取引開始前/同時",
     dueDate: "2025-12-31"
   },
   {
-    condition: SAMPLE_TEXT_400,
-    timing: "その他",
+    condition: SAMPLE_TEXT_140,
+    timing: "取引開始前/同時",
     dueDate: "2026-02-28"
   }
 ];
 
-/** 担保条件２の最大追加可能件数 */
-const MAX_COLLATERAL_DETAIL_ROWS = 9;
+// ========================================
+// 定数: テンプレートデータ
+// ========================================
 
 const COLUMN_TEMPLATES = {
   pattern1: [
     {
       id: "col-import",
       subject: "01",
-      majorValue: "importCollateral",
-      minorValue: "import-lc",
-      dealType: "new",
-      setupCategory: "package",
-      collateralCategory: "commerce",
-      amount: "1234567",
-      share: "80",
-      extinguish: "bullet",
-      rootLink: "link",
+      majorValue: "01", // 預金
+      minorValue: "01",
+      dealType: "01", // 新規
+      setupCategory: "1",
+      collateralCategory: "9",
+      amount: "999999999",
+      share: "999999999",
+      extinguish: "",
+      rootLink: "01", // 極度
       timing: "取引開始前/同時",
-      dueDate: "2025-12-31",
-      remark: SAMPLE_TEXT_28
+      dueDate: "",
+      remark: SAMPLE_TEXT_60
     },
     {
       id: "col-export",
       subject: "02",
-      majorValue: "exportCollateral",
-      minorValue: "export-lc",
-      dealType: "existing",
-      setupCategory: "single",
-      collateralCategory: "commerce",
-      amount: "2500000",
-      share: "90",
-      extinguish: "installment",
-      rootLink: "independent",
-      timing: "四半期末",
-      dueDate: "2026-03-31",
-      remark: SAMPLE_TEXT_28
-    },
-    {
-      id: "col-guarantee",
-      subject: "03",
-      majorValue: "guaranteeCollateral",
-      minorValue: "guarantee-parent",
-      dealType: "new",
-      setupCategory: "single",
-      collateralCategory: "commerce",
-      amount: "10000000",
-      share: "100",
-      extinguish: "as-needed",
-      rootLink: "independent",
-      timing: "契約更新時",
-      dueDate: "2027-03-31",
-      remark: SAMPLE_TEXT_28,
-      guaranteeType: "parent",
-      guarantorName: SAMPLE_TEXT_28,
-      guarantorCategory: "corporate",
-      corporateGuaranteeCategory: "management-guarantee",
-      debtorRelationship: "corporate",
-      guaranteePeriod: "period",
-      guaranteePeriodYears: "3",
-      guaranteePeriodMonths: "0",
-      guaranteeDeadline: "2027-03-31"
-    },
-    {
-      id: "col-association",
-      subject: "04",
-      majorValue: "associationCollateral",
-      minorValue: "association-basic",
-      dealType: "new",
-      setupCategory: "single",
-      collateralCategory: "electric",
-      amount: "2000000",
-      share: "100",
-      extinguish: "installment",
-      rootLink: "independent",
-      timing: "半期末",
-      dueDate: "2026-05-31",
-      remark: SAMPLE_TEXT_28,
-      associationType: "basic",
-      associationGuaranteeNumber: "12345",
-      associationExistingCondition: "existing-fee-advance",
-      associationApprovalCondition: "financial-maintenance",
-      associationGuaranteePeriod: "period",
-      associationPeriodYears: "2",
-      associationPeriodMonths: "0",
-      associationDeadline: "2026-05-01"
-    }
-  ],
-  pattern2: [
-    {
-      id: "col-import",
-      subject: "01",
-      majorValue: "importCollateral",
-      minorValue: "import-lc",
-      dealType: "new",
-      setupCategory: "package",
-      collateralCategory: "commerce",
-      amount: "1234567",
-      share: "80",
-      extinguish: "bullet",
-      rootLink: "link",
+      majorValue: "02", // 電債
+      minorValue: "05",
+      dealType: "02", // 既存
+      setupCategory: "1",
+      collateralCategory: "3",
+      amount: "999999999",
+      share: "999999999",
+      extinguish: "",
+      rootLink: "02", // 実残
       timing: "取引開始前/同時",
-      dueDate: "2025-12-31",
-      remark: SAMPLE_TEXT_28
-    },
-    {
-      id: "col-export",
-      subject: "02",
-      majorValue: "exportCollateral",
-      minorValue: "export-lc",
-      dealType: "existing",
-      setupCategory: "single",
-      collateralCategory: "commerce",
-      amount: "2500000",
-      share: "90",
-      extinguish: "installment",
-      rootLink: "independent",
-      timing: "四半期末",
-      dueDate: "2026-03-31",
-      remark: SAMPLE_TEXT_28
+      dueDate: "",
+      remark: SAMPLE_TEXT_60
     },
     {
       id: "col-guarantee",
       subject: "03",
-      majorValue: "guaranteeCollateral",
-      minorValue: "guarantee-parent",
-      dealType: "new",
-      setupCategory: "single",
-      collateralCategory: "commerce",
-      amount: "10000000",
-      share: "100",
-      extinguish: "as-needed",
-      rootLink: "independent",
-      timing: "契約更新時",
-      dueDate: "2027-03-31",
-      remark: SAMPLE_TEXT_28,
-      guaranteeType: "parent",
-      guarantorName: SAMPLE_TEXT_28,
-      guarantorCategory: "corporate",
-      corporateGuaranteeCategory: "management-guarantee",
-      debtorRelationship: "corporate",
-      guaranteePeriod: "period",
-      guaranteePeriodYears: "3",
-      guaranteePeriodMonths: "0",
-      guaranteeDeadline: "2027-03-31"
+      majorValue: "03", // 一般保証
+      minorValue: "34",
+      dealType: "01", // 新規
+      setupCategory: "1",
+      collateralCategory: "5",
+      amount: "999999999",
+      share: "999999999",
+      extinguish: "",
+      rootLink: "02", // 実残
+      timing: "取引開始前/同時",
+      dueDate: "",
+      remark: SAMPLE_TEXT_60,
+      guaranteeType: "05", // 包括根保証
+      guarantorName: SAMPLE_TEXT_30,
+      guarantorCategory: "01", // 代表取締役
+      corporateGuaranteeCategory: "01", // 規定・優良
+      debtorRelationship: "01", // 代表取締役
+      guaranteePeriod: "", // 期間
+      guaranteePeriodYears: "",
+      guaranteePeriodMonths: "",
+      guaranteeDeadline: ""
     },
     {
       id: "col-association",
       subject: "04",
-      majorValue: "associationCollateral",
-      minorValue: "association-basic",
-      dealType: "new",
-      setupCategory: "single",
-      collateralCategory: "electric",
-      amount: "2000000",
-      share: "100",
-      extinguish: "installment",
-      rootLink: "independent",
-      timing: "半期末",
+      majorValue: "04", // 協会保証
+      minorValue: "45",
+      dealType: "01", // 新規
+      setupCategory: "1",
+      collateralCategory: "6",
+      amount: "999999999",
+      share: "999999999",
+      extinguish: "",
+      rootLink: "02", // 実残
+      timing: "取引開始前/同時",
       dueDate: "2026-05-31",
-      remark: SAMPLE_TEXT_28,
-      associationType: "basic",
-      associationGuaranteeNumber: "12345",
-      associationExistingCondition: "existing-fee-advance",
-      associationApprovalCondition: "financial-maintenance",
-      associationGuaranteePeriod: "period",
-      associationPeriodYears: "2",
-      associationPeriodMonths: "0",
-      associationDeadline: "2026-05-01"
-    }
-  ],
-  pattern3: [
-    {
-      id: "col-single",
-      subject: "01",
-      majorValue: "assetCollateral",
-      minorValue: "asset-hq",
-      dealType: "existing",
-      setupCategory: "package",
-      collateralCategory: "other",
-      amount: "3000000",
-      share: "70",
-      extinguish: "bullet",
-      rootLink: "link",
-      timing: "その他",
-      dueDate: "2026-09-30",
-      remark: SAMPLE_TEXT_28
+      remark: SAMPLE_TEXT_60,
+      associationType: "32", // 貸付根保証
+      associationGuaranteeNumber: "999999999999999999",
+      associationExistingCondition: "01", // 有
+      associationApprovalCondition: "01", // 条件なし
+      associationGuaranteePeriod: "02", // 日付
+      associationPeriodYears: "",
+      associationPeriodMonths: "",
+      associationDeadline: "2027-03-31"
     }
   ]
 };
@@ -611,26 +735,20 @@ const buildRows = (rows, prefix, blankRow) =>
 /**
  * 大分類の値から小分類の選択肢を取得
  * @param {string} majorValue - 大分類の値
- * @returns {Array} 小分類の選択肢リスト
+ * @returns {Object} 小分類の選択肢リストと担保設定区分、担保種類区分
  */
-const getMinorOptions = (majorValue) =>
-  MAJOR_CATEGORY_CONFIG[majorValue]?.minors ?? [];
+const getOptionsByMajorValue = (majorValue) => {
+  const minorOptions = MAJOR_CATEGORY_CONFIG[majorValue]?.minors ?? [];
+  const collateralSettingOptions =
+    COLLATERAL_SETTING_CONFIG[majorValue]?.minors ?? [];
+  const collateralTypeOptions =
+    COLLATERAL_TYPE_CONFIG[majorValue]?.minors ?? [];
 
-/**
- * 小分類に応じた担保種類区分の選択肢を取得
- * @param {string} majorValue - 大分類の値
- * @param {string} minorValue - 小分類の値
- * @returns {Array} 担保種類区分の選択肢リスト
- */
-const getCollateralClassOptions = (majorValue, minorValue) => {
-  const config = DYNAMIC_OPTIONS_CONFIG.collateralClass;
-  const column = { majorValue, minorValue };
-
-  if (config.shouldApply(column)) {
-    const pattern = config.getPattern(column);
-    return OPTIONS.collateralClass[pattern];
-  }
-  return OPTIONS.collateralClass.normal;
+  return {
+    minorOptions,
+    collateralSettingOptions,
+    collateralTypeOptions
+  };
 };
 
 /**
@@ -647,7 +765,33 @@ const getGuaranteeTypeOptions = (majorValue, minorValue) => {
     const pattern = config.getPattern(column);
     return OPTIONS.guaranteeType[pattern];
   }
-  return OPTIONS.guaranteeType.normal;
+  return OPTIONS.guaranteeType["01"]; // デフォルトはnormalパターン
+};
+
+/**
+ * 小分類に応じた保証人区分の選択肢を取得
+ * @param {string} majorValue - 大分類の値
+ * @param {string} minorValue - 小分類の値
+ * @returns {Array} 保証人区分の選択肢リスト
+ */
+const getGuarantorCategoryOptions = (majorValue, minorValue) => {
+  // 一般保証（"03"）の場合のみフィルタリング
+  if (majorValue !== "03") {
+    return OPTIONS.individualCorporate;
+  }
+
+  // 小分類に基づくマッピングを取得
+  const allowedValues = COLLATERAL_TO_GUARANTOR_MAPPING[minorValue];
+
+  // マッピングが存在しない場合は全選択肢を返す
+  if (!allowedValues || allowedValues.length === 0) {
+    return OPTIONS.individualCorporate;
+  }
+
+  // マッピングに基づいて選択肢をフィルタリング
+  return OPTIONS.individualCorporate.filter((option) =>
+    allowedValues.includes(option.value)
+  );
 };
 
 /**
@@ -656,35 +800,99 @@ const getGuaranteeTypeOptions = (majorValue, minorValue) => {
  * @returns {Object} デコレートされた列データ
  */
 const decorateColumn = (column) => {
-  const isGuarantee = column.majorValue === "guaranteeCollateral";
-  const isAssociation = column.majorValue === "associationCollateral";
+  const isGuarantee = column.majorValue === "03"; // 一般保証
+  const isAssociation = column.majorValue === "04"; // 協会保証
+  const isAsset = column.majorValue === "05"; // 動産・不動産
   const isGuaranteeOrAssociation = isGuarantee || isAssociation;
+
+  // 保証種別の値を取得（一般保証 or 協会保証）
+  const guaranteeTypeValue = isAssociation
+    ? column.associationType
+    : column.guaranteeType;
+
+  // 履行期限と保証期間の入力を許容する協会保証かを判定
+  const canEditAssociationExecution =
+    isAssociation &&
+    ASSOCIATION_EXECUTION_ALLOWED_TYPES.includes(column.associationType);
+
+  // 保証期間入力の制御フラグ
+  const basePeriodDisabled = isAssociation
+    ? column.associationGuaranteePeriod === "02"
+    : column.guaranteePeriod === "02";
+  const baseDateDisabled = isAssociation
+    ? column.associationGuaranteePeriod === "01"
+    : column.guaranteePeriod === "01";
 
   return {
     ...column,
-    minorOptions: getMinorOptions(column.majorValue),
-    collateralClassOptions: getCollateralClassOptions(column.majorValue, column.minorValue),
-    guaranteeTypeOptions: getGuaranteeTypeOptions(column.majorValue, column.minorValue),
+    minorOptions: getOptionsByMajorValue(column.majorValue).minorOptions,
+    collateralSettingOptions: getOptionsByMajorValue(column.majorValue)
+      .collateralSettingOptions,
+    collateralTypeOptions: getOptionsByMajorValue(column.majorValue)
+      .collateralTypeOptions,
+    guaranteeTypeOptions: getGuaranteeTypeOptions(
+      column.majorValue,
+      column.minorValue
+    ),
+    // 保証人区分の動的選択肢を追加
+    guarantorCategoryOptions: getGuarantorCategoryOptions(
+      column.majorValue,
+      column.minorValue
+    ),
     isGuaranteeCategory: isGuarantee,
     isAssociationCategory: isAssociation,
     isGuaranteeOrAssociation,
     isCorporateGuarantor: column.guarantorCategory === "corporate",
+    // 規定区分の入力制御（一般保証の個人保証以外の時のみ有効）
+    isCorporateGuaranteeCategoryDisabled:
+      !isGuarantee || column.minorValue === "41",
     // 保証種別の統一プロパティ
-    guaranteeTypeValue: isAssociation ? column.associationType : column.guaranteeType,
-    guaranteeTypeOptionsForDisplay: isAssociation ? OPTIONS.associationType : getGuaranteeTypeOptions(column.majorValue, column.minorValue),
+    guaranteeTypeValue: guaranteeTypeValue,
+    guaranteeTypeOptionsForDisplay: isAssociation
+      ? OPTIONS.guaranteeType["04"]
+      : getGuaranteeTypeOptions(column.majorValue, column.minorValue), // 協会保証は"04"パターン
     guaranteeTypeField: isAssociation ? "associationType" : "guaranteeType",
-    guaranteeTypeHelp: isAssociation ? "協会保証の種類を選択してください。普通保証または超短期から選択できます。" : undefined,
-    // 保証期間の入力制御
-    isPeriodInputDisabled: column.guaranteePeriod === "date",
-    isDateInputDisabled: column.guaranteePeriod === "period",
-    // 協会保証期間の入力制御
-    isAssociationPeriodInputDisabled: column.associationGuaranteePeriod === "date",
-    isAssociationDateInputDisabled: column.associationGuaranteePeriod === "period"
+    guaranteeTypeHelp: isAssociation
+      ? "協会保証のインフォメーション情報がここにでます"
+      : undefined,
+    // 評価方法の入力制御（動産・不動産のみ有効）
+    isExtinguishDisabled: !isAsset,
+    // 履行期限と保証期間入力の共通制御
+    isDueDateDisabled: !canEditAssociationExecution,
+    isExecutionScheduleDisabled: !canEditAssociationExecution,
+    // 保証期間の統一プロパティ
+    periodField: isAssociation
+      ? "associationGuaranteePeriod"
+      : "guaranteePeriod",
+    periodValue: isAssociation
+      ? column.associationGuaranteePeriod
+      : column.guaranteePeriod,
+    periodYearsField: isAssociation
+      ? "associationPeriodYears"
+      : "guaranteePeriodYears",
+    periodYearsValue: isAssociation
+      ? column.associationPeriodYears
+      : column.guaranteePeriodYears,
+    periodMonthsField: isAssociation
+      ? "associationPeriodMonths"
+      : "guaranteePeriodMonths",
+    periodMonthsValue: isAssociation
+      ? column.associationPeriodMonths
+      : column.guaranteePeriodMonths,
+    deadlineField: isAssociation ? "associationDeadline" : "guaranteeDeadline",
+    deadlineValue: isAssociation
+      ? column.associationDeadline
+      : column.guaranteeDeadline,
+    // 保証期間の入力制御（協会保証の指定条件時のみ有効）
+    isPeriodInputDisabled:
+      !canEditAssociationExecution || basePeriodDisabled,
+    isDateInputDisabled:
+      !canEditAssociationExecution || baseDateDisabled
   };
 };
 
 // ========================================
-// コンポーネントクラス
+// コンポーネント
 // ========================================
 
 /**
@@ -692,25 +900,34 @@ const decorateColumn = (column) => {
  * 親画面タイプに応じて列データのテンプレートを切り替える
  */
 export default class f003RgV9961TanpoBasicC1 extends LightningElement {
+  // ========================================
+  // プロパティ: 画面設定
+  // ========================================
   _parentScreenType = "pattern1";
-  subjectOptions = SUBJECT_OPTIONS;
-  majorOptions = MAJOR_OPTIONS;
   globalRemark = SAMPLE_TEXT_280;
-  dealTypeOptions = DEAL_TYPE_OPTIONS;
-  setupCategoryOptions = SETUP_CATEGORY_OPTIONS;
-  collateralClassOptions = COLLATERAL_CLASS_OPTIONS;
-  extinguishOptions = EXTINGUISH_OPTIONS;
-  rootLinkOptions = ROOT_LINK_OPTIONS;
-  guaranteeTypeOptions = GUARANTEE_TYPE_OPTIONS;
-  guarantorCategoryOptions = GUARANTOR_CATEGORY_OPTIONS;
-  debtorRelationshipOptions = DEBTOR_RELATIONSHIP_OPTIONS;
-  corporateGuaranteeCategoryOptions = CORPORATE_GUARANTEE_CATEGORY_OPTIONS;
-  guaranteePeriodOptions = GUARANTEE_PERIOD_OPTIONS;
-  associationTypeOptions = ASSOCIATION_TYPE_OPTIONS;
-  associationExistingConditionOptions = ASSOCIATION_EXISTING_CONDITION_OPTIONS;
-  associationApprovalConditionOptions = ASSOCIATION_APPROVAL_CONDITION_OPTIONS;
-  timingOptions = TIMING_OPTIONS;
 
+  // ========================================
+  // プロパティ: 選択肢オプション
+  // ========================================
+  subjectOptions = OPTIONS.subject;
+  majorOptions = MAJOR_OPTIONS;
+  dealTypeOptions = OPTIONS.dealType;
+  setupCategoryOptions = OPTIONS.setupCategory;
+  extinguishOptions = OPTIONS.extinguish;
+  rootLinkOptions = OPTIONS.rootLink;
+  guaranteeTypeOptions = OPTIONS.guaranteeType.normal;
+  guarantorCategoryOptions = OPTIONS.individualCorporate;
+  debtorRelationshipOptions = OPTIONS.individualCorporate;
+  corporateGuaranteeCategoryOptions = OPTIONS.corporateGuaranteeCategory;
+  guaranteePeriodOptions = OPTIONS.guaranteePeriod;
+  associationTypeOptions = OPTIONS.associationType;
+  associationExistingConditionOptions = OPTIONS.associationExistingCondition;
+  associationApprovalConditionOptions = OPTIONS.associationApprovalCondition;
+  timingOptions = OPTIONS.timing;
+
+  // ========================================
+  // プロパティ: データ
+  // ========================================
   @track columns = COLUMN_TEMPLATES.pattern1.map(decorateColumn);
   @track collateralDetailRows = buildRows(
     SAMPLE_COLLATERAL_DETAIL_ROWS,
@@ -720,7 +937,7 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
   nextCollateralDetailId = this.collateralDetailRows.length + 1;
 
   // ========================================
-  // 公開プロパティ
+  // API プロパティ
   // ========================================
 
   /**
@@ -742,7 +959,7 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
   }
 
   // ========================================
-  // ゲッタープロパティ
+  // 算出プロパティ
   // ========================================
 
   /**
@@ -754,7 +971,7 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
   }
 
   // ========================================
-  // メソッド
+  // ヘルパーメソッド
   // ========================================
 
   /**
@@ -766,6 +983,10 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
     this.columns = templates.map(decorateColumn);
   }
 
+  // ========================================
+  // イベントハンドラー: 担保条件１
+  // ========================================
+
   /**
    * 大分類変更ハンドラー
    * 大分類が変更されたら小分類を最初の選択肢に設定
@@ -774,14 +995,17 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
   handleMajorChange(event) {
     const { columnId } = event.target.dataset;
     const nextValue = event.detail.value;
-    const minorOptions = getMinorOptions(nextValue);
+    const { minorOptions, collateralSettingOptions, collateralTypeOptions } =
+      getOptionsByMajorValue(nextValue);
 
     this.columns = this.columns.map((column) =>
       column.id === columnId
         ? decorateColumn({
             ...column,
             majorValue: nextValue,
-            minorValue: minorOptions[0]?.value || ""
+            minorValue: minorOptions[0]?.value || "",
+            collateralSettingValue: collateralSettingOptions[0]?.value || "",
+            collateralTypeValue: collateralTypeOptions[0]?.value || ""
           })
         : column
     );
@@ -824,32 +1048,9 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
     );
   }
 
-  /**
-   * 保証人区分変更ハンドラー
-   * 保証人区分が変更されたら列データを再デコレート
-   * @param {Event} event - 変更イベント
-   */
-  handleGuarantorCategoryChange(event) {
-    const { columnId, field } = event.target.dataset;
-    const value = event.detail.value;
-
-    this.columns = this.columns.map((column) =>
-      column.id === columnId
-        ? decorateColumn({
-            ...column,
-            [field]: value
-          })
-        : column
-    );
-  }
-
-  /**
-   * 備考変更ハンドラー
-   * @param {Event} event - 変更イベント
-   */
-  handleRemarkChange(event) {
-    this.globalRemark = event.detail.value;
-  }
+  // ========================================
+  // イベントハンドラー: 担保条件２
+  // ========================================
 
   /**
    * 担保条件２の行変更ハンドラー
@@ -911,5 +1112,17 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
     this.collateralDetailRows = this.collateralDetailRows.filter(
       (row) => row.id !== rowId
     );
+  }
+
+  // ========================================
+  // イベントハンドラー: 担保コメント
+  // ========================================
+
+  /**
+   * 備考変更ハンドラー
+   * @param {Event} event - 変更イベント
+   */
+  handleRemarksChange(event) {
+    this.globalRemark = event.detail.value;
   }
 }
