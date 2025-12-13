@@ -118,6 +118,9 @@ const SAMPLE_TEXT_140 = generateData("mixedByte", 140);
 /** サンプルテキスト（280バイト） */
 const SAMPLE_TEXT_280 = generateData("mixedByte", 280);
 
+/** サンプルテキスト（390バイト） */
+const SAMPLE_TEXT_390 = generateData("mixedByte", 390);
+
 // ========================================
 // 定数: 選択肢オプション
 // ========================================
@@ -630,6 +633,26 @@ const SAMPLE_COLLATERAL_DETAIL_ROWS = [
     condition: SAMPLE_TEXT_140,
     timing: "取引開始前/同時",
     dueDate: "2026-02-28"
+  },
+  {
+    condition: SAMPLE_TEXT_140,
+    timing: "取引都度",
+    dueDate: "2025-08-31"
+  },
+  {
+    condition: SAMPLE_TEXT_140,
+    timing: "取引開始後",
+    dueDate: "2025-11-30"
+  },
+  {
+    condition: SAMPLE_TEXT_140,
+    timing: "取引開始前/同時",
+    dueDate: "2026-01-31"
+  },
+  {
+    condition: SAMPLE_TEXT_140,
+    timing: "取引都度",
+    dueDate: "2026-04-30"
   }
 ];
 
@@ -720,7 +743,26 @@ const COLUMN_TEMPLATES = {
       associationPeriodMonths: "",
       associationDeadline: "2027-03-31"
     }
-  ]
+  ],
+  pattern2: [
+    {
+      id: "col-single",
+      subject: "01",
+      majorValue: "01", // 預金
+      minorValue: "01",
+      dealType: "01", // 新規
+      setupCategory: "1",
+      collateralCategory: "9",
+      amount: "999999999",
+      share: "999999999",
+      extinguish: "",
+      rootLink: "01", // 極度
+      timing: "取引開始前/同時",
+      dueDate: "",
+      remark: SAMPLE_TEXT_60
+    }
+  ],
+  pattern3: []
 };
 
 // ========================================
@@ -1016,6 +1058,33 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
     return this.parentScreenType === "pattern1";
   }
 
+  /**
+   * 担保条件セクション（担保条件１・２）の表示フラグ
+   * @returns {boolean} pattern3以外の場合true
+   */
+  get showCollateralConditions() {
+    return this.parentScreenType !== "pattern3";
+  }
+
+  /**
+   * アクティブなアコーディオンセクション
+   * @returns {string[]} アクティブセクション名の配列
+   */
+  get activeSections() {
+    if (this.parentScreenType === "pattern3") {
+      return ["section3"]; // 担保コメントのみ
+    }
+    return ["b", "collateralDetailSection", "section3"]; // 全セクション
+  }
+
+  /**
+   * 担保コメントセクションのラベル
+   * @returns {string} パターン3の場合は「担保条件」、それ以外は「担保コメント」
+   */
+  get commentSectionLabel() {
+    return this.parentScreenType === "pattern3" ? "担保条件" : "担保コメント";
+  }
+
   // ========================================
   // ヘルパーメソッド
   // ========================================
@@ -1027,6 +1096,9 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
   applyPattern(screenType) {
     const templates = COLUMN_TEMPLATES[screenType] || COLUMN_TEMPLATES.pattern1;
     this.columns = templates.map(decorateColumn);
+
+    // パターン3の場合は担保コメントのサンプルデータを390バイトに設定
+    this.globalRemark = screenType === "pattern3" ? SAMPLE_TEXT_390 : SAMPLE_TEXT_280;
   }
 
   // ========================================

@@ -4,11 +4,12 @@
     active-section-name={activeSections}
   >
     <!-- 担保条件１ -->
-    <lightning-accordion-section
-      name="b"
-      label="担保条件１"
-      icon-name="standard:choice"
-    >
+    <template if:true={showCollateralConditions}>
+      <lightning-accordion-section
+        name="b"
+        label="担保条件１"
+        icon-name="standard:choice"
+      >
       <lightning-card>
         <template for:each={columns} for:item="column">
           <div key={column.id} class="slds-p-around_medium">
@@ -321,9 +322,11 @@
         </template>
       </lightning-card>
     </lightning-accordion-section>
+    </template>
 
     <!-- 担保条件２ -->
-    <lightning-accordion-section
+    <template if:true={showCollateralConditions}>
+      <lightning-accordion-section
       name="collateralDetailSection"
       label="担保条件２（１で選択できない担保条件が存在する場合や上限件数以上となる場合はこちらへ記載）"
     >
@@ -348,7 +351,7 @@
         <div slot="actions">
           <lightning-button
             label="行追加"
-            onclick={handleAddRow}
+            onclick={handleAddCollateralDetailRow}
             variant="brand"
           ></lightning-button>
         </div>
@@ -403,9 +406,10 @@
         </template>
       </lightning-card>
     </lightning-accordion-section>
+    </template>
 
     <!-- 担保コメント -->
-    <lightning-accordion-section name="section3" label="担保コメント">
+    <lightning-accordion-section name="section3" label={commentSectionLabel}>
       <lightning-card>
         <lightning-layout multiple-rows>
           <lightning-layout-item size="7" padding="horizontal-small">
