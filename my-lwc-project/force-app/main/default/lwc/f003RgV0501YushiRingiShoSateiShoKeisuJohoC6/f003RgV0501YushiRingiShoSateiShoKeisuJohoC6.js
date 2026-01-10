@@ -1,5 +1,6 @@
 import { LightningElement, track, api } from "lwc";
-export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC1B extends LightningElement {
+
+export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC6 extends LightningElement {
   activeSections = [
     "a",
     "b",
@@ -20,6 +21,12 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC1B extends Lightn
     "q",
     "r"
   ];
+
+  @track reviewNumber = "9999";
+  @track amountUnit = "○○○○●○";
+  @track groupNumber = "9";
+  @track date = "2025/3/31";
+
   @track correctionReason =
     "○○○○●○○○○10○○○○●○○○○20○○○○●○○○○30○○○○●○○○○40○○○○●○○○○50○○○○●○○○○60○○○○●○○○○70○○○○●○○○○80○○○○●○○○○90○○○○●○○○○100";
   @track poolCategory = "99";
