@@ -1,17 +1,20 @@
+const MAX_CREDIT_VALUE = 9999999;
+const MAX_COLLATERAL_VALUE = 9999999;
+
 const CREDIT_DEFAULTS = {
   dueDate: "",
   rate: "",
-  balance99: 9999999,
-  principal: 9999999,
-  change: 9999999,
-  postBalance: 9999999,
-  actualBalance: 9999999,
-  correction: 9999999
+  balance99: MAX_CREDIT_VALUE,
+  principal: MAX_CREDIT_VALUE,
+  change: MAX_CREDIT_VALUE,
+  postBalance: MAX_CREDIT_VALUE,
+  actualBalance: MAX_CREDIT_VALUE,
+  correction: MAX_CREDIT_VALUE
 };
 
 const COLLATERAL_DEFAULTS = {
-  regValue: 9999999,
-  marketValue: 9999999
+  regValue: MAX_COLLATERAL_VALUE,
+  marketValue: MAX_COLLATERAL_VALUE
 };
 
 const baseCreditEditable = {
@@ -32,8 +35,16 @@ const baseCollateralEditable = {
   marketValue: false
 };
 
-const creditEditable = overrides => ({ ...baseCreditEditable, ...overrides });
-const collateralEditable = overrides => ({ ...baseCollateralEditable, ...overrides });
+const creditEditable = fields =>
+  fields.reduce(
+    (acc, field) => ({ ...acc, [field]: true }),
+    { ...baseCreditEditable }
+  );
+const collateralEditable = fields =>
+  fields.reduce(
+    (acc, field) => ({ ...acc, [field]: true }),
+    { ...baseCollateralEditable }
+  );
 
 const creditNode = ({ id, label, overrides = {}, editableFields, children = [] }) => ({
   ...CREDIT_DEFAULTS,
@@ -64,239 +75,239 @@ const rawCreditSource = [
     id: "root1",
     label: "限度算入与信合計",
     overrides: { correction: "" },
-    editableFields: creditEditable({})
+    editableFields: creditEditable([])
   }),
   creditNode({
     id: "root2",
     label: "貸付金・割引合計",
-    editableFields: creditEditable({ correction: true }),
+    editableFields: creditEditable(["correction"]),
     children: [
       creditNode({
         id: "l21",
         label: "貸付金・割引合計 子1",
         overrides: { dueDate: "03/01", rate: "99.999", change: -9999999 },
-        editableFields: creditEditable({
-          label: true,
-          rate: true,
-          balance99: true,
-          principal: true,
-          change: true,
-          postBalance: true,
-          actualBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "label",
+          "rate",
+          "balance99",
+          "principal",
+          "change",
+          "postBalance",
+          "actualBalance",
+          "correction"
+        ])
       }),
       creditNode({
         id: "l22",
         label: "貸付金・割引合計 子2",
         overrides: { dueDate: "04/01", rate: "99.999" },
-        editableFields: creditEditable({
-          label: true,
-          rate: true,
-          balance99: true,
-          mark: true,
-          principal: true,
-          change: true,
-          postBalance: true,
-          actualBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "label",
+          "rate",
+          "balance99",
+          "mark",
+          "principal",
+          "change",
+          "postBalance",
+          "actualBalance",
+          "correction"
+        ])
       })
     ]
   }),
   creditNode({
     id: "root3",
     label: " (内円貸)",
-    editableFields: creditEditable({ correction: true })
+    editableFields: creditEditable(["correction"])
   }),
   creditNode({
     id: "root4",
     label: "外為与信合計",
-    editableFields: creditEditable({ correction: true }),
+    editableFields: creditEditable(["correction"]),
     children: [
       creditNode({
         id: "e41",
         label: "外為与信合計 子1",
         overrides: { dueDate: "07/01", rate: "99.999", change: -9999999 },
-        editableFields: creditEditable({
-          label: true,
-          rate: true,
-          balance99: true,
-          mark: true,
-          change: true,
-          actualBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "label",
+          "rate",
+          "balance99",
+          "mark",
+          "change",
+          "actualBalance",
+          "correction"
+        ])
       }),
       creditNode({
         id: "e42",
         label: "外為与信合計 子2",
         overrides: { dueDate: "08/01", rate: "99.999" },
-        editableFields: creditEditable({
-          balance99: true,
-          mark: true,
-          principal: true,
-          postBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "balance99",
+          "mark",
+          "principal",
+          "postBalance",
+          "correction"
+        ])
       })
     ]
   }),
   creditNode({
     id: "root5",
     label: "支払承諾合計",
-    editableFields: creditEditable({ correction: true }),
+    editableFields: creditEditable(["correction"]),
     children: [
       creditNode({
         id: "s51",
         label: "支払承諾合計 子1",
         overrides: { dueDate: "10/01", rate: "99.999", change: -9999999 },
-        editableFields: creditEditable({
-          label: true,
-          mark: true,
-          principal: true,
-          change: true,
-          postBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "label",
+          "mark",
+          "principal",
+          "change",
+          "postBalance",
+          "correction"
+        ])
       }),
       creditNode({
         id: "s52",
         label: "支払承諾合計 子2",
         overrides: { dueDate: "11/01", rate: "99.999" },
-        editableFields: creditEditable({
-          rate: true,
-          balance99: true,
-          mark: true,
-          actualBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "rate",
+          "balance99",
+          "mark",
+          "actualBalance",
+          "correction"
+        ])
       })
     ]
   }),
   creditNode({
     id: "root6",
     label: "私募債",
-    editableFields: creditEditable({
-      rate: true,
-      balance99: true,
-      principal: true,
-      change: true,
-      postBalance: true,
-      actualBalance: true,
-      correction: true
-    })
+    editableFields: creditEditable([
+      "rate",
+      "balance99",
+      "principal",
+      "change",
+      "postBalance",
+      "actualBalance",
+      "correction"
+    ])
   }),
   creditNode({
     id: "root16",
     label: "協保債",
-    editableFields: creditEditable({
-      rate: true,
-      balance99: true,
-      principal: true,
-      change: true,
-      postBalance: true,
-      actualBalance: true,
-      correction: true
-    })
+    editableFields: creditEditable([
+      "rate",
+      "balance99",
+      "principal",
+      "change",
+      "postBalance",
+      "actualBalance",
+      "correction"
+    ])
   }),
   creditNode({
     id: "root7",
     label: "その他一般与信",
-    editableFields: creditEditable({
-      rate: true,
-      balance99: true,
-      principal: true,
-      change: true,
-      postBalance: true,
-      actualBalance: true,
-      correction: true
-    })
+    editableFields: creditEditable([
+      "rate",
+      "balance99",
+      "principal",
+      "change",
+      "postBalance",
+      "actualBalance",
+      "correction"
+    ])
   }),
   creditNode({
     id: "root8",
     label: "限度算入ローン合計",
-    editableFields: creditEditable({ correction: true })
+    editableFields: creditEditable(["correction"])
   }),
   creditNode({
     id: "root9",
     label: " 内HL信用不算入",
-    editableFields: creditEditable({
-      rate: true,
-      balance99: true,
-      mark: true,
-      principal: true,
-      change: true,
-      postBalance: true,
-      actualBalance: true,
-      correction: true
-    })
+    editableFields: creditEditable([
+      "rate",
+      "balance99",
+      "mark",
+      "principal",
+      "change",
+      "postBalance",
+      "actualBalance",
+      "correction"
+    ])
   }),
   creditNode({
     id: "root10",
     label: "オンバランス合計",
-    editableFields: creditEditable({ correction: true })
+    editableFields: creditEditable(["correction"])
   }),
   creditNode({
     id: "root11",
     label: "オフバランス合計",
-    editableFields: creditEditable({ correction: true })
+    editableFields: creditEditable(["correction"])
   }),
   creditNode({
     id: "root12",
     label: "限度不算入与信合計",
-    editableFields: creditEditable({ correction: true }),
+    editableFields: creditEditable(["correction"]),
     children: [
       creditNode({
         id: "l121",
         label: "限度不算入 子1",
         overrides: { dueDate: "08/01", rate: "99.999" },
-        editableFields: creditEditable({
-          balance99: true,
-          mark: true,
-          principal: true,
-          postBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "balance99",
+          "mark",
+          "principal",
+          "postBalance",
+          "correction"
+        ])
       }),
       creditNode({
         id: "l122",
         label: "限度不算入 子2",
         overrides: { dueDate: "09/01", rate: "99.999" },
-        editableFields: creditEditable({
-          label: true,
-          rate: true,
-          mark: true,
-          change: true,
-          actualBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "label",
+          "rate",
+          "mark",
+          "change",
+          "actualBalance",
+          "correction"
+        ])
       })
     ]
   }),
   creditNode({
     id: "root13",
     label: "一般与信合計",
-    editableFields: creditEditable({ correction: true })
+    editableFields: creditEditable(["correction"])
   }),
   creditNode({
     id: "root14",
     label: "特定与信合計",
-    editableFields: creditEditable({ correction: true }),
+    editableFields: creditEditable(["correction"]),
     children: [
       creditNode({
         id: "l141",
         label: "特定与信合計 子1",
         overrides: { dueDate: "12/01", rate: "99.999" },
-        editableFields: creditEditable({
-          label: true,
-          rate: true,
-          mark: true,
-          principal: true,
-          change: true,
-          actualBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "label",
+          "rate",
+          "mark",
+          "principal",
+          "change",
+          "actualBalance",
+          "correction"
+        ])
       }),
       creditNode({
         id: "l142",
@@ -311,18 +322,18 @@ const rawCreditSource = [
           actualBalance: "",
           correction: ""
         },
-        editableFields: creditEditable({
-          label: true,
-          dueDate: true,
-          rate: true,
-          balance99: true,
-          mark: true,
-          principal: true,
-          change: true,
-          postBalance: true,
-          actualBalance: true,
-          correction: true
-        })
+        editableFields: creditEditable([
+          "label",
+          "dueDate",
+          "rate",
+          "balance99",
+          "mark",
+          "principal",
+          "change",
+          "postBalance",
+          "actualBalance",
+          "correction"
+        ])
       })
     ]
   })
@@ -332,45 +343,45 @@ const rawCollateralSource = [
   collateralNode({
     id: "collGeneral",
     collateralType: "規定担保合計",
-    editableFields: collateralEditable({ regValue: true, marketValue: true })
+    editableFields: collateralEditable(["regValue", "marketValue"])
   }),
   collateralNode({
     id: "collGeneral2",
     collateralType: "裸与信",
-    editableFields: collateralEditable({ regValue: true, marketValue: true })
+    editableFields: collateralEditable(["regValue", "marketValue"])
   }),
   collateralNode({
     id: "collGeneral3",
     collateralType: "補正値",
-    editableFields: collateralEditable({ regValue: true, marketValue: true })
+    editableFields: collateralEditable(["regValue", "marketValue"])
   }),
   collateralNode({
     id: "collGeneral4",
     collateralType: "規定・優良小計",
-    editableFields: collateralEditable({ regValue: true, marketValue: true }),
+    editableFields: collateralEditable(["regValue", "marketValue"]),
     children: [
       collateralNode({
         id: "cg4_1",
         collateralType: "規定・優良小計 子1",
-        editableFields: collateralEditable({ regValue: true, marketValue: true })
+        editableFields: collateralEditable(["regValue", "marketValue"])
       }),
       collateralNode({
         id: "cg4_2",
         collateralType: "規定・優良小計 子2",
-        editableFields: collateralEditable({ regValue: true, marketValue: true })
+        editableFields: collateralEditable(["regValue", "marketValue"])
       })
     ]
   }),
   collateralNode({
     id: "collGenera21",
     collateralType: "規定・一般小計",
-    editableFields: collateralEditable({ regValue: true, marketValue: true })
+    editableFields: collateralEditable(["regValue", "marketValue"])
   }),
   collateralNode({
     id: "collGenera26",
     collateralType: "規定外・その他",
     overrides: { regValue: 5000000, marketValue: 6000000 },
-    editableFields: collateralEditable({ regValue: true, marketValue: true })
+    editableFields: collateralEditable(["regValue", "marketValue"])
   })
 ];
 
@@ -489,7 +500,26 @@ export default class RirituComponent extends LightningElement {
     { id: "guarantor_5", name: "○○○○●○○○○10" }
   ];
   highlightOn = false;
-  activeSections = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r"];
+  activeSections = [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r"
+  ];
   /* =========================================
    * PUBLIC METHODS - HTMLから呼び出される
    * ======================================== */

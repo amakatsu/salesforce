@@ -74,49 +74,57 @@ const referenceRow = ({ id, category, overrides = {}, disabled = false }) => ({
   ...(disabled ? { disabled: true } : {})
 });
 
+const EXCHANGE_RESERVATION_ITEMS = [
+  {
+    id: "1",
+    type: "予約平残",
+    overrides: { previousTermAverage: "99999.99" }
+  },
+  { id: "2", type: "予約ピーク" },
+  { id: "3", type: "当月締結累計額" },
+  { id: "4", type: "平均回転期間" }
+];
+
+const REGULAR_COLLATERAL_ITEMS = [
+  { id: "11", collateralType: "預金" },
+  { id: "12", collateralType: "担手・電担" },
+  { id: "13", collateralType: "有証" },
+  { id: "14", collateralType: "保証" },
+  { id: "15", collateralType: "不動産" },
+  { id: "16", collateralType: "その他" },
+  { id: "17", collateralType: "規定担保計", disabled: true },
+  { id: "18", collateralType: "裸与信", disabled: true }
+];
+
+const NON_REGULAR_COLLATERAL_ITEMS = [
+  { id: "111", collateralType: "担手・電担" },
+  { id: "115", collateralType: "不動産" },
+  { id: "116", collateralType: "入居保証金" },
+  { id: "117", collateralType: "債権" },
+  { id: "118", collateralType: "その他" },
+  { id: "119", collateralType: "規定外担保計", disabled: true }
+];
+
+const REFERENCE_ITEMS = [
+  { id: "1111", category: "為替取引", disabled: true },
+  { id: "1112", category: "スワップオプション取引", disabled: true },
+  { id: "1113", category: "マークトリスク内在型取引", disabled: true },
+  { id: "1114", category: "先物取引" },
+  { id: "1115", category: "その他市場性与信" },
+  { id: "1116", category: "全体", disabled: true }
+];
+
 function generateExchangeReservationData() {
-  return [
-    exchangeRow({
-      id: "1",
-      type: "予約平残",
-      overrides: { previousTermAverage: "99999.99" }
-    }),
-    exchangeRow({ id: "2", type: "予約ピーク" }),
-    exchangeRow({ id: "3", type: "当月締結累計額" }),
-    exchangeRow({ id: "4", type: "平均回転期間" })
-  ];
+  return EXCHANGE_RESERVATION_ITEMS.map((item) => exchangeRow(item));
 }
 function generateRegularCollateralData() {
-  return [
-    collateralRow({ id: "11", collateralType: "預金" }),
-    collateralRow({ id: "12", collateralType: "担手・電担" }),
-    collateralRow({ id: "13", collateralType: "有証" }),
-    collateralRow({ id: "14", collateralType: "保証" }),
-    collateralRow({ id: "15", collateralType: "不動産" }),
-    collateralRow({ id: "16", collateralType: "その他" }),
-    collateralRow({ id: "17", collateralType: "規定担保計", disabled: true }),
-    collateralRow({ id: "18", collateralType: "裸与信", disabled: true })
-  ];
+  return REGULAR_COLLATERAL_ITEMS.map((item) => collateralRow(item));
 }
 function generateNonRegularCollateralData() {
-  return [
-    collateralRow({ id: "111", collateralType: "担手・電担" }),
-    collateralRow({ id: "115", collateralType: "不動産" }),
-    collateralRow({ id: "116", collateralType: "入居保証金" }),
-    collateralRow({ id: "117", collateralType: "債権" }),
-    collateralRow({ id: "118", collateralType: "その他" }),
-    collateralRow({ id: "119", collateralType: "規定外担保計", disabled: true })
-  ];
+  return NON_REGULAR_COLLATERAL_ITEMS.map((item) => collateralRow(item));
 }
 function generateReferenceData() {
-  return [
-    referenceRow({ id: "1111", category: "為替取引", disabled: true }),
-    referenceRow({ id: "1112", category: "スワップオプション取引", disabled: true }),
-    referenceRow({ id: "1113", category: "マークトリスク内在型取引", disabled: true }),
-    referenceRow({ id: "1114", category: "先物取引" }),
-    referenceRow({ id: "1115", category: "その他市場性与信" }),
-    referenceRow({ id: "1116", category: "全体", disabled: true })
-  ];
+  return REFERENCE_ITEMS.map((item) => referenceRow(item));
 }
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC5 extends LightningElement {
   @track amountUnit = "〇〇〇";

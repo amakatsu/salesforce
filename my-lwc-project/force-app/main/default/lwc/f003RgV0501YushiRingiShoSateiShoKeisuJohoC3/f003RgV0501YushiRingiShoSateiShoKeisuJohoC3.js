@@ -139,11 +139,53 @@ const ACTIVE_SECTIONS = [
   "r"
 ];
 
+const MAX_AMOUNT = "99999";
+const MAX_RATE = "99.99";
+
+const valueField = (value, editable = true) => ({ value, editable });
+const valueMap = (values, editable = true) =>
+  Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, valueField(value, editable)])
+  );
+const fillValueMap = (keys, value, editable = true) =>
+  Object.fromEntries(keys.map((key) => [key, valueField(value, editable)]));
+
+const ASSESSMENT_KEYS = [
+  "nonClassifiedAmount",
+  "firstClassifiedAmount",
+  "secondClassifiedAmount",
+  "thirdClassifiedAmount",
+  "fourthClassifiedAmount",
+  "totalAmount",
+  "managedPreferredDebt",
+  "creditRelatedCosts"
+];
+
+const OTHER_TRANSACTION_KEYS = [
+  "agencyFee",
+  "privateBond",
+  "principal",
+  "guarantor",
+  "largeRemaining",
+  "extreme",
+  "specialContract"
+];
+
+const STOCK_KEYS = [
+  "stockName",
+  "stockQuantity",
+  "acquisitionPrice",
+  "stockPrice",
+  "acquisitionDate",
+  "currentPrice",
+  "valuationProfitLoss"
+];
+
 const BANK_DEFAULTS = {
-  twoYearsAgo: "99999",
-  oneYearAgo: "99999",
-  recentEnd: "99999",
-  foreignCurrency: "99999"
+  twoYearsAgo: MAX_AMOUNT,
+  oneYearAgo: MAX_AMOUNT,
+  recentEnd: MAX_AMOUNT,
+  foreignCurrency: MAX_AMOUNT
 };
 const BANK_DISABLE_DEFAULTS = {
   twoYearsAgo: true,
@@ -161,21 +203,21 @@ const bankRow = ({ id, bankName, values = {}, disable = {} }) => ({
 
 const INDICATOR_DEFAULTS = {
   type: "",
-  period: "99.99",
-  sales: "99999",
-  operatingProfit: "99999",
-  currentProfit: "99999",
+  period: MAX_RATE,
+  sales: MAX_AMOUNT,
+  operatingProfit: MAX_AMOUNT,
+  currentProfit: MAX_AMOUNT,
   currentProfitRate: "",
-  netProfit: "99999",
+  netProfit: MAX_AMOUNT,
   netProfitRate: "",
-  depreciation: "99999",
-  commercialCF: "99999",
-  distributionRate: "99.99",
-  ownCapital: "99999",
-  borrowingPeriod: "99.99",
-  netInterestBurdenRate: "99.99",
-  ownCapitalRatio: "99.99",
-  currentBalanceRatio: "99.99"
+  depreciation: MAX_AMOUNT,
+  commercialCF: MAX_AMOUNT,
+  distributionRate: MAX_RATE,
+  ownCapital: MAX_AMOUNT,
+  borrowingPeriod: MAX_RATE,
+  netInterestBurdenRate: MAX_RATE,
+  ownCapitalRatio: MAX_RATE,
+  currentBalanceRatio: MAX_RATE
 };
 const INDICATOR_DISABLE_DEFAULTS = {
   period: true,
@@ -286,130 +328,109 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   indicatorColumns = INDICATOR_COLUMNS;
 
   // 自己査定結果データ
-  @track assessmentData = {
-    nonClassifiedAmount: { value: "99999", editable: true },
-    firstClassifiedAmount: { value: "99999", editable: true },
-    secondClassifiedAmount: { value: "99999", editable: true },
-    thirdClassifiedAmount: { value: "99999", editable: true },
-    fourthClassifiedAmount: { value: "99999", editable: true },
-    totalAmount: { value: "99999", editable: true },
-    managedPreferredDebt: { value: "99999", editable: true },
-    creditRelatedCosts: { value: "99999", editable: true }
-  };
+  @track assessmentData = fillValueMap(ASSESSMENT_KEYS, MAX_AMOUNT);
 
   // その他取引状況データ
-  @track otherTransactionData = {
-    agencyFee: { value: "99999", editable: true },
-    privateBond: { value: "99999", editable: true },
-    principal: { value: "99999", editable: true },
-    guarantor: { value: "99999", editable: true },
-    largeRemaining: { value: "99999", editable: true },
-    extreme: { value: "99999", editable: true },
-    specialContract: { value: "99999", editable: true }
-  };
+  @track otherTransactionData = fillValueMap(OTHER_TRANSACTION_KEYS, MAX_AMOUNT);
 
   // 政策投資株式データ
-  @track stockData = {
-    stockName: { value: "99999", editable: true },
-    stockQuantity: { value: "99999", editable: true },
-    acquisitionPrice: { value: "99999", editable: true },
-    stockPrice: { value: "99999", editable: true },
-    acquisitionDate: { value: "99999", editable: true },
-    currentPrice: { value: "99999", editable: true },
-    valuationProfitLoss: { value: "99999", editable: true }
-  };
+  @track stockData = fillValueMap(STOCK_KEYS, MAX_AMOUNT);
 
   // その他単体データ
-  @track memo = { value: "メモ内容", editable: false };
-  @track total = { value: "99.9999", editable: true };
+  @track memo = valueField("メモ内容", false);
+  @track total = valueField("99.9999");
+
+  _getValue(group, key) {
+    return this[group][key].value;
+  }
 
   // ゲッター：データ値を簡単にアクセスできるように
   get nonClassifiedAmount() {
-    return this.assessmentData.nonClassifiedAmount.value;
+    return this._getValue("assessmentData", "nonClassifiedAmount");
   }
 
   get firstClassifiedAmount() {
-    return this.assessmentData.firstClassifiedAmount.value;
+    return this._getValue("assessmentData", "firstClassifiedAmount");
   }
 
   get secondClassifiedAmount() {
-    return this.assessmentData.secondClassifiedAmount.value;
+    return this._getValue("assessmentData", "secondClassifiedAmount");
   }
 
   get thirdClassifiedAmount() {
-    return this.assessmentData.thirdClassifiedAmount.value;
+    return this._getValue("assessmentData", "thirdClassifiedAmount");
   }
 
   get fourthClassifiedAmount() {
-    return this.assessmentData.fourthClassifiedAmount.value;
+    return this._getValue("assessmentData", "fourthClassifiedAmount");
   }
 
   get totalAmount() {
-    return this.assessmentData.totalAmount.value;
+    return this._getValue("assessmentData", "totalAmount");
   }
 
   get managedPreferredDebt() {
-    return this.assessmentData.managedPreferredDebt.value;
+    return this._getValue("assessmentData", "managedPreferredDebt");
   }
 
   get creditRelatedCosts() {
-    return this.assessmentData.creditRelatedCosts.value;
+    return this._getValue("assessmentData", "creditRelatedCosts");
   }
 
   get agencyFee() {
-    return this.otherTransactionData.agencyFee.value;
+    return this._getValue("otherTransactionData", "agencyFee");
   }
 
   get privateBond() {
-    return this.otherTransactionData.privateBond.value;
+    return this._getValue("otherTransactionData", "privateBond");
   }
 
   get principal() {
-    return this.otherTransactionData.principal.value;
+    return this._getValue("otherTransactionData", "principal");
   }
 
   get guarantor() {
-    return this.otherTransactionData.guarantor.value;
+    return this._getValue("otherTransactionData", "guarantor");
   }
 
   get largeRemaining() {
-    return this.otherTransactionData.largeRemaining.value;
+    return this._getValue("otherTransactionData", "largeRemaining");
   }
 
   get extreme() {
-    return this.otherTransactionData.extreme.value;
+    return this._getValue("otherTransactionData", "extreme");
   }
 
   get specialContract() {
-    return this.otherTransactionData.specialContract.value;
+    return this._getValue("otherTransactionData", "specialContract");
   }
 
   get stockName() {
-    return this.stockData.stockName.value;
+    return this._getValue("stockData", "stockName");
   }
 
   get stockQuantity() {
-    return this.stockData.stockQuantity.value;
+    return this._getValue("stockData", "stockQuantity");
   }
 
   get acquisitionPrice() {
-    return this.stockData.acquisitionPrice.value;
+    return this._getValue("stockData", "acquisitionPrice");
   }
 
   get stockPrice() {
-    return this.stockData.stockPrice.value;
+    return this._getValue("stockData", "stockPrice");
   }
 
   get acquisitionDate() {
-    return this.stockData.acquisitionDate.value;
+    return this._getValue("stockData", "acquisitionDate");
   }
 
   get currentPrice() {
-    return this.stockData.currentPrice.value;
+    return this._getValue("stockData", "currentPrice");
   }
 
   get valuationProfitLoss() {
-    return this.stockData.valuationProfitLoss.value;
+    return this._getValue("stockData", "valuationProfitLoss");
   }
 
   get memoValue() {
