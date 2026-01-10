@@ -1,12 +1,16 @@
 <template>
   <lightning-input
     type="number"
-    label={numLabel}
-    variant={inputVariant}
-    value={numValue}
-    step={step}
-    disabled={disabled}
-    onchange={handleNumberChange}
-    class={inputClass}
+    label="{numLabel}"
+    variant="{inputVariant}"
+    value="{numValue}"
+    step="{step}"
+    disabled="{disabled}"
+    onchange="
+      {
+        handleNumberChange;
+      }
+    "
+    class="{inputClass}"
   ></lightning-input>
 </template>

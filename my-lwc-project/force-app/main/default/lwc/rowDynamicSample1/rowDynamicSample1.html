@@ -16,7 +16,7 @@
               type="text"
               label="稟査番号"
               data-id="kskrsno"
-              value={record.kskrsno}
+              value="{record.kskrsno}"
             ></lightning-input>
           </div>
           <div class="slds-col slds-size_6-of-12">
@@ -24,7 +24,7 @@
               type="date"
               label="絞込日付"
               data-id="nddate"
-              value={record.nddate}
+              value="{record.nddate}"
             ></lightning-input>
           </div>
         </div>
@@ -38,7 +38,11 @@
         <lightning-button
           name="sample"
           label="サンプル"
-          onclick={handleRecordEditClick}
+          onclick="
+            {
+              handleRecordEditClick;
+            }
+          "
         ></lightning-button>
       </div>
     </div>
@@ -61,8 +65,12 @@
                 選択
                 <lightning-input
                   type="checkbox"
-                  checked={fullCheck}
-                  onchange={handleSelectFullCheck}
+                  checked="{fullCheck}"
+                  onchange="
+                    {
+                      handleSelectFullCheck;
+                    }
+                  "
                   variant="label-hidden"
                 ></lightning-input>
               </div>
@@ -117,17 +125,21 @@
           </tr>
         </thead>
         <tbody>
-          <template for:each={tableData} for:item="row" for:index="idx">
-            <tr key={row.id} data-id="1">
+          <template for:each="{tableData}" for:item="row" for:index="idx">
+            <tr key="{row.id}" data-id="1">
               <td rowspan="2" colspan="1">
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-input
                     type="checkbox"
                     class=""
-                    data-key={row.userId}
-                    checked={row.checked}
-                    data-idx={idx}
-                    onchange={handleRowSelection}
+                    data-key="{row.userId}"
+                    checked="{row.checked}"
+                    data-idx="{idx}"
+                    onchange="
+                      {
+                        handleRowSelection;
+                      }
+                    "
                     variant="label-hidden"
                   >
                   </lightning-input>
@@ -136,14 +148,14 @@
               <td rowspan="2" colspan="1">
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.userId}
+                    value="{row.userId}"
                   ></lightning-formatted-text>
                 </div>
               </td>
               <td rowspan="1" colspan="1">
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.userLastName}
+                    value="{row.userLastName}"
                   ></lightning-formatted-text>
                 </div>
               </td>
@@ -153,7 +165,7 @@
                     type="date"
                     class="underline"
                     data-id="date"
-                    value={row.date}
+                    value="{row.date}"
                     readonly
                   ></lightning-input>
                 </div>
@@ -161,14 +173,14 @@
               <td rowspan="2" colspan="1">
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-number
-                    value={row.balance}
+                    value="{row.balance}"
                   ></lightning-formatted-number>
                 </div>
               </td>
               <td rowspan="2" colspan="1">
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-number
-                    value={row.usageAmount}
+                    value="{row.usageAmount}"
                   ></lightning-formatted-number>
                 </div>
               </td>
@@ -177,9 +189,13 @@
                   <lightning-input
                     type="checkbox"
                     data-id="possibility"
-                    data-idx={idx}
-                    checked={row.possibility}
-                    onchange={handleSelectPossibility}
+                    data-idx="{idx}"
+                    checked="{row.possibility}"
+                    onchange="
+                      {
+                        handleSelectPossibility;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -187,44 +203,44 @@
               <td rowspan="2" colspan="1">
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.type}
+                    value="{row.type}"
                   ></lightning-formatted-text>
                 </div>
               </td>
               <td rowspan="2" colspan="3">
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.remark}
+                    value="{row.remark}"
                   ></lightning-formatted-text>
                 </div>
               </td>
             </tr>
-            <tr key={row.id} data-id="2">
+            <tr key="{row.id}" data-id="2">
               <td>
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.userFirstName}
+                    value="{row.userFirstName}"
                   ></lightning-formatted-text>
                 </div>
               </td>
               <td>
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.dateYear}
+                    value="{row.dateYear}"
                   ></lightning-formatted-text>
                 </div>
               </td>
               <td>
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.dateMonth}
+                    value="{row.dateMonth}"
                   ></lightning-formatted-text>
                 </div>
               </td>
               <td>
                 <div class="slds-truncate slds-var-p-left_x-small">
                   <lightning-formatted-text
-                    value={row.dateDay}
+                    value="{row.dateDay}"
                   ></lightning-formatted-text>
                 </div>
               </td>

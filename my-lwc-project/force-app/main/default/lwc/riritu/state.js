@@ -55,19 +55,20 @@ const initializeState = async () => {
         // APIからデータを取得
         const apiCreditData = await apiService.getCreditData();
         const apiCollateralData = await apiService.getCollateralData();
-        
+
         // APIデータを階層構造に変換
         const convertedCreditData = convertFlatToHierarchy(apiCreditData);
-        const convertedCollateralData = convertFlatToHierarchy(apiCollateralData);
-        
+        const convertedCollateralData =
+          convertFlatToHierarchy(apiCollateralData);
+
         creditSource = attachEditableFlags(convertedCreditData);
         collateralSource = attachEditableFlags(convertedCollateralData);
       } catch (error) {
-        console.warn('API data fetch failed, using local data:', error);
+        console.warn("API data fetch failed, using local data:", error);
         useApi = false;
       }
     }
-    
+
     if (!useApi) {
       // ローカルデータを使用
       const withCreditFlags = attachEditableFlags(rawCreditSource);
@@ -118,19 +119,19 @@ const convertFlatToHierarchy = (flatData) => {
   if (!flatData || !Array.isArray(flatData)) {
     return [];
   }
-  
+
   // 実際の変換ロジックはデータ構造に依存
   // ここではサンプル実装
-  return flatData.map(item => ({
+  return flatData.map((item) => ({
     ...item,
     children: item.children || []
   }));
 };
 
-export const stateService = { 
-  initializeState, 
-  initializeWithData, 
-  resetState, 
-  getState, 
-  setState 
+export const stateService = {
+  initializeState,
+  initializeWithData,
+  resetState,
+  getState,
+  setState
 };

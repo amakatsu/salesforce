@@ -3,12 +3,20 @@
     <lightning-button
       label="保存"
       slot="actions"
-      onclick={handleSave}
+      onclick="
+        {
+          handleSave;
+        }
+      "
     ></lightning-button>
     <lightning-button
       label="再取得"
       slot="actions"
-      onclick={handleReset}
+      onclick="
+        {
+          handleReset;
+        }
+      "
     ></lightning-button>
     <table class="slds-table slds-table_cell-buffer slds-table_bordered">
       <thead>
@@ -18,29 +26,37 @@
         </tr>
       </thead>
       <tbody>
-        <template for:each={records} for:item="record">
-          <tr key={record.id}>
+        <template for:each="{records}" for:item="record">
+          <tr key="{record.id}">
             <td>
-              <div class={record.nameClass}>
+              <div class="{record.nameClass}">
                 <lightning-input
                   label="Name"
                   variant="label-hidden"
-                  value={record.name}
-                  data-id={record.id}
+                  value="{record.name}"
+                  data-id="{record.id}"
                   data-field="name"
-                  onchange={handleChange}
+                  onchange="
+                    {
+                      handleChange;
+                    }
+                  "
                 ></lightning-input>
               </div>
             </td>
             <td>
-              <div class={record.titleClass}>
+              <div class="{record.titleClass}">
                 <lightning-input
                   label="Title"
                   variant="label-hidden"
-                  value={record.title}
-                  data-id={record.id}
+                  value="{record.title}"
+                  data-id="{record.id}"
                   data-field="title"
-                  onchange={handleChange}
+                  onchange="
+                    {
+                      handleChange;
+                    }
+                  "
                 ></lightning-input>
               </div>
             </td>

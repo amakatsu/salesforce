@@ -129,9 +129,8 @@ export default class RirituKeisuPage extends LightningElement {
 
       // 保存処理実行
       this.performSave(itemList.tableData);
-
     } catch (error) {
-      this.systemErrorHandler(error, 'SAVE_OPERATION');
+      this.systemErrorHandler(error, "SAVE_OPERATION");
     }
   }
 

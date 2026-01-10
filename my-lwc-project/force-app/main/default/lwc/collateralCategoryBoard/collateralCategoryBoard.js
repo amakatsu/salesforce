@@ -1098,7 +1098,8 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
     this.columns = templates.map(decorateColumn);
 
     // パターン3の場合は担保コメントのサンプルデータを390バイトに設定
-    this.globalRemark = screenType === "pattern3" ? SAMPLE_TEXT_390 : SAMPLE_TEXT_280;
+    this.globalRemark =
+      screenType === "pattern3" ? SAMPLE_TEXT_390 : SAMPLE_TEXT_280;
   }
 
   // ========================================

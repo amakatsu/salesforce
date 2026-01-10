@@ -1,22 +1,55 @@
 <template>
   <!-- トーストメッセージ -->
-  <template if:true={showToast}>
-    <div class={toastClass} role="alert">
+  <template if:true="{showToast}">
+    <div class="{toastClass}" role="alert">
       <span class="slds-assistive-text">{toastVariant}</span>
-      <span class="slds-icon_container slds-icon-utility-success slds-m-right_x-small slds-no-flex slds-align-top" if:true={isSuccessToast}>
-        <lightning-icon icon-name="utility:success" alternative-text="成功" title="成功" size="small"></lightning-icon>
+      <span
+        class="slds-icon_container slds-icon-utility-success slds-m-right_x-small slds-no-flex slds-align-top"
+        if:true="{isSuccessToast}"
+      >
+        <lightning-icon
+          icon-name="utility:success"
+          alternative-text="成功"
+          title="成功"
+          size="small"
+        ></lightning-icon>
       </span>
-      <span class="slds-icon_container slds-icon-utility-warning slds-m-right_x-small slds-no-flex slds-align-top" if:true={isWarningToast}>
-        <lightning-icon icon-name="utility:warning" alternative-text="警告" title="警告" size="small"></lightning-icon>
+      <span
+        class="slds-icon_container slds-icon-utility-warning slds-m-right_x-small slds-no-flex slds-align-top"
+        if:true="{isWarningToast}"
+      >
+        <lightning-icon
+          icon-name="utility:warning"
+          alternative-text="警告"
+          title="警告"
+          size="small"
+        ></lightning-icon>
       </span>
-      <span class="slds-icon_container slds-icon-utility-error slds-m-right_x-small slds-no-flex slds-align-top" if:true={isErrorToast}>
-        <lightning-icon icon-name="utility:error" alternative-text="エラー" title="エラー" size="small"></lightning-icon>
+      <span
+        class="slds-icon_container slds-icon-utility-error slds-m-right_x-small slds-no-flex slds-align-top"
+        if:true="{isErrorToast}"
+      >
+        <lightning-icon
+          icon-name="utility:error"
+          alternative-text="エラー"
+          title="エラー"
+          size="small"
+        ></lightning-icon>
       </span>
       <div class="slds-notify__content">
         <h2 class="slds-text-heading_small">{toastMessage}</h2>
       </div>
       <div class="slds-notify__close">
-        <lightning-button-icon icon-name="utility:close" alternative-text="閉じる" title="通知を閉じる" onclick={handleCloseToast}></lightning-button-icon>
+        <lightning-button-icon
+          icon-name="utility:close"
+          alternative-text="閉じる"
+          title="通知を閉じる"
+          onclick="
+            {
+              handleCloseToast;
+            }
+          "
+        ></lightning-button-icon>
       </div>
     </div>
   </template>
@@ -25,25 +58,75 @@
   <div class="slds-grid slds-gutters slds-wrap slds-var-m-bottom_medium">
     <div class="slds-col slds-size_12-of-12">
       <lightning-button-group>
-        <lightning-button label={labels.button.SAVE} variant="brand" onclick={handleSave}></lightning-button>
-        <lightning-button label={labels.button.RESET} variant="neutral" onclick={handleReset}></lightning-button>
-        <lightning-button label={labels.button.REFRESH} variant="neutral" onclick={handleRefreshData}></lightning-button>
-        <lightning-button label={labels.button.ADD_ROW} variant="success" onclick={handleAddCreditRow} title="与信行を追加"></lightning-button>
-        <lightning-button label="担保行追加" variant="success" onclick={handleAddCollateralRow} title="担保行を追加"></lightning-button>
-        <lightning-button label={labels.button.DELETE_ROW} variant="destructive" onclick={handleDeleteSelectedRows}></lightning-button>
+        <lightning-button
+          label="{labels.button.SAVE}"
+          variant="brand"
+          onclick="
+            {
+              handleSave;
+            }
+          "
+        ></lightning-button>
+        <lightning-button
+          label="{labels.button.RESET}"
+          variant="neutral"
+          onclick="
+            {
+              handleReset;
+            }
+          "
+        ></lightning-button>
+        <lightning-button
+          label="{labels.button.REFRESH}"
+          variant="neutral"
+          onclick="
+            {
+              handleRefreshData;
+            }
+          "
+        ></lightning-button>
+        <lightning-button
+          label="{labels.button.ADD_ROW}"
+          variant="success"
+          onclick="
+            {
+              handleAddCreditRow;
+            }
+          "
+          title="与信行を追加"
+        ></lightning-button>
+        <lightning-button
+          label="担保行追加"
+          variant="success"
+          onclick="
+            {
+              handleAddCollateralRow;
+            }
+          "
+          title="担保行を追加"
+        ></lightning-button>
+        <lightning-button
+          label="{labels.button.DELETE_ROW}"
+          variant="destructive"
+          onclick="
+            {
+              handleDeleteSelectedRows;
+            }
+          "
+        ></lightning-button>
       </lightning-button-group>
     </div>
   </div>
 
   <lightning-accordion
     allow-multiple-sections-open
-    active-section-name={activeSections}
+    active-section-name="{activeSections}"
   >
     <lightning-layout style="height: 800px; column-gap: 2px">
       <lightning-layout-item size="9" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="d"
-          label={labels.accordion.CREDIT_STATUS}
+          label="{labels.accordion.CREDIT_STATUS}"
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -58,7 +141,16 @@
                         class="column-xs table-sticky__title table-sticky3__title01"
                         scope="col"
                       >
-                        <lightning-input type="checkbox" label="全選択" variant="label-hidden" onchange={handleSelectAllCredit}></lightning-input>
+                        <lightning-input
+                          type="checkbox"
+                          label="全選択"
+                          variant="label-hidden"
+                          onchange="
+                            {
+                              handleSelectAllCredit;
+                            }
+                          "
+                        ></lightning-input>
                       </th>
                       <th
                         class="column-xs table-sticky__title table-sticky3__title01"
@@ -70,7 +162,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}
+                          title="{labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}"
                         >
                           {labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}
                         </div>
@@ -81,7 +173,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.DUE_DATE}
+                          title="{labels.tableHeaders.CREDIT.DUE_DATE}"
                         >
                           {labels.tableHeaders.CREDIT.DUE_DATE}
                         </div>
@@ -92,7 +184,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.RATE}
+                          title="{labels.tableHeaders.CREDIT.RATE}"
                         >
                           {labels.tableHeaders.CREDIT.RATE}
                         </div>
@@ -103,7 +195,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.BALANCE_99}
+                          title="{labels.tableHeaders.CREDIT.BALANCE_99}"
                         >
                           {labels.tableHeaders.CREDIT.BALANCE_99}
                         </div>
@@ -114,7 +206,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.MARK}
+                          title="{labels.tableHeaders.CREDIT.MARK}"
                         >
                           {labels.tableHeaders.CREDIT.MARK}
                         </div>
@@ -125,7 +217,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.PRINCIPAL}
+                          title="{labels.tableHeaders.CREDIT.PRINCIPAL}"
                         >
                           {labels.tableHeaders.CREDIT.PRINCIPAL}
                         </div>
@@ -136,7 +228,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.CHANGE}
+                          title="{labels.tableHeaders.CREDIT.CHANGE}"
                         >
                           {labels.tableHeaders.CREDIT.CHANGE}
                         </div>
@@ -147,7 +239,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.POST_BALANCE}
+                          title="{labels.tableHeaders.CREDIT.POST_BALANCE}"
                         >
                           {labels.tableHeaders.CREDIT.POST_BALANCE}
                         </div>
@@ -158,7 +250,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.ACTUAL_BALANCE}
+                          title="{labels.tableHeaders.CREDIT.ACTUAL_BALANCE}"
                         >
                           {labels.tableHeaders.CREDIT.ACTUAL_BALANCE}
                         </div>
@@ -169,7 +261,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.CREDIT.CORRECTION}
+                          title="{labels.tableHeaders.CREDIT.CORRECTION}"
                         >
                           {labels.tableHeaders.CREDIT.CORRECTION}
                         </div>
@@ -177,168 +269,243 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <template for:each={creditRows} for:item="row">
+                    <template for:each="{creditRows}" for:item="row">
                       <tr
-                        key={row.id}
+                        key="{row.id}"
                         class="slds-hint-parent slds-line-height_reset"
                       >
                         <!-- 行選択チェックボックス -->
                         <th scope="col">
-                          <lightning-input 
-                            type="checkbox" 
-                            label="選択" 
-                            variant="label-hidden" 
-                            data-id={row.id}
+                          <lightning-input
+                            type="checkbox"
+                            label="選択"
+                            variant="label-hidden"
+                            data-id="{row.id}"
                             data-type="credit"
-                            onchange={handleRowSelection}
+                            onchange="
+                              {
+                                handleRowSelection;
+                              }
+                            "
                           ></lightning-input>
                         </th>
                         <!-- 展開トグル -->
                         <th scope="col">
                           <lightning-button-icon
-                            if:true={row.hasChildren}
-                            icon-name={row.icon}
+                            if:true="{row.hasChildren}"
+                            icon-name="{row.icon}"
                             variant="bare"
                             size="small"
                             alternative-text="toggle"
-                            onclick={handleToggle}
-                            data-id={row.id}
+                            onclick="
+                              {
+                                handleToggle;
+                              }
+                            "
+                            data-id="{row.id}"
                           ></lightning-button-icon>
                         </th>
                         <!-- 科目・摘要・票番号 -->
-                        <th class={row.labelClass} scope="col">
-                          <template if:true={row.isSpecificCredit}>
+                        <th class="{row.labelClass}" scope="col">
+                          <template if:true="{row.isSpecificCredit}">
                             <lightning-input
                               type="text"
                               variant="label-hidden"
-                              value={row.label}
-                              data-id={row.id}
+                              value="{row.label}"
+                              data-id="{row.id}"
                               data-field="label"
-                              onchange={handleEdit}
+                              onchange="
+                                {
+                                  handleEdit;
+                                }
+                              "
                             ></lightning-input>
                           </template>
-                          <template if:false={row.isSpecificCredit}>
+                          <template if:false="{row.isSpecificCredit}">
                             <div class="slds-truncate">{row.label}</div>
                           </template>
                         </th>
                         <!-- 期日 -->
-                        <td data-label="dueDate" class={row.dueDateClass}>
+                        <td data-label="dueDate" class="{row.dueDateClass}">
                           <lightning-input
                             type="date"
                             variant="label-hidden"
-                            value={row.dueDate}
-                            data-id={row.id}
+                            value="{row.dueDate}"
+                            data-id="{row.id}"
                             data-field="dueDate"
-                            onchange={handleEdit}
-                            disabled={row.dueDateDisabled}
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
+                            disabled="{row.dueDateDisabled}"
                           ></lightning-input>
                         </td>
                         <!-- 利率 -->
-                        <td data-label="rate" class={row.rateClass}>
+                        <td data-label="rate" class="{row.rateClass}">
                           <c-f003-gs-v0000-number
-                            num-value={row.rate}
-                            num-label={labels.field.RATE}
+                            num-value="{row.rate}"
+                            num-label="{labels.field.RATE}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="rate"
-                            disabled={row.rateDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.rateDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 99月末残高 -->
-                        <td data-label="balance99" class={row.balance99Class}>
+                        <td data-label="balance99" class="{row.balance99Class}">
                           <c-f003-gs-v0000-number
-                            num-value={row.balance99}
-                            num-label={labels.field.BALANCE_99}
+                            num-value="{row.balance99}"
+                            num-label="{labels.field.BALANCE_99}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="balance99"
-                            disabled={row.balance99Disabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.balance99Disabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 合算表示 -->
-                        <td data-label="mark" class={row.markClass}>
+                        <td data-label="mark" class="{row.markClass}">
                           <div class="slds-text-align_center">*</div>
                         </td>
                         <!-- 極度額 -->
-                        <td data-label="principal" class={row.principalClass}>
+                        <td data-label="principal" class="{row.principalClass}">
                           <c-f003-gs-v0000-number
-                            num-value={row.principal}
-                            num-label={labels.field.PRINCIPAL}
+                            num-value="{row.principal}"
+                            num-label="{labels.field.PRINCIPAL}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="principal"
-                            disabled={row.principalDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.principalDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 当月増減 -->
-                        <td data-label="change" class={row.changeClass}>
+                        <td data-label="change" class="{row.changeClass}">
                           <c-f003-gs-v0000-number
-                            num-value={row.change}
-                            num-label={labels.field.CHANGE}
+                            num-value="{row.change}"
+                            num-label="{labels.field.CHANGE}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="change"
-                            disabled={row.changeDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.changeDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 本件後残高 -->
                         <td
                           data-label="postBalance"
-                          class={row.postBalanceClass}
+                          class="{row.postBalanceClass}"
                         >
                           <c-f003-gs-v0000-number
-                            num-value={row.postBalance}
-                            num-label={labels.field.POST_BALANCE}
+                            num-value="{row.postBalance}"
+                            num-label="{labels.field.POST_BALANCE}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="postBalance"
-                            disabled={row.postBalanceDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.postBalanceDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 実勢現在残 -->
                         <td
                           data-label="actualBalance"
-                          class={row.actualBalanceClass}
+                          class="{row.actualBalanceClass}"
                         >
                           <c-f003-gs-v0000-number
-                            num-value={row.actualBalance}
-                            num-label={labels.field.ACTUAL_BALANCE}
+                            num-value="{row.actualBalance}"
+                            num-label="{labels.field.ACTUAL_BALANCE}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="actualBalance"
-                            disabled={row.actualBalanceDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.actualBalanceDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 補正値 -->
-                        <td data-label="correction" class={row.correctionClass}>
+                        <td
+                          data-label="correction"
+                          class="{row.correctionClass}"
+                        >
                           <c-f003-gs-v0000-number
-                            num-value={row.correction}
-                            num-label={labels.field.CORRECTION}
+                            num-value="{row.correction}"
+                            num-label="{labels.field.CORRECTION}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="correction"
-                            disabled={row.correctionDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.correctionDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                       </tr>
@@ -353,7 +520,7 @@
       <lightning-layout-item size="3" class="slds-grid slds-grid_vertical">
         <lightning-accordion-section
           name="e"
-          label={labels.accordion.COLLATERAL}
+          label="{labels.accordion.COLLATERAL}"
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -368,7 +535,16 @@
                         class="column-xs table-sticky__title table-sticky3__title01"
                         scope="col"
                       >
-                        <lightning-input type="checkbox" label="全選択" variant="label-hidden" onchange={handleSelectAllCollateral}></lightning-input>
+                        <lightning-input
+                          type="checkbox"
+                          label="全選択"
+                          variant="label-hidden"
+                          onchange="
+                            {
+                              handleSelectAllCollateral;
+                            }
+                          "
+                        ></lightning-input>
                       </th>
                       <th
                         class="column-xs table-sticky__title table-sticky3__title01"
@@ -380,7 +556,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.COLLATERAL.COLLATERAL_TYPE}
+                          title="{labels.tableHeaders.COLLATERAL.COLLATERAL_TYPE}"
                         >
                           {labels.tableHeaders.COLLATERAL.COLLATERAL_TYPE}
                         </div>
@@ -391,7 +567,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.COLLATERAL.REG_VALUE}
+                          title="{labels.tableHeaders.COLLATERAL.REG_VALUE}"
                         >
                           {labels.tableHeaders.COLLATERAL.REG_VALUE}
                         </div>
@@ -402,7 +578,7 @@
                       >
                         <div
                           class="slds-truncate slds-var-p-right_x-small"
-                          title={labels.tableHeaders.COLLATERAL.MARKET_VALUE}
+                          title="{labels.tableHeaders.COLLATERAL.MARKET_VALUE}"
                         >
                           {labels.tableHeaders.COLLATERAL.MARKET_VALUE}
                         </div>
@@ -410,32 +586,40 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <template for:each={collateralRows} for:item="row">
+                    <template for:each="{collateralRows}" for:item="row">
                       <tr
-                        key={row.id}
+                        key="{row.id}"
                         class="slds-hint-parent slds-line-height_reset"
                       >
                         <!-- 行選択チェックボックス -->
                         <th scope="col">
-                          <lightning-input 
-                            type="checkbox" 
-                            label="選択" 
-                            variant="label-hidden" 
-                            data-id={row.id}
+                          <lightning-input
+                            type="checkbox"
+                            label="選択"
+                            variant="label-hidden"
+                            data-id="{row.id}"
                             data-type="collateral"
-                            onchange={handleRowSelection}
+                            onchange="
+                              {
+                                handleRowSelection;
+                              }
+                            "
                           ></lightning-input>
                         </th>
                         <!-- 展開トグル -->
                         <th scope="col">
                           <lightning-button-icon
-                            if:true={row.hasChildren}
-                            icon-name={row.icon}
+                            if:true="{row.hasChildren}"
+                            icon-name="{row.icon}"
                             variant="bare"
                             size="small"
                             alternative-text="toggle"
-                            onclick={handleToggle}
-                            data-id={row.id}
+                            onclick="
+                              {
+                                handleToggle;
+                              }
+                            "
+                            data-id="{row.id}"
                           ></lightning-button-icon>
                         </th>
                         <!-- 担保種類 -->
@@ -443,34 +627,50 @@
                           <div class="slds-truncate">{row.collateralType}</div>
                         </th>
                         <!-- 規定値 -->
-                        <td data-label="regValue" class={row.regValueClass}>
+                        <td data-label="regValue" class="{row.regValueClass}">
                           <c-f003-gs-v0000-number
-                            num-value={row.regValue}
-                            num-label={labels.field.REG_VALUE}
+                            num-value="{row.regValue}"
+                            num-label="{labels.field.REG_VALUE}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="regValue"
-                            disabled={row.regValueDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.regValueDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 時価ベース -->
                         <td
                           data-label="marketValue"
-                          class={row.marketValueClass}
+                          class="{row.marketValueClass}"
                         >
                           <c-f003-gs-v0000-number
-                            num-value={row.marketValue}
-                            num-label={labels.field.MARKET_VALUE}
+                            num-value="{row.marketValue}"
+                            num-label="{labels.field.MARKET_VALUE}"
                             is-table="true"
-                            data-id={row.id}
+                            data-id="{row.id}"
                             set-id="marketValue"
-                            disabled={row.marketValueDisabled}
-                            step={labels.config.DECIMAL_STEP}
-                            onerror={numberErrorHandler}
-                            onchange={handleEdit}
+                            disabled="{row.marketValueDisabled}"
+                            step="{labels.config.DECIMAL_STEP}"
+                            onerror="
+                              {
+                                numberErrorHandler;
+                              }
+                            "
+                            onchange="
+                              {
+                                handleEdit;
+                              }
+                            "
                           ></c-f003-gs-v0000-number>
                         </td>
                       </tr>
@@ -486,7 +686,7 @@
         </div>
         <lightning-accordion-section
           name="f"
-          label={labels.accordion.GUARANTOR}
+          label="{labels.accordion.GUARANTOR}"
           icon-name="standard:choice"
         >
           <lightning-card>
@@ -503,7 +703,7 @@
                       >
                         <div
                           class="slds-truncate slds-text-align_center"
-                          title={labels.tableHeaders.GUARANTOR.GUARANTOR}
+                          title="{labels.tableHeaders.GUARANTOR.GUARANTOR}"
                         >
                           {labels.tableHeaders.GUARANTOR.GUARANTOR}
                         </div>
@@ -511,19 +711,23 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <template for:each={guarantorData} for:item="row">
+                    <template for:each="{guarantorData}" for:item="row">
                       <tr
-                        key={row.id}
+                        key="{row.id}"
                         class="slds-hint-parent slds-line-height_reset"
                       >
                         <td class="slds-text-align_center">
                           <lightning-input
                             type="text"
                             variant="label-hidden"
-                            value={row.name}
+                            value="{row.name}"
                             label="Name"
-                            onchange={handleInputChange}
-                            data-id={row.id}
+                            onchange="
+                              {
+                                handleInputChange;
+                              }
+                            "
+                            data-id="{row.id}"
                           ></lightning-input>
                         </td>
                       </tr>

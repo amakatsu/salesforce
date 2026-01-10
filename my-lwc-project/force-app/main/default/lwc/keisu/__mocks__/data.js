@@ -1,14 +1,14 @@
 /**
  * data.js Mock - テスト用データ管理
- * 
+ *
  * 実際のデータファイルをモック化し、予測可能なテストデータを提供
  */
 
 // モック用の与信データ
 export const rawCreditSource = [
   {
-    id: 'credit_1',
-    label: 'テスト与信1',
+    id: "credit_1",
+    label: "テスト与信1",
     rate: 1.5,
     balance99: 1000000,
     principal: 5000000,
@@ -19,8 +19,8 @@ export const rawCreditSource = [
     },
     children: [
       {
-        id: 'credit_1_1',
-        label: 'サブ与信1-1',
+        id: "credit_1_1",
+        label: "サブ与信1-1",
         rate: 1.2,
         balance99: 500000,
         editable: { rate: true }
@@ -28,8 +28,8 @@ export const rawCreditSource = [
     ]
   },
   {
-    id: 'credit_2',
-    label: 'テスト与信2',
+    id: "credit_2",
+    label: "テスト与信2",
     rate: 2.0,
     balance99: 2000000,
     principal: 10000000,
@@ -44,8 +44,8 @@ export const rawCreditSource = [
 // モック用の担保データ
 export const rawCollateralSource = [
   {
-    id: 'collateral_1',
-    collateralType: '不動産担保',
+    id: "collateral_1",
+    collateralType: "不動産担保",
     regValue: 50000000,
     marketValue: 45000000,
     editable: {
@@ -54,8 +54,8 @@ export const rawCollateralSource = [
     }
   },
   {
-    id: 'collateral_2',
-    collateralType: '預金担保',
+    id: "collateral_2",
+    collateralType: "預金担保",
     regValue: 10000000,
     marketValue: 10000000,
     editable: {
@@ -70,7 +70,7 @@ export const rawCollateralSource = [
  */
 export const attachEditableFlags = jest.fn((data) => {
   // 実際の処理をシンプルにモック化
-  return data.map(item => ({
+  return data.map((item) => ({
     ...item,
     editable: item.editable || {
       // デフォルトで全フィールド編集可能
@@ -94,24 +94,28 @@ export const deepCopy = jest.fn((obj) => {
 // テスト用ヘルパー
 export const __testHelpers__ = {
   // カスタムテストデータを作成
-  createTestCreditData: (overrides = {}) => ([{
-    id: 'test_credit',
-    label: 'テスト用与信',
-    rate: 1.0,
-    balance99: 1000000,
-    principal: 5000000,
-    editable: { rate: true, balance99: true, principal: true },
-    ...overrides
-  }]),
+  createTestCreditData: (overrides = {}) => [
+    {
+      id: "test_credit",
+      label: "テスト用与信",
+      rate: 1.0,
+      balance99: 1000000,
+      principal: 5000000,
+      editable: { rate: true, balance99: true, principal: true },
+      ...overrides
+    }
+  ],
 
-  createTestCollateralData: (overrides = {}) => ([{
-    id: 'test_collateral',
-    collateralType: 'テスト担保',
-    regValue: 10000000,
-    marketValue: 9000000,
-    editable: { regValue: true, marketValue: true },
-    ...overrides
-  }]),
+  createTestCollateralData: (overrides = {}) => [
+    {
+      id: "test_collateral",
+      collateralType: "テスト担保",
+      regValue: 10000000,
+      marketValue: 9000000,
+      editable: { regValue: true, marketValue: true },
+      ...overrides
+    }
+  ],
 
   // 階層データの作成
   createNestedData: (parentId, childCount = 2) => ({

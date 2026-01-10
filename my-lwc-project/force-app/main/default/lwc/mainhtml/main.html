@@ -1,0 +1,203 @@
+<template>
+  <template lwc:if="{isSpinnerVisible}">
+    <lightning-spinner
+      alternative-text="Loading"
+      size="medium"
+      class="slds-is-fixed"
+    ></lightning-spinner>
+  </template>
+
+  <template lwc:if="{isAllVisible}">
+    <div class="card">
+      <lightning-card>
+        <template lwc:if="{isServerErrorVisible}">
+          <div
+            class="slds-var-p-right_small slds-var-p-left_small slds-var-p-bottom_small"
+          >
+            <c-f003-gs-v0000-server-error
+              records="{errors}"
+            ></c-f003-gs-v0000-server-error>
+          </div>
+        </template>
+
+        <!--画面構成図に従って画面用のHTMLを実装するエリア Start-->
+        <!-- 操作ボタン群 -->
+        <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-b1
+          show-calculation-and-register-buttons="{showCalculationAndRegisterButtons}"
+        ></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-b1>
+
+        <!-- 取引先情報 -->
+        <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c1
+          show-calculation-and-register-buttons="{showCalculationAndRegisterButtons}"
+        ></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c1>
+
+        <!--共通タブ設定-->
+        <div
+          class="slds-var-p-right_small slds-var-p-left_small slds-var-p-top_small slds-tabs_default slds-tabs_medium"
+        >
+          <ul class="slds-tabs_default__nav" role="tablist">
+            <li
+              class="slds-tabs_default__item slds-is-active parent-tabs-item"
+              title="詳細"
+              role="presentation"
+            >
+              <a
+                class="slds-tabs_default__link"
+                role="tab"
+                tabindex="0"
+                aria-selected="true"
+                id="detailTab__item"
+                data-tab-content="detailTab"
+                onclick="
+                  {
+                    handleSwitchingParentTabs;
+                  }
+                "
+                >詳細</a
+              >
+            </li>
+          </ul>
+
+          <!--詳細タブ　内部設定-->
+          <div
+            class="slds-var-p-right_small slds-var-p-left_small slds-tabs_default__content slds-show parent-tabs-content"
+            role="tabpanel"
+            data-tab-content="detailTab"
+            aria-labelledby="detailTab__item"
+          >
+            <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c1-c></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c1-c>
+            <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c1-b></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c1-b>
+
+            <!--子コンポーネント２（詳細タブ内）-->
+            <div class="slds-var-p-top_small slds-tabs_scoped slds-tabs_medium">
+              <ul class="slds-tabs_scoped__nav" role="tablist">
+                <li
+                  class="slds-tabs_scoped__item slds-is-active child-tabs-item"
+                  title="一般与信1"
+                  role="presentation"
+                >
+                  <a
+                    class="slds-tabs_scoped__link"
+                    role="tab"
+                    tabindex="0"
+                    aria-selected="true"
+                    id="tab1"
+                    data-tab-content="tabContent1"
+                    onclick="
+                      {
+                        handleSwitchingChildTabs;
+                      }
+                    "
+                    >一般与信1</a
+                  >
+                </li>
+                <li
+                  class="slds-tabs_scoped__item child-tabs-item"
+                  title="一般与信2"
+                  role="presentation"
+                >
+                  <a
+                    class="slds-tabs_scoped__link"
+                    role="tab"
+                    tabindex="-1"
+                    aria-selected="false"
+                    id="tab2"
+                    data-tab-content="tabContent2"
+                    onclick="
+                      {
+                        handleSwitchingChildTabs;
+                      }
+                    "
+                    >一般与信2</a
+                  >
+                </li>
+                <li
+                  class="slds-tabs_scoped__item child-tabs-item"
+                  title="市場性与信1"
+                  role="presentation"
+                >
+                  <a
+                    class="slds-tabs_scoped__link"
+                    role="tab"
+                    tabindex="-1"
+                    aria-selected="false"
+                    id="tab3"
+                    data-tab-content="tabContent3"
+                    onclick="
+                      {
+                        handleSwitchingChildTabs;
+                      }
+                    "
+                    >市場性与信1</a
+                  >
+                </li>
+                <li
+                  class="slds-tabs_scoped__item child-tabs-item"
+                  title="市場性与信2"
+                  role="presentation"
+                >
+                  <a
+                    class="slds-tabs_scoped__link"
+                    role="tab"
+                    tabindex="-1"
+                    aria-selected="false"
+                    id="tab4"
+                    data-tab-content="tabContent4"
+                    onclick="
+                      {
+                        handleSwitchingChildTabs;
+                      }
+                    "
+                    >市場性与信2</a
+                  >
+                </li>
+              </ul>
+              <!-- Tab Content -->
+              <div
+                class="slds-var-p-right_small slds-var-p-left_small slds-tabs_scoped__content slds-show child-tabs-content"
+                role="tabpanel"
+                data-tab-content="tabContent1"
+                aria-labelledby="tab1"
+              >
+                <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c2></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c2>
+              </div>
+              <div
+                class="slds-var-p-right_small slds-var-p-left_small slds-tabs_scoped__content slds-hide child-tabs-content"
+                role="tabpanel"
+                data-tab-content="tabContent2"
+                aria-labelledby="tab2"
+              >
+                <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c3></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c3>
+              </div>
+              <div
+                class="slds-var-p-right_small slds-var-p-left_small slds-tabs_scoped__content slds-hide child-tabs-content"
+                role="tabpanel"
+                data-tab-content="tabContent3"
+                aria-labelledby="tab3"
+              >
+                <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c4></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c4>
+              </div>
+              <div
+                class="slds-var-p-right_small slds-var-p-left_small slds-tabs_scoped__content slds-hide child-tabs-content"
+                role="tabpanel"
+                data-tab-content="tabContent4"
+                aria-labelledby="tab4"
+              >
+                <c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c5></c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c5>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--画面構成図に従って画面用のHTMLを実装するエリア End-->
+      </lightning-card>
+    </div>
+  </template>
+
+  <template lwc:if="{isAccessErrorVisible}">
+    <lightning-card>
+      <c-f003-gs-v0000-access-error
+        records="{errors}"
+      ></c-f003-gs-v0000-access-error>
+    </lightning-card>
+  </template>
+</template>

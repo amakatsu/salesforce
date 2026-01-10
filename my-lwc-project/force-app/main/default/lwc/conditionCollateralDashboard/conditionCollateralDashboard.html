@@ -8,8 +8,8 @@
       </div>
       <div class="meta-block">
         <lightning-badge
-          label={reviewStatus}
-          class={statusClass}
+          label="{reviewStatus}"
+          class="{statusClass}"
         ></lightning-badge>
         <div class="meta-info">
           <span>担当: {ownerName}</span>
@@ -26,14 +26,14 @@
         padding="around-small"
         class="grid-item pattern-column"
       >
-        <template for:each={patternCards} for:item="pattern">
-          <section key={pattern.id} class="pattern-block">
+        <template for:each="{patternCards}" for:item="pattern">
+          <section key="{pattern.id}" class="pattern-block">
             <div class="pattern-header">
               <p class="pattern-label">{pattern.label}</p>
               <p class="pattern-desc">{pattern.description}</p>
             </div>
             <c-condition-details
-              parent-screen-type={pattern.screenType}
+              parent-screen-type="{pattern.screenType}"
             ></c-condition-details>
           </section>
         </template>

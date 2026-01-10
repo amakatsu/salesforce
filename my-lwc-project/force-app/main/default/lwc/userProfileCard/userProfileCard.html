@@ -1,155 +1,245 @@
 <template>
-    <article class="slds-card profile-card" data-user-id={profileData.id}>
-        <div class="profile-card__header">
-            <!-- プロフィール写真 -->
-            <div class="profile-photo">
-                <template if:true={profileData.photos}>
-                    <template if:true={hasPhotos}>
-                        <img src={mainPhoto} alt={profileData.name} class="profile-photo__image">
-                    </template>
-                    <template if:false={hasPhotos}>
-                        <div class="profile-photo__placeholder">
-                            <lightning-icon icon-name="standard:avatar" alternative-text="No photo" size="large"></lightning-icon>
-                        </div>
-                    </template>
-                </template>
-                <template if:false={profileData.photos}>
-                    <div class="profile-photo__placeholder">
-                        <lightning-icon icon-name="standard:avatar" alternative-text="No photo" size="large"></lightning-icon>
-                    </div>
-                </template>
+  <article class="slds-card profile-card" data-user-id="{profileData.id}">
+    <div class="profile-card__header">
+      <!-- プロフィール写真 -->
+      <div class="profile-photo">
+        <template if:true="{profileData.photos}">
+          <template if:true="{hasPhotos}">
+            <img
+              src="{mainPhoto}"
+              alt="{profileData.name}"
+              class="profile-photo__image"
+            />
+          </template>
+          <template if:false="{hasPhotos}">
+            <div class="profile-photo__placeholder">
+              <lightning-icon
+                icon-name="standard:avatar"
+                alternative-text="No photo"
+                size="large"
+              ></lightning-icon>
             </div>
-            
-            <!-- オンライン状態インジケーター -->
-            <div class="online-indicator" if:true={isOnline}>
-                <span class="online-dot"></span>
-            </div>
+          </template>
+        </template>
+        <template if:false="{profileData.photos}">
+          <div class="profile-photo__placeholder">
+            <lightning-icon
+              icon-name="standard:avatar"
+              alternative-text="No photo"
+              size="large"
+            ></lightning-icon>
+          </div>
+        </template>
+      </div>
+
+      <!-- オンライン状態インジケーター -->
+      <div class="online-indicator" if:true="{isOnline}">
+        <span class="online-dot"></span>
+      </div>
+    </div>
+
+    <div class="slds-card__body slds-p-horizontal_small">
+      <!-- 基本情報 -->
+      <div class="profile-basic-info">
+        <h2 class="profile-name slds-text-heading_medium slds-truncate">
+          {profileData.name}
+          <span class="profile-age slds-text-body_regular slds-text-color_weak"
+            >, {profileData.age}</span
+          >
+        </h2>
+
+        <div
+          class="profile-details slds-grid slds-gutters_xx-small slds-m-top_x-small"
+        >
+          <div class="slds-col">
+            <lightning-icon
+              icon-name="utility:location"
+              size="xx-small"
+              class="location-icon"
+            ></lightning-icon>
+            <span class="slds-text-body_small slds-text-color_weak"
+              >{profileData.location}</span
+            >
+          </div>
         </div>
 
-        <div class="slds-card__body slds-p-horizontal_small">
-            <!-- 基本情報 -->
-            <div class="profile-basic-info">
-                <h2 class="profile-name slds-text-heading_medium slds-truncate">
-                    {profileData.name}
-                    <span class="profile-age slds-text-body_regular slds-text-color_weak">, {profileData.age}</span>
-                </h2>
-                
-                <div class="profile-details slds-grid slds-gutters_xx-small slds-m-top_x-small">
-                    <div class="slds-col">
-                        <lightning-icon icon-name="utility:location" size="xx-small" class="location-icon"></lightning-icon>
-                        <span class="slds-text-body_small slds-text-color_weak">{profileData.location}</span>
-                    </div>
-                </div>
-                
-                <template if:true={profileData.occupation}>
-                    <div class="slds-m-top_xx-small">
-                        <lightning-icon icon-name="utility:work" size="xx-small" class="work-icon"></lightning-icon>
-                        <span class="slds-text-body_small">{profileData.occupation}</span>
-                    </div>
-                </template>
-            </div>
+        <template if:true="{profileData.occupation}">
+          <div class="slds-m-top_xx-small">
+            <lightning-icon
+              icon-name="utility:work"
+              size="xx-small"
+              class="work-icon"
+            ></lightning-icon>
+            <span class="slds-text-body_small">{profileData.occupation}</span>
+          </div>
+        </template>
+      </div>
 
-            <!-- 自己紹介 -->
-            <template if:true={profileData.bio}>
-                <div class="profile-bio slds-m-top_small">
-                    <p class="slds-text-body_regular bio-text">{profileData.bio}</p>
-                </div>
-            </template>
-
-            <!-- 趣味タグ -->
-            <template if:true={hasInterests}>
-                <div class="profile-interests slds-m-top_small">
-                    <div class="interests-container">
-                        <template for:each={profileData.interests} for:item="interest">
-                            <span key={interest} class="interest-tag slds-badge slds-theme_default">
-                                {interest}
-                            </span>
-                        </template>
-                    </div>
-                </div>
-            </template>
-
-            <!-- 詳細情報（展開可能） -->
-            <template if:true={showDetails}>
-                <div class="profile-extended-info slds-m-top_small">
-                    <div class="slds-grid slds-wrap slds-gutters_small">
-                        <template if:true={profileData.education}>
-                            <div class="slds-col slds-size_1-of-2">
-                                <div class="detail-item">
-                                    <lightning-icon icon-name="utility:education" size="xx-small"></lightning-icon>
-                                    <span class="slds-text-body_small">{profileData.education}</span>
-                                </div>
-                            </div>
-                        </template>
-                        
-                        <template if:true={profileData.lookingFor}>
-                            <div class="slds-col slds-size_1-of-2">
-                                <div class="detail-item">
-                                    <lightning-icon icon-name="utility:heart" size="xx-small"></lightning-icon>
-                                    <span class="slds-text-body_small">{profileData.lookingFor}</span>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </template>
+      <!-- 自己紹介 -->
+      <template if:true="{profileData.bio}">
+        <div class="profile-bio slds-m-top_small">
+          <p class="slds-text-body_regular bio-text">{profileData.bio}</p>
         </div>
+      </template>
 
-        <!-- アクションボタン -->
-        <div class="slds-card__footer">
-            <div class="profile-actions slds-grid slds-grid_align-spread">
-                <template if:true={showMatchingActions}>
-                    <!-- マッチング用ボタン -->
-                    <div class="action-buttons slds-grid slds-gutters_small">
-                        <div class="slds-col">
-                            <button class="action-btn pass-btn" onclick={handlePass} title="パス">
-                                <lightning-icon icon-name="utility:close" size="medium" alternative-text="Pass"></lightning-icon>
-                            </button>
-                        </div>
-                        <div class="slds-col">
-                            <button class="action-btn like-btn" onclick={handleLike} title="いいね">
-                                <lightning-icon icon-name="utility:heart" size="medium" alternative-text="Like"></lightning-icon>
-                            </button>
-                        </div>
-                        <div class="slds-col">
-                            <button class="action-btn super-like-btn" onclick={handleSuperLike} title="スーパーいいね">
-                                <lightning-icon icon-name="utility:favorite" size="medium" alternative-text="Super Like"></lightning-icon>
-                            </button>
-                        </div>
-                    </div>
-                </template>
-                
-                <template if:false={showMatchingActions}>
-                    <!-- 通常の詳細表示用ボタン -->
-                    <div class="view-actions slds-grid slds-gutters_small">
-                        <div class="slds-col">
-                            <lightning-button 
-                                variant="neutral" 
-                                label={detailsButtonLabel}
-                                onclick={toggleDetails}
-                                size="small">
-                            </lightning-button>
-                        </div>
-                        <div class="slds-col">
-                            <lightning-button 
-                                variant="brand" 
-                                label="編集" 
-                                onclick={handleEdit}
-                                size="small"
-                                if:true={isOwnProfile}>
-                            </lightning-button>
-                        </div>
-                        <div class="slds-col" if:false={isOwnProfile}>
-                            <lightning-button 
-                                variant="brand" 
-                                label="メッセージ" 
-                                onclick={handleMessage}
-                                size="small">
-                            </lightning-button>
-                        </div>
-                    </div>
-                </template>
-            </div>
+      <!-- 趣味タグ -->
+      <template if:true="{hasInterests}">
+        <div class="profile-interests slds-m-top_small">
+          <div class="interests-container">
+            <template for:each="{profileData.interests}" for:item="interest">
+              <span
+                key="{interest}"
+                class="interest-tag slds-badge slds-theme_default"
+              >
+                {interest}
+              </span>
+            </template>
+          </div>
         </div>
-    </article>
+      </template>
+
+      <!-- 詳細情報（展開可能） -->
+      <template if:true="{showDetails}">
+        <div class="profile-extended-info slds-m-top_small">
+          <div class="slds-grid slds-wrap slds-gutters_small">
+            <template if:true="{profileData.education}">
+              <div class="slds-col slds-size_1-of-2">
+                <div class="detail-item">
+                  <lightning-icon
+                    icon-name="utility:education"
+                    size="xx-small"
+                  ></lightning-icon>
+                  <span class="slds-text-body_small"
+                    >{profileData.education}</span
+                  >
+                </div>
+              </div>
+            </template>
+
+            <template if:true="{profileData.lookingFor}">
+              <div class="slds-col slds-size_1-of-2">
+                <div class="detail-item">
+                  <lightning-icon
+                    icon-name="utility:heart"
+                    size="xx-small"
+                  ></lightning-icon>
+                  <span class="slds-text-body_small"
+                    >{profileData.lookingFor}</span
+                  >
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- アクションボタン -->
+    <div class="slds-card__footer">
+      <div class="profile-actions slds-grid slds-grid_align-spread">
+        <template if:true="{showMatchingActions}">
+          <!-- マッチング用ボタン -->
+          <div class="action-buttons slds-grid slds-gutters_small">
+            <div class="slds-col">
+              <button
+                class="action-btn pass-btn"
+                onclick="
+                  {
+                    handlePass;
+                  }
+                "
+                title="パス"
+              >
+                <lightning-icon
+                  icon-name="utility:close"
+                  size="medium"
+                  alternative-text="Pass"
+                ></lightning-icon>
+              </button>
+            </div>
+            <div class="slds-col">
+              <button
+                class="action-btn like-btn"
+                onclick="
+                  {
+                    handleLike;
+                  }
+                "
+                title="いいね"
+              >
+                <lightning-icon
+                  icon-name="utility:heart"
+                  size="medium"
+                  alternative-text="Like"
+                ></lightning-icon>
+              </button>
+            </div>
+            <div class="slds-col">
+              <button
+                class="action-btn super-like-btn"
+                onclick="
+                  {
+                    handleSuperLike;
+                  }
+                "
+                title="スーパーいいね"
+              >
+                <lightning-icon
+                  icon-name="utility:favorite"
+                  size="medium"
+                  alternative-text="Super Like"
+                ></lightning-icon>
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <template if:false="{showMatchingActions}">
+          <!-- 通常の詳細表示用ボタン -->
+          <div class="view-actions slds-grid slds-gutters_small">
+            <div class="slds-col">
+              <lightning-button
+                variant="neutral"
+                label="{detailsButtonLabel}"
+                onclick="
+                  {
+                    toggleDetails;
+                  }
+                "
+                size="small"
+              >
+              </lightning-button>
+            </div>
+            <div class="slds-col">
+              <lightning-button
+                variant="brand"
+                label="編集"
+                onclick="
+                  {
+                    handleEdit;
+                  }
+                "
+                size="small"
+                if:true="{isOwnProfile}"
+              >
+              </lightning-button>
+            </div>
+            <div class="slds-col" if:false="{isOwnProfile}">
+              <lightning-button
+                variant="brand"
+                label="メッセージ"
+                onclick="
+                  {
+                    handleMessage;
+                  }
+                "
+                size="small"
+              >
+              </lightning-button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </article>
 </template>

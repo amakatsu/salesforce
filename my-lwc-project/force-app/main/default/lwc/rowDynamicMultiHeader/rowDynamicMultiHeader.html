@@ -4,7 +4,6 @@
   * ========================================
   -->
   <lightning-card>
-
     <!-- ========================================
     * メインテーブル構造
     * ======================================== -->
@@ -57,7 +56,11 @@
                 <div class="slds-truncate" title="選択">
                   <lightning-input
                     type="checkbox"
-                    onchange={handleSelectFullCheck}
+                    onchange="
+                      {
+                        handleSelectFullCheck;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -103,13 +106,17 @@
             <!-- 2行目：詳細ヘッダー（固定列2つはrowspanでスキップ） -->
             <tr class="slds-line-height_reset header-row-2">
               <th class="slds-text-align_center" scope="col">
-                <div class="slds-truncate" title="数値1（必須）">数値1 <span style="color: red;">*</span></div>
+                <div class="slds-truncate" title="数値1（必須）">
+                  数値1 <span style="color: red">*</span>
+                </div>
               </th>
               <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="数値2">数値2</div>
               </th>
               <th class="slds-text-align_center" scope="col">
-                <div class="slds-truncate" title="文字列1（必須）">文字列1 <span style="color: red;">*</span></div>
+                <div class="slds-truncate" title="文字列1（必須）">
+                  文字列1 <span style="color: red">*</span>
+                </div>
               </th>
               <th class="slds-text-align_center" scope="col">
                 <div class="slds-truncate" title="文字列2">文字列2</div>
@@ -142,12 +149,12 @@
           * ======================================== -->
           <tbody>
             <template
-              for:each={editableTableData}
+              for:each="{editableTableData}"
               for:item="data"
               for:index="idx"
             >
               <!-- 1行目：上段データ -->
-              <tr key={data.Id} class="slds-hint-parent">
+              <tr key="{data.Id}" class="slds-hint-parent">
                 <!-- 固定列1: 選択チェックボックス（2行分占有） -->
                 <td
                   data-label="選択"
@@ -156,9 +163,13 @@
                 >
                   <lightning-input
                     type="checkbox"
-                    checked={data.checked}
-                    data-idx={idx}
-                    onchange={handleRowSelection}
+                    checked="{data.checked}"
+                    data-idx="{idx}"
+                    onchange="
+                      {
+                        handleRowSelection;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -172,10 +183,14 @@
                 <td data-label="数値1">
                   <lightning-input
                     type="number"
-                    value={data.num1}
-                    data-id={data.Id}
+                    value="{data.num1}"
+                    data-id="{data.Id}"
                     data-field="num1"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                     required
                   ></lightning-input>
@@ -185,7 +200,7 @@
                 <td data-label="数値2">
                   <div class="slds-truncate slds-text-align_right">
                     <lightning-formatted-number
-                      value={data.num2}
+                      value="{data.num2}"
                     ></lightning-formatted-number>
                   </div>
                 </td>
@@ -194,10 +209,14 @@
                 <td data-label="文字列1">
                   <lightning-input
                     type="text"
-                    value={data.str1}
-                    data-id={data.Id}
+                    value="{data.str1}"
+                    data-id="{data.Id}"
                     data-field="str1"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                     required
                   ></lightning-input>
@@ -207,7 +226,7 @@
                 <td data-label="文字列2">
                   <div class="slds-truncate">
                     <lightning-formatted-text
-                      value={data.str2}
+                      value="{data.str2}"
                     ></lightning-formatted-text>
                   </div>
                 </td>
@@ -216,10 +235,14 @@
                 <td data-label="文字列3">
                   <lightning-input
                     type="text"
-                    value={data.str3}
-                    data-id={data.Id}
+                    value="{data.str3}"
+                    data-id="{data.Id}"
                     data-field="str3"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -228,10 +251,14 @@
                 <td data-label="チェックボックス">
                   <lightning-input
                     type="checkbox"
-                    checked={data.dataCheck}
-                    data-id={data.Id}
+                    checked="{data.dataCheck}"
+                    data-id="{data.Id}"
                     data-field="dataCheck"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -239,11 +266,15 @@
                 <!-- 審査結果（コンボボックス） -->
                 <td data-label="審査結果">
                   <lightning-combobox
-                    value={data.ReviewResult}
-                    options={reviewResultOptions}
-                    data-id={data.Id}
+                    value="{data.ReviewResult}"
+                    options="{reviewResultOptions}"
+                    data-id="{data.Id}"
                     data-field="ReviewResult"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
@@ -252,11 +283,15 @@
                 <!-- 科目（コンボボックス） -->
                 <td data-label="科目">
                   <lightning-combobox
-                    value={data.Subject}
-                    options={subjectOptions}
-                    data-id={data.Id}
+                    value="{data.Subject}"
+                    options="{subjectOptions}"
+                    data-id="{data.Id}"
                     data-field="Subject"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
@@ -266,10 +301,14 @@
                 <td data-label="日付1">
                   <lightning-input
                     type="date"
-                    value={data.date1}
-                    data-id={data.Id}
+                    value="{data.date1}"
+                    data-id="{data.Id}"
                     data-field="date1"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -278,10 +317,14 @@
                 <td data-label="日付2">
                   <lightning-input
                     type="date"
-                    value={data.date2}
-                    data-id={data.Id}
+                    value="{data.date2}"
+                    data-id="{data.Id}"
                     data-field="date2"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                     readonly
                   ></lightning-input>
@@ -289,15 +332,19 @@
               </tr>
 
               <!-- 2行目：下段データ（固定列2つはrowspanでスキップ） -->
-              <tr key={data.Id} class="slds-hint-parent second-row">
+              <tr key="{data.Id}" class="slds-hint-parent second-row">
                 <!-- 数値3（編集可能） -->
                 <td data-label="数値3">
                   <lightning-input
                     type="number"
-                    value={data.num3}
-                    data-id={data.Id}
+                    value="{data.num3}"
+                    data-id="{data.Id}"
                     data-field="num3"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -306,7 +353,7 @@
                 <td data-label="数値4">
                   <div class="slds-truncate slds-text-align_right">
                     <lightning-formatted-number
-                      value={data.num4}
+                      value="{data.num4}"
                     ></lightning-formatted-number>
                   </div>
                 </td>
@@ -315,10 +362,14 @@
                 <td data-label="文字列4">
                   <lightning-input
                     type="text"
-                    value={data.str4}
-                    data-id={data.Id}
+                    value="{data.str4}"
+                    data-id="{data.Id}"
                     data-field="str4"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -326,10 +377,14 @@
                 <!-- 文字列5（テキストエリア） -->
                 <td data-label="文字列5">
                   <lightning-textarea
-                    value={data.str5}
-                    data-id={data.Id}
+                    value="{data.str5}"
+                    data-id="{data.Id}"
                     data-field="str5"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-textarea>
                 </td>
@@ -338,10 +393,14 @@
                 <td data-label="文字列6">
                   <lightning-input
                     type="text"
-                    value={data.str6}
-                    data-id={data.Id}
+                    value="{data.str6}"
+                    data-id="{data.Id}"
                     data-field="str6"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -350,10 +409,14 @@
                 <td data-label="チェック2">
                   <lightning-input
                     type="checkbox"
-                    checked={data.checked2}
-                    data-id={data.Id}
+                    checked="{data.checked2}"
+                    data-id="{data.Id}"
                     data-field="checked2"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -361,11 +424,15 @@
                 <!-- 優先度（コンボボックス） -->
                 <td data-label="優先度">
                   <lightning-combobox
-                    value={data.Priority}
-                    options={priorityOptions}
-                    data-id={data.Id}
+                    value="{data.Priority}"
+                    options="{priorityOptions}"
+                    data-id="{data.Id}"
                     data-field="Priority"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
@@ -374,11 +441,15 @@
                 <!-- ステータス（コンボボックス） -->
                 <td data-label="ステータス">
                   <lightning-combobox
-                    value={data.Status}
-                    options={statusOptions}
-                    data-id={data.Id}
+                    value="{data.Status}"
+                    options="{statusOptions}"
+                    data-id="{data.Id}"
                     data-field="Status"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
@@ -388,10 +459,14 @@
                 <td data-label="日付3">
                   <lightning-input
                     type="date"
-                    value={data.date3}
-                    data-id={data.Id}
+                    value="{data.date3}"
+                    data-id="{data.Id}"
                     data-field="date3"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -400,10 +475,14 @@
                 <td data-label="日付4">
                   <lightning-input
                     type="date"
-                    value={data.date4}
-                    data-id={data.Id}
+                    value="{data.date4}"
+                    data-id="{data.Id}"
                     data-field="date4"
-                    onchange={handleInputChange}
+                    onchange="
+                      {
+                        handleInputChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </td>

@@ -194,7 +194,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
       // 【データ取得方法の選択理由】
       // ガイドライン方式: this.template.querySelectorAll('[data-id]') で全DOM要素を一括取得
       // 現在の方式: editableTableDataから対象レコードを絞り込み → 各レコードのDOM要素を個別取得
-      // 
+      //
       // 現在の方式を採用する理由：
       // 1. 選択データのみ処理する機能が必要（selectedOnly パラメータ）
       // 2. メモリ上のデータとDOM要素の整合性を保ちやすい

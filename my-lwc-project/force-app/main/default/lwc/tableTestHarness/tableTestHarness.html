@@ -8,15 +8,19 @@
       <lightning-radio-group
         name="testType"
         label="検証タイプを選択"
-        options={testTypeOptions}
-        value={selectedTestType}
-        onchange={handleTestTypeChange}
+        options="{testTypeOptions}"
+        value="{selectedTestType}"
+        onchange="
+          {
+            handleTestTypeChange;
+          }
+        "
         type="radio"
       ></lightning-radio-group>
     </div>
 
     <!-- Test Case 1: 単純なカード内配置 -->
-    <template if:true={showSimpleCard}>
+    <template if:true="{showSimpleCard}">
       <div class="slds-m-around_medium">
         <h3 class="slds-text-heading_medium slds-m-bottom_small">
           Test Case 1: 単純なカード内配置
@@ -28,7 +32,7 @@
     </template>
 
     <!-- Test Case 2: タブ内配置 -->
-    <template if:true={showTabTest}>
+    <template if:true="{showTabTest}">
       <div class="slds-m-around_medium">
         <h3 class="slds-text-heading_medium slds-m-bottom_small">
           Test Case 2: タブ内配置
@@ -49,7 +53,7 @@
     </template>
 
     <!-- Test Case 3: 複数コンポーネント共存 -->
-    <template if:true={showMultiComponent}>
+    <template if:true="{showMultiComponent}">
       <div class="slds-m-around_medium">
         <h3 class="slds-text-heading_medium slds-m-bottom_small">
           Test Case 3: 複数コンポーネント共存
@@ -60,12 +64,20 @@
           <div class="slds-p-around_medium">
             <lightning-input
               label="サンプル入力フィールド"
-              value={sampleInput}
-              onchange={handleSampleInputChange}
+              value="{sampleInput}"
+              onchange="
+                {
+                  handleSampleInputChange;
+                }
+              "
             ></lightning-input>
             <lightning-button
               label="サンプルボタン"
-              onclick={handleSampleButtonClick}
+              onclick="
+                {
+                  handleSampleButtonClick;
+                }
+              "
               class="slds-m-top_small"
             ></lightning-button>
           </div>
@@ -81,8 +93,12 @@
           <div class="slds-p-around_medium">
             <lightning-textarea
               label="備考欄"
-              value={notes}
-              onchange={handleNotesChange}
+              value="{notes}"
+              onchange="
+                {
+                  handleNotesChange;
+                }
+              "
               rows="4"
             ></lightning-textarea>
             <div class="slds-m-top_medium">
@@ -98,7 +114,7 @@
     </template>
 
     <!-- Test Case 4: ネストしたレイアウト -->
-    <template if:true={showNestedLayout}>
+    <template if:true="{showNestedLayout}">
       <div class="slds-m-around_medium">
         <h3 class="slds-text-heading_medium slds-m-bottom_small">
           Test Case 4: ネストしたレイアウト
@@ -141,7 +157,7 @@
     </template>
 
     <!-- Test Case 5: スクロール競合テスト -->
-    <template if:true={showScrollTest}>
+    <template if:true="{showScrollTest}">
       <div class="slds-m-around_medium">
         <h3 class="slds-text-heading_medium slds-m-bottom_small">
           Test Case 5: スクロール競合テスト

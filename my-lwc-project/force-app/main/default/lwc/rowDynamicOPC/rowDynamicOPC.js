@@ -12,19 +12,24 @@ import { validateElement } from "c/f003GsV0000DataValidation";
 
 /** API連携（正常・連携1回）用項目リスト */
 export const OPC_API_SUCCESS1_LIST = [
-  'num1', 'num2', 'str1', 'str2',
-  'dataCheck', 'ReviewResult', 'Subject', 'date1'
+  "num1",
+  "num2",
+  "str1",
+  "str2",
+  "dataCheck",
+  "ReviewResult",
+  "Subject",
+  "date1"
 ];
 
 /** API連携（正常・連携1回）用必須項目リスト */
-export const OPC_API_SUCCESS1_REQ_LIST = ['num1', 'str1'];
+export const OPC_API_SUCCESS1_REQ_LIST = ["num1", "str1"];
 
 /* ========================================
  * メインコンポーネントクラス
  * ======================================== */
 
 export default class RowDynamicOPC extends LightningElement {
-
   // ========================================
   // プロパティ定義
   // ========================================
@@ -124,7 +129,10 @@ export default class RowDynamicOPC extends LightningElement {
     // id = どのレコード(行)を更新するか (例: "rec001")
     // field = そのレコードのどのフィールド(列)を更新するか (例: "num1")
     const { id, field } = event.target.dataset;
-    const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+    const value =
+      event.target.type === "checkbox"
+        ? event.target.checked
+        : event.target.value;
 
     // データ更新（該当レコードの該当フィールドを更新）
     this.editableTableData = this.editableTableData.map((record) => {
@@ -172,7 +180,7 @@ export default class RowDynamicOPC extends LightningElement {
       // 【データ取得方法の選択理由】
       // ガイドライン方式: this.template.querySelectorAll('[data-id]') で全DOM要素を一括取得
       // 現在の方式: editableTableDataから対象レコードを絞り込み → 各レコードのDOM要素を個別取得
-      // 
+      //
       // 現在の方式を採用する理由：
       // 1. 選択データのみ処理する機能が必要（selectedOnly パラメータ）
       // 2. メモリ上のデータとDOM要素の整合性を保ちやすい

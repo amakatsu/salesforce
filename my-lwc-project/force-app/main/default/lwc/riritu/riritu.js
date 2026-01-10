@@ -192,7 +192,7 @@ export default class RirituComponent extends LightningElement {
   async handleSave() {
     try {
       const { draft } = stateService.getState();
-      
+
       if (draft.size === 0) {
         this._showToast("保存する変更がありません", "warning");
         return;
@@ -200,13 +200,13 @@ export default class RirituComponent extends LightningElement {
 
       // API保存処理
       await this._saveDataToAPI();
-      
+
       stateService.getState().draft.clear();
       this.highlightOn = true;
       this._refreshData();
       this._showToast(MESSAGE_LABELS.SAVE_SUCCESS, "success");
     } catch (error) {
-      console.error('保存エラー:', error);
+      console.error("保存エラー:", error);
       this._showToast("保存に失敗しました: " + error.message, "error");
     }
   }
@@ -345,14 +345,17 @@ export default class RirituComponent extends LightningElement {
    * @public
    */
   handleDeleteSelectedRows() {
-    if (this.selectedCreditRows.size === 0 && this.selectedCollateralRows.size === 0) {
+    if (
+      this.selectedCreditRows.size === 0 &&
+      this.selectedCollateralRows.size === 0
+    ) {
       this._showToast("削除する行を選択してください", "warning");
       return;
     }
 
     if (confirm(MESSAGE_LABELS.DELETE_CONFIRM)) {
       const { creditSource, collateralSource } = stateService.getState();
-      
+
       // 与信行削除
       if (this.selectedCreditRows.size > 0) {
         this._deleteRowsFromTree(creditSource, this.selectedCreditRows);
@@ -383,7 +386,7 @@ export default class RirituComponent extends LightningElement {
       await this._initializeData();
       this._showToast(MESSAGE_LABELS.REFRESH_SUCCESS, "success");
     } catch (error) {
-      console.error('データ再取得エラー:', error);
+      console.error("データ再取得エラー:", error);
       this._showToast("データ再取得に失敗しました: " + error.message, "error");
     }
   }
@@ -395,9 +398,11 @@ export default class RirituComponent extends LightningElement {
    */
   handleSelectAllCredit(event) {
     const isChecked = event.target.checked;
-    const checkboxes = this.template.querySelectorAll('lightning-input[data-type="credit"]');
-    
-    checkboxes.forEach(checkbox => {
+    const checkboxes = this.template.querySelectorAll(
+      'lightning-input[data-type="credit"]'
+    );
+
+    checkboxes.forEach((checkbox) => {
       checkbox.checked = isChecked;
       const rowId = checkbox.dataset.id;
       if (isChecked) {
@@ -415,9 +420,11 @@ export default class RirituComponent extends LightningElement {
    */
   handleSelectAllCollateral(event) {
     const isChecked = event.target.checked;
-    const checkboxes = this.template.querySelectorAll('lightning-input[data-type="collateral"]');
-    
-    checkboxes.forEach(checkbox => {
+    const checkboxes = this.template.querySelectorAll(
+      'lightning-input[data-type="collateral"]'
+    );
+
+    checkboxes.forEach((checkbox) => {
       checkbox.checked = isChecked;
       const rowId = checkbox.dataset.id;
       if (isChecked) {
@@ -451,25 +458,28 @@ export default class RirituComponent extends LightningElement {
         this._loadCreditDataFromAPI(),
         this._loadCollateralDataFromAPI()
       ]);
-      
+
       // ステートサービスに設定
       if (creditData || collateralData) {
         stateService.initializeWithData(creditData, collateralData);
       } else {
         stateService.initializeState();
       }
-      
+
       const { creditSource, collateralSource } = stateService.getState();
       this.creditRows = this._flattenTree(creditSource, false);
       this.collateralRows = this._flattenTree(collateralSource, false);
     } catch (error) {
-      console.error('データ初期化エラー:', error);
+      console.error("データ初期化エラー:", error);
       // エラー時はローカルデータで初期化
       stateService.initializeState();
       const { creditSource, collateralSource } = stateService.getState();
       this.creditRows = this._flattenTree(creditSource, false);
       this.collateralRows = this._flattenTree(collateralSource, false);
-      this._showToast("データの読み込みに失敗しました。ローカルデータを使用します。", "warning");
+      this._showToast(
+        "データの読み込みに失敗しました。ローカルデータを使用します。",
+        "warning"
+      );
     }
   }
 
@@ -715,7 +725,7 @@ export default class RirituComponent extends LightningElement {
     this.toastMessage = message;
     this.toastVariant = variant;
     this.showToast = true;
-    
+
     // 3秒後に自動で非表示
     setTimeout(() => {
       this.showToast = false;
@@ -753,7 +763,7 @@ export default class RirituComponent extends LightningElement {
       const response = await apiService.getCreditData();
       return response.success ? response.data : response;
     } catch (error) {
-      console.error('与信データの読み込み失敗:', error);
+      console.error("与信データの読み込み失敗:", error);
       return null;
     }
   }
@@ -768,7 +778,7 @@ export default class RirituComponent extends LightningElement {
       const response = await apiService.getCollateralData();
       return response.success ? response.data : response;
     } catch (error) {
-      console.error('担保データの読み込み失敗:', error);
+      console.error("担保データの読み込み失敗:", error);
       return null;
     }
   }
@@ -818,7 +828,7 @@ export default class RirituComponent extends LightningElement {
     try {
       return await apiService.healthCheck();
     } catch (error) {
-      console.error('APIヘルスチェック失敗:', error);
+      console.error("APIヘルスチェック失敗:", error);
       return false;
     }
   }
@@ -833,7 +843,7 @@ export default class RirituComponent extends LightningElement {
     try {
       return await apiService.authenticate(credentials);
     } catch (error) {
-      console.error('認証失敗:', error);
+      console.error("認証失敗:", error);
       throw error;
     }
   }
@@ -848,7 +858,7 @@ export default class RirituComponent extends LightningElement {
     try {
       return await apiService.batchUpdate(batchData);
     } catch (error) {
-      console.error('バッチ更新失敗:', error);
+      console.error("バッチ更新失敗:", error);
       throw error;
     }
   }

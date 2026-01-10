@@ -111,8 +111,12 @@
                   <lightning-input
                     data-id="l1_num1"
                     type="number"
-                    value={record.l1_num1}
-                    onblur={handleRecordValueChange}
+                    value="{record.l1_num1}"
+                    onblur="
+                      {
+                        handleRecordValueChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -121,7 +125,7 @@
                 <div class="slds-truncate slds-text-align_right">
                   <lightning-formatted-number
                     data-id="l1_num2"
-                    value={record.l1_num2}
+                    value="{record.l1_num2}"
                   ></lightning-formatted-number>
                 </div>
               </td>
@@ -130,7 +134,7 @@
                   <lightning-input
                     data-id="l1_str1"
                     type="text"
-                    value={record.l1_str1}
+                    value="{record.l1_str1}"
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -139,7 +143,7 @@
                 <div class="slds-truncate">
                   <lightning-formatted-text
                     data-id="l1_str2"
-                    value={record.l1_str2}
+                    value="{record.l1_str2}"
                   ></lightning-formatted-text>
                 </div>
               </td>
@@ -148,28 +152,40 @@
                   <lightning-input
                     data-id="l1_check"
                     type="checkbox"
-                    checked={record.l1_check}
+                    checked="{record.l1_check}"
                     variant="label-hidden"
-                    onchange={handleRecordCheckedChange}
+                    onchange="
+                      {
+                        handleRecordCheckedChange;
+                      }
+                    "
                   ></lightning-input>
                 </div>
               </td>
               <td>
                 <lightning-combobox
-                  value={record.l1_reviewResult}
-                  options={reviewResultOptions}
+                  value="{record.l1_reviewResult}"
+                  options="{reviewResultOptions}"
                   data-id="l1_reviewResult"
-                  onchange={handleComboboxChange}
+                  onchange="
+                    {
+                      handleComboboxChange;
+                    }
+                  "
                   variant="label-hidden"
                   dropdown-alignment="auto"
                 ></lightning-combobox>
               </td>
               <td>
                 <lightning-combobox
-                  value={record.l1_subject}
-                  options={subjectOptions}
+                  value="{record.l1_subject}"
+                  options="{subjectOptions}"
                   data-id="l1_subject"
-                  onchange={handleComboboxChange}
+                  onchange="
+                    {
+                      handleComboboxChange;
+                    }
+                  "
                   variant="label-hidden"
                   dropdown-alignment="auto"
                 ></lightning-combobox>
@@ -190,8 +206,12 @@
                   <lightning-input
                     data-id="l2_num1"
                     type="number"
-                    value={record.l2_num1}
-                    onblur={handleRecordValueChange}
+                    value="{record.l2_num1}"
+                    onblur="
+                      {
+                        handleRecordValueChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -200,7 +220,7 @@
                 <div class="slds-truncate slds-text-align_right">
                   <lightning-formatted-number
                     data-id="l2_num2"
-                    value={record.l2_num2}
+                    value="{record.l2_num2}"
                   ></lightning-formatted-number>
                 </div>
               </td>
@@ -209,7 +229,7 @@
                   <lightning-input
                     data-id="l2_str1"
                     type="text"
-                    value={record.l2_str1}
+                    value="{record.l2_str1}"
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -218,7 +238,7 @@
                 <div class="slds-truncate">
                   <lightning-formatted-text
                     data-id="l2_str2"
-                    value={record.l2_str2}
+                    value="{record.l2_str2}"
                   ></lightning-formatted-text>
                 </div>
               </td>
@@ -227,28 +247,40 @@
                   <lightning-input
                     data-id="l2_check"
                     type="checkbox"
-                    checked={record.l2_check}
+                    checked="{record.l2_check}"
                     variant="label-hidden"
-                    onchange={handleRecordCheckedChange}
+                    onchange="
+                      {
+                        handleRecordCheckedChange;
+                      }
+                    "
                   ></lightning-input>
                 </div>
               </td>
               <td>
                 <lightning-combobox
-                  value={record.l2_reviewResult}
-                  options={reviewResultOptions}
+                  value="{record.l2_reviewResult}"
+                  options="{reviewResultOptions}"
                   data-id="l2_reviewResult"
-                  onchange={handleComboboxChange}
+                  onchange="
+                    {
+                      handleComboboxChange;
+                    }
+                  "
                   variant="label-hidden"
                   dropdown-alignment="auto"
                 ></lightning-combobox>
               </td>
               <td>
                 <lightning-combobox
-                  value={record.l2_subject}
-                  options={subjectOptions}
+                  value="{record.l2_subject}"
+                  options="{subjectOptions}"
                   data-id="l2_subject"
-                  onchange={handleComboboxChange}
+                  onchange="
+                    {
+                      handleComboboxChange;
+                    }
+                  "
                   variant="label-hidden"
                   dropdown-alignment="auto"
                 ></lightning-combobox>
@@ -269,8 +301,12 @@
                   <lightning-input
                     data-id="l3_num1"
                     type="number"
-                    value={record.l3_num1}
-                    onblur={handleRecordValueChange}
+                    value="{record.l3_num1}"
+                    onblur="
+                      {
+                        handleRecordValueChange;
+                      }
+                    "
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -279,7 +315,7 @@
                 <div class="slds-truncate slds-text-align_right">
                   <lightning-formatted-number
                     data-id="l3_num2"
-                    value={record.l3_num2}
+                    value="{record.l3_num2}"
                   ></lightning-formatted-number>
                 </div>
               </td>
@@ -288,7 +324,7 @@
                   <lightning-input
                     data-id="l3_date1"
                     type="date"
-                    value={record.l3_date1}
+                    value="{record.l3_date1}"
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -298,7 +334,7 @@
                   <lightning-input
                     data-id="l3_date2"
                     type="date"
-                    value={record.l3_date2}
+                    value="{record.l3_date2}"
                     variant="label-hidden"
                     readonly
                   ></lightning-input>
@@ -309,28 +345,40 @@
                   <lightning-input
                     data-id="l3_check"
                     type="checkbox"
-                    checked={record.l3_check}
+                    checked="{record.l3_check}"
                     variant="label-hidden"
-                    onchange={handleRecordCheckedChange}
+                    onchange="
+                      {
+                        handleRecordCheckedChange;
+                      }
+                    "
                   ></lightning-input>
                 </div>
               </td>
               <td>
                 <lightning-combobox
-                  value={record.l3_reviewResult}
-                  options={reviewResultOptions}
+                  value="{record.l3_reviewResult}"
+                  options="{reviewResultOptions}"
                   data-id="l3_reviewResult"
-                  onchange={handleComboboxChange}
+                  onchange="
+                    {
+                      handleComboboxChange;
+                    }
+                  "
                   variant="label-hidden"
                   dropdown-alignment="auto"
                 ></lightning-combobox>
               </td>
               <td>
                 <lightning-combobox
-                  value={record.l3_subject}
-                  options={subjectOptions}
+                  value="{record.l3_subject}"
+                  options="{subjectOptions}"
                   data-id="l3_subject"
-                  onchange={handleComboboxChange}
+                  onchange="
+                    {
+                      handleComboboxChange;
+                    }
+                  "
                   variant="label-hidden"
                   dropdown-alignment="auto"
                 ></lightning-combobox>
