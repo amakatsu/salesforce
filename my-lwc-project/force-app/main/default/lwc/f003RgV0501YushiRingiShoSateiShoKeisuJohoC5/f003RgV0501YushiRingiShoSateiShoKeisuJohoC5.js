@@ -26,179 +26,96 @@ const REFERENCE_COLUMNS = [
   { label: "C/E", fieldName: "ce" }
 ];
 const CHANGED_CELL_CLASS = "changed-cell";
+
+const EXCHANGE_DEFAULTS = {
+  previousTermAverage: "99.99",
+  lastTermAverage: "99.99",
+  september99: "99.99",
+  dueDate1: "99.99",
+  dueDate2: "99.99",
+  dueDate3: "99.99",
+  dueDate4: "99.99",
+  dueDate5: "99.99"
+};
+const exchangeRow = ({ id, type, overrides = {} }) => ({
+  id,
+  type,
+  ...EXCHANGE_DEFAULTS,
+  ...overrides
+});
+
+const COLLATERAL_DEFAULTS = {
+  expectedShare: "99.99",
+  marketValue: "99.99"
+};
+const collateralRow = ({
+  id,
+  collateralType,
+  overrides = {},
+  disabled = false
+}) => ({
+  id,
+  collateralType,
+  ...COLLATERAL_DEFAULTS,
+  ...overrides,
+  ...(disabled ? { disabled: true } : {})
+});
+
+const REFERENCE_DEFAULTS = {
+  cePe: "99999",
+  ce: "99999",
+  disabled: false
+};
+const referenceRow = ({ id, category, overrides = {}, disabled = false }) => ({
+  id,
+  category,
+  ...REFERENCE_DEFAULTS,
+  ...overrides,
+  ...(disabled ? { disabled: true } : {})
+});
+
 function generateExchangeReservationData() {
   return [
-    {
+    exchangeRow({
       id: "1",
       type: "予約平残",
-      previousTermAverage: "99999.99",
-      lastTermAverage: "99.99",
-      september99: "99.99",
-      dueDate1: "99.99",
-      dueDate2: "99.99",
-      dueDate3: "99.99",
-      dueDate4: "99.99",
-      dueDate5: "99.99"
-    },
-    {
-      id: "2",
-      type: "予約ピーク",
-      previousTermAverage: "99.99",
-      lastTermAverage: "99.99",
-      september99: "99.99",
-      dueDate1: "99.99",
-      dueDate2: "99.99",
-      dueDate3: "99.99",
-      dueDate4: "99.99",
-      dueDate5: "99.99"
-    },
-    {
-      id: "3",
-      type: "当月締結累計額",
-      previousTermAverage: "99.99",
-      lastTermAverage: "99.99",
-      september99: "99.99",
-      dueDate1: "99.99",
-      dueDate2: "99.99",
-      dueDate3: "99.99",
-      dueDate4: "99.99",
-      dueDate5: "99.99"
-    },
-    {
-      id: "4",
-      type: "平均回転期間",
-      previousTermAverage: "99.99",
-      lastTermAverage: "99.99",
-      september99: "99.99",
-      dueDate1: "99.99",
-      dueDate2: "99.99",
-      dueDate3: "99.99",
-      dueDate4: "99.99",
-      dueDate5: "99.99"
-    }
+      overrides: { previousTermAverage: "99999.99" }
+    }),
+    exchangeRow({ id: "2", type: "予約ピーク" }),
+    exchangeRow({ id: "3", type: "当月締結累計額" }),
+    exchangeRow({ id: "4", type: "平均回転期間" })
   ];
 }
 function generateRegularCollateralData() {
   return [
-    {
-      id: "11",
-      collateralType: "預金",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "12",
-      collateralType: "担手・電担",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "13",
-      collateralType: "有証",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "14",
-      collateralType: "保証",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "15",
-      collateralType: "不動産",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "16",
-      collateralType: "その他",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "17",
-      collateralType: "規定担保計",
-      expectedShare: "99.99",
-      marketValue: "99.99",
-      disabled: true
-    },
-    {
-      id: "18",
-      collateralType: "裸与信",
-      expectedShare: "99.99",
-      marketValue: "99.99",
-      disabled: true
-    }
+    collateralRow({ id: "11", collateralType: "預金" }),
+    collateralRow({ id: "12", collateralType: "担手・電担" }),
+    collateralRow({ id: "13", collateralType: "有証" }),
+    collateralRow({ id: "14", collateralType: "保証" }),
+    collateralRow({ id: "15", collateralType: "不動産" }),
+    collateralRow({ id: "16", collateralType: "その他" }),
+    collateralRow({ id: "17", collateralType: "規定担保計", disabled: true }),
+    collateralRow({ id: "18", collateralType: "裸与信", disabled: true })
   ];
 }
 function generateNonRegularCollateralData() {
   return [
-    {
-      id: "111",
-      collateralType: "担手・電担",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "115",
-      collateralType: "不動産",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "116",
-      collateralType: "入居保証金",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "117",
-      collateralType: "債権",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "118",
-      collateralType: "その他",
-      expectedShare: "99.99",
-      marketValue: "99.99"
-    },
-    {
-      id: "119",
-      collateralType: "規定外担保計",
-      expectedShare: "99.99",
-      marketValue: "99.99",
-      disabled: true
-    }
+    collateralRow({ id: "111", collateralType: "担手・電担" }),
+    collateralRow({ id: "115", collateralType: "不動産" }),
+    collateralRow({ id: "116", collateralType: "入居保証金" }),
+    collateralRow({ id: "117", collateralType: "債権" }),
+    collateralRow({ id: "118", collateralType: "その他" }),
+    collateralRow({ id: "119", collateralType: "規定外担保計", disabled: true })
   ];
 }
 function generateReferenceData() {
   return [
-    {
-      id: "1111",
-      category: "為替取引",
-      cePe: "99999",
-      ce: "99999",
-      disabled: true
-    },
-    {
-      id: "1112",
-      category: "スワップオプション取引",
-      cePe: "99999",
-      ce: "99999",
-      disabled: true
-    },
-    {
-      id: "1113",
-      category: "マークトリスク内在型取引",
-      cePe: "99999",
-      ce: "99999",
-      disabled: true
-    },
-    { id: "1114", category: "先物取引", cePe: "99999", ce: "99999" },
-    { id: "1115", category: "その他市場性与信", cePe: "99999", ce: "99999" },
-    { id: "1116", category: "全体", cePe: "99999", ce: "99999", disabled: true }
+    referenceRow({ id: "1111", category: "為替取引", disabled: true }),
+    referenceRow({ id: "1112", category: "スワップオプション取引", disabled: true }),
+    referenceRow({ id: "1113", category: "マークトリスク内在型取引", disabled: true }),
+    referenceRow({ id: "1114", category: "先物取引" }),
+    referenceRow({ id: "1115", category: "その他市場性与信" }),
+    referenceRow({ id: "1116", category: "全体", disabled: true })
   ];
 }
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC5 extends LightningElement {

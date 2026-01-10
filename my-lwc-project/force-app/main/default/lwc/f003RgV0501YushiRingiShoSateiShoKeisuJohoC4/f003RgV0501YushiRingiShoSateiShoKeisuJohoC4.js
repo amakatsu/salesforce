@@ -44,176 +44,181 @@ const CREDIT_COLUMNS = [
     type: "text"
   }
 ];
+
+const CREDIT_DEFAULTS = {
+  creditType2: "",
+  grossNet: "",
+  dueDate: "",
+  margin: "",
+  endOfMonthBalance: "",
+  endOfMonthLimit: "",
+  currentMonthChange: "",
+  postTransactionCreditAmount: "",
+  marketValueBalanceCEPE: "",
+  marketValueBalanceCEPEReference: "",
+  marketValueBalanceCE: "",
+  marketValueBalanceCEReference: "",
+  assumedPrincipalApprovalAmount: "",
+  assumedPrincipalMarketValueBalance: "",
+  disabled: false
+};
+
+const creditRow = ({ id, creditType1, overrides = {}, disabled }) => ({
+  id,
+  creditType1,
+  ...CREDIT_DEFAULTS,
+  ...overrides,
+  ...(disabled !== undefined ? { disabled } : {})
+});
+
 function generateCreditData() {
+  const dashFields = {
+    margin: "-",
+    endOfMonthBalance: "-",
+    endOfMonthLimit: "-",
+    currentMonthChange: "-",
+    postTransactionCreditAmount: "-",
+    marketValueBalanceCEPE: "-",
+    marketValueBalanceCEPEReference: "-",
+    marketValueBalanceCE: "-",
+    marketValueBalanceCEReference: "-"
+  };
   return [
-    {
+    creditRow({
       id: "1",
       creditType1: "限度算入与信合計",
-      creditType2: "",
-      grossNet: "",
-      dueDate: "",
-      margin: "",
-      endOfMonthBalance: "99999",
-      endOfMonthLimit: "99999",
-      currentMonthChange: "-",
-      postTransactionCreditAmount: "99999",
-      marketValueBalanceCEPE: "99999",
-      marketValueBalanceCEPEReference: "-",
-      marketValueBalanceCE: "99999",
-      marketValueBalanceCEReference: "-",
-      assumedPrincipalApprovalAmount: "111000000",
-      assumedPrincipalMarketValueBalance: "109500000",
+      overrides: {
+        endOfMonthBalance: "99999",
+        endOfMonthLimit: "99999",
+        currentMonthChange: "-",
+        postTransactionCreditAmount: "99999",
+        marketValueBalanceCEPE: "99999",
+        marketValueBalanceCEPEReference: "-",
+        marketValueBalanceCE: "99999",
+        marketValueBalanceCEReference: "-",
+        assumedPrincipalApprovalAmount: "111000000",
+        assumedPrincipalMarketValueBalance: "109500000"
+      },
       disabled: true
-    },
-    {
+    }),
+    creditRow({
       id: "2",
-      creditType1: "××××××××××××××××××××××××××××××××××××××××",
-      creditType2: "ワーニング",
-      grossNet: "グロス",
-      dueDate: "99/99",
-      margin: "9999",
-      endOfMonthBalance: "999999",
-      endOfMonthLimit: "999999",
-      currentMonthChange: "999999",
-      postTransactionCreditAmount: "999999",
-      marketValueBalanceCEPE: "999999",
-      marketValueBalanceCEPEReference: "999999",
-      marketValueBalanceCE: "999999",
-      marketValueBalanceCEReference: "999999",
-      assumedPrincipalApprovalAmount: "13000000",
-      assumedPrincipalMarketValueBalance: "12500000"
-    },
-    {
+      creditType1:
+        "××××××××××××××××××××××××××××××××××××××××",
+      overrides: {
+        creditType2: "ワーニング",
+        grossNet: "グロス",
+        dueDate: "99/99",
+        margin: "9999",
+        endOfMonthBalance: "999999",
+        endOfMonthLimit: "999999",
+        currentMonthChange: "999999",
+        postTransactionCreditAmount: "999999",
+        marketValueBalanceCEPE: "999999",
+        marketValueBalanceCEPEReference: "999999",
+        marketValueBalanceCE: "999999",
+        marketValueBalanceCEReference: "999999",
+        assumedPrincipalApprovalAmount: "13000000",
+        assumedPrincipalMarketValueBalance: "12500000"
+      }
+    }),
+    creditRow({
       id: "3",
       creditType1: "〇〇〇〇〇〇〇〇〇〇〇〇〇〇〇与信科目",
-      creditType2: "ワーニン",
-      grossNet: "ネット",
-      dueDate: "99/99",
-      margin: "9999",
-      endOfMonthBalance: "999999",
-      endOfMonthLimit: "999999",
-      currentMonthChange: "-999999",
-      postTransactionCreditAmount: "999999",
-      marketValueBalanceCEPE: "999999",
-      marketValueBalanceCEPEReference: "999999",
-      marketValueBalanceCE: "999999",
-      marketValueBalanceCEReference: "999999",
-      assumedPrincipalApprovalAmount: "21000000",
-      assumedPrincipalMarketValueBalance: "20500000"
-    },
-    {
+      overrides: {
+        creditType2: "ワーニン",
+        grossNet: "ネット",
+        dueDate: "99/99",
+        margin: "9999",
+        endOfMonthBalance: "999999",
+        endOfMonthLimit: "999999",
+        currentMonthChange: "-999999",
+        postTransactionCreditAmount: "999999",
+        marketValueBalanceCEPE: "999999",
+        marketValueBalanceCEPEReference: "999999",
+        marketValueBalanceCE: "999999",
+        marketValueBalanceCEReference: "999999",
+        assumedPrincipalApprovalAmount: "21000000",
+        assumedPrincipalMarketValueBalance: "20500000"
+      }
+    }),
+    creditRow({
       id: "4",
       creditType1: "〇〇〇〇〇〇〇〇〇〇〇〇〇〇〇〇与信科目",
-      creditType2: "ワーニン",
-      grossNet: "グロス",
-      dueDate: "99/99",
-      margin: "9999",
-      endOfMonthBalance: "999999",
-      endOfMonthLimit: "999999",
-      currentMonthChange: "999999",
-      postTransactionCreditAmount: "999999",
-      marketValueBalanceCEPE: "999999",
-      marketValueBalanceCEPEReference: "999999",
-      marketValueBalanceCE: "999999",
-      marketValueBalanceCEReference: "999999",
-      assumedPrincipalApprovalAmount: "36000000",
-      assumedPrincipalMarketValueBalance: "35500000"
-    },
-    {
+      overrides: {
+        creditType2: "ワーニン",
+        grossNet: "グロス",
+        dueDate: "99/99",
+        margin: "9999",
+        endOfMonthBalance: "999999",
+        endOfMonthLimit: "999999",
+        currentMonthChange: "999999",
+        postTransactionCreditAmount: "999999",
+        marketValueBalanceCEPE: "999999",
+        marketValueBalanceCEPEReference: "999999",
+        marketValueBalanceCE: "999999",
+        marketValueBalanceCEReference: "999999",
+        assumedPrincipalApprovalAmount: "36000000",
+        assumedPrincipalMarketValueBalance: "35500000"
+      }
+    }),
+    creditRow({
       id: "5",
       creditType1: "限度不算入与信為替取引",
-      creditType2: "",
-      grossNet: "",
-      dueDate: "",
-      margin: "-",
-      endOfMonthBalance: "-",
-      endOfMonthLimit: "-",
-      currentMonthChange: "-",
-      postTransactionCreditAmount: "-",
-      marketValueBalanceCEPE: "-",
-      marketValueBalanceCEPEReference: "-",
-      marketValueBalanceCE: "-",
-      marketValueBalanceCEReference: "-",
-      assumedPrincipalApprovalAmount: "36000000",
-      assumedPrincipalMarketValueBalance: "355,000,00",
+      overrides: {
+        ...dashFields,
+        assumedPrincipalApprovalAmount: "36000000",
+        assumedPrincipalMarketValueBalance: "355,000,00"
+      },
       disabled: true
-    },
-    {
+    }),
+    creditRow({
       id: "6",
       creditType1: "スワップ/オプション取引",
-      creditType2: "",
-      grossNet: "",
-      dueDate: "",
-      margin: "-",
-      endOfMonthBalance: "-",
-      endOfMonthLimit: "-",
-      currentMonthChange: "-",
-      postTransactionCreditAmount: "-",
-      marketValueBalanceCEPE: "-",
-      marketValueBalanceCEPEReference: "-",
-      marketValueBalanceCE: "-",
-      marketValueBalanceCEReference: "-",
-      assumedPrincipalApprovalAmount: "37000000",
-      assumedPrincipalMarketValueBalance: "36500000",
+      overrides: {
+        ...dashFields,
+        assumedPrincipalApprovalAmount: "37000000",
+        assumedPrincipalMarketValueBalance: "36500000"
+      },
       disabled: true
-    },
-    {
+    }),
+    creditRow({
       id: "7",
       creditType1: "その他",
-      creditType2: "",
-      grossNet: "",
-      dueDate: "",
-      margin: "-",
-      endOfMonthBalance: "-",
-      endOfMonthLimit: "-",
-      currentMonthChange: "-",
-      postTransactionCreditAmount: "-",
-      marketValueBalanceCEPE: "-",
-      marketValueBalanceCEPEReference: "-",
-      marketValueBalanceCE: "-",
-      marketValueBalanceCEReference: "-",
-      assumedPrincipalApprovalAmount: "38000000",
-      assumedPrincipalMarketValueBalance: "37500000",
+      overrides: {
+        ...dashFields,
+        assumedPrincipalApprovalAmount: "38000000",
+        assumedPrincipalMarketValueBalance: "37500000"
+      },
       disabled: true
-    },
-    {
+    }),
+    creditRow({
       id: "8",
       creditType1: "限度不算入与信合計",
-      creditType2: "",
-      grossNet: "",
-      dueDate: "",
-      margin: "-",
-      endOfMonthBalance: "",
-      endOfMonthLimit: "",
-      currentMonthChange: "",
-      postTransactionCreditAmount: "",
-      marketValueBalanceCEPE: "",
-      marketValueBalanceCEPEReference: "",
-      marketValueBalanceCE: "",
-      marketValueBalanceCEReference: "",
-      assumedPrincipalApprovalAmount: "1,11000000",
-      assumedPrincipalMarketValueBalance: "109500000",
+      overrides: {
+        margin: "-",
+        assumedPrincipalApprovalAmount: "1,11000000",
+        assumedPrincipalMarketValueBalance: "109500000"
+      },
       disabled: true
-    },
-    {
+    }),
+    creditRow({
       id: "9",
       creditType1: "市場性与信合計",
-      creditType2: "",
-      grossNet: "",
-      dueDate: "",
-      margin: "",
-      endOfMonthBalance: "99999",
-      endOfMonthLimit: "99999",
-      currentMonthChange: "-",
-      postTransactionCreditAmount: "99999",
-      marketValueBalanceCEPE: "99999",
-      marketValueBalanceCEPEReference: "-",
-      marketValueBalanceCE: "99999",
-      marketValueBalanceCEReference: "-",
-      assumedPrincipalApprovalAmount: "1,11000000",
-      assumedPrincipalMarketValueBalance: "109500000",
+      overrides: {
+        endOfMonthBalance: "99999",
+        endOfMonthLimit: "99999",
+        currentMonthChange: "-",
+        postTransactionCreditAmount: "99999",
+        marketValueBalanceCEPE: "99999",
+        marketValueBalanceCEPEReference: "-",
+        marketValueBalanceCE: "99999",
+        marketValueBalanceCEReference: "-",
+        assumedPrincipalApprovalAmount: "1,11000000",
+        assumedPrincipalMarketValueBalance: "109500000"
+      },
       disabled: false
-    }
+    })
   ];
 }
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends LightningElement {

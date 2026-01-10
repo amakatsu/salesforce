@@ -28,6 +28,9 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC1 extends Lightni
   @track branchName = "○○○○●○○○○10○○○○●○○○○20";
   @track customerName =
     "○○○○●○○○○10○○○○●○○○○20○○○○●○○○○30○○○○●○○○○40○○○○●○○○○50○○○○●○○○○60○○○○●○○○○70○○○○●○○○○80○○○○●○○○○90○○○○●○○○○100○○○○●○○○○110○○○○●○○○○120○○○○●○○○○130○○○○●○○○○140○○○○●○○○○150";
+  @track customerNumber = "9999999";
+  @track debtorRating = "99-9";
+  @track coreCompany = "○○○○●○○○○10○12";
 
   @track reviewNumber = "9999";
   @track amountUnit = "○○○○●○";

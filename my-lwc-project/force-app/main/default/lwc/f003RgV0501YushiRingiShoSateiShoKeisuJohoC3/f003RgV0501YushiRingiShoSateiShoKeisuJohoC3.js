@@ -139,216 +139,97 @@ const ACTIVE_SECTIONS = [
   "r"
 ];
 
+const BANK_DEFAULTS = {
+  twoYearsAgo: "99999",
+  oneYearAgo: "99999",
+  recentEnd: "99999",
+  foreignCurrency: "99999"
+};
+const BANK_DISABLE_DEFAULTS = {
+  twoYearsAgo: true,
+  oneYearAgo: true,
+  recentEnd: true,
+  foreignCurrency: false
+};
+const bankRow = ({ id, bankName, values = {}, disable = {} }) => ({
+  id,
+  bankName,
+  ...BANK_DEFAULTS,
+  ...values,
+  disable: { ...BANK_DISABLE_DEFAULTS, ...disable }
+});
+
+const INDICATOR_DEFAULTS = {
+  type: "",
+  period: "99.99",
+  sales: "99999",
+  operatingProfit: "99999",
+  currentProfit: "99999",
+  currentProfitRate: "",
+  netProfit: "99999",
+  netProfitRate: "",
+  depreciation: "99999",
+  commercialCF: "99999",
+  distributionRate: "99.99",
+  ownCapital: "99999",
+  borrowingPeriod: "99.99",
+  netInterestBurdenRate: "99.99",
+  ownCapitalRatio: "99.99",
+  currentBalanceRatio: "99.99"
+};
+const INDICATOR_DISABLE_DEFAULTS = {
+  period: true,
+  sales: true,
+  operatingProfit: true,
+  currentProfit: true,
+  currentProfitRate: true,
+  netProfit: true,
+  netProfitRate: true,
+  depreciation: true,
+  commercialCF: true,
+  distributionRate: true,
+  ownCapital: true,
+  borrowingPeriod: true,
+  netInterestBurdenRate: true,
+  ownCapitalRatio: true,
+  currentBalanceRatio: true
+};
+const indicatorRow = ({ id, overrides = {}, disable = {} }) => ({
+  id,
+  ...INDICATOR_DEFAULTS,
+  ...overrides,
+  disable: { ...INDICATOR_DISABLE_DEFAULTS, ...disable }
+});
+
 function generateBankData() {
-  const data = [
-    {
-      id: "1",
-      bankName: "当行",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
+  return [
+    bankRow({ id: "1", bankName: "当行" }),
+    bankRow({
       id: "2",
       bankName: "シェア(%)",
-      twoYearsAgo: "99.999",
-      oneYearAgo: "99.999",
-      recentEnd: "99.999",
-      foreignCurrency: "-",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: true
-      }
-    },
-    {
-      id: "3",
-      bankName: "○○○○○",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
-      id: "4",
-      bankName: "○○○○○",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
-      id: "5",
-      bankName: "○○○○○",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    },
-    {
-      id: "6",
-      bankName: "総借入",
-      twoYearsAgo: "99999",
-      oneYearAgo: "99999",
-      recentEnd: "99999",
-      foreignCurrency: "99999",
-      disable: {
-        twoYearsAgo: true,
-        oneYearAgo: true,
-        recentEnd: true,
-        foreignCurrency: false
-      }
-    }
+      values: {
+        twoYearsAgo: "99.999",
+        oneYearAgo: "99.999",
+        recentEnd: "99.999",
+        foreignCurrency: "-"
+      },
+      disable: { foreignCurrency: true }
+    }),
+    bankRow({ id: "3", bankName: "○○○○○" }),
+    bankRow({ id: "4", bankName: "○○○○○" }),
+    bankRow({ id: "5", bankName: "○○○○○" }),
+    bankRow({ id: "6", bankName: "総借入" })
   ];
-  return data;
 }
 
 function generateIndicatorData() {
-  const data = [
-    {
-      id: "1",
-      type: "",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "99.99",
-      disable: {
-        period: true,
-        sales: true,
-        operatingProfit: true,
-        currentProfit: true,
-        currentProfitRate: true,
-        netProfit: true,
-        netProfitRate: true,
-        depreciation: true,
-        commercialCF: true,
-        distributionRate: true,
-        ownCapital: true,
-        borrowingPeriod: true,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
-    },
-    {
-      id: "2",
-      type: "",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "99.99",
-      disable: {
-        period: true,
-        sales: true,
-        operatingProfit: true,
-        currentProfit: true,
-        currentProfitRate: true,
-        netProfit: true,
-        netProfitRate: true,
-        depreciation: true,
-        commercialCF: true,
-        distributionRate: true,
-        ownCapital: true,
-        borrowingPeriod: true,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
-    },
-    {
-      id: "3",
-      type: "",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "99.99",
-      disable: {
-        period: true,
-        sales: true,
-        operatingProfit: true,
-        currentProfit: true,
-        currentProfitRate: true,
-        netProfit: true,
-        netProfitRate: true,
-        depreciation: true,
-        commercialCF: true,
-        distributionRate: true,
-        ownCapital: true,
-        borrowingPeriod: true,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
-    },
-    {
+  return [
+    indicatorRow({ id: "1" }),
+    indicatorRow({ id: "2" }),
+    indicatorRow({ id: "3" }),
+    indicatorRow({
       id: "4",
-      type: "中間",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "99.99",
-      ownCapitalRatio: "99.99",
-      currentBalanceRatio: "",
+      overrides: { type: "中間", currentBalanceRatio: "" },
       disable: {
         period: false,
         sales: false,
@@ -366,24 +247,15 @@ function generateIndicatorData() {
         ownCapitalRatio: false,
         currentBalanceRatio: true
       }
-    },
-
-    {
+    }),
+    indicatorRow({
       id: "5",
-      type: "予想",
-      period: "99.99",
-      sales: "99999",
-      operatingProfit: "99999",
-      currentProfit: "99999",
-      netProfit: "99999",
-      depreciation: "99999",
-      commercialCF: "99999",
-      distributionRate: "99.99",
-      ownCapital: "99999",
-      borrowingPeriod: "99.99",
-      netInterestBurdenRate: "",
-      ownCapitalRatio: "",
-      currentBalanceRatio: "",
+      overrides: {
+        type: "予想",
+        netInterestBurdenRate: "",
+        ownCapitalRatio: "",
+        currentBalanceRatio: ""
+      },
       disable: {
         period: false,
         sales: false,
@@ -401,9 +273,8 @@ function generateIndicatorData() {
         ownCapitalRatio: true,
         currentBalanceRatio: true
       }
-    }
+    })
   ];
-  return data;
 }
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
   @track amountUnit = "〇〇〇";
