@@ -1,4 +1,5 @@
 import { LightningElement, track } from "lwc";
+import { makeTestData } from "c/testDataGenerator";
 const CREDIT_COLUMNS = [
   { label: "与信種類(科目)", fieldName: "creditType1", type: "text" },
   { label: "ワーニング情報", fieldName: "creditType2", type: "text" },
@@ -45,21 +46,26 @@ const CREDIT_COLUMNS = [
   }
 ];
 
+const MAX_NUM_4 = makeTestData("numeric", 4);
+const MAX_NUM_5 = makeTestData("numeric", 5);
+const MAX_NUM_6 = makeTestData("numeric", 6);
+const MAX_NUM_13 = makeTestData("numeric", 13);
+
 const CREDIT_DEFAULTS = {
   creditType2: "",
   grossNet: "",
   dueDate: "99/99",
-  margin: "9999",
-  endOfMonthBalance: "999999",
-  endOfMonthLimit: "999999",
-  currentMonthChange: "999999",
-  postTransactionCreditAmount: "999999",
-  marketValueBalanceCEPE: "999999",
-  marketValueBalanceCEPEReference: "999999",
-  marketValueBalanceCE: "999999",
-  marketValueBalanceCEReference: "999999",
-  assumedPrincipalApprovalAmount: "9999999999999",
-  assumedPrincipalMarketValueBalance: "9999999999999",
+  margin: MAX_NUM_4,
+  endOfMonthBalance: MAX_NUM_6,
+  endOfMonthLimit: MAX_NUM_6,
+  currentMonthChange: MAX_NUM_6,
+  postTransactionCreditAmount: MAX_NUM_6,
+  marketValueBalanceCEPE: MAX_NUM_6,
+  marketValueBalanceCEPEReference: MAX_NUM_6,
+  marketValueBalanceCE: MAX_NUM_6,
+  marketValueBalanceCEReference: MAX_NUM_6,
+  assumedPrincipalApprovalAmount: MAX_NUM_13,
+  assumedPrincipalMarketValueBalance: MAX_NUM_13,
   disabled: false
 };
 
@@ -101,13 +107,13 @@ const CREDIT_ITEMS = [
     overrides: {
       dueDate: "",
       margin: "",
-      endOfMonthBalance: "99999",
-      endOfMonthLimit: "99999",
+      endOfMonthBalance: MAX_NUM_5,
+      endOfMonthLimit: MAX_NUM_5,
       currentMonthChange: "-",
-      postTransactionCreditAmount: "99999",
-      marketValueBalanceCEPE: "99999",
+      postTransactionCreditAmount: MAX_NUM_5,
+      marketValueBalanceCEPE: MAX_NUM_5,
       marketValueBalanceCEPEReference: "-",
-      marketValueBalanceCE: "99999",
+      marketValueBalanceCE: MAX_NUM_5,
       marketValueBalanceCEReference: "-"
     },
     disabled: true
@@ -122,7 +128,7 @@ const CREDIT_ITEMS = [
   },
   {
     id: "3",
-    creditType1: "〇〇〇〇〇〇〇〇〇〇〇〇〇〇〇与信科目",
+    creditType1: `${makeTestData("mixedChar", 15)}与信科目`,
     overrides: {
       creditType2: "ワーニン",
       grossNet: "ネット",
@@ -131,7 +137,7 @@ const CREDIT_ITEMS = [
   },
   {
     id: "4",
-    creditType1: "〇〇〇〇〇〇〇〇〇〇〇〇〇〇〇〇与信科目",
+    creditType1: `${makeTestData("mixedChar", 16)}与信科目`,
     overrides: {
       creditType2: "ワーニン",
       grossNet: "グロス"
@@ -180,13 +186,13 @@ const CREDIT_ITEMS = [
     overrides: {
       dueDate: "",
       margin: "",
-      endOfMonthBalance: "99999",
-      endOfMonthLimit: "99999",
+      endOfMonthBalance: MAX_NUM_5,
+      endOfMonthLimit: MAX_NUM_5,
       currentMonthChange: "-",
-      postTransactionCreditAmount: "99999",
-      marketValueBalanceCEPE: "99999",
+      postTransactionCreditAmount: MAX_NUM_5,
+      marketValueBalanceCEPE: MAX_NUM_5,
       marketValueBalanceCEPEReference: "-",
-      marketValueBalanceCE: "99999",
+      marketValueBalanceCE: MAX_NUM_5,
       marketValueBalanceCEReference: "-"
     },
     disabled: false
@@ -218,7 +224,7 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends Lightni
     "r"
   ];
   @track amountUnit = "〇〇〇";
-  @track groupNumber = "9";
+  @track groupNumber = makeTestData("numeric", 1);
   @track creditData = generateCreditData();
   creditColumns = CREDIT_COLUMNS;
   handleInputChange(event) {

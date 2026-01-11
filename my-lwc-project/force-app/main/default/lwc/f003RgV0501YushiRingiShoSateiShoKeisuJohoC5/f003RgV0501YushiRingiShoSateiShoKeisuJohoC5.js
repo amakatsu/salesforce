@@ -1,4 +1,5 @@
 import { LightningElement, track } from "lwc";
+import { makeTestData } from "c/testDataGenerator";
 const EXCHANGE_RESERVATION_COLUMNS = [
   { label: "(注)除く限度不算入取引", fieldName: "type" },
   { label: "前々期平均", fieldName: "previousTermAverage" },
@@ -62,8 +63,8 @@ const collateralRow = ({
 });
 
 const REFERENCE_DEFAULTS = {
-  cePe: "99999",
-  ce: "99999",
+  cePe: makeTestData("numeric", 5),
+  ce: makeTestData("numeric", 5),
   disabled: false
 };
 const referenceRow = ({ id, category, overrides = {}, disabled = false }) => ({
@@ -128,7 +129,7 @@ function generateReferenceData() {
 }
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC5 extends LightningElement {
   @track amountUnit = "〇〇〇";
-  @track groupNumber = "9";
+  @track groupNumber = makeTestData("numeric", 1);
   activeSections = [
     "a",
     "b",

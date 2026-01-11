@@ -1,4 +1,5 @@
 import { LightningElement, track, api } from "lwc";
+import { makeTestData } from "c/testDataGenerator";
 
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC6 extends LightningElement {
   activeSections = [
@@ -22,16 +23,15 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC6 extends Lightni
     "r"
   ];
 
-  @track reviewNumber = "9999";
-  @track amountUnit = "○○○○●○";
-  @track groupNumber = "9";
+  @track reviewNumber = makeTestData("numeric", 4);
+  @track amountUnit = "〇〇〇";
+  @track groupNumber = makeTestData("numeric", 1);
   @track date = "2025/3/31";
 
-  @track correctionReason =
-    "○○○○●○○○○10○○○○●○○○○20○○○○●○○○○30○○○○●○○○○40○○○○●○○○○50○○○○●○○○○60○○○○●○○○○70○○○○●○○○○80○○○○●○○○○90○○○○●○○○○100";
-  @track poolCategory = "99";
+  @track correctionReason = makeTestData("mixedChar", 100);
+  @track poolCategory = makeTestData("numeric", 2);
   @track protectionRate = "999.99";
-  @track limitGeneral = "9,999,999";
-  @track marketInclusion = "99,999";
-  @track regulatoryCollateral = "9,999,999";
+  @track limitGeneral = makeTestData("numeric", 7);
+  @track marketInclusion = makeTestData("numeric", 5);
+  @track regulatoryCollateral = makeTestData("numeric", 7);
 }

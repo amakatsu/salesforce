@@ -401,6 +401,8 @@ const deepCopy = obj => JSON.parse(JSON.stringify(obj));
 export { rawCreditSource, rawCollateralSource, attachEditableFlags, deepCopy };
 
 import { LightningElement, track } from "lwc";
+import { makeTestData } from "c/testDataGenerator";
+import { makeTestData } from "c/testDataGenerator";
 import { stateService } from "./state";
 
 // ラベル定義（共通化）
@@ -488,16 +490,16 @@ const FIELD_DEFINITIONS = {
  * 与信状況と本件保全の情報を管理
  */
 export default class RirituComponent extends LightningElement {
-  @track amountUnit = "○○○";
-  @track groupNumber = "9";
+  @track amountUnit = makeTestData("mixedChar", 3);
+  @track groupNumber = makeTestData("numeric", 1);
   @track creditRows = [];
   @track collateralRows = [];
   @track guarantorData = [
-    { id: "guarantor_1", name: "○○○○●○○○○10" },
-    { id: "guarantor_2", name: "○○○○●○○○○10" },
-    { id: "guarantor_3", name: "○○○○●○○○○10" },
-    { id: "guarantor_4", name: "○○○○●○○○○10" },
-    { id: "guarantor_5", name: "○○○○●○○○○10" }
+    { id: "guarantor_1", name: makeTestData("mixedChar", 10) },
+    { id: "guarantor_2", name: makeTestData("mixedChar", 10) },
+    { id: "guarantor_3", name: makeTestData("mixedChar", 10) },
+    { id: "guarantor_4", name: makeTestData("mixedChar", 10) },
+    { id: "guarantor_5", name: makeTestData("mixedChar", 10) }
   ];
   highlightOn = false;
   activeSections = [

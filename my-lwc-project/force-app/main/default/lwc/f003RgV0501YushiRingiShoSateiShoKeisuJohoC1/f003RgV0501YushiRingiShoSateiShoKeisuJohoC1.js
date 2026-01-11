@@ -1,4 +1,5 @@
 import { LightningElement, track, api } from "lwc";
+import { makeTestData } from "c/testDataGenerator";
 
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC1 extends LightningElement {
   activeSections = [
@@ -24,24 +25,22 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC1 extends Lightni
 
   @api showCalculationAndRegisterButtons;
 
-  @track branchNumber = "99999";
-  @track branchName = "○○○○●○○○○10○○○○●○○○○20";
-  @track customerName =
-    "○○○○●○○○○10○○○○●○○○○20○○○○●○○○○30○○○○●○○○○40○○○○●○○○○50○○○○●○○○○60○○○○●○○○○70○○○○●○○○○80○○○○●○○○○90○○○○●○○○○100○○○○●○○○○110○○○○●○○○○120○○○○●○○○○130○○○○●○○○○140○○○○●○○○○150";
-  @track customerNumber = "9999999";
+  @track branchNumber = makeTestData("numeric", 5);
+  @track branchName = makeTestData("mixedChar", 20);
+  @track customerName = makeTestData("mixedChar", 150);
+  @track customerNumber = makeTestData("numeric", 7);
   @track debtorRating = "99-9";
-  @track coreCompany = "○○○○●○○○○10○12";
+  @track coreCompany = makeTestData("mixedChar", 12);
 
-  @track reviewNumber = "9999";
-  @track amountUnit = "○○○○●○";
-  @track groupNumber = "9";
+  @track reviewNumber = makeTestData("numeric", 4);
+  @track amountUnit = "〇〇〇";
+  @track groupNumber = makeTestData("numeric", 1);
   @track date = "2025/3/31";
 
-  @track correctionReason =
-    "○○○○●○○○○10○○○○●○○○○20○○○○●○○○○30○○○○●○○○○40○○○○●○○○○50○○○○●○○○○60○○○○●○○○○70○○○○●○○○○80○○○○●○○○○90○○○○●○○○○100";
-  @track poolCategory = "99";
+  @track correctionReason = makeTestData("mixedChar", 100);
+  @track poolCategory = makeTestData("numeric", 2);
   @track protectionRate = "999.99";
-  @track limitGeneral = "9,999,999";
-  @track marketInclusion = "99,999";
-  @track regulatoryCollateral = "9,999,999";
+  @track limitGeneral = makeTestData("numeric", 7);
+  @track marketInclusion = makeTestData("numeric", 5);
+  @track regulatoryCollateral = makeTestData("numeric", 7);
 }

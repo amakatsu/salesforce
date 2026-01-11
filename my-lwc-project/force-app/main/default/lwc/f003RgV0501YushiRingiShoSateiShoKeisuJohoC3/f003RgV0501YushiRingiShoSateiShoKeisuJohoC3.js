@@ -1,4 +1,5 @@
 import { LightningElement, track } from "lwc";
+import { makeTestData } from "c/testDataGenerator";
 const BANK_COLUMNS = [
   {
     label: "銀行名",
@@ -139,7 +140,7 @@ const ACTIVE_SECTIONS = [
   "r"
 ];
 
-const MAX_AMOUNT = "99999";
+const MAX_AMOUNT = makeTestData("numeric", 5);
 const MAX_RATE = "99.99";
 
 const valueField = (value, editable = true) => ({ value, editable });
@@ -257,9 +258,9 @@ function generateBankData() {
       },
       disable: { foreignCurrency: true }
     }),
-    bankRow({ id: "3", bankName: "○○○○○" }),
-    bankRow({ id: "4", bankName: "○○○○○" }),
-    bankRow({ id: "5", bankName: "○○○○○" }),
+    bankRow({ id: "3", bankName: makeTestData("mixedChar", 5) }),
+    bankRow({ id: "4", bankName: makeTestData("mixedChar", 5) }),
+    bankRow({ id: "5", bankName: makeTestData("mixedChar", 5) }),
     bankRow({ id: "6", bankName: "総借入" })
   ];
 }
@@ -320,7 +321,7 @@ function generateIndicatorData() {
 }
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
   @track amountUnit = "〇〇〇";
-  @track groupNumber = "9";
+  @track groupNumber = makeTestData("numeric", 1);
   activeSections = ACTIVE_SECTIONS;
   @track bankData = generateBankData();
   bankColumns = BANK_COLUMNS;
