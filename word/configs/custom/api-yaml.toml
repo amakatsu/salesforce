@@ -5,136 +5,107 @@
 extra_instructions = """
 必ず日本語でレビューしてください。
 
-**API YAML設定ファイルの観点でレビューしてください：**
+## OpenAPI（YAML）チェック観点
 
-## 1. OpenAPI/Swagger定義
+### 1. フォルダ・ファイル命名
+- プロジェクト直下フォルダ: `{画面ID}_{画面英語名}` または `{機能ID}_{機能英語名}`
+- API ファイル名: エンドポイントの `/` を `_` に置換
+- API 概要 MD: API ファイルと同名（`description/`配下）
+- スキーマファイル名:
+  - requestBody: `{画面ID|機能ID}_{APIイベント英語名}_request.yaml`
+  - response: `{画面ID|機能ID}_{APIイベント英語名}_response.yaml`
+  - shared: `{スキーマ名}.yaml`
 
-### 基本構造
-- OpenAPI バージョン指定（3.0.x, 3.1.x）
-- info セクション（title, version, description, contact）
-- servers セクション（複数環境対応）
+### 2. ルートファイル（openapi.yaml）
+- `openapi: 3.1.0`
+- `tags`
+  - `name`: `{画面ID}_{画面英語名}` or `{機能ID}_{機能英語名}`（パスカルケース）
+  - `x-displayName`: `{日本語名}({ID})`
+- `paths`
+  - `summary`: `{APIイベント日本語名}`
+  - `$ref`: API ファイルへの相対パス
 
-### エンドポイント設計
-- RESTful 設計原則の遵守
-- HTTP メソッドの適切な使用（GET, POST, PUT, PATCH, DELETE）
-- パスパラメータ vs クエリパラメータ
-- 適切なステータスコード（200, 201, 204, 400, 401, 403, 404, 500等）
+### 3. API ファイル
+- 必須項目: `summary`, `tags`, `operationId`, `description`
+- `tags`: 1 URI = 1 tag、ルート `tags.name` と一致
+- `operationId`: `{画面ID|機能ID}_{APIイベント英語名}`（camelCase）、パスパラメータ名は含めない
+- `description`: API 処理概要（MD）への `$ref` を指定
+- `parameters`:
+  - 共通ヘッダーは定義しない（API 固有のみ）
+  - `name`, `description`, `schema`, `example` 必須
+  - `name`: 英語名 camelCase / `description`: 日本語名
+  - 使用可能: `in: query` のみ、配列は `explode: true`、object 型は不可
+  - POST/PUT では `parameters` 利用禁止
+- `requestBody`:
+  - GET/DELETE では禁止
+  - `required: true` 必須
+  - MediaType は `application/json` のみ
+  - `schema` はスキーマファイルへの `$ref`（相対パス）
+- `responses`:
+  - `description` 必須、共通レスポンスヘッダーは定義しない
+  - 正常系は 200 または 204 のみ、レスポンスコードは文字列で定義（例: `"200"`）
+  - 200: `content` 必須 / 204: `content` 禁止
+  - `default` 必須: `default: { $ref: ../../../errors/UnexpectedError.yaml }`
+  - MediaType は `application/json` のみ
 
-### スキーマ定義
-- $ref による再利用
-- required フィールドの明示
-- データ型の明確な指定（type, format）
-- バリデーション（minLength, maxLength, pattern, minimum, maximum）
-- example の記載
+### 4. スキーマファイル
+- `title` 必須、ファイル名と一致
+- `description` 必須、日本語でデータ名を記述
+- `type: object` 固定
+- `properties`: 各項目名は camelCase、`type`, `description`, `example` 必須
+- ネスト object は別スキーマに分離して `$ref`
 
-### セキュリティ
-- securitySchemes の定義
-- 各エンドポイントへの security 適用
-- OAuth2, Bearer Token, API Key等の適切な使用
-- スコープの定義
-
-### ドキュメント
-- description の充実
-- example の提供
-- deprecated の明示
-- tags によるグルーピング
-
-## 2. Kubernetes YAML
-
-### リソース定義
-- apiVersion, kind, metadata の正確性
-- labels と annotations の適切な使用
-- namespace の明示
-
-### Pod仕様
-- リソース制限（resources.limits, resources.requests）
-- ヘルスチェック（livenessProbe, readinessProbe）
-- セキュリティコンテキスト
-- イメージタグの固定（latest 回避）
-
-### ConfigMap/Secret
-- 機密情報の Secret 化
-- 環境変数の外部化
-- Secret のBase64エンコード
-
-### Service/Ingress
-- Service type の適切な選択（ClusterIP, NodePort, LoadBalancer）
-- ポート番号の一貫性
-- Ingress のルーティングルール
-
-## 3. Docker Compose
-
-### サービス定義
-- image vs build の選択
-- ポートマッピング（ports）
-- ボリュームマウント（volumes）
-- 環境変数（environment）
-
-### ネットワーク
-- networks の定義
-- サービス間通信
-- ポート露出の最小化
-
-### 依存関係
-- depends_on の使用
-- ヘルスチェック（healthcheck）
-- 起動順序制御
-
-## 4. CI/CD YAML（GitHub Actions, GitLab CI等）
-
-### ワークフロー
-- トリガー条件（on: push, pull_request等）
-- ジョブの依存関係（needs）
-- 並列実行の活用
-
-### セキュリティ
-- シークレットの使用（secrets）
-- 権限の最小化（permissions）
-- サードパーティアクションのバージョン固定
-
-### 効率化
-- キャッシュの活用
-- アーティファクトの保存（artifacts）
-- マトリックスビルド
-
-## 5. YAML一般
-
-### 構文
-- インデントの統一（スペース2または4）
-- クォートの一貫性
-- コメントの活用
-- アンカー＆エイリアス（&, *）の活用
-
-### ベストプラクティス
-- 長い行の折り返し（|, >）
-- 環境別設定の分離
-- デフォルト値の明示
+### 5. 過去不具合ルール（重要）
+- 桁数バリデーションは `digit` で行う（`max=999` のような桁表現は不可）
+- `description` と `itemName` はダブルクォートで括る
+- 文字列型: `required` + `@NotBlank`
+- その他型: `required` + `@NotNull`
 """
 
 [pr_code_suggestions]
 extra_instructions = """
 必ず日本語でコード提案を記述してください。
 
-**API YAML改善の優先順位：**
-1. **Critical**: セキュリティ設定不足、機密情報のハードコード、構文エラー
-2. **Important**: リソース制限未設定、ヘルスチェック不足、ドキュメント不足
-3. **Nice to have**: コメント追加、可読性向上、example追加
-"""
+## OpenAPI コード提案の観点
 
-[pr_improve]
-num_code_suggestions = 10
-extra_instructions = """
-必ず日本語でAPI YAMLの改善提案を記述してください。
+### 命名規則
+- operationId: `{画面ID|機能ID}_{APIイベント英語名}`（camelCase）
+- パラメータ名: 英語名 camelCase
+- スキーマプロパティ名: camelCase
 
-**改善の観点：**
-- **セキュリティ**: securitySchemes定義、機密情報のSecret化、権限の最小化
-- **ドキュメント**: description充実、example提供、deprecated明示
-- **可読性**: インデント統一、コメント活用、環境別設定分離
-- **Kubernetes**: リソース制限、ヘルスチェック、イメージタグ固定
-- **OpenAPI**: スキーマ再利用、バリデーション、ステータスコード
-- **運用性**: ログ出力、監視、エラーハンドリング
+### requestBody/response
+- requestBody ファイル名: `{画面ID|機能ID}_{APIイベント英語名}_request.yaml`
+- response ファイル名: `{画面ID|機能ID}_{APIイベント英語名}_response.yaml`
+- MediaType は `application/json` のみ
 
-具体的なYAML設定例を必ず含めてください。
+### スキーマ定義
+- `title` はファイル名と一致させる
+- `description` は日本語でデータ名を記述
+- 各プロパティには `type`, `description`, `example` を必須で記載
+- ネスト object は別スキーマに分離して `$ref` で参照
+
+### バリデーション
+- 桁数バリデーションは `digit` で行う（`max=999` は不可）
+- 禀議番号等のバリデーション例:
+```yaml
+rsNo:
+  description: "禀査番号"
+  type: string
+  example: "1234"
+  x-custom-validation:
+    - Pattern:
+        itemName: "禀査番号"
+        regexp: "[0-9]{4}"
+```
+- `description` と `itemName` はダブルクォートで括る
+- 文字列型: `required` + `@NotBlank`
+- その他型: `required` + `@NotNull`
+
+### responses
+- 正常系は 200 または 204 のみ
+- レスポンスコードは文字列で定義（例: `"200"`）
+- 200: `content` 必須 / 204: `content` 禁止
+- `default` は必須: `{ $ref: ../../../errors/UnexpectedError.yaml }`
 """
 
 [pr_description]
