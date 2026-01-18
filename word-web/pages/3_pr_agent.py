@@ -33,6 +33,9 @@ from usage_tracker import track_usage
 # Geminiモデルのデフォルト値
 gemini_model = ""
 
+MODAL_STATE_KEY = "config_modal_open"
+INPUT_METHOD_KEY = "input_method_selector"
+INPUT_METHOD_PREV_KEY = "input_method_prev"
 
 def render_result_summary(placeholder, result_state):
     """Render run result details that persist across reruns."""
@@ -95,6 +98,619 @@ def render_result_summary(placeholder, result_state):
                 st.info("💡 結果はGitLabのMRページに投稿されました")
         else:
             st.warning("💡 上記のエラーログを確認して、問題を修正してください")
+
+
+# =============================================================================
+# 設定ファイル編集モーダル
+# =============================================================================
+
+# セクション定義（フォーム生成用）
+CONFIG_SECTIONS = {
+    "pr_reviewer": {
+        "label": "📝 レビュー設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "レビュー時のAIへの追加指示"},
+            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 20, "default": 10},
+            "require_score_review": {"type": "checkbox", "label": "スコアレビューを要求", "default": True},
+            "require_tests_review": {"type": "checkbox", "label": "テストレビューを要求", "default": True},
+            "require_estimate_effort_to_review": {"type": "checkbox", "label": "レビュー工数見積もり", "default": True},
+            "enable_review_labels_effort": {"type": "checkbox", "label": "工数ラベル有効", "default": True},
+            "enable_review_labels_security": {"type": "checkbox", "label": "セキュリティラベル有効", "default": True},
+        }
+    },
+    "pr_code_suggestions": {
+        "label": "✨ コード提案設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "コード提案時のAIへの追加指示"},
+            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 20, "default": 10},
+            "commitable_code_suggestions": {"type": "checkbox", "label": "コミット可能な形式で提案", "default": True},
+            "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
+        }
+    },
+    "pr_improve": {
+        "label": "🔧 コード改善設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "コード改善時のAIへの追加指示"},
+            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 20, "default": 10},
+            "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
+        }
+    },
+    "pr_description": {
+        "label": "📋 MR説明設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "MR説明生成時のAIへの追加指示"},
+            "publish_description": {"type": "checkbox", "label": "説明を公開", "default": True},
+            "add_original_user_description": {"type": "checkbox", "label": "元の説明を追加", "default": True},
+            "enable_pr_type": {"type": "checkbox", "label": "PR種別を有効", "default": True},
+            "use_bullet_points": {"type": "checkbox", "label": "箇条書き形式", "default": True},
+            "enable_semantic_files_types": {"type": "checkbox", "label": "ファイル種別分類を有効", "default": True},
+            "generate_ai_title": {"type": "checkbox", "label": "AIタイトル生成", "default": False},
+        }
+    },
+    "pr_questions": {
+        "label": "❓ 質問応答設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "質問応答時のAIへの追加指示"},
+            "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
+        }
+    },
+    "pr_add_docs": {
+        "label": "📚 ドキュメント設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "ドキュメント生成時のAIへの追加指示"},
+            "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
+        }
+    },
+    "pr_generate_labels": {
+        "label": "🏷️ ラベル生成設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "ラベル生成時のAIへの追加指示"},
+            "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
+        }
+    },
+    "pr_update_changelog": {
+        "label": "📜 Changelog設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "Changelog更新時のAIへの追加指示"},
+            "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
+        }
+    },
+    "pr_similar_issue": {
+        "label": "🔍 類似Issue設定",
+        "fields": {
+            "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "類似Issue検索時のAIへの追加指示"},
+            "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
+        }
+    },
+}
+
+
+@st.dialog("⚙️ 設定ファイル編集", width="large")
+def config_editor_modal(config_name: str, config_path: str):
+    """設定ファイル編集モーダル"""
+    import toml
+    import io
+    import shutil
+    import html
+    import re
+    import copy
+    from datetime import datetime
+
+
+    st.markdown(f"### 📄 {config_name}")
+    st.caption(f"ファイル: `{config_path}`")
+    backup_label_key = f"backup_label_{config_name}"
+    backup_confirm_key = f"backup_confirm_{config_name}"
+    restore_label_key = f"restore_backup_label_{config_name}"
+    restore_confirm_key = f"restore_backup_confirm_{config_name}"
+    if backup_label_key not in st.session_state:
+        st.session_state[backup_label_key] = ""
+    if backup_confirm_key not in st.session_state:
+        st.session_state[backup_confirm_key] = True
+    if restore_label_key not in st.session_state:
+        st.session_state[restore_label_key] = ""
+    if restore_confirm_key not in st.session_state:
+        st.session_state[restore_confirm_key] = True
+    # 現在の設定を読み込み
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            current_config = toml.load(f)
+    except Exception as e:
+        st.error(f"❌ 設定ファイルの読み込みに失敗: {e}")
+        return
+
+    # 編集用の一時データをセッションステートに保存
+    session_key = f"modal_config_{config_name}"
+    original_key = f"modal_original_{config_name}"
+    toml_editor_key = f"modal_toml_direct_{config_name}"
+    mode_key = f"modal_mode_{config_name}"
+    version_key = f"modal_version_{config_name}"
+    widget_prefix = f"modal_{config_name}_"
+
+    def reset_widget_values_from_config(config_data):
+        """Keep widget states aligned with the loaded config."""
+        for section_key, section_info in CONFIG_SECTIONS.items():
+            if section_key not in config_data:
+                continue
+            for field_key in section_info["fields"].keys():
+                widget_key = f"{widget_prefix}{section_key}_{field_key}"
+                st.session_state.pop(widget_key, None)
+
+        st.session_state.pop(toml_editor_key, None)
+        st.session_state[mode_key] = "form"
+
+    def clear_widget_state():
+        """Remove modal widget entries from session state."""
+        keys_to_remove = [
+            key for key in list(st.session_state.keys())
+            if str(key).startswith(widget_prefix)
+        ]
+        for key in keys_to_remove:
+            del st.session_state[key]
+        st.session_state.pop(mode_key, None)
+
+    def sync_widgets_to_config():
+        """Update config data from current widget states."""
+        config_data = st.session_state.get(session_key)
+        if not config_data:
+            return {}
+        for section_key, section_info in CONFIG_SECTIONS.items():
+            if section_key not in config_data:
+                continue
+            section = config_data.setdefault(section_key, {})
+            for field_key in section_info["fields"].keys():
+                widget_key = f"{widget_prefix}{section_key}_{field_key}"
+                if widget_key in st.session_state:
+                    section[field_key] = st.session_state[widget_key]
+        st.session_state[session_key] = config_data
+        return config_data
+
+    def list_backup_files():
+        try:
+            config_path_obj = Path(config_path)
+            backup_files = sorted(
+                config_path_obj.parent.glob(f"{config_path_obj.name}.backup.*"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True
+            )
+            entries = []
+            for file_path in backup_files:
+                timestamp = file_path.name.split(".backup.", 1)[1] if ".backup." in file_path.name else "unknown"
+                entries.append({
+                    "path": file_path,
+                    "timestamp": timestamp,
+                    "label": f"{timestamp} | {file_path.stat().st_size} bytes"
+                })
+            return entries, None
+        except Exception as e:
+            return None, f"バックアップの一覧取得に失敗: {e}"
+
+    def create_backup_if_changed(new_text: str, *, enable_backup: bool, label: str = "", force: bool = False):
+        """Create a backup only if requested and the file content will change.
+
+        When force=True the diff check is skipped (used for manual saves that always require a backup).
+        """
+        if not enable_backup or not os.path.exists(config_path):
+            return None, False
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                current_text = f.read()
+        except Exception:
+            current_text = None
+        if not force and current_text is not None and current_text == new_text:
+            return None, False
+
+        safe_label = ''.join(c if c.isalnum() or c in ('-', '_') else '_' for c in label.strip())
+        safe_label = safe_label[:40]
+        suffix = f"_{safe_label}" if safe_label else ""
+        backup_path = f"{config_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        shutil.copy(config_path, backup_path)
+        return backup_path, True
+
+    def load_backup_file(file_path: Path):
+        try:
+            text_data = file_path.read_text(encoding="utf-8")
+            data = toml.load(io.StringIO(text_data))
+            return data, text_data, None
+        except Exception as e:
+            return None, None, f"バックアップの読み込みに失敗: {e}"
+
+    config_mtime = os.path.getmtime(config_path)
+
+    def load_config_into_state():
+        config_copy = copy.deepcopy(current_config)
+        st.session_state[session_key] = config_copy
+        st.session_state[original_key] = copy.deepcopy(current_config)
+        st.session_state[version_key] = config_mtime
+
+    should_reset_widgets = False
+
+    if session_key not in st.session_state:
+        load_config_into_state()
+        should_reset_widgets = True
+    else:
+        if st.session_state.get(version_key) != config_mtime:
+            load_config_into_state()
+            should_reset_widgets = True
+        elif original_key not in st.session_state:
+            st.session_state[original_key] = copy.deepcopy(current_config)
+
+    edited_config = st.session_state[session_key]
+
+    if should_reset_widgets:
+        reset_widget_values_from_config(edited_config)
+    else:
+        if toml_editor_key not in st.session_state:
+            st.session_state[toml_editor_key] = toml.dumps(edited_config)
+
+    # バリデーションエラー表示用
+    validation_errors = []
+
+    # タブで「フォーム編集」と「TOML直接編集」を切り替え
+    form_tab, toml_tab, preview_tab = st.tabs(["📝 フォーム編集", "📄 TOML直接編集", "👁️ プレビュー"])
+
+    with form_tab:
+        st.info("💡 各セクションを展開して設定を編集してください。入力内容はリアルタイムで検証されます。")
+
+        # 各セクションをexpanderで表示
+        for section_key, section_info in CONFIG_SECTIONS.items():
+            # このセクションが設定ファイルに存在するかチェック
+            if section_key not in edited_config:
+                continue
+
+            with st.expander(section_info["label"], expanded=False):
+                section_data = edited_config.get(section_key, {})
+
+                for field_key, field_info in section_info["fields"].items():
+                    previous_value = section_data.get(field_key, field_info.get("default"))
+                    field_type = field_info["type"]
+                    field_label = field_info["label"]
+                    field_help = field_info.get("help", "")
+                    current_value = section_data.get(field_key, field_info.get("default"))
+
+                    # フィールドタイプに応じた入力UI
+                    if field_type == "textarea":
+                        new_value = st.text_area(
+                            field_label,
+                            value=current_value if current_value else "",
+                            height=200,
+                            help=field_help,
+                            key=f"modal_{config_name}_{section_key}_{field_key}"
+                        )
+                        # 空文字の場合はNoneではなく空文字として保存
+                        if new_value != previous_value:
+                            st.session_state[mode_key] = "form"
+                        if section_key not in edited_config:
+                            edited_config[section_key] = {}
+                        edited_config[section_key][field_key] = new_value
+
+                    elif field_type == "number":
+                        min_val = field_info.get("min", 0)
+                        max_val = field_info.get("max", 100)
+                        default_val = field_info.get("default", min_val)
+
+                        try:
+                            current_int = int(current_value) if current_value is not None else default_val
+                        except (ValueError, TypeError):
+                            current_int = default_val
+                            validation_errors.append(f"{section_info['label']} > {field_label}: 数値が不正です")
+
+                        new_value = st.number_input(
+                            field_label,
+                            min_value=min_val,
+                            max_value=max_val,
+                            value=current_int,
+                            help=field_help,
+                            key=f"modal_{config_name}_{section_key}_{field_key}"
+                        )
+                        if new_value != previous_value:
+                            st.session_state[mode_key] = "form"
+                        if section_key not in edited_config:
+                            edited_config[section_key] = {}
+                        edited_config[section_key][field_key] = new_value
+
+                    elif field_type == "checkbox":
+                        default_val = field_info.get("default", False)
+                        current_bool = current_value if isinstance(current_value, bool) else default_val
+
+                        new_value = st.checkbox(
+                            field_label,
+                            value=current_bool,
+                            help=field_help,
+                            key=f"modal_{config_name}_{section_key}_{field_key}"
+                        )
+                        if new_value != previous_value:
+                            st.session_state[mode_key] = "form"
+                        if section_key not in edited_config:
+                            edited_config[section_key] = {}
+                        edited_config[section_key][field_key] = new_value
+
+        # バリデーションエラー表示
+        if validation_errors:
+            st.error("❌ 入力エラーがあります:")
+            for err in validation_errors:
+                st.write(f"  - {err}")
+
+    if st.session_state.get(mode_key) != "toml":
+        edited_config = sync_widgets_to_config()
+
+    with toml_tab:
+        st.warning("⚠️ TOML形式で直接編集できます。構文エラーがあると保存できません。")
+
+        # 常に最新のedited_configからTOMLテキストを生成（フォーム編集と同期）
+        try:
+            toml_text = toml.dumps(edited_config)
+        except Exception as e:
+            toml_text = f"# TOML変換エラー: {e}"
+
+        edited_toml = st.text_area(
+            "TOML形式で編集",
+            value=toml_text,
+            height=400,
+            key=toml_editor_key
+        )
+
+        # リアルタイムバリデーション
+        try:
+            parsed = toml.load(io.StringIO(edited_toml))
+            st.success("✅ TOML構文は正しいです")
+            # パース成功時、edited_configを更新（TOML直接編集の内容を反映）
+            st.session_state[session_key] = parsed
+            edited_config = parsed
+            st.session_state[mode_key] = "toml"
+        except toml.TomlDecodeError as e:
+            st.error(f"❌ TOML構文エラー")
+
+            # エラーメッセージから行番号を抽出
+            error_msg = str(e)
+            import re
+            line_match = re.search(r'line (\d+)', error_msg)
+            col_match = re.search(r'col(?:umn)? (\d+)', error_msg)
+
+            error_line = int(line_match.group(1)) if line_match else None
+            error_col = int(col_match.group(1)) if col_match else None
+
+            # エラー詳細を表示
+            st.markdown(f"**エラー内容:** `{html.escape(error_msg)}`")
+
+            if error_line:
+                lines = edited_toml.split('\n')
+                st.markdown(f"**エラー箇所:** 行 {error_line}" + (f", 列 {error_col}" if error_col else ""))
+
+                # エラー行の前後を表示（コンテキスト付き）
+                start_line = max(0, error_line - 3)
+                end_line = min(len(lines), error_line + 2)
+
+                st.markdown("**エラー周辺のコード:**")
+
+                for i in range(start_line, end_line):
+                    line_num = i + 1
+                    line_content = lines[i] if i < len(lines) else ""
+                    # HTML特殊文字をエスケープ
+                    escaped_content = html.escape(line_content)
+
+                    if line_num == error_line:
+                        # エラー行を赤色でハイライト
+                        st.markdown(
+                            f'<div style="background-color: #ffcccc; padding: 2px 8px; '
+                            f'border-left: 4px solid #ff0000; font-family: monospace; '
+                            f'margin: 2px 0;">'
+                            f'<span style="color: #ff0000; font-weight: bold;">→ {line_num:4d}</span> | '
+                            f'<code style="color: #cc0000;">{escaped_content}</code></div>',
+                            unsafe_allow_html=True
+                        )
+                        # エラー列をポイント
+                        if error_col and error_col <= len(line_content) + 1:
+                            pointer = "&nbsp;" * (error_col + 7) + "^"
+                            st.markdown(
+                                f'<div style="font-family: monospace; color: #ff0000; '
+                                f'padding-left: 8px;">{pointer} ここにエラー</div>',
+                                unsafe_allow_html=True
+                            )
+                    else:
+                        # 通常行
+                        st.markdown(
+                            f'<div style="background-color: #f5f5f5; padding: 2px 8px; '
+                            f'font-family: monospace; margin: 2px 0;">'
+                            f'<span style="color: #888;">{line_num:4d}</span> | '
+                            f'<code>{escaped_content}</code></div>',
+                            unsafe_allow_html=True
+                        )
+
+    with preview_tab:
+        st.info("💡 保存前のプレビューです")
+        try:
+            preview_toml = toml.dumps(edited_config)
+            st.code(preview_toml, language="toml")
+        except Exception as e:
+            st.error(f"❌ プレビュー生成エラー: {e}")
+
+    st.markdown("##### 📤 バックアップ設定")
+    st.caption("実行前に現在の内容をどのようにバックアップするかを設定します")
+    restore_label_input = st.text_input(
+        "バックアップ名 (任意)",
+        value=st.session_state[restore_label_key],
+        key=f"modal_restore_label_{config_name}"
+    )
+    restore_confirm_input = st.checkbox(
+        "復元前に差分があればバックアップを作成",
+        value=st.session_state[restore_confirm_key],
+        key=f"modal_restore_confirm_{config_name}"
+    )
+    st.session_state[restore_label_key] = restore_label_input
+    st.session_state[restore_confirm_key] = restore_confirm_input
+
+    with st.expander("📦 バックアップから復元", expanded=False):
+        restore_label = st.session_state.get(restore_label_key, "")
+        restore_confirm = st.session_state.get(restore_confirm_key, True)
+
+        if restore_confirm:
+            label_text = restore_label or "自動"
+            st.caption(f"復元前に現在の内容をバックアップ（ラベル: {label_text}）します")
+        else:
+            st.caption("復元前のバックアップ作成は無効です")
+
+        if st.button("🔄 バックアップ一覧を更新", key=f"refresh_backups_{config_name}"):
+            st.rerun()
+
+        backup_entries, backup_error = list_backup_files()
+        if backup_error:
+            st.error(f"❌ {backup_error}")
+        elif not backup_entries:
+            st.info("この設定ファイルのバックアップはまだありません")
+        else:
+            options = {
+                f"{idx + 1:02d}. {entry['timestamp']} ({entry['path'].name})": entry
+                for idx, entry in enumerate(backup_entries)
+            }
+            backup_select_key = f"backup_select_{config_name}"
+            selected_label = st.selectbox(
+                "復元するバックアップを選択",
+                options=list(options.keys()),
+                key=backup_select_key
+            )
+            selected_entry = options[selected_label]
+            backup_data, backup_text, backup_error = load_backup_file(selected_entry['path'])
+
+            if backup_error:
+                st.error(f"❌ {backup_error}")
+            elif backup_text:
+                st.caption(f"バックアップ {selected_entry['path'].name} の内容")
+                st.code(backup_text, language="toml")
+
+            if backup_data and st.button(
+                "このバックアップで復元",
+                use_container_width=True,
+                key=f"restore_backup_{config_name}"
+            ):
+                try:
+                    backup_path, _ = create_backup_if_changed(
+                        backup_text,
+                        enable_backup=restore_confirm,
+                        label=restore_label
+                    )
+
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        f.write(backup_text)
+
+                    st.session_state[session_key] = copy.deepcopy(backup_data)
+                    st.session_state[original_key] = copy.deepcopy(backup_data)
+                    st.session_state[version_key] = os.path.getmtime(config_path)
+                    reset_widget_values_from_config(backup_data)
+                    st.session_state.pop(mode_key, None)
+
+                    st.success(f"✅ バックアップ {selected_entry['path'].name} から復元しました")
+                    if backup_path:
+                        st.info(f"📋 現在の内容をバックアップ: {backup_path}")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ バックアップからの復元に失敗: {e}")
+
+    # 保存ボタン
+    with st.container():
+        col1, col2, col3 = st.columns([2, 2, 1])
+
+        with col1:
+            if st.button("💾 保存", type="primary", use_container_width=True):
+                try:
+                    if st.session_state.get(mode_key) != "toml":
+                        edited_config = sync_widgets_to_config()
+                    else:
+                        edited_config = st.session_state.get(session_key, edited_config)
+                    # TOML構文チェック
+                    toml_text = toml.dumps(edited_config)
+                    toml.load(io.StringIO(toml_text))
+
+                    backup_label = st.session_state.get(backup_label_key, "")
+                    backup_enabled = st.session_state.get(backup_confirm_key, True)
+                    backup_path, backup_created = create_backup_if_changed(
+                        toml_text,
+                        enable_backup=backup_enabled,
+                        label=backup_label,
+                        force=True
+                    )
+
+                    # 保存
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        toml.dump(edited_config, f)
+
+                    st.success(f"✅ 保存しました！")
+                    if backup_created and backup_path:
+                        st.info(f"📋 バックアップ: {backup_path}")
+                    elif not backup_enabled:
+                        st.info("ℹ️ バックアップは設定により作成されませんでした")
+                    else:
+                        st.info("ℹ️ バックアップファイルを作成できませんでした")
+
+                    # トラッキング
+                    track_usage(action="設定ファイル編集（モーダル）", tool_name="PR-Agent", username=config_name)
+
+                    # セッションステートをクリア
+                    if session_key in st.session_state:
+                        del st.session_state[session_key]
+                    st.session_state.pop(mode_key, None)
+
+                except toml.TomlDecodeError as e:
+                    st.error(f"❌ TOML構文エラー: {e}")
+                except Exception as e:
+                    st.error(f"❌ 保存エラー: {e}")
+
+        with col2:
+            if st.button("🔄 リセット", use_container_width=True):
+                # 元の設定に戻す（ファイルから再読み込み）
+                try:
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        original_from_file = toml.load(f)
+
+                    # すべての関連セッションステートをクリア
+                    keys_to_clear = [session_key, original_key, version_key, toml_editor_key, mode_key]
+                    for key in keys_to_clear:
+                        if key in st.session_state:
+                            del st.session_state[key]
+
+                    # 新しい値を設定
+                    fresh_config = copy.deepcopy(original_from_file)
+                    st.session_state[session_key] = fresh_config
+                    st.session_state[original_key] = copy.deepcopy(original_from_file)
+                    st.session_state[version_key] = os.path.getmtime(config_path)
+                    reset_widget_values_from_config(fresh_config)
+
+                    st.success("✅ 設定をリセットしました")
+                    st.rerun()  # 即座に反映
+                except Exception as e:
+                    st.error(f"❌ リセットに失敗: {e}")
+
+        with col3:
+            if st.button("✖️ 閉じる", use_container_width=True):
+                # セッションステートをクリア
+                keys_to_clear = [
+                    session_key,
+                    original_key,
+                    version_key,
+                    toml_editor_key,
+                    mode_key
+                ]
+                for key in keys_to_clear:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                clear_widget_state()
+                st.session_state[MODAL_STATE_KEY] = None
+                st.rerun()
+
+        st.markdown(
+            '''
+            <div style="background:#f9f9f9;padding:0.75rem;border-radius:0.5rem;margin-top:0.75rem;">
+                <strong>保存内容とバックアップ方法を確認してください</strong>
+                <p style="margin:0.25rem 0 0;color:#4a5568;font-size:0.9rem;">
+                    保存作業の前後でバックアップ設定と変更内容を再確認し、安全に更新してください。
+                </p>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
+
+
+
 
 # ページ設定
 st.set_page_config(
@@ -159,6 +775,14 @@ with st.expander("💡 使い方を見る", expanded=False):
 st.markdown("---")
 
 # ConfigManagerを初期化
+current_input_method = st.session_state.get(INPUT_METHOD_KEY)
+prev_input_method = st.session_state.get(INPUT_METHOD_PREV_KEY)
+if prev_input_method is None and current_input_method is not None:
+    st.session_state[INPUT_METHOD_PREV_KEY] = current_input_method
+elif prev_input_method is not None and current_input_method != prev_input_method:
+    st.session_state[INPUT_METHOD_PREV_KEY] = current_input_method
+    st.session_state.pop(MODAL_STATE_KEY, None)
+
 config_manager = ConfigManager()
 available_configs = config_manager.get_available_configs()
 
@@ -170,6 +794,9 @@ with st.sidebar:
     /* サイドバーの要素間のマージンを削減 */
     .stSidebar [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"] {
         gap: 0.5rem;
+    }
+    .stSidebar [data-testid="stBlock"]:not(:last-child) {
+        margin-bottom: 0.25rem;
     }
     /* セレクトボックス、テキスト入力の下マージンを削減 */
     .stSidebar .stSelectbox, .stSidebar .stTextInput, .stSidebar .stNumberInput {
@@ -276,14 +903,16 @@ with st.sidebar:
         "add_docs": "📚 ドキュメント追加 - コードのドキュメントを自動生成"
     }
 
-    pr_command = st.selectbox(
-        "実行コマンド",
-        options=list(command_descriptions.keys()),
-        help="実行するPR-Agentコマンドを選択"
-    )
-
-    # コマンド説明を下に表示
-    st.info(command_descriptions[pr_command])
+    cmd_col, cmd_desc_col = st.columns([2, 1])
+    with cmd_col:
+        pr_command = st.selectbox(
+            "実行コマンド",
+            options=list(command_descriptions.keys()),
+            help="実行するPR-Agentコマンドを選択"
+        )
+    with cmd_desc_col:
+        st.caption("説明")
+        st.caption(command_descriptions[pr_command])
 
     # askコマンドの場合は質問入力欄を表示
     question = ""
@@ -323,205 +952,29 @@ with st.sidebar:
         config_descriptions[name] = extract_description(path)
 
 
-    selected_config = st.selectbox(
-        "設定ファイル",
-        options=list(config_options.keys()),
-        help="PR-Agentの動作を制御する設定ファイルを選択"
-    )
+    config_col, config_desc_col = st.columns([2, 1])
+    with config_col:
+        selected_config = st.selectbox(
+            "設定ファイル",
+            options=list(config_options.keys()),
+            help="PR-Agentの動作を制御する設定ファイルを選択"
+        )
 
     config_path = config_options[selected_config]
 
-    # 設定ファイルの説明を下に表示
-    st.info(config_descriptions.get(selected_config, "標準設定を使用"))
+    with config_desc_col:
+        st.caption("説明")
+        st.caption(config_descriptions.get(selected_config, "標準設定を使用"))
 
-    # 選択された設定の内容を確認・編集可能に
+    # 設定ファイルの確認・編集（モーダルで一括）
+    modal_state_key = MODAL_STATE_KEY
     if selected_config != "デフォルト":
-        # タブで表示と編集を切り替え
-        view_tab, edit_tab = st.tabs(["📖 設定を確認", "✏️ 設定を編集"])
-
-        with view_tab:
-            try:
-                import toml
-                with open(config_path, "r", encoding="utf-8") as f:
-                    full_config = toml.load(f)
-
-                # コマンドに応じてセクションをフィルタリング（PR-Agent公式仕様に準拠）
-                command_section_map = {
-                    "review": ["pr_reviewer"],
-                    "improve": ["pr_code_suggestions"],  # improveコマンドはpr_code_suggestionsを使用
-                    "describe": ["pr_description"],
-                    "ask": ["pr_questions"],
-                    "generate_labels": ["pr_generate_labels"],
-                    "add_docs": ["pr_add_docs"]
-                }
-
-                # 選択されたコマンドに対応するセクションを取得
-                relevant_sections = command_section_map.get(pr_command, [])
-
-                # 常に表示する共通セクション
-                common_sections = []  # configやgitlabは表示しない
-
-                # フィルタリングされた設定を作成
-                filtered_config = {}
-                for section in common_sections + relevant_sections:
-                    if section in full_config:
-                        filtered_config[section] = full_config[section]
-
-                # フィルタリング情報を表示
-                if relevant_sections:
-                    st.info(f"💡 {pr_command}コマンドに関連する設定のみ表示しています: {', '.join(relevant_sections)}")
-
-                # フィルタリングされた設定をTOML形式で表示
-                filtered_toml = toml.dumps(filtered_config)
-                st.code(filtered_toml, language="toml")
-
-                # 全設定を見るオプション
-                with st.expander("🔍 全設定を表示", expanded=False):
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        st.code(f.read(), language="toml")
-
-            except Exception as e:
-                st.error(f"設定ファイルの読み込みに失敗: {e}")
-
-        with edit_tab:
-            try:
-                import toml
-
-                # 現在の設定を読み込み
-                with open(config_path, "r", encoding="utf-8") as f:
-                    full_config = toml.load(f)
-
-                # コマンドに応じてセクションをフィルタリング（PR-Agent公式仕様に準拠）
-                command_section_map = {
-                    "review": ["pr_reviewer"],
-                    "improve": ["pr_code_suggestions"],  # improveコマンドはpr_code_suggestionsを使用
-                    "describe": ["pr_description"],
-                    "ask": ["pr_questions"],
-                    "generate_labels": ["pr_generate_labels"],
-                    "add_docs": ["pr_add_docs"]
-                }
-
-                # 選択されたコマンドに対応するセクションを取得
-                relevant_sections = command_section_map.get(pr_command, [])
-
-                # フィルタリングされた設定を作成
-                filtered_config = {}
-                for section in relevant_sections:
-                    if section in full_config:
-                        filtered_config[section] = full_config[section]
-
-                if not filtered_config:
-                    st.warning(f"⚠️ {pr_command}コマンドに関連する設定が見つかりませんでした")
-                else:
-                    st.info(f"💡 {pr_command}コマンドに関連する設定のみ編集できます: {', '.join(relevant_sections)}")
-
-                    # フィルタリングされた設定をTOML形式で表示
-                    filtered_toml = toml.dumps(filtered_config)
-
-                    # 編集開始時の状態を保存（セッションステートキーを設定ファイルごとに分ける）
-                    session_key = f'original_config_{selected_config}_{pr_command}'
-                    if session_key not in st.session_state:
-                        st.session_state[session_key] = filtered_toml
-
-                    # 元に戻すボタンが押された場合の処理
-                    if st.session_state.get(f'restore_original_{session_key}', False):
-                        current_value = st.session_state[session_key]
-                        st.session_state[f'restore_original_{session_key}'] = False
-                    else:
-                        current_value = filtered_toml
-
-                    # 編集用テキストエリア
-                    edited_config_text = st.text_area(
-                        f"{selected_config} の内容を編集（{pr_command}コマンド関連のみ）",
-                        value=current_value,
-                        height=400,
-                        help=f"TOML形式で{pr_command}コマンドの設定を編集してください",
-                        key=f'config_editor_{session_key}'
-                    )
-
-                    col1, col2 = st.columns([1, 1])
-                    with col1:
-                        save_button = st.button("💾 保存", type="primary", use_container_width=True)
-                    with col2:
-                        # 元に戻すボタン（編集開始時の状態に戻す）
-                        if st.button("🔄 元に戻す", use_container_width=True):
-                            st.session_state[f'restore_original_{session_key}'] = True
-                            st.rerun()
-
-                    if save_button:
-                        try:
-                            # TOML構文チェック
-                            import io
-                            edited_sections = toml.load(io.StringIO(edited_config_text))
-
-                            # バックアップを作成
-                            import shutil
-                            from datetime import datetime
-                            backup_path = f"{config_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                            shutil.copy(config_path, backup_path)
-
-                            # 元のファイルの該当セクションを更新
-                            for section_name, section_content in edited_sections.items():
-                                full_config[section_name] = section_content
-
-                            # 更新された設定ファイルを保存
-                            with open(config_path, "w", encoding="utf-8") as f:
-                                toml.dump(full_config, f)
-
-                            st.success(f"✅ 設定ファイルを保存しました！（{', '.join(edited_sections.keys())}セクションを更新）")
-                            st.info(f"📋 バックアップ: {backup_path}")
-
-                            # 保存後、新しい状態を「元の状態」として更新
-                            st.session_state[session_key] = edited_config_text
-
-                            # 実行記録
-                            track_usage(action="設定ファイル編集", tool_name="PR-Agent", username=selected_config)
-
-                        except toml.TomlDecodeError as e:
-                            st.error(f"❌ TOML構文エラー: {str(e)}")
-                            st.warning("修正してから再度保存してください")
-                        except Exception as e:
-                            st.error(f"❌ 保存エラー: {str(e)}")
-
-                # 全設定を見るオプション
-                with st.expander("🔍 全設定を編集（上級者向け）", expanded=False):
-                    st.warning("⚠️ すべてのセクションを編集できますが、他のコマンドにも影響します")
-
-                    # ファイル全体の内容
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        full_config_text = f.read()
-
-                    full_edited_text = st.text_area(
-                        "設定ファイル全体",
-                        value=full_config_text,
-                        height=400,
-                        help="すべてのセクションを編集できます",
-                        key="full_config_edit"
-                    )
-
-                    if st.button("💾 全設定を保存", key="save_full_config"):
-                        try:
-                            import io
-                            toml.load(io.StringIO(full_edited_text))
-
-                            import shutil
-                            from datetime import datetime
-                            backup_path = f"{config_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                            shutil.copy(config_path, backup_path)
-
-                            with open(config_path, "w", encoding="utf-8") as f:
-                                f.write(full_edited_text)
-
-                            st.success("✅ 全設定を保存しました！")
-                            st.info(f"📋 バックアップ: {backup_path}")
-
-                        except toml.TomlDecodeError as e:
-                            st.error(f"❌ TOML構文エラー: {str(e)}")
-                        except Exception as e:
-                            st.error(f"❌ 保存エラー: {str(e)}")
-
-            except Exception as e:
-                st.error(f"設定ファイルの読み込みに失敗: {e}")
+        if st.button("⚙️ 設定を確認・編集", use_container_width=True, key="open_config_modal"):
+            st.session_state[modal_state_key] = selected_config
+        if st.session_state.get(modal_state_key) == selected_config:
+            config_editor_modal(selected_config, config_path)
+    else:
+        st.session_state.pop(modal_state_key, None)
 
     st.markdown("---")
 
@@ -602,8 +1055,11 @@ st.subheader("📍 マージリクエスト情報")
 input_method = st.radio(
     "入力方法",
     ["URLを直接入力", "プロジェクトから選択"],
-    horizontal=True
+    horizontal=True,
+    key=INPUT_METHOD_KEY
 )
+
+st.session_state[INPUT_METHOD_PREV_KEY] = input_method
 
 pr_url = ""
 

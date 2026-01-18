@@ -1,152 +1,48 @@
-# Java開発用（設計パターン、パフォーマンス、並行処理）
-# Javaのベストプラクティス、設計パターン、パフォーマンスに焦点を当てたレビュー
-
 [pr_reviewer]
-extra_instructions = """
-必ず日本語でレビューしてください。
-
-**Java固有の観点でレビューしてください：**
-
-1. **設計パターン**
-   - 適切なデザインパターンの使用（Singleton, Factory, Builder等）
-   - SOLID原則の遵守
-   - 依存性注入（DI）の適切な使用
-
-2. **Javaベストプラクティス**
-   - Optional の適切な使用
-   - Stream API の効率的な利用
-   - try-with-resources の使用
-   - equals() と hashCode() の実装
-   - toString() の実装
-
-3. **パフォーマンス**
-   - 不要なオブジェクト生成の回避
-   - StringBuilder vs String 連結
-   - コレクションの適切な選択（ArrayList vs LinkedList等）
-   - ストリーム処理の最適化
-
-4. **並行処理**
-   - スレッドセーフティの確保
-   - synchronized の適切な使用
-   - Concurrent コレクションの活用
-   - volatile, AtomicXxx の使用
-
-5. **例外処理**
-   - チェック例外 vs 非チェック例外
-   - カスタム例外の設計
-   - リソースリーク防止
-
-6. **命名規則**
-   - クラス名: PascalCase
-   - メソッド名: camelCase
-   - 定数: UPPER_SNAKE_CASE
-   - パッケージ名: 小文字
-
-7. **JavaDoc**
-   - public メソッドへの適切なドキュメント
-   - @param, @return, @throws の記述
-"""
+extra_instructions = "必ず日本語でレビューしてください。\n\n**Java固有の観点でレビューしてください：**\n\n1. **設計パターン**\n   - 適切なデザインパターンの使用（Singleton, Factory, Builder等）\n   - SOLID原則の遵守\n   - 依存性注入（DI）の適切な使用\n\n2. **Javaベストプラクティス**\n   - Optional の適切な使用\n   - Stream API の効率的な利用\n   - try-with-resources の使用\n   - equals() と hashCode() の実装\n   - toString() の実装\n\n3. **パフォーマンス**\n   - 不要なオブジェクト生成の回避\n   - StringBuilder vs String 連結\n   - コレクションの適切な選択（ArrayList vs LinkedList等）\n   - ストリーム処理の最適化\n\n4. **並行処理**\n   - スレッドセーフティの確保\n   - synchronized の適切な使用\n   - Concurrent コレクションの活用\n   - volatile, AtomicXxx の使用\n\n5. **例外処理**\n   - チェック例外 vs 非チェック例外\n   - カスタム例外の設計\n   - リソースリーク防止\n\n6. **命名規則**\n   - クラス名: PascalCase\n   - メソッド名: camelCase\n   - 定数: UPPER_SNAKE_CASE\n   - パッケージ名: 小文字\n\n7. **JavaDoc**\n   - public メソッドへの適切なドキュメント\n   - @param, @return, @throws の記述\n"
+num_code_suggestions = 10
+require_score_review = true
+require_tests_review = true
+require_estimate_effort_to_review = true
+enable_review_labels_effort = true
+enable_review_labels_security = true
 
 [pr_code_suggestions]
-extra_instructions = """
-必ず日本語でコード提案を記述してください。
-
-**Java改善の優先順位：**
-1. **Critical**: NullPointerException リスク、リソースリーク、スレッド安全性
-2. **Important**: パフォーマンス問題、不適切なデザインパターン
-3. **Nice to have**: コードの可読性、JavaDoc追加
-"""
+extra_instructions = "必ず日本語でコード提案を記述してください。\n\n**Java改善の優先順位：**\n1. **Critical**: NullPointerException リスク、リソースリーク、スレッド安全性\n2. **Important**: パフォーマンス問題、不適切なデザインパターン\n3. **Nice to have**: コードの可読性、JavaDoc追加\n"
+num_code_suggestions = 10
+commitable_code_suggestions = true
+enable_help_text = true
 
 [pr_improve]
 num_code_suggestions = 10
-extra_instructions = """
-必ず日本語でJavaコードの改善提案を記述してください。
-
-**Java改善の観点：**
-- **パフォーマンス**: Stream API最適化、不要なオブジェクト生成削減
-- **可読性**: メソッド分割、変数名改善、コメント追加
-- **保守性**: デザインパターン適用、SOLID原則遵守
-- **エラーハンドリング**: try-with-resources、適切な例外処理
-- **並行処理**: スレッドセーフ化、ConcurrentXxx使用
-
-具体的なJavaコード例を必ず含めてください。
-"""
+extra_instructions = "必ず日本語でJavaコードの改善提案を記述してください。\n\n**Java改善の観点：**\n- **パフォーマンス**: Stream API最適化、不要なオブジェクト生成削減\n- **可読性**: メソッド分割、変数名改善、コメント追加\n- **保守性**: デザインパターン適用、SOLID原則遵守\n- **エラーハンドリング**: try-with-resources、適切な例外処理\n- **並行処理**: スレッドセーフ化、ConcurrentXxx使用\n\n具体的なJavaコード例を必ず含めてください。\n"
+enable_help_text = true
 
 [pr_description]
-extra_instructions = """
-必ず日本語でMR説明を記述してください。
-
-Javaコードの変更内容を以下の観点で説明してください：
-- 変更したクラス/メソッドとその目的
-- 適用したデザインパターン
-- パフォーマンスへの影響
-- 下位互換性
-"""
+extra_instructions = "必ず日本語でMR説明を記述してください。\n\nJavaコードの変更内容を以下の観点で説明してください：\n- 変更したクラス/メソッドとその目的\n- 適用したデザインパターン\n- パフォーマンスへの影響\n- 下位互換性\n"
+publish_description = true
+add_original_user_description = true
+enable_pr_type = true
+use_bullet_points = true
+enable_semantic_files_types = true
+generate_ai_title = false
 
 [pr_questions]
-extra_instructions = """
-必ず日本語で質問への回答を記述してください。
-
-Javaコードに関する質問には以下の観点で回答してください：
-- **スレッドセーフティ**: マルチスレッド環境での動作
-- **パフォーマンス**: 実行速度、メモリ使用量への影響
-- **設計パターン**: 適用されているパターンとその理由
-- **例外処理**: エラーケースの扱い方
-- **下位互換性**: 既存コードへの影響
-
-具体的なJavaコード例を含めて説明してください。
-"""
+extra_instructions = "必ず日本語で質問への回答を記述してください。\n\nJavaコードに関する質問には以下の観点で回答してください：\n- **スレッドセーフティ**: マルチスレッド環境での動作\n- **パフォーマンス**: 実行速度、メモリ使用量への影響\n- **設計パターン**: 適用されているパターンとその理由\n- **例外処理**: エラーケースの扱い方\n- **下位互換性**: 既存コードへの影響\n\n具体的なJavaコード例を含めて説明してください。\n"
+enable_help_text = true
 
 [pr_add_docs]
-extra_instructions = """
-必ず日本語でJavaDocを生成してください。
-
-JavaDocには以下を含めてください：
-- クラス/インターフェースの目的と責務
-- @param: パラメータの説明（型、制約、null許可など）
-- @return: 戻り値の説明
-- @throws: 発生する可能性のある例外
-- @since: 導入バージョン（該当する場合）
-- @deprecated: 非推奨の場合の理由と代替手段
-- 使用例（@codeブロック）
-- スレッドセーフかどうか
-
-JavaDoc標準形式に従ってください。
-"""
+extra_instructions = "必ず日本語でJavaDocを生成してください。\n\nJavaDocには以下を含めてください：\n- クラス/インターフェースの目的と責務\n- @param: パラメータの説明（型、制約、null許可など）\n- @return: 戻り値の説明\n- @throws: 発生する可能性のある例外\n- @since: 導入バージョン（該当する場合）\n- @deprecated: 非推奨の場合の理由と代替手段\n- 使用例（@codeブロック）\n- スレッドセーフかどうか\n\nJavaDoc標準形式に従ってください。\n"
+enable_help_text = true
 
 [pr_update_changelog]
-extra_instructions = """
-必ず日本語でchangelogを記述してください。
-
-Javaコードの変更を以下のカテゴリで分類：
-- **Added**: 新しいクラス/メソッド/機能
-- **Changed**: 既存の動作変更、APIシグネチャ変更
-- **Deprecated**: 非推奨化したAPI
-- **Removed**: 削除したクラス/メソッド
-- **Fixed**: バグ修正（NullPointerException、リソースリーク等）
-- **Security**: セキュリティ修正
-
-破壊的変更（Breaking Changes）は必ず明記してください。
-"""
+extra_instructions = "必ず日本語でchangelogを記述してください。\n\nJavaコードの変更を以下のカテゴリで分類：\n- **Added**: 新しいクラス/メソッド/機能\n- **Changed**: 既存の動作変更、APIシグネチャ変更\n- **Deprecated**: 非推奨化したAPI\n- **Removed**: 削除したクラス/メソッド\n- **Fixed**: バグ修正（NullPointerException、リソースリーク等）\n- **Security**: セキュリティ修正\n\n破壊的変更（Breaking Changes）は必ず明記してください。\n"
+enable_help_text = true
 
 [pr_generate_labels]
-extra_instructions = """
-Javaコードの変更内容を分析して適切なラベルを提案してください：
-
-- **変更の種類**: feature, bugfix, refactor, performance, security
-- **影響範囲**: api-change, breaking-change, backward-compatible
-- **Java関連**: concurrency, stream-api, design-pattern, exception-handling
-- **優先度**: critical, high, medium, low
-- **レビュー**: needs-review, approved, changes-requested
-"""
+extra_instructions = "Javaコードの変更内容を分析して適切なラベルを提案してください：\n\n- **変更の種類**: feature, bugfix, refactor, performance, security\n- **影響範囲**: api-change, breaking-change, backward-compatible\n- **Java関連**: concurrency, stream-api, design-pattern, exception-handling\n- **優先度**: critical, high, medium, low\n- **レビュー**: needs-review, approved, changes-requested\n"
+enable_help_text = true
 
 [pr_similar_issue]
-extra_instructions = """
-必ず日本語で類似Issueの分析を記述してください。
-
-Javaコードの変更と類似Issueの関連性を以下の観点で分析：
-- 同じクラス/パッケージへの変更
-- 同様のデザインパターンの適用
-- 類似のバグ修正（NullPointer、リソースリーク等）
-- パフォーマンス最適化の類似性
-"""
+extra_instructions = "必ず日本語で類似Issueの分析を記述してください。\n\nJavaコードの変更と類似Issueの関連性を以下の観点で分析：\n- 同じクラス/パッケージへの変更\n- 同様のデザインパターンの適用\n- 類似のバグ修正（NullPointer、リソースリーク等）\n- パフォーマンス最適化の類似性\n"
+enable_help_text = true
