@@ -35,7 +35,11 @@ gemini_model = ""
 
 MODAL_STATE_KEY = "config_modal_open"
 INPUT_METHOD_KEY = "input_method_selector"
-INPUT_METHOD_PREV_KEY = "input_method_prev"
+
+
+def _close_modal():
+    """モーダル状態をクリアするコールバック関数"""
+    st.session_state.pop(MODAL_STATE_KEY, None)
 
 def render_result_summary(placeholder, result_state):
     """Render run result details that persist across reruns."""
@@ -694,7 +698,7 @@ def config_editor_modal(config_name: str, config_path: str):
                     if key in st.session_state:
                         del st.session_state[key]
                 clear_widget_state()
-                st.session_state[MODAL_STATE_KEY] = None
+                st.session_state.pop(MODAL_STATE_KEY, None)
                 st.rerun()
 
         st.markdown(
@@ -775,14 +779,6 @@ with st.expander("💡 使い方を見る", expanded=False):
 st.markdown("---")
 
 # ConfigManagerを初期化
-current_input_method = st.session_state.get(INPUT_METHOD_KEY)
-prev_input_method = st.session_state.get(INPUT_METHOD_PREV_KEY)
-if prev_input_method is None and current_input_method is not None:
-    st.session_state[INPUT_METHOD_PREV_KEY] = current_input_method
-elif prev_input_method is not None and current_input_method != prev_input_method:
-    st.session_state[INPUT_METHOD_PREV_KEY] = current_input_method
-    st.session_state.pop(MODAL_STATE_KEY, None)
-
 config_manager = ConfigManager()
 available_configs = config_manager.get_available_configs()
 
@@ -821,7 +817,8 @@ with st.sidebar:
     ai_provider = st.selectbox(
         "🤖 AIプロバイダー",
         ["OpenAI (Azure)", "Gemini"],
-        help="使用するAIモデルのプロバイダーを選択"
+        help="使用するAIモデルのプロバイダーを選択",
+        on_change=_close_modal
     )
 
     # API認証情報
@@ -908,7 +905,8 @@ with st.sidebar:
         pr_command = st.selectbox(
             "実行コマンド",
             options=list(command_descriptions.keys()),
-            help="実行するPR-Agentコマンドを選択"
+            help="実行するPR-Agentコマンドを選択",
+            on_change=_close_modal
         )
     with cmd_desc_col:
         st.caption("説明")
@@ -957,7 +955,8 @@ with st.sidebar:
         selected_config = st.selectbox(
             "設定ファイル",
             options=list(config_options.keys()),
-            help="PR-Agentの動作を制御する設定ファイルを選択"
+            help="PR-Agentの動作を制御する設定ファイルを選択",
+            on_change=_close_modal
         )
 
     config_path = config_options[selected_config]
@@ -1056,10 +1055,9 @@ input_method = st.radio(
     "入力方法",
     ["URLを直接入力", "プロジェクトから選択"],
     horizontal=True,
-    key=INPUT_METHOD_KEY
+    key=INPUT_METHOD_KEY,
+    on_change=_close_modal
 )
-
-st.session_state[INPUT_METHOD_PREV_KEY] = input_method
 
 pr_url = ""
 
@@ -1208,6 +1206,9 @@ with col_execute2:
 # プレビューボタンまたは実行ボタンが押された場合
 if preview_button or execute_button:
     is_preview_mode = preview_button  # プレビューボタンが押された場合はTrue
+
+    # モーダル状態をクリア（ボタン押下時にモーダルが表示されないように）
+    st.session_state.pop(MODAL_STATE_KEY, None)
 
     # バリデーション
     if not gitlab_token or not api_key:
