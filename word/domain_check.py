@@ -25,13 +25,10 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
-# .envファイルを読み込み（Streamlitからインポートされる前に環境変数を設定）
-# Dockerコンテナ内: /app/word/domain_check.py → /app/.env
-from pathlib import Path as _EnvPath
-_env_file = _EnvPath(__file__).parent.parent / '.env'
-if _env_file.exists():
-    load_dotenv(_env_file)
-del _env_file, _EnvPath
+try:
+    from .config import get_domain_config
+except ImportError:
+    from config import get_domain_config
 
 # ====== GUI（任意） ===========================================================
 try:
@@ -42,84 +39,7 @@ except Exception:
     TK_AVAILABLE = False
 
 # ====== 定数 ==================================================================
-DEFAULT_CONFIG: Dict[str, Any] = {
-    # --- API（OpenAI互換）
-    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://mufg-openai-api.azure-api.net/aoai001/openai/deployments/ptu"),
-    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-    "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-    "OPENAI_PATH": os.getenv("OPENAI_PATH", "/chat/completions"),
-    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", '{"api-key":"8b843f2df20548899f93c0624452ea68","apim-user-id":"PIT04447"}'),
-    "OPENAI_SEND_AUTH": os.getenv("OPENAI_SEND_AUTH", "false").lower() != "false",
-    "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
-    "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
-    "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
-    "VERIFY_SSL": os.getenv("VERIFY_SSL", "false").lower() != "false",
-
-    # --- 生成パラメタ
-    "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
-    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.5")),
-    "TOP_P": float(os.getenv("TOP_P", "0.95")),
-
-    # --- 入力ファイル検出
-    "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
-    "DOMAIN_GLOB": os.getenv("DOMAIN_GLOB", "*ドメイン定義*.xlsx"),
-
-    # --- シート/列設定
-    "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
-    "DOMAIN_SHEET": os.getenv("DOMAIN_SHEET", "*"),
-
-    # 画面項目定義（列名）
-    "SCREEN_ITEM_COL": os.getenv("SCREEN_ITEM_COL", "項目名称"),
-    "SCREEN_TYPE_COL": os.getenv("SCREEN_TYPE_COL", "フィールド"),
-    "SCREEN_LENGTH_COL": os.getenv("SCREEN_LENGTH_COL", "長さ"),
-    "SCREEN_FORMAT_COL": os.getenv("SCREEN_FORMAT_COL", "編集形式"),
-    "SCREEN_REQUIRED_COL": os.getenv("SCREEN_REQUIRED_COL", "必須"),
-
-    # 画面項目定義（列位置インデックス、0始まり）※列名が見つからない場合のフォールバック
-    "SCREEN_ITEM_COL_IDX": int(os.getenv("SCREEN_ITEM_COL_IDX", "-1")),  # -1は無効
-    "SCREEN_TYPE_COL_IDX": int(os.getenv("SCREEN_TYPE_COL_IDX", "6")),   # G列=6
-    "SCREEN_LENGTH_COL_IDX": int(os.getenv("SCREEN_LENGTH_COL_IDX", "7")),  # H列=7
-    "SCREEN_FORMAT_COL_IDX": int(os.getenv("SCREEN_FORMAT_COL_IDX", "8")),  # I列=8
-    "SCREEN_REQUIRED_COL_IDX": int(os.getenv("SCREEN_REQUIRED_COL_IDX", "9")),  # J列=9
-
-    # ドメイン定義一覧（列名）
-    "DOMAIN_NAME_COL": os.getenv("DOMAIN_NAME_COL", "ドメイン名"),
-    "DOMAIN_TYPE_COL": os.getenv("DOMAIN_TYPE_COL", "データ型"),
-    "DOMAIN_MIN_CHAR_COL": os.getenv("DOMAIN_MIN_CHAR_COL", "最小文字数"),
-    "DOMAIN_MAX_CHAR_COL": os.getenv("DOMAIN_MAX_CHAR_COL", "最大文字数"),
-    "DOMAIN_MIN_BYTE_COL": os.getenv("DOMAIN_MIN_BYTE_COL", "最小バイト数"),
-    "DOMAIN_MAX_BYTE_COL": os.getenv("DOMAIN_MAX_BYTE_COL", "最大バイト数"),
-    "DOMAIN_DECIMAL_COL": os.getenv("DOMAIN_DECIMAL_COL", "小数部バイト数"),
-    "DOMAIN_MIN_VALUE_COL": os.getenv("DOMAIN_MIN_VALUE_COL", "最小値"),
-    "DOMAIN_MAX_VALUE_COL": os.getenv("DOMAIN_MAX_VALUE_COL", "最大値"),
-    "DOMAIN_REGEX_COL": os.getenv("DOMAIN_REGEX_COL", "書式（正規表現）"),
-    "DOMAIN_CODE_ID_COL": os.getenv("DOMAIN_CODE_ID_COL", "参照外部コードID"),
-
-    # ドメイン定義一覧（列位置インデックス、0始まり）※列名が見つからない場合のフォールバック
-    "DOMAIN_NAME_COL_IDX": int(os.getenv("DOMAIN_NAME_COL_IDX", "-1")),
-    "DOMAIN_TYPE_COL_IDX": int(os.getenv("DOMAIN_TYPE_COL_IDX", "-1")),
-    "DOMAIN_MIN_CHAR_COL_IDX": int(os.getenv("DOMAIN_MIN_CHAR_COL_IDX", "5")),  # F列=5
-    "DOMAIN_MAX_CHAR_COL_IDX": int(os.getenv("DOMAIN_MAX_CHAR_COL_IDX", "6")),  # G列=6
-    "DOMAIN_MIN_BYTE_COL_IDX": int(os.getenv("DOMAIN_MIN_BYTE_COL_IDX", "7")),  # H列=7
-    "DOMAIN_MAX_BYTE_COL_IDX": int(os.getenv("DOMAIN_MAX_BYTE_COL_IDX", "8")),  # I列=8
-    "DOMAIN_DECIMAL_COL_IDX": int(os.getenv("DOMAIN_DECIMAL_COL_IDX", "9")),    # J列=9
-    "DOMAIN_MIN_VALUE_COL_IDX": int(os.getenv("DOMAIN_MIN_VALUE_COL_IDX", "10")),  # K列=10
-    "DOMAIN_MAX_VALUE_COL_IDX": int(os.getenv("DOMAIN_MAX_VALUE_COL_IDX", "11")),  # L列=11
-    "DOMAIN_REGEX_COL_IDX": int(os.getenv("DOMAIN_REGEX_COL_IDX", "12")),       # M列=12
-    "DOMAIN_CODE_ID_COL_IDX": int(os.getenv("DOMAIN_CODE_ID_COL_IDX", "13")),   # N列=13
-
-    # --- 出力
-    "OUT_DIR": os.getenv("OUT_DIR", "out"),
-
-    # --- 実行制御
-    "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
-    "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
-    "RETRY": int(os.getenv("RETRY", "2")),
-    "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5")),
-
-    # --- 類似度判定
-    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.72")),  # 類似一致の閾値
-}
+DEFAULT_CONFIG: Dict[str, Any] = get_domain_config()
 
 # ====== 正規化関数 ============================================================
 def normalize_text(text: str) -> str:
@@ -852,9 +772,10 @@ def call_llm(prompt_system: str, prompt_user: str, cfg: Dict[str, Any],
              client: ApiClient, api_semaphore: threading.Semaphore) -> Dict[str, Any]:
     payload = {
         "model": cfg["OPENAI_MODEL"],
-        "max_tokens": cfg["MAX_TOKENS"],
-        "temperature": cfg["TEMPERATURE"],
-        "top_p": cfg["TOP_P"],
+        "max_completion_tokens": cfg["MAX_TOKENS"],  # GPT-5 Cline Proxy用
+        "n": 1,
+        "reasoning_effort": "high",
+        "verbosity": "high",
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": prompt_system},

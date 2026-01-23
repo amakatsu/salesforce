@@ -69,7 +69,7 @@ if not st.session_state.admin_authenticated:
 
 # 認証済み - ここからインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from usage_tracker import get_usage_stats, clear_history, track_usage
+from pages.util.usage_tracker import get_usage_stats, clear_history, track_usage
 
 # ページ設定（認証後）
 st.set_page_config(

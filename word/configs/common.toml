@@ -1,13 +1,13 @@
 # 共通設定 - すべてのPR-Agentレビューで使用される基本設定
 
 [config]
-model = "gpt-4o"
+model = "PBkBKGPT0SpkSub001OAI001MDL015"
 temperature = 0.2
 language = "ja"
 response_language = "ja-JP"
 verbosity_level = 1
-max_model_tokens = 32000
-reasoning_effort = "medium"
+max_model_tokens = 8192
+reasoning_effort = "high"
 git_provider = "gitlab"
 # 日本語での出力を強制
 verbosity = 1

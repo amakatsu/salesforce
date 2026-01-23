@@ -14,12 +14,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from word.domain_check import (
     load_screen_items, load_domains,
     process_screen_domain_matching,
-    save_outputs, DEFAULT_CONFIG
+    save_outputs
 )
+from word.config import get_domain_config
 import json
 
 # トラッキングをインポート
-from usage_tracker import track_usage
+from pages.util.usage_tracker import track_usage
+
+DOMAIN_CONFIG = get_domain_config()
 
 # ページ設定
 st.set_page_config(
@@ -89,7 +92,7 @@ with st.sidebar:
             "類似一致の閾値",
             min_value=0.0,
             max_value=1.0,
-            value=DEFAULT_CONFIG["FUZZY_THRESHOLD"],
+        value=DOMAIN_CONFIG["FUZZY_THRESHOLD"],
             step=0.05,
             help="類似度判定の最低スコア（高いほど厳密）"
         )
@@ -173,7 +176,7 @@ if st.button("🚀 チェック実行", type="primary", use_container_width=True
             progress_bar.progress(15)
 
             # 設定の上書き
-            config = DEFAULT_CONFIG.copy()
+            config = DOMAIN_CONFIG.copy()
             config["FUZZY_THRESHOLD"] = float(fuzzy_threshold)
             config["OUT_DIR"] = str(tmpdir / "out")
 

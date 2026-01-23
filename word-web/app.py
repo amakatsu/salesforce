@@ -15,7 +15,7 @@ if env_path.exists():
 
 # 利用トラッキングをインポート
 sys.path.insert(0, str(Path(__file__).parent))
-from usage_tracker import track_usage
+from pages.util.usage_tracker import track_usage
 
 # ページ設定
 st.set_page_config(
@@ -76,7 +76,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
         if st.button("📝 単語マッチングツールを開く", key="open_word_matching", type="primary", use_container_width=True):
-            st.switch_page("pages/1_word_matching.py")
+            st.switch_page("pages/word_matching.py")
 
     with col_domain:
         st.markdown("""
@@ -91,7 +91,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
         if st.button("🔍 ドメインチェックツールを開く", key="open_domain_checker", type="primary", use_container_width=True):
-            st.switch_page("pages/2_domain_check.py")
+            st.switch_page("pages/domain_checker.py")
 
     with col_pr_agent:
         st.markdown("""
@@ -114,8 +114,24 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
         if st.button("🤖 PR-Agentを開く", key="open_pr_agent", type="primary", use_container_width=True):
-            st.switch_page("pages/3_pr_agent.py")
+            st.switch_page("pages/pr_agent.py")
         st.info("⏱️ 実行時間: 2～3分程度（MRのサイズによって変動）")
+
+    st.markdown("### 🤖 AIアシスタント")
+    chat_col, _, _ = st.columns([1, 1, 1])
+    with chat_col:
+        st.markdown("""
+        <div style='background: #e0f2fe; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #0284c7;'>
+            <h4 style='color: #0369a1; margin-top: 0;'>💬 GPT-5 チャット</h4>
+            <ul style='margin: 0;'>
+                <li>GPT-5 への自由チャット</li>
+                <li>システムプロンプト・温度を調整可能</li>
+                <li>軽いメモ作成や質問に最適</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("💬 GPT-5 チャットを開く", key="open_gpt5_chat", type="primary", use_container_width=True):
+            st.switch_page("pages/gpt5_chat.py")
 
 with tab2:
     st.header("システム構成")

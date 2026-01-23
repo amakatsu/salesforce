@@ -19,10 +19,13 @@ if env_path.exists():
 
 # 親ディレクトリのwordモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from word.word import process, save_outputs, DEFAULT_CONFIG
+from word.word import process, save_outputs
+from word.config import get_word_config
 
 # トラッキングをインポート
-from usage_tracker import track_usage
+from pages.util.usage_tracker import track_usage
+
+WORD_CONFIG = get_word_config()
 
 # ページ設定
 st.set_page_config(
@@ -150,7 +153,7 @@ with st.sidebar:
 
     # API設定
     import json
-    default_headers = json.loads(DEFAULT_CONFIG["OPENAI_HEADERS_JSON"])
+    default_headers = json.loads(WORD_CONFIG["OPENAI_HEADERS_JSON"])
     default_api_key = default_headers.get("api-key", "")
     default_user_id = default_headers.get("apim-user-id", "")
 
@@ -175,12 +178,12 @@ with st.sidebar:
     st.caption("各Excelファイルで参照する列名を指定してください")
     screen_col = st.text_input(
         "画面項目定義の列名",
-        value=DEFAULT_CONFIG["SCREEN_COL"],
+        value=WORD_CONFIG["SCREEN_COL"],
         help="画面項目定義ファイルで照合対象となる項目名が記載されている列名"
     )
     vocab_col = st.text_input(
         "単語帳の列名（論理名）",
-        value=DEFAULT_CONFIG["VOCAB_TERM_COL"],
+        value=WORD_CONFIG["VOCAB_TERM_COL"],
         help="単語帳ファイルで論理名が記載されている列名"
     )
 
@@ -189,18 +192,19 @@ with st.sidebar:
     # LLM設定（上級者向け）
     with st.expander("🔧 LLM設定（上級者向け）", expanded=False):
         st.caption("LLMの動作パラメータを調整できます（通常は変更不要）")
+        max_tokens_max = max(800, WORD_CONFIG["MAX_TOKENS"])
         max_tokens = st.number_input(
             "Max Tokens",
-            value=DEFAULT_CONFIG["MAX_TOKENS"],
+            value=WORD_CONFIG["MAX_TOKENS"],
             min_value=100,
-            max_value=800,
+            max_value=max_tokens_max,
             help="LLMが生成する最大トークン数（大きいほど詳細な出力が可能）"
         )
         temperature = st.slider(
             "Temperature",
             min_value=0.0,
             max_value=2.0,
-            value=DEFAULT_CONFIG["TEMPERATURE"],
+            value=WORD_CONFIG["TEMPERATURE"],
             step=0.1,
             help="生成の多様性（0に近いほど安定、高いほど創造的）"
         )
@@ -208,7 +212,7 @@ with st.sidebar:
             "類似度しきい値",
             min_value=0.0,
             max_value=1.0,
-            value=DEFAULT_CONFIG["FUZZY_THRESHOLD"],
+            value=WORD_CONFIG["FUZZY_THRESHOLD"],
             step=0.05,
             help="単語の類似度判定の最低スコア（高いほど厳密に一致）"
         )
@@ -288,7 +292,7 @@ if st.button("🚀 照合実行", type="primary", use_container_width=True, disa
                 progress_bar.progress(20)
 
                 # 設定の上書き
-                config = DEFAULT_CONFIG.copy()
+                config = WORD_CONFIG.copy()
                 config["SCREEN_COL"] = screen_col
                 config["VOCAB_TERM_COL"] = vocab_col
                 config["MAX_TOKENS"] = int(max_tokens)

@@ -12,6 +12,12 @@ PR-Agentのカスタム実行ツールのコアモジュール群
 
 from .utils import Colors, Logger
 from .config import ConfigManager
+from .config_repository import (
+    ConfigRepository,
+    ConfigConflictError,
+    ConfigFileInfo,
+    SaveResult,
+)
 from .validators import UrlValidator
 from .runner import PRAgentRunner
 
@@ -21,6 +27,10 @@ __all__ = [
     'ConfigManager',
     'UrlValidator',
     'PRAgentRunner',
+    'ConfigRepository',
+    'ConfigConflictError',
+    'ConfigFileInfo',
+    'SaveResult',
 ]
 
 __version__ = '2.0.0'

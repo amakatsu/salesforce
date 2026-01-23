@@ -15,7 +15,7 @@ from .utils import Logger, Colors
 class ConfigManager:
     """設定ファイル管理クラス"""
 
-    def __init__(self):
+    def __init__(self, session_id: Optional[str] = None):
         resolved_path = Path(__file__).resolve()
 
         # プロジェクトルート（wordディレクトリの一つ上）を推定
@@ -24,15 +24,59 @@ class ConfigManager:
         else:
             self.project_root = Path.cwd()
 
-        self.config_file = self.project_root / ".pr_agent.toml"
-        self.backup_file = self.project_root / ".pr_agent.toml.backup"
+        # 各セッション用の設定ファイルを分離する
+        self.session_id = session_id
+        self.global_config_file = self.project_root / ".pr_agent.toml"
+        self.global_backup_file = self.project_root / ".pr_agent.toml.backup"
+        self.sessions_dir = self.project_root / ".pr_agent_sessions"
 
-        # wordディレクトリのconfigsを参照
-        base_dir = resolved_path.parents[1] / "configs"
-        self.config_dirs = {
-            "custom": base_dir / "custom"
-        }
-        self.common_config_path = base_dir / "common.toml"
+        if self.session_id:
+            # セッション用ディレクトリを作成し、専用の設定＋バックアップファイルを割り当てる
+            self.sessions_dir.mkdir(parents=True, exist_ok=True)
+            self.config_file = self.sessions_dir / f"{self.session_id}.toml"
+            self.backup_file = self.sessions_dir / f"{self.session_id}.toml.backup"
+        else:
+            self.config_file = self.global_config_file
+            self.backup_file = self.global_backup_file
+
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # 共有設定をセッション設定に同期（古いタブでも最新設定を反映する）
+        self._seed_session_config()
+
+        # wordディレクトリの共通設定
+        configs_base = resolved_path.parents[1] / "configs"
+        self.common_config_path = configs_base / "common.toml"
+
+    def _seed_session_config(self) -> None:
+        """共有設定をベースにセッションファイルを作成／更新"""
+        if not self.session_id:
+            return
+
+        if not self.config_file.exists():
+            if self.global_config_file.exists():
+                shutil.copy(self.global_config_file, self.config_file)
+            else:
+                self.config_file.touch()
+        else:
+            # セッションファイルが古い可能性があるため、共有設定が新しければコピー
+            try:
+                session_mtime = self.config_file.stat().st_mtime
+                global_mtime = self.global_config_file.stat().st_mtime if self.global_config_file.exists() else 0
+                if global_mtime > session_mtime:
+                    shutil.copy(self.global_config_file, self.config_file)
+            except FileNotFoundError:
+                pass
+
+    def _sync_shared_config(self) -> None:
+        """セッションファイルでマージした結果を .pr_agent.toml に反映"""
+        if not self.session_id:
+            return
+
+        try:
+            shutil.copy(self.config_file, self.global_config_file)
+        except Exception as e:
+            Logger.warning(f"共有設定への同期に失敗: {e}")
 
     def backup_current_config(self) -> bool:
         """現在の設定をバックアップ"""
@@ -47,62 +91,9 @@ class ConfigManager:
         if self.backup_file.exists():
             shutil.copy(self.backup_file, self.config_file)
             Logger.print_colored("♻️  設定を復元しました", Colors.GREEN)
+            self._sync_shared_config()
             return True
         return False
-
-    def get_available_configs(self) -> Dict[str, Dict[str, str]]:
-        """利用可能な設定ファイル一覧を取得"""
-        configs = {"custom": {}}
-
-        for category, directory in self.config_dirs.items():
-            if directory.exists():
-                for file in directory.glob("*.toml"):
-                    configs[category][file.stem] = str(file)
-
-        return configs
-
-    def list_configs(self) -> None:
-        """利用可能な設定一覧を表示"""
-        configs = self.get_available_configs()
-
-        Logger.print_colored("📚 利用可能な設定ファイル", Colors.BLUE)
-        print("─" * 50)
-
-        category_info = [
-            ("custom", "✨ カスタム (custom):", Colors.GREEN)
-        ]
-
-        for category, title, color in category_info:
-            if configs[category]:
-                Logger.print_colored(title, color)
-                for name, path in configs[category].items():
-                    print(f"  • {name:<30} → {path}")
-                print()
-
-    def resolve_config_path(self, config_name: str) -> Optional[str]:
-        """設定名から実際のファイルパスを解決"""
-        # 直接パス指定の場合
-        if Path(config_name).exists():
-            return config_name
-
-        # 設定名での検索
-        configs = self.get_available_configs()
-        all_configs = {}
-        for category_configs in configs.values():
-            all_configs.update(category_configs)
-
-        if config_name in all_configs:
-            return all_configs[config_name]
-
-        # 部分マッチ検索
-        matches = [path for name, path in all_configs.items() if config_name in name]
-        if len(matches) == 1:
-            return matches[0]
-        elif len(matches) > 1:
-            Logger.warning(f"複数の設定がマッチしました: {', '.join(matches)}")
-            return None
-
-        return None
 
     def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> bool:
         """指定された設定ファイルを適用（共通設定とマージ）"""
@@ -147,6 +138,8 @@ class ConfigManager:
             Logger.success(f"設定ファイルを適用しました: common.toml + {Path(config_path).name}")
 
         Logger.debug(f".pr_agent.toml 出力先: {self.config_file}")
+        self._sync_shared_config()
+        self._sync_shared_config()
 
         return True
 
@@ -215,11 +208,11 @@ class ConfigManager:
         return """{header}
 
 [config]
-model = "gpt-4"
+model = "PBkBKGPT0SpkSub001OAI001MDL015"
 temperature = 0.2
 response_language = "ja-JP"
-max_model_tokens = 32000
-reasoning_effort = "medium"
+max_model_tokens = 8192
+reasoning_effort = "high"
 git_provider = "gitlab"
 
 [pr_reviewer]
