@@ -132,6 +132,31 @@ def _call_gpt5(messages: List[Dict[str, str]], temperature: float, max_tokens: i
 st.set_page_config(page_title="GPT-5 チャット", page_icon="💬", layout="wide")
 st.title("💬 GPT-5 チャット")
 st.caption("簡単な質問やテキスト生成を GPT-5 に依頼できます。")
+st.markdown(
+    """
+    <style>
+    .user-row {
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
+        margin: 0.25rem 0;
+    }
+    .user-bubble {
+        background-color: rgba(126, 187, 253, 0.25);
+        color: inherit;
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        max-width: 70%;
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin-left: auto;
+        text-align: left;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -140,6 +165,10 @@ if "system_prompt" not in st.session_state:
         "You are GPT-5, a helpful assistant for Japanese developers. Reply in Japanese unless code or"
         " technical keywords require English."
     )
+if "pending_response" not in st.session_state:
+    st.session_state.pending_response = False
+if "queued_prompt" not in st.session_state:
+    st.session_state.queued_prompt = None
 
 track_usage(action="ページ訪問", tool_name="GPT-5チャット")
 
@@ -168,20 +197,25 @@ with st.sidebar:
 # 過去のメッセージを表示（ユーザーは右寄せ）
 _render_chat_history(st.session_state.chat_history)
 
-prompt = st.chat_input("メッセージを入力")
+if st.session_state.pending_response:
+    st.info("GPT-5 からの返信を待機中です…", icon="⏳")
 
-if prompt:
-    user_message = {"role": "user", "content": prompt}
-    st.session_state.chat_history.append(user_message)
-    _render_user_message(prompt)
+prompt = st.chat_input("メッセージを入力", disabled=st.session_state.pending_response)
 
-    messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
-    messages_payload.extend(st.session_state.chat_history)
+if prompt and not st.session_state.pending_response:
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    st.session_state.queued_prompt = prompt
+    st.session_state.pending_response = True
+    st.experimental_rerun()
 
+if st.session_state.pending_response and st.session_state.queued_prompt:
     placeholder = st.empty()
     with placeholder.container():
         with st.chat_message("assistant"):
             st.markdown("_GPT-5 が考えています…_")
+
+    messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
+    messages_payload.extend(st.session_state.chat_history)
 
     try:
         reply = _call_gpt5(messages_payload, temperature, max_tokens, reasoning_effort)
@@ -195,3 +229,6 @@ if prompt:
         with st.chat_message("assistant"):
             st.error(f"❌ エラー: {exc}")
         track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
+    finally:
+        st.session_state.pending_response = False
+        st.session_state.queued_prompt = None
