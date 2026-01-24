@@ -835,8 +835,8 @@ def call_llm(prompt_system: str, prompt_user: str, cfg: Dict[str, Any],
         "model": cfg["OPENAI_MODEL"],
         "max_completion_tokens": cfg["MAX_TOKENS"],  # GPT-5 Cline Proxy用
         "n": 1,
-        "reasoning_effort": "high",
-        "verbosity": "high",
+        "reasoning_effort": "low",
+        "verbosity": "low",
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": prompt_system},
