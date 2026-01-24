@@ -139,19 +139,22 @@ st.markdown(
         display: flex;
         justify-content: flex-end;
         width: 100%;
-        margin: 0.25rem 0;
+        margin: 0.35rem 0;
     }
     .user-bubble {
-        background-color: rgba(126, 187, 253, 0.25);
-        color: inherit;
+        background: linear-gradient(135deg, #93c5fd, #bfdbfe);
+        color: #0f172a;
         padding: 0.75rem 1rem;
-        border-radius: 1rem;
-        max-width: 70%;
+        border-radius: 1rem 0.4rem 1rem 1rem;
+        max-width: 65%;
+        display: inline-block;
         white-space: pre-wrap;
         word-break: break-word;
-        margin-left: auto;
         text-align: left;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+    }
+    .assistant-block {
+        padding: 0.35rem 0;
     }
     </style>
     """,
@@ -168,7 +171,7 @@ if "system_prompt" not in st.session_state:
 if "pending_response" not in st.session_state:
     st.session_state.pending_response = False
 if "queued_prompt" not in st.session_state:
-    st.session_state.queued_prompt = None
+    st.session_state.queued_prompt = ""
 
 track_usage(action="ページ訪問", tool_name="GPT-5チャット")
 
@@ -194,19 +197,44 @@ with st.sidebar:
         track_usage(action="会話リセット", tool_name="GPT-5チャット")
         st.experimental_rerun()
 
-# 過去のメッセージを表示（ユーザーは右寄せ）
-_render_chat_history(st.session_state.chat_history)
+# 入力欄（待機中は完全に非活性表示）
+user_prompt = ""
+input_container = st.container()
+button_container = st.container()
 
 if st.session_state.pending_response:
+    with input_container:
+        st.text_area(
+            "メッセージを入力",
+            value=st.session_state.queued_prompt or "",
+            height=100,
+            disabled=True,
+            key="gpt5_chat_textarea_disabled",
+        )
+    with button_container:
+        st.button("送信", disabled=True, use_container_width=True, key="gpt5_chat_button_disabled")
     st.info("GPT-5 からの返信を待機中です…", icon="⏳")
+else:
+    with input_container:
+        user_prompt = st.text_area(
+            "メッセージを入力",
+            height=100,
+            key="gpt5_chat_textarea_enabled",
+        )
+    with button_container:
+        send_clicked = st.button(
+            "送信",
+            use_container_width=True,
+            key="gpt5_chat_button_enabled",
+        )
+    if send_clicked and user_prompt.strip():
+        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+        st.session_state.queued_prompt = user_prompt
+        st.session_state.pending_response = True
+        st.rerun()
 
-prompt = st.chat_input("メッセージを入力", disabled=st.session_state.pending_response)
-
-if prompt and not st.session_state.pending_response:
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
-    st.session_state.queued_prompt = prompt
-    st.session_state.pending_response = True
-    st.experimental_rerun()
+# 過去のメッセージを表示（ユーザーは右寄せ）
+_render_chat_history(st.session_state.chat_history)
 
 if st.session_state.pending_response and st.session_state.queued_prompt:
     placeholder = st.empty()
@@ -231,4 +259,4 @@ if st.session_state.pending_response and st.session_state.queued_prompt:
         track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
     finally:
         st.session_state.pending_response = False
-        st.session_state.queued_prompt = None
+        st.session_state.queued_prompt = False

@@ -43,6 +43,7 @@ from word.pr_agent import (
     UrlValidator,
     ConfigRepository,
 )
+from word.pr_agent.excel_validator import ExcelSpecValidator
 
 # トラッキングをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -184,7 +185,102 @@ def _render_advanced_settings():
             help="レビューに適用する追加の指示"
         )
 
+    if st.session_state.get("spec_include_in_prompt") and st.session_state.get("spec_prompt_text"):
+        spec_prompt = st.session_state["spec_prompt_text"]
+        if spec_prompt not in custom_prompt:
+            custom_prompt = f"{custom_prompt}\n\n{spec_prompt}" if custom_prompt else spec_prompt
     return debug_level, verbosity_level, gitlab_url, custom_prompt
+
+
+def _render_excel_spec_validator():
+    """Excel仕様チェックUI"""
+    st.markdown("### 📄 仕様チェック (Excel)")
+    st.caption(
+        "仕様Excelをアップロードすると、指定した列に書かれている内容を読み取り、"
+        "その情報をPR-Agentのレビュー指示（観点）に取り込みます。"
+    )
+
+    required_cols = st.text_input(
+        "必須列（カンマ区切り）",
+        value=st.session_state.get("excel_required_cols", "仕様ID,タイトル,対象ファイル"),
+        key="excel_required_cols",
+        help=(
+            "仕様Excelに必ず含めたい列名を指定します（例: 仕様ID, タイトル, 対象ファイル）。"
+            "ここで指定した列名はPR-Agentのカスタムプロンプトにも観点として組み込まれ、"
+            "レビュー時に仕様との整合性を確認する指示として扱われます。"
+        ),
+    )
+
+    uploaded_specs = st.file_uploader(
+        "仕様Excelファイル (複数可)",
+        type=["xls", "xlsx"],
+        accept_multiple_files=True,
+        key="excel_spec_files",
+    )
+
+    include_specs = st.checkbox(
+        "PR-Agentレビューに仕様チェック結果を取り込む",
+        value=st.session_state.get("spec_include_in_prompt", True),
+        key="spec_include_in_prompt",
+    )
+
+    cols = [c.strip() for c in required_cols.split(",") if c.strip()]
+    validator = ExcelSpecValidator(required_columns=cols)
+
+    check_button = st.button(
+        "仕様チェックを実行",
+        type="primary",
+        disabled=not uploaded_specs,
+        use_container_width=True,
+    )
+
+    if check_button and uploaded_specs:
+        with st.spinner("仕様ファイルを解析しています..."):
+            results = validator.validate_files(uploaded_specs)
+        st.session_state["excel_validator_results"] = results
+        st.session_state["spec_prompt_text"] = _build_spec_prompt(results, cols)
+        st.success("仕様チェックが完了しました")
+
+    results = st.session_state.get("excel_validator_results")
+    if results:
+        for result in results:
+            st.markdown(f"**{result.filename}**")
+            for summary in result.sheet_summaries:
+                issues = []
+                if summary.empty:
+                    issues.append("シートが空です")
+                if summary.missing_required_columns:
+                    missing = ", ".join(summary.missing_required_columns)
+                    issues.append(f"不足列: {missing}")
+                issue_text = "\n".join(issues) if issues else "OK"
+                with st.expander(f"📑 {summary.name} — {summary.rows}行 / {summary.columns}列", expanded=bool(issues)):
+                    if issues:
+                        st.warning(issue_text)
+                    else:
+                        st.success("問題は検出されませんでした")
+
+        if st.session_state.get("spec_prompt_text") and include_specs:
+            st.info(
+                "PR-Agentのカスタムプロンプトへ、アップロードした仕様内容を要約した指示を自動追加します。"
+                "レビュー結果に仕様との整合性コメントが含まれやすくなります。"
+            )
+
+
+def _build_spec_prompt(results, required_cols):
+    lines = ["# Excel Specification Checks"]
+    for result in results:
+        lines.append(f"- File: {result.filename}")
+        for summary in result.sheet_summaries:
+            if summary.empty and summary.rows == 0:
+                continue
+            desc = f"  - Sheet {summary.name}: {summary.rows} rows / {summary.columns} cols"
+            if summary.missing_required_columns:
+                desc += f" (missing: {', '.join(summary.missing_required_columns)})"
+            lines.append(desc)
+    if required_cols:
+        lines.append("Required columns considered: " + ", ".join(required_cols))
+    return "\n".join(lines)
+
 
 
 def _render_mr_input(input_method, gitlab_token, gitlab_url):
@@ -651,6 +747,8 @@ if 'visited_pr_agent' not in st.session_state:
 render_page_header()
 render_usage_guide()
 st.markdown("---")
+with st.expander("📄 仕様Excelチェック（試行）", expanded=False):
+    _render_excel_spec_validator()
 
 
 # =============================================================================
