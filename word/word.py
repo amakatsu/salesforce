@@ -53,6 +53,28 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 logger.propagate = False
 
+SENSITIVE_HEADER_KEYS = {"authorization", "api-key", "apikey", "x-api-key"}
+
+
+def _mask_headers(headers: Dict[str, Any]) -> Dict[str, Any]:
+    masked = {}
+    for key, value in headers.items():
+        if key.lower() in SENSITIVE_HEADER_KEYS and value:
+            masked[key] = "***"
+        else:
+            masked[key] = value
+    return masked
+
+
+def _shorten_payload(payload: Dict[str, Any], limit: int = 400) -> str:
+    try:
+        text = json.dumps(payload, ensure_ascii=False)
+    except Exception:
+        text = str(payload)
+    if len(text) > limit:
+        return text[:limit] + "..."
+    return text
+
 # ====== 文字列正規化／類似度 =================================================
 
 
@@ -571,11 +593,13 @@ class ApiClient:
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
         logger.info(
-            "LLMリクエスト送信: url=%s model=%s tokens=%s messages=%s",
+            "HTTP POST開始 url=%s model=%s tokens=%s messages=%s headers=%s body=%s",
             url,
             body.get("model"),
             body.get("max_completion_tokens"),
             len(body.get("messages", [])),
+            _mask_headers(self.headers),
+            _shorten_payload(body),
         )
         start = time.time()
         resp = None
@@ -589,18 +613,20 @@ class ApiClient:
             )
             resp.raise_for_status()
             elapsed = time.time() - start
+            resp_text = resp.text[:600]
             logger.info(
-                "LLMレスポンス受信: status=%s elapsed=%.2fs request_id=%s",
+                "HTTP POST完了 status=%s elapsed=%.2fs request_id=%s body=%s",
                 resp.status_code,
                 elapsed,
                 resp.headers.get("x-request-id") or resp.headers.get("X-Request-ID") or "-",
+                resp_text,
             )
             return resp.json()
         except requests.RequestException as exc:
             elapsed = time.time() - start
             status = resp.status_code if resp is not None else getattr(exc.response, "status_code", "n/a")
             logger.error(
-                "LLMリクエスト失敗: status=%s elapsed=%.2fs error=%s",
+                "HTTP POST失敗: status=%s elapsed=%.2fs error=%s",
                 status,
                 elapsed,
                 exc,
