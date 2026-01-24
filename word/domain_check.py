@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import json
+import logging
 import os
 import re
 import sys
@@ -40,6 +41,34 @@ except Exception:
 
 # ====== 定数 ==================================================================
 DEFAULT_CONFIG: Dict[str, Any] = get_domain_config()
+
+logger = logging.getLogger("domain_tool.api")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("[DOMAIN-API] %(asctime)s %(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+SENSITIVE_HEADER_KEYS = {"authorization", "api-key", "apikey", "x-api-key"}
+
+
+def _mask_headers(headers: Dict[str, Any]) -> Dict[str, Any]:
+    masked = {}
+    for key, value in headers.items():
+        if key.lower() in SENSITIVE_HEADER_KEYS and value:
+            masked[key] = "***"
+        else:
+            masked[key] = value
+    return masked
+
+
+def _dump_payload(payload: Dict[str, Any]) -> str:
+    try:
+        return json.dumps(payload, ensure_ascii=False)
+    except Exception:
+        return str(payload)
 
 # ====== 正規化関数 ============================================================
 def normalize_text(text: str) -> str:
@@ -676,9 +705,41 @@ class ApiClient:
 
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
-        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
-        resp.raise_for_status()
-        return resp.json()
+        logger.info(
+            "HTTP POST開始 url=%s model=%s tokens=%s messages=%s headers=%s",
+            url,
+            body.get("model"),
+            body.get("max_completion_tokens"),
+            len(body.get("messages", [])),
+            _mask_headers(self.headers),
+        )
+        logger.info("HTTP リクエストボディ:\n%s", _dump_payload(body))
+        start = time.time()
+        resp = None
+        try:
+            resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
+            resp.raise_for_status()
+            elapsed = time.time() - start
+            logger.info(
+                "HTTP POST完了 status=%s elapsed=%.2fs request_id=%s",
+                resp.status_code,
+                elapsed,
+                resp.headers.get("x-request-id") or resp.headers.get("X-Request-ID") or "-",
+            )
+            logger.info("HTTP レスポンスボディ:\n%s", resp.text)
+            return resp.json()
+        except requests.RequestException as exc:
+            elapsed = time.time() - start
+            status = resp.status_code if resp is not None else getattr(exc.response, "status_code", "n/a")
+            logger.error(
+                "HTTP POST失敗: status=%s elapsed=%.2fs error=%s",
+                status,
+                elapsed,
+                exc,
+            )
+            if resp is not None:
+                logger.error("HTTP レスポンスボディ(エラー):\n%s", resp.text)
+            raise
 
 # ====== LLMプロンプト（機能1: ドメイン提案） ==================================
 LLM_SUGGESTION_SYSTEM = (

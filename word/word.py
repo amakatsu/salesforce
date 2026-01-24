@@ -597,7 +597,9 @@ class ApiClient:
             len(body.get("messages", [])),
             _mask_headers(self.headers),
         )
-        logger.info("HTTP リクエストボディ:\n%s", _dump_payload(body))
+        request_dump = _dump_payload(body)
+        logger.info("HTTP リクエストボディ:\n%s", request_dump)
+        print(f"[WORD-API] HTTP リクエストボディ:\n{request_dump}", flush=True)
         start = time.time()
         resp = None
         try:
@@ -618,6 +620,7 @@ class ApiClient:
                 resp.headers.get("x-request-id") or resp.headers.get("X-Request-ID") or "-",
             )
             logger.info("HTTP レスポンスボディ:\n%s", resp_text)
+            print(f"[WORD-API] HTTP レスポンスボディ:\n{resp_text}", flush=True)
             return resp.json()
         except requests.RequestException as exc:
             elapsed = time.time() - start
@@ -630,6 +633,7 @@ class ApiClient:
             )
             if resp is not None:
                 logger.error("HTTP レスポンスボディ(エラー):\n%s", resp.text)
+                print(f"[WORD-API] HTTP レスポンスボディ(エラー):\n{resp.text}", flush=True)
             raise
 
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
