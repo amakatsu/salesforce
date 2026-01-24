@@ -5,12 +5,12 @@ model = "PBkBKGPT0SpkSub001OAI001MDL015"
 temperature = 1.0
 language = "ja"
 response_language = "ja-JP"
-verbosity_level = 1
+verbosity_level = 2
 max_model_tokens = 8192
 reasoning_effort = "high"
 git_provider = "gitlab"
 # 日本語での出力を強制
-verbosity = 1
+verbosity = "high"
 enable_custom_labels = false
 # 精度向上のための設定
 max_description_tokens = 1000  # PR説明文の最大トークン数を増やす

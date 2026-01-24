@@ -87,8 +87,8 @@ def _call_gpt5(messages: List[Dict[str, str]], temperature: float, max_tokens: i
         "max_completion_tokens": max_tokens,
         "n": 1,
     }
-    if reasoning_effort:
-        payload["reasoning_effort"] = reasoning_effort
+    payload["reasoning_effort"] = reasoning_effort or "high"
+    payload["verbosity"] = "high"
 
     try:
         response = requests.post(
@@ -185,12 +185,7 @@ with st.sidebar:
     )
     temperature = 1.0
     max_tokens = 8192
-    reasoning_effort = st.selectbox(
-        "reasoning_effort",
-        options=["", "medium", "high"],
-        index=1,
-        help="空欄の場合は送信しません。",
-    )
+    reasoning_effort = "high"
 
     if st.button("🧹 会話をリセット", use_container_width=True):
         st.session_state.chat_history = []

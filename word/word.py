@@ -5,6 +5,7 @@ import argparse
 import concurrent.futures as cf
 import difflib
 import json
+import logging
 import os
 import re
 import sys
@@ -41,6 +42,16 @@ FALLBACK_EXACT_FLOOR = 0.95
 
 # ====== 設定（.envで上書き可） =============================================
 DEFAULT_CONFIG: Dict[str, Any] = get_word_config()
+
+# ====== ロガー設定 ============================================================
+logger = logging.getLogger("word_tool.api")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("[WORD-API] %(asctime)s %(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
 # ====== 文字列正規化／類似度 =================================================
 
@@ -559,9 +570,42 @@ class ApiClient:
         self.headers = headers
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
-        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
-        resp.raise_for_status()
-        return resp.json()
+        logger.info(
+            "LLMリクエスト送信: url=%s model=%s tokens=%s messages=%s",
+            url,
+            body.get("model"),
+            body.get("max_completion_tokens"),
+            len(body.get("messages", [])),
+        )
+        start = time.time()
+        resp = None
+        try:
+            resp = self.session.post(
+                url,
+                headers=self.headers,
+                json=body,
+                timeout=self.timeout,
+                verify=self.verify,
+            )
+            resp.raise_for_status()
+            elapsed = time.time() - start
+            logger.info(
+                "LLMレスポンス受信: status=%s elapsed=%.2fs request_id=%s",
+                resp.status_code,
+                elapsed,
+                resp.headers.get("x-request-id") or resp.headers.get("X-Request-ID") or "-",
+            )
+            return resp.json()
+        except requests.RequestException as exc:
+            elapsed = time.time() - start
+            status = resp.status_code if resp is not None else getattr(exc.response, "status_code", "n/a")
+            logger.error(
+                "LLMリクエスト失敗: status=%s elapsed=%.2fs error=%s",
+                status,
+                elapsed,
+                exc,
+            )
+            raise
 
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = """あなたは業務システム開発における命名規則の専門家です。

@@ -110,6 +110,9 @@ class ConfigManager:
         merged_config.setdefault('config', {})['temperature'] = 1.0
         merged_config['config']['max_model_tokens'] = 8192
         merged_config['config']['custom_model_max_tokens'] = 8192
+        merged_config['config']['reasoning_effort'] = "high"
+        merged_config['config']['verbosity'] = "high"
+        merged_config['config']['verbosity_level'] = 2
 
         # API設定を追加
         if api_config:
@@ -157,6 +160,9 @@ class ConfigManager:
             common_config.setdefault('config', {})['temperature'] = 1.0
             common_config['config']['max_model_tokens'] = 8192
             common_config['config']['custom_model_max_tokens'] = 8192
+            common_config['config']['reasoning_effort'] = "high"
+            common_config['config']['verbosity'] = "high"
+            common_config['config']['verbosity_level'] = 2
 
             # API設定を追加
             if api_config:
@@ -220,6 +226,8 @@ response_language = "ja-JP"
 max_model_tokens = 8192
 custom_model_max_tokens = 8192
 reasoning_effort = "high"
+verbosity = "high"
+verbosity_level = 2
 git_provider = "gitlab"
 
 [pr_reviewer]
@@ -414,16 +422,16 @@ num_code_suggestions = 4
 
         return config
 
-    def _inject_verbosity(self, config: Dict, verbosity: int) -> Dict:
-        """Verbosity設定を設定ファイルに注入"""
+    def _inject_verbosity(self, config: Dict, _verbosity: int) -> Dict:
+        """Verbosity設定を設定ファイルに注入（常にHighで固定）"""
         if 'config' not in config:
             config['config'] = {}
 
-        # verbosityとverbosity_levelの両方を設定
-        config['config']['verbosity'] = verbosity
-        config['config']['verbosity_level'] = verbosity
+        # verbosityはAPI向けに文字列High、verbosity_levelはローカルログ向けに最大値を設定
+        config['config']['verbosity'] = "high"
+        config['config']['verbosity_level'] = 2
 
-        Logger.info(f"Verbosity設定を適用: verbosity={verbosity}, verbosity_level={verbosity}")
+        Logger.info("Verbosity設定を適用: verbosity=high, verbosity_level=2 (固定)")
 
         return config
 

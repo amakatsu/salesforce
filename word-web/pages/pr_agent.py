@@ -140,7 +140,7 @@ def _extract_description(path):
 def _render_advanced_settings():
     """詳細設定を表示"""
     debug_level = 1
-    verbosity_level = 1
+    verbosity_level = 2
     gitlab_url = None
     custom_prompt = ""
 
@@ -157,6 +157,7 @@ def _render_advanced_settings():
                 help="0:エラーのみ / 1:進捗情報 / 2:デバッグ詳細"
             )
             verbosity_level = min(debug_level, 2)
+            st.caption("※ Verbosityは常にHigh (2) で固定されます。")
 
         with col2:
             st.markdown("#### 🌐 GitLab URL")
@@ -189,6 +190,7 @@ def _render_advanced_settings():
         spec_prompt = st.session_state["spec_prompt_text"]
         if spec_prompt not in custom_prompt:
             custom_prompt = f"{custom_prompt}\n\n{spec_prompt}" if custom_prompt else spec_prompt
+    verbosity_level = 2
     return debug_level, verbosity_level, gitlab_url, custom_prompt
 
 
