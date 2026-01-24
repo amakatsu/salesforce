@@ -66,14 +66,11 @@ def _mask_headers(headers: Dict[str, Any]) -> Dict[str, Any]:
     return masked
 
 
-def _shorten_payload(payload: Dict[str, Any], limit: int = 400) -> str:
+def _dump_payload(payload: Dict[str, Any]) -> str:
     try:
-        text = json.dumps(payload, ensure_ascii=False)
+        return json.dumps(payload, ensure_ascii=False)
     except Exception:
-        text = str(payload)
-    if len(text) > limit:
-        return text[:limit] + "..."
-    return text
+        return str(payload)
 
 # ====== 文字列正規化／類似度 =================================================
 
@@ -593,14 +590,14 @@ class ApiClient:
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
         logger.info(
-            "HTTP POST開始 url=%s model=%s tokens=%s messages=%s headers=%s body=%s",
+            "HTTP POST開始 url=%s model=%s tokens=%s messages=%s headers=%s",
             url,
             body.get("model"),
             body.get("max_completion_tokens"),
             len(body.get("messages", [])),
             _mask_headers(self.headers),
-            _shorten_payload(body),
         )
+        logger.info("HTTP リクエストボディ:\n%s", _dump_payload(body))
         start = time.time()
         resp = None
         try:
@@ -613,14 +610,14 @@ class ApiClient:
             )
             resp.raise_for_status()
             elapsed = time.time() - start
-            resp_text = resp.text[:600]
+            resp_text = resp.text
             logger.info(
-                "HTTP POST完了 status=%s elapsed=%.2fs request_id=%s body=%s",
+                "HTTP POST完了 status=%s elapsed=%.2fs request_id=%s",
                 resp.status_code,
                 elapsed,
                 resp.headers.get("x-request-id") or resp.headers.get("X-Request-ID") or "-",
-                resp_text,
             )
+            logger.info("HTTP レスポンスボディ:\n%s", resp_text)
             return resp.json()
         except requests.RequestException as exc:
             elapsed = time.time() - start
@@ -631,6 +628,8 @@ class ApiClient:
                 elapsed,
                 exc,
             )
+            if resp is not None:
+                logger.error("HTTP レスポンスボディ(エラー):\n%s", resp.text)
             raise
 
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
