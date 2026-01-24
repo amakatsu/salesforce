@@ -107,6 +107,9 @@ class ConfigManager:
 
         # 共通設定とカスタム設定をマージ
         merged_config = self._merge_configs(config_path)
+        merged_config.setdefault('config', {})['temperature'] = 1.0
+        merged_config['config']['max_model_tokens'] = 8192
+        merged_config['config']['custom_model_max_tokens'] = 8192
 
         # API設定を追加
         if api_config:
@@ -151,6 +154,9 @@ class ConfigManager:
         if self.common_config_path.exists():
             with open(self.common_config_path, 'r', encoding='utf-8') as f:
                 common_config = toml.load(f)
+            common_config.setdefault('config', {})['temperature'] = 1.0
+            common_config['config']['max_model_tokens'] = 8192
+            common_config['config']['custom_model_max_tokens'] = 8192
 
             # API設定を追加
             if api_config:
@@ -209,9 +215,10 @@ class ConfigManager:
 
 [config]
 model = "PBkBKGPT0SpkSub001OAI001MDL015"
-temperature = 0.2
+temperature = 1.0
 response_language = "ja-JP"
 max_model_tokens = 8192
+custom_model_max_tokens = 8192
 reasoning_effort = "high"
 git_provider = "gitlab"
 

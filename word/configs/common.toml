@@ -2,7 +2,7 @@
 
 [config]
 model = "PBkBKGPT0SpkSub001OAI001MDL015"
-temperature = 0.2
+temperature = 1.0
 language = "ja"
 response_language = "ja-JP"
 verbosity_level = 1

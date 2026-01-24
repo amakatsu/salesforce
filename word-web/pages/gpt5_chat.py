@@ -130,8 +130,8 @@ def _call_gpt5(messages: List[Dict[str, str]], temperature: float, max_tokens: i
 # =============================================================================
 
 st.set_page_config(page_title="GPT-5 チャット", page_icon="💬", layout="wide")
-st.title("💬 GPT-5 チャット")
-st.caption("簡単な質問やテキスト生成を GPT-5 に依頼できます。")
+st.title("💬 GPT-5 チャット（API疎通検証用）")
+st.caption("APIへの疎通確認や動作チェックを行うための試験用チャットです。")
 st.markdown(
     """
     <style>
@@ -183,8 +183,8 @@ with st.sidebar:
         height=120,
         help="モデルへの基本指示。デフォルトでは日本語で回答するよう指定しています。",
     )
-    temperature = st.slider("温度 (創造性)", 0.0, 1.0, 0.2, 0.05)
-    max_tokens = st.slider("最大トークン数", 256, 4096, 1024, 64)
+    temperature = 1.0
+    max_tokens = 8192
     reasoning_effort = st.selectbox(
         "reasoning_effort",
         options=["", "medium", "high"],

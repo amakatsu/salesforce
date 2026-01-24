@@ -50,7 +50,7 @@ class BaseCustomHandler(BaseAiHandler, ABC):
         model: str,
         system: str,
         user: str,
-        temperature: float = 0.2,
+        temperature: float = 1.0,
         img_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """リクエストボディを構築"""

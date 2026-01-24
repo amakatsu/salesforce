@@ -190,32 +190,15 @@ with st.sidebar:
     st.markdown("---")
 
     # LLM設定（上級者向け）
-    with st.expander("🔧 LLM設定（上級者向け）", expanded=False):
-        st.caption("LLMの動作パラメータを調整できます（通常は変更不要）")
-        max_tokens_max = max(800, WORD_CONFIG["MAX_TOKENS"])
-        max_tokens = st.number_input(
-            "Max Tokens",
-            value=WORD_CONFIG["MAX_TOKENS"],
-            min_value=100,
-            max_value=max_tokens_max,
-            help="LLMが生成する最大トークン数（大きいほど詳細な出力が可能）"
-        )
-        temperature = st.slider(
-            "Temperature",
-            min_value=0.0,
-            max_value=2.0,
-            value=WORD_CONFIG["TEMPERATURE"],
-            step=0.1,
-            help="生成の多様性（0に近いほど安定、高いほど創造的）"
-        )
-        fuzzy_threshold = st.slider(
-            "類似度しきい値",
-            min_value=0.0,
-            max_value=1.0,
-            value=WORD_CONFIG["FUZZY_THRESHOLD"],
-            step=0.05,
-            help="単語の類似度判定の最低スコア（高いほど厳密に一致）"
-        )
+    st.subheader("🔧 照合パラメータ")
+    fuzzy_threshold = st.slider(
+        "類似度しきい値",
+        min_value=0.0,
+        max_value=1.0,
+        value=WORD_CONFIG["FUZZY_THRESHOLD"],
+        step=0.05,
+        help="単語の類似度判定の最低スコア（高いほど厳密に一致）"
+    )
 
 # メインエリア
 col1, col2 = st.columns(2)
@@ -295,8 +278,8 @@ if st.button("🚀 照合実行", type="primary", use_container_width=True, disa
                 config = WORD_CONFIG.copy()
                 config["SCREEN_COL"] = screen_col
                 config["VOCAB_TERM_COL"] = vocab_col
-                config["MAX_TOKENS"] = int(max_tokens)
-                config["TEMPERATURE"] = float(temperature)
+                config["MAX_TOKENS"] = 8192
+                config["TEMPERATURE"] = 1.0
                 config["FUZZY_THRESHOLD"] = float(fuzzy_threshold)
                 config["OUT_DIR"] = str(tmpdir / "out")
 
