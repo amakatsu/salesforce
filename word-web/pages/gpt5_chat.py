@@ -156,6 +156,13 @@ st.markdown(
     .assistant-block {
         padding: 0.35rem 0;
     }
+    .chat-history-wrapper {
+        min-height: 55vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding-bottom: 0.5rem;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -190,68 +197,49 @@ with st.sidebar:
     if st.button("🧹 会話をリセット", use_container_width=True):
         st.session_state.chat_history = []
         track_usage(action="会話リセット", tool_name="GPT-5チャット")
-        st.experimental_rerun()
-
-# 入力欄（待機中は完全に非活性表示）
-user_prompt = ""
-input_container = st.container()
-button_container = st.container()
-
-if st.session_state.pending_response:
-    with input_container:
-        st.text_area(
-            "メッセージを入力",
-            value=st.session_state.queued_prompt or "",
-            height=100,
-            disabled=True,
-            key="gpt5_chat_textarea_disabled",
-        )
-    with button_container:
-        st.button("送信", disabled=True, use_container_width=True, key="gpt5_chat_button_disabled")
-    st.info("GPT-5 からの返信を待機中です…", icon="⏳")
-else:
-    with input_container:
-        user_prompt = st.text_area(
-            "メッセージを入力",
-            height=100,
-            key="gpt5_chat_textarea_enabled",
-        )
-    with button_container:
-        send_clicked = st.button(
-            "送信",
-            use_container_width=True,
-            key="gpt5_chat_button_enabled",
-        )
-    if send_clicked and user_prompt.strip():
-        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-        st.session_state.queued_prompt = user_prompt
-        st.session_state.pending_response = True
         st.rerun()
 
-# 過去のメッセージを表示（ユーザーは右寄せ）
-_render_chat_history(st.session_state.chat_history)
+# チャット履歴（ユーザーは右寄せ）を一定の高さで保持
+history_container = st.container()
+with history_container:
+    st.markdown('<div class="chat-history-wrapper">', unsafe_allow_html=True)
+    _render_chat_history(st.session_state.chat_history)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-if st.session_state.pending_response and st.session_state.queued_prompt:
-    placeholder = st.empty()
-    with placeholder.container():
-        with st.chat_message("assistant"):
-            st.markdown("_GPT-5 が考えています…_")
+    if st.session_state.pending_response and st.session_state.queued_prompt:
+        placeholder = st.empty()
+        with placeholder.container():
+            with st.chat_message("assistant"):
+                st.markdown("_GPT-5 が考えています…_")
 
-    messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
-    messages_payload.extend(st.session_state.chat_history)
+        messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
+        messages_payload.extend(st.session_state.chat_history)
 
-    try:
-        reply = _call_gpt5(messages_payload, temperature, max_tokens, reasoning_effort)
-        st.session_state.chat_history.append({"role": "assistant", "content": reply})
-        placeholder.empty()
-        with st.chat_message("assistant"):
-            st.markdown(reply)
-        track_usage(action="メッセージ送信", tool_name="GPT-5チャット")
-    except Exception as exc:
-        placeholder.empty()
-        with st.chat_message("assistant"):
-            st.error(f"❌ エラー: {exc}")
-        track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
-    finally:
-        st.session_state.pending_response = False
-        st.session_state.queued_prompt = False
+        try:
+            reply = _call_gpt5(messages_payload, temperature, max_tokens, reasoning_effort)
+            st.session_state.chat_history.append({"role": "assistant", "content": reply})
+            track_usage(action="メッセージ送信", tool_name="GPT-5チャット")
+        except Exception as exc:
+            error_msg = f"❌ エラー: {exc}"
+            st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
+            track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
+        finally:
+            st.session_state.pending_response = False
+            st.session_state.queued_prompt = ""
+            placeholder.empty()
+
+# 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
+user_prompt = st.chat_input(
+    "メッセージを入力",
+    disabled=st.session_state.pending_response,
+)
+
+if st.session_state.pending_response:
+    st.info("⏳ GPT-5 からの返信を待機中です。応答後に次のメッセージを送信できます。")
+
+if user_prompt:
+    st.chat_message("user").markdown(user_prompt)
+    st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+    st.session_state.queued_prompt = user_prompt
+    st.session_state.pending_response = True
+    st.rerun()

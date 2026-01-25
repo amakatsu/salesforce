@@ -114,10 +114,7 @@ with tab1:
         <div style='background: #e0f2fe; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #0284c7;'>
             <h4 style='color: #0369a1; margin-top: 0;'>💬 GPT-5 チャット</h4>
             <ul style='margin: 0;'>
-                <li>GPT-5 への自由チャット</li>
-                <li>システムプロンプト・温度を調整可能</li>
-                <li>軽いメモ作成や質問に最適</li>
-                <li>※ 現在は試行提供中のため正式導入まで仕様が変わる可能性があります</li>
+                <li>API疎通や挙動確認向けの試験用チャット</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
