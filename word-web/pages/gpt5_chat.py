@@ -175,11 +175,6 @@ if "system_prompt" not in st.session_state:
         "You are GPT-5, a helpful assistant for Japanese developers. Reply in Japanese unless code or"
         " technical keywords require English."
     )
-if "pending_response" not in st.session_state:
-    st.session_state.pending_response = False
-if "queued_prompt" not in st.session_state:
-    st.session_state.queued_prompt = ""
-
 track_usage(action="ページ訪問", tool_name="GPT-5チャット")
 
 with st.sidebar:
@@ -199,22 +194,28 @@ with st.sidebar:
         track_usage(action="会話リセット", tool_name="GPT-5チャット")
         st.rerun()
 
-# チャット履歴（ユーザーは右寄せ）を一定の高さで保持
+# チャット履歴表示用のコンテナ（入力欄より上に配置）
 history_container = st.container()
+
+# 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
+user_prompt = st.chat_input("メッセージを入力")
+
+# ユーザーメッセージがあれば先に履歴に追加
+if user_prompt:
+    st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+
+# チャット履歴（ユーザーは右寄せ）を先にレンダリング
 with history_container:
     st.markdown('<div class="chat-history-wrapper">', unsafe_allow_html=True)
     _render_chat_history(st.session_state.chat_history)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.session_state.pending_response and st.session_state.queued_prompt:
-        placeholder = st.empty()
-        with placeholder.container():
-            with st.chat_message("assistant"):
-                st.markdown("_GPT-5 が考えています…_")
+# API呼び出し（履歴レンダリング後）
+if user_prompt:
+    messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
+    messages_payload.extend(st.session_state.chat_history)
 
-        messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
-        messages_payload.extend(st.session_state.chat_history)
-
+    with st.spinner("GPT-5 が考えています…"):
         try:
             reply = _call_gpt5(messages_payload, temperature, max_tokens, reasoning_effort)
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
@@ -223,23 +224,6 @@ with history_container:
             error_msg = f"❌ エラー: {exc}"
             st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
             track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
-        finally:
-            st.session_state.pending_response = False
-            st.session_state.queued_prompt = ""
-            placeholder.empty()
 
-# 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
-user_prompt = st.chat_input(
-    "メッセージを入力",
-    disabled=st.session_state.pending_response,
-)
-
-if st.session_state.pending_response:
-    st.info("⏳ GPT-5 からの返信を待機中です。応答後に次のメッセージを送信できます。")
-
-if user_prompt:
-    st.chat_message("user").markdown(user_prompt)
-    st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-    st.session_state.queued_prompt = user_prompt
-    st.session_state.pending_response = True
+    # レスポンスを表示するために再実行
     st.rerun()

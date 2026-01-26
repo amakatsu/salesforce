@@ -191,6 +191,12 @@ class PRAgentRunner:
 
                 # verbosity設定を強制適用
                 if 'config' in toml_config:
+                    if 'model' in toml_config['config']:
+                        model_value = toml_config['config']['model']
+                        settings.config.model = model_value
+                        os.environ["OPENAI_MODEL"] = model_value
+                        Logger.info(f"✅ model を強制設定: {model_value}")
+
                     if 'verbosity' in toml_config['config']:
                         verbosity_value = toml_config['config']['verbosity']
                         settings.config.verbosity = verbosity_value

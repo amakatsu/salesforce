@@ -143,7 +143,6 @@ def _render_advanced_settings():
     verbosity_level = 2
     gitlab_url = None
     custom_prompt = ""
-
     with st.expander("🔧 詳細設定", expanded=False):
         col1, col2 = st.columns(2)
 
@@ -176,8 +175,6 @@ def _render_advanced_settings():
             else:
                 st.error("❌ 無効なGitLab URL")
                 gitlab_url = None
-
-        st.markdown("---")
 
         custom_prompt = st.text_area(
             "📝 カスタムプロンプト（任意）",
@@ -705,7 +702,7 @@ def _run_pr_agent(params, log_placeholder):
                 params.get('resolved_config_file'),
                 params.get('gitlab_url'),
                 params.get('debug_level', 1),
-                session_id
+                session_id,
             )
 
             while not future.done():

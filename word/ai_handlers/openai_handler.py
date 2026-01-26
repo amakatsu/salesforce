@@ -160,10 +160,14 @@ class OpenAIHandler(BaseCustomHandler):
 
         settings = get_settings()
 
-        # model: .env OPENAI_MODEL
-        actual_model = model or os.getenv("OPENAI_MODEL", "")
+        # model priority: explicit arg > common.toml [config].model > .env OPENAI_MODEL
+        actual_model = (
+            model
+            or settings.config.get("model", "")
+            or os.getenv("OPENAI_MODEL", "")
+        )
         if not actual_model:
-            raise ValueError("OPENAI_MODEL is required in .env")
+            raise ValueError("Model is required (config.model or OPENAI_MODEL in .env)")
         self.logger.info(f"Using model: {actual_model}")
 
         # max_completion_tokens: common.toml [config] max_model_tokens
