@@ -6,6 +6,7 @@ GPT-5 チャットページ
 """
 import json
 import os
+import time
 from html import escape
 from pathlib import Path
 from typing import List, Dict
@@ -70,7 +71,13 @@ def _load_openai_headers() -> Dict[str, str]:
     return headers
 
 
-def _call_gpt5(messages: List[Dict[str, str]], temperature: float, max_tokens: int, reasoning_effort: str) -> str:
+def _call_gpt5(
+    messages: List[Dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    reasoning_effort: str,
+    max_retries: int = 3,
+) -> str:
     """GPT-5 へチャットリクエストを送る"""
     base_url = os.getenv("OPENAI_BASE_URL", "")
     api_path = os.getenv("OPENAI_PATH", "/api/curl/v2/chat/")
@@ -90,23 +97,38 @@ def _call_gpt5(messages: List[Dict[str, str]], temperature: float, max_tokens: i
     payload["reasoning_effort"] = reasoning_effort or "high"
     payload["verbosity"] = "high"
 
-    try:
-        response = requests.post(
-            url,
-            headers=_load_openai_headers(),
-            json=payload,
-            timeout=120,
-        )
-    except requests.exceptions.Timeout as exc:
-        raise RuntimeError("GPT-5 APIがタイムアウトしました。少し待って再試行してください。") from exc
-    except requests.exceptions.RequestException as exc:
-        raise RuntimeError(f"GPT-5 APIリクエストに失敗しました: {exc}") from exc
-
-    if not response.ok:
-        detail = response.text[:200]
-        raise RuntimeError(
-            f"GPT-5 APIがエラーを返しました (HTTP {response.status_code}): {detail}"
-        )
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            response = requests.post(
+                url,
+                headers=_load_openai_headers(),
+                json=payload,
+                timeout=120,
+            )
+        except requests.exceptions.Timeout as exc:
+            last_error = RuntimeError("GPT-5 APIがタイムアウトしました。少し待って再試行してください。")
+        except requests.exceptions.RequestException as exc:
+            last_error = RuntimeError(f"GPT-5 APIリクエストに失敗しました: {exc}")
+        else:
+            if response.ok:
+                break
+            if response.status_code == 429 and attempt < max_retries:
+                retry_after = response.headers.get("Retry-After")
+                if retry_after and retry_after.isdigit():
+                    delay = min(int(retry_after), 30)
+                else:
+                    delay = min(2 ** attempt, 10)
+                time.sleep(delay)
+                continue
+            detail = response.text[:200]
+            raise RuntimeError(
+                f"GPT-5 APIがエラーを返しました (HTTP {response.status_code}): {detail}"
+            )
+        if attempt < max_retries:
+            time.sleep(min(2 ** attempt, 10))
+        else:
+            raise last_error
 
     try:
         data = response.json()
@@ -184,18 +206,18 @@ with st.sidebar:
         track_usage(action="会話リセット", tool_name="GPT-5チャット")
         st.rerun()
 
-# 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
-user_prompt = st.chat_input("メッセージを入力")
-
-# ユーザーメッセージがあれば先に履歴に追加
-if user_prompt:
-    st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-
 # チャット履歴（ユーザーは右寄せ）をレンダリング
 _render_chat_history(st.session_state.chat_history)
 
-# API呼び出し（入力後すぐに実行）
+# 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
+user_prompt = st.chat_input("メッセージを入力")
+
+# ユーザーメッセージがあれば先に履歴に追加し、このターンで即描画
 if user_prompt:
+    st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+    _render_user_message(user_prompt)
+
+    # API呼び出し（入力後すぐに実行）
     messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
     messages_payload.extend(st.session_state.chat_history)
 
@@ -203,8 +225,12 @@ if user_prompt:
         try:
             reply = _call_gpt5(messages_payload, temperature, max_tokens, reasoning_effort)
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
+            with st.chat_message("assistant"):
+                st.markdown(reply)
             track_usage(action="メッセージ送信", tool_name="GPT-5チャット")
         except Exception as exc:
             error_msg = f"❌ エラー: {exc}"
             st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
+            with st.chat_message("assistant"):
+                st.markdown(error_msg)
             track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
