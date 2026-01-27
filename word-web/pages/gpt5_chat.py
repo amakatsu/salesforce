@@ -60,6 +60,7 @@ def _call_gpt5(
     max_tokens: int,
     reasoning_effort: str,
     max_retries: int = 3,
+    on_retry=None,
 ) -> str:
     """GPT-5 へチャットリクエストを送る"""
     base_url = os.getenv("OPENAI_BASE_URL", "")
@@ -102,6 +103,8 @@ def _call_gpt5(
                     delay = min(int(retry_after), 30)
                 else:
                     delay = min(2 ** attempt, 10)
+                if on_retry:
+                    on_retry(attempt + 1, max_retries, delay)
                 time.sleep(delay)
                 continue
             detail = response.text[:200]
@@ -109,7 +112,10 @@ def _call_gpt5(
                 f"GPT-5 APIがエラーを返しました (HTTP {response.status_code}): {detail}"
             )
         if attempt < max_retries:
-            time.sleep(min(2 ** attempt, 10))
+            delay = min(2 ** attempt, 10)
+            if on_retry:
+                on_retry(attempt + 1, max_retries, delay)
+            time.sleep(delay)
         else:
             raise last_error
 
@@ -169,6 +175,10 @@ if "system_prompt" not in st.session_state:
         "You are GPT-5, a helpful assistant for Japanese developers. Reply in Japanese unless code or"
         " technical keywords require English."
     )
+if "is_processing" not in st.session_state:
+    st.session_state.is_processing = False
+if "pending_prompt" not in st.session_state:
+    st.session_state.pending_prompt = ""
 track_usage(action="ページ訪問", tool_name="GPT-5チャット")
 
 with st.sidebar:
@@ -188,33 +198,55 @@ with st.sidebar:
         track_usage(action="会話リセット", tool_name="GPT-5チャット")
         st.rerun()
 
-# チャット履歴表示用のプレースホルダー（入力欄より上に配置）
-# チャット履歴表示用のプレースホルダー
-history_placeholder = st.empty()
+# チャット履歴（最小装飾）
+_render_chat_history(st.session_state.chat_history)
 
-def _render_history_now() -> None:
-    with history_placeholder.container():
-        _render_chat_history(st.session_state.chat_history)
+# リトライ状況表示
+retry_status = st.empty()
+
+def _on_submit() -> None:
+    prompt = st.session_state.get("user_input", "")
+    if not prompt or st.session_state.is_processing:
+        return
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    st.session_state.pending_prompt = prompt
+    st.session_state.is_processing = True
 
 # 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
-user_prompt = st.chat_input("メッセージを入力")
+st.chat_input(
+    "メッセージを入力",
+    key="user_input",
+    disabled=st.session_state.is_processing,
+    on_submit=_on_submit,
+)
 
-# ユーザーメッセージがあれば履歴に追加し、同ターンでAPI応答まで取得
-if user_prompt:
-    st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-    _render_history_now()
-
+# 送信済みプロンプトがあればAPI応答まで取得
+if st.session_state.is_processing and st.session_state.pending_prompt:
     messages_payload = _build_messages_payload(
         st.session_state.chat_history, st.session_state.system_prompt
     )
+
+    def _on_retry(attempt: int, max_retries: int, delay: int) -> None:
+        retry_status.info(f"⚠️ 429/一時エラーのため再試行 {attempt}/{max_retries}（{delay}秒後）")
+
     with st.spinner("GPT-5 が考えています…"):
         try:
-            reply = _call_gpt5(messages_payload, temperature, max_tokens, reasoning_effort)
+            reply = _call_gpt5(
+                messages_payload,
+                temperature,
+                max_tokens,
+                reasoning_effort,
+                on_retry=_on_retry,
+            )
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
             track_usage(action="メッセージ送信", tool_name="GPT-5チャット")
         except Exception as exc:
             error_msg = f"❌ エラー: {exc}"
             st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
             track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
-
-_render_history_now()
+        finally:
+            retry_status.empty()
+            st.session_state.is_processing = False
+            st.session_state.pending_prompt = ""
+            st.session_state.user_input = ""
+            st.rerun()
