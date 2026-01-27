@@ -7,7 +7,6 @@ GPT-5 チャットページ
 import json
 import os
 import time
-from html import escape
 from pathlib import Path
 from typing import List, Dict
 
@@ -29,29 +28,13 @@ from pages.util.usage_tracker import track_usage  # noqa: E402
 # 表示用ヘルパー
 # =============================================================================
 
-def _render_user_message(content: str) -> None:
-    """ユーザー側メッセージを右寄せで描画"""
-    safe = escape(content).replace("\n", "<br>")
-    st.markdown(
-        f"""
-        <div class="user-row">
-            <div class="user-bubble">{safe}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def _render_chat_history(history: List[Dict[str, str]]) -> None:
     """これまでの履歴を描画"""
     for message in history:
         role = message.get("role", "assistant")
         content = message.get("content", "")
-        if role == "user":
-            _render_user_message(content)
-        else:
-            with st.chat_message(role):
-                st.markdown(content)
+        with st.chat_message(role):
+            st.markdown(content)
 
 
 # =============================================================================
@@ -147,6 +130,20 @@ def _call_gpt5(
     return content
 
 
+def _build_messages_payload(history: List[Dict[str, str]], system_prompt: str) -> List[Dict[str, str]]:
+    """APIに渡すメッセージ配列を構築（systemを先頭に付与）"""
+    messages = [{"role": "system", "content": system_prompt}]
+    for message in history:
+        role = message.get("role")
+        content = message.get("content", "")
+        if not role or role == "system":
+            continue
+        if content == "":
+            continue
+        messages.append({"role": role, "content": content})
+    return messages
+
+
 # =============================================================================
 # Streamlit UI
 # =============================================================================
@@ -157,23 +154,8 @@ st.caption("APIへの疎通確認や動作チェックを行うための試験�
 st.markdown(
     """
     <style>
-    .user-row {
-        display: flex;
-        justify-content: flex-end;
-        width: 100%;
-        margin: 0.35rem 0;
-    }
-    .user-bubble {
-        background: linear-gradient(135deg, #93c5fd, #bfdbfe);
-        color: #0f172a;
-        padding: 0.75rem 1rem;
-        border-radius: 1rem 0.4rem 1rem 1rem;
-        max-width: 65%;
-        display: inline-block;
-        white-space: pre-wrap;
-        word-break: break-word;
-        text-align: left;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+    [data-testid="stChatMessage"] {
+        margin-bottom: 0.5rem;
     }
     </style>
     """,
@@ -206,31 +188,33 @@ with st.sidebar:
         track_usage(action="会話リセット", tool_name="GPT-5チャット")
         st.rerun()
 
-# チャット履歴（ユーザーは右寄せ）をレンダリング
-_render_chat_history(st.session_state.chat_history)
+# チャット履歴表示用のプレースホルダー（入力欄より上に配置）
+# チャット履歴表示用のプレースホルダー
+history_placeholder = st.empty()
+
+def _render_history_now() -> None:
+    with history_placeholder.container():
+        _render_chat_history(st.session_state.chat_history)
 
 # 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
 user_prompt = st.chat_input("メッセージを入力")
 
-# ユーザーメッセージがあれば先に履歴に追加し、このターンで即描画
+# ユーザーメッセージがあれば履歴に追加し、同ターンでAPI応答まで取得
 if user_prompt:
     st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-    _render_user_message(user_prompt)
+    _render_history_now()
 
-    # API呼び出し（入力後すぐに実行）
-    messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
-    messages_payload.extend(st.session_state.chat_history)
-
+    messages_payload = _build_messages_payload(
+        st.session_state.chat_history, st.session_state.system_prompt
+    )
     with st.spinner("GPT-5 が考えています…"):
         try:
             reply = _call_gpt5(messages_payload, temperature, max_tokens, reasoning_effort)
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
-            with st.chat_message("assistant"):
-                st.markdown(reply)
             track_usage(action="メッセージ送信", tool_name="GPT-5チャット")
         except Exception as exc:
             error_msg = f"❌ エラー: {exc}"
             st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
-            with st.chat_message("assistant"):
-                st.markdown(error_msg)
             track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
+
+_render_history_now()
