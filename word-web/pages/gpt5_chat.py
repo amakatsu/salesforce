@@ -204,21 +204,19 @@ _render_chat_history(st.session_state.chat_history)
 # リトライ状況表示
 retry_status = st.empty()
 
-def _on_submit() -> None:
-    prompt = st.session_state.get("user_input", "")
-    if not prompt or st.session_state.is_processing:
-        return
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
-    st.session_state.pending_prompt = prompt
-    st.session_state.is_processing = True
-
 # 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
-st.chat_input(
-    "メッセージを入力",
-    key="user_input",
-    disabled=st.session_state.is_processing,
-    on_submit=_on_submit,
-)
+user_prompt = None
+if st.session_state.is_processing:
+    st.caption("⏳ 応答待ち…")
+else:
+    user_prompt = st.chat_input("メッセージを入力")
+
+# 送信時: 履歴に追加して次のrerunでAPI呼び出し
+if user_prompt:
+    st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+    st.session_state.pending_prompt = user_prompt
+    st.session_state.is_processing = True
+    st.rerun()
 
 # 送信済みプロンプトがあればAPI応答まで取得
 if st.session_state.is_processing and st.session_state.pending_prompt:
@@ -248,5 +246,4 @@ if st.session_state.is_processing and st.session_state.pending_prompt:
             retry_status.empty()
             st.session_state.is_processing = False
             st.session_state.pending_prompt = ""
-            st.session_state.user_input = ""
             st.rerun()
