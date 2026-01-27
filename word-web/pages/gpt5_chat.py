@@ -184,9 +184,6 @@ with st.sidebar:
         track_usage(action="会話リセット", tool_name="GPT-5チャット")
         st.rerun()
 
-# チャット履歴表示用のコンテナ（入力欄より上に配置）
-history_container = st.container()
-
 # 入力欄: Streamlit標準のチャット入力を使用して常に下部に固定
 user_prompt = st.chat_input("メッセージを入力")
 
@@ -194,11 +191,10 @@ user_prompt = st.chat_input("メッセージを入力")
 if user_prompt:
     st.session_state.chat_history.append({"role": "user", "content": user_prompt})
 
-# チャット履歴（ユーザーは右寄せ）を先にレンダリング
-with history_container:
-    _render_chat_history(st.session_state.chat_history)
+# チャット履歴（ユーザーは右寄せ）をレンダリング
+_render_chat_history(st.session_state.chat_history)
 
-# API呼び出し（履歴レンダリング後）
+# API呼び出し（入力後すぐに実行）
 if user_prompt:
     messages_payload = [{"role": "system", "content": st.session_state.system_prompt}]
     messages_payload.extend(st.session_state.chat_history)
@@ -212,6 +208,3 @@ if user_prompt:
             error_msg = f"❌ エラー: {exc}"
             st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
             track_usage(action="エラー", tool_name="GPT-5チャット", username=str(exc))
-
-    # レスポンスを表示するために再実行
-    st.rerun()

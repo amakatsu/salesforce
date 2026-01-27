@@ -180,7 +180,7 @@ class PRAgentRunner:
                 settings.load_file(str(config_path))
                 Logger.info("✅ Dynaconfが設定ファイルを読み込みました")
 
-            settings.config.git_provider = 'gitlab'
+            settings.set('config.git_provider', 'gitlab')
 
             # TOMLファイルから直接設定を読み込んで強制適用
             Logger.info("=== PR-Agent 設定確認・強制適用 ===")
@@ -191,29 +191,38 @@ class PRAgentRunner:
 
                 # verbosity設定を強制適用
                 if 'config' in toml_config:
+                    model_value = None
                     if 'model' in toml_config['config']:
                         model_value = toml_config['config']['model']
-                        settings.config.model = model_value
+                        settings.set('config.model', model_value)
                         os.environ["OPENAI_MODEL"] = model_value
                         Logger.info(f"✅ model を強制設定: {model_value}")
 
                     if 'model_turbo' in toml_config['config']:
                         model_turbo_value = toml_config['config']['model_turbo']
-                        settings.config.model_turbo = model_turbo_value
+                        settings.set('config.model_turbo', model_turbo_value)
                         Logger.info(f"✅ model_turbo を強制設定: {model_turbo_value}")
-                    elif 'model' in toml_config['config']:
+                    elif model_value:
                         # model_turboが未設定の場合はmodelと同じ値を使用
-                        settings.config.model_turbo = toml_config['config']['model']
-                        Logger.info(f"✅ model_turbo を model と同じ値に設定: {toml_config['config']['model']}")
+                        settings.set('config.model_turbo', model_value)
+                        Logger.info(f"✅ model_turbo を model と同じ値に設定: {model_value}")
+
+                    # fallback_modelsも設定
+                    if 'fallback_models' in toml_config['config']:
+                        settings.set('config.fallback_models', toml_config['config']['fallback_models'])
+                        Logger.info(f"✅ fallback_models を強制設定: {toml_config['config']['fallback_models']}")
+                    elif model_value:
+                        settings.set('config.fallback_models', [model_value])
+                        Logger.info(f"✅ fallback_models を model と同じ値に設定: {[model_value]}")
 
                     if 'verbosity' in toml_config['config']:
                         verbosity_value = toml_config['config']['verbosity']
-                        settings.config.verbosity = verbosity_value
+                        settings.set('config.verbosity', verbosity_value)
                         Logger.info(f"✅ verbosity を強制設定: {verbosity_value}")
 
                     if 'verbosity_level' in toml_config['config']:
                         verbosity_level_value = toml_config['config']['verbosity_level']
-                        settings.config.verbosity_level = verbosity_level_value
+                        settings.set('config.verbosity_level', verbosity_level_value)
                         Logger.info(f"✅ verbosity_level を強制設定: {verbosity_level_value}")
 
                 # pr_reviewerセクションのextra_instructionsを取得
@@ -228,7 +237,7 @@ class PRAgentRunner:
                     # dynaconfで読み込めていない場合は直接設定
                     if not extra_inst_dynaconf or len(extra_inst_dynaconf) == 0:
                         Logger.warning("dynaconfがextra_instructionsを読み込めていません。直接設定します。")
-                        settings.pr_reviewer.extra_instructions = extra_inst_from_file
+                        settings.set('pr_reviewer.extra_instructions', extra_inst_from_file)
                         Logger.info(f"✅ extra_instructionsを直接設定しました（長さ: {len(extra_inst_from_file)}）")
                         Logger.info(f"プレビュー: {extra_inst_from_file[:200]}...")
                     else:
@@ -287,9 +296,7 @@ class PRAgentRunner:
             # GitLab Tokenを環境変数から取得
             gitlab_token = os.getenv('GITLAB_TOKEN', '')
             if gitlab_token:
-                if not hasattr(settings, 'gitlab'):
-                    settings.gitlab = {}
-                settings.gitlab.personal_access_token = gitlab_token
+                settings.set('gitlab.personal_access_token', gitlab_token)
                 Logger.info("GitLab Token設定完了")
             else:
                 Logger.warning("GITLAB_TOKEN環境変数が設定されていません")

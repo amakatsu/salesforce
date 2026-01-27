@@ -160,10 +160,9 @@ class OpenAIHandler(BaseCustomHandler):
 
         settings = get_settings()
 
-        # model priority: explicit arg > common.toml [config].model > .env OPENAI_MODEL
+        # model priority: common.toml [config].model > .env OPENAI_MODEL (ignore explicit arg)
         actual_model = (
-            model
-            or settings.config.get("model", "")
+            settings.config.get("model", "")
             or os.getenv("OPENAI_MODEL", "")
         )
         if not actual_model:
