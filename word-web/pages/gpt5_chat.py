@@ -153,16 +153,6 @@ st.markdown(
         text-align: left;
         box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
     }
-    .assistant-block {
-        padding: 0.35rem 0;
-    }
-    .chat-history-wrapper {
-        min-height: 55vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        padding-bottom: 0.5rem;
-    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -206,9 +196,7 @@ if user_prompt:
 
 # チャット履歴（ユーザーは右寄せ）を先にレンダリング
 with history_container:
-    st.markdown('<div class="chat-history-wrapper">', unsafe_allow_html=True)
     _render_chat_history(st.session_state.chat_history)
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # API呼び出し（履歴レンダリング後）
 if user_prompt:

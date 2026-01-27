@@ -2,6 +2,8 @@
 
 [config]
 model = "PBkBKGPT0SpkSub001OAI001MDL015"
+model_turbo = "PBkBKGPT0SpkSub001OAI001MDL015"
+fallback_models = ["PBkBKGPT0SpkSub001OAI001MDL015"]
 temperature = 1.0
 language = "ja"
 response_language = "ja-JP"

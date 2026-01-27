@@ -197,6 +197,15 @@ class PRAgentRunner:
                         os.environ["OPENAI_MODEL"] = model_value
                         Logger.info(f"✅ model を強制設定: {model_value}")
 
+                    if 'model_turbo' in toml_config['config']:
+                        model_turbo_value = toml_config['config']['model_turbo']
+                        settings.config.model_turbo = model_turbo_value
+                        Logger.info(f"✅ model_turbo を強制設定: {model_turbo_value}")
+                    elif 'model' in toml_config['config']:
+                        # model_turboが未設定の場合はmodelと同じ値を使用
+                        settings.config.model_turbo = toml_config['config']['model']
+                        Logger.info(f"✅ model_turbo を model と同じ値に設定: {toml_config['config']['model']}")
+
                     if 'verbosity' in toml_config['config']:
                         verbosity_value = toml_config['config']['verbosity']
                         settings.config.verbosity = verbosity_value
