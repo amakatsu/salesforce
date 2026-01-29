@@ -77,7 +77,6 @@ def _render_execution_params(params: dict):
                 st.write(f"- **モデル**: {params['gemini_model']}")
         else:
             st.write("- **AIプロバイダー**: OpenAI (Azure)")
-            st.write("- **モデル**: PBkBKGPT0SpkSub001OAI001MDL015")
 
     if params.get('selected_config'):
         st.write(f"- **設定**: {params['selected_config']}")

@@ -49,38 +49,38 @@ class OpenAIHandler(BaseCustomHandler):
         """OpenAI設定を初期化"""
 
         # ─────────────────────────────────────────────────────────
-        # OPENAI_HEADERS_JSON をパース
-        # .env: OPENAI_HEADERS_JSON={"api-key":"xxx","apim-user-id":"yyy"}
+        # 設定ソース: settings (toml) 優先、env はフォールバック
         # ─────────────────────────────────────────────────────────
-        self.parsed_headers = self._parse_headers_json()
+        custom_headers = settings.config.get("custom_headers", {})
+        if isinstance(custom_headers, str):
+            try:
+                custom_headers = json.loads(custom_headers)
+            except json.JSONDecodeError:
+                custom_headers = {}
 
-        # ─────────────────────────────────────────────────────────
-        # API Base URL
-        # .env: OPENAI_BASE_URL=http://170.49.125.91:54000
-        # ─────────────────────────────────────────────────────────
-        self.api_base = os.getenv("OPENAI_BASE_URL", "")
+        parsed_headers = custom_headers if isinstance(custom_headers, dict) else {}
+        self.parsed_headers = parsed_headers
+
+        self.api_base = settings.get("openai.api_base")
         if not self.api_base:
-            raise ValueError("OPENAI_BASE_URL is required in .env")
+            raise ValueError("openai.api_base is required")
 
-        # ─────────────────────────────────────────────────────────
-        # API Key
-        # .env: OPENAI_HEADERS_JSON の api-key
-        # ─────────────────────────────────────────────────────────
-        self.api_key = self.parsed_headers.get("api-key", "")
+        self.api_key = (
+            settings.get("openai.key")
+            or settings.config.get("openai_key")
+            or self.parsed_headers.get("api-key", "")
+        )
         if not self.api_key:
-            raise ValueError("api-key is required in OPENAI_HEADERS_JSON")
+            raise ValueError("openai.key or openai_key or api-key is required")
 
-        # ─────────────────────────────────────────────────────────
-        # User ID (Azure APIM認証用)
-        # .env: OPENAI_HEADERS_JSON の apim-user-id
-        # ─────────────────────────────────────────────────────────
-        self.user_id = self.parsed_headers.get("apim-user-id", "")
+        self.user_id = (
+            settings.get("openai.user_id")
+            or self.parsed_headers.get("apim-user-id", "")
+        )
 
-        # ─────────────────────────────────────────────────────────
-        # API Path
-        # .env: OPENAI_PATH (デフォルト: /api/curl/v2/chat/)
-        # ─────────────────────────────────────────────────────────
-        self.api_path = os.getenv("OPENAI_PATH", "/api/curl/v2/chat/")
+        self.api_path = settings.get("openai.path")
+        if not self.api_path:
+            raise ValueError("openai.path is required")
 
         # ログ出力
         full_url = self.api_base.rstrip('/') + self.api_path
@@ -93,17 +93,7 @@ class OpenAIHandler(BaseCustomHandler):
         """
         OPENAI_HEADERS_JSON をパース
         """
-        headers_json_str = os.getenv("OPENAI_HEADERS_JSON", "")
-        if not headers_json_str:
-            return {}
-
-        try:
-            parsed = json.loads(headers_json_str)
-            self.logger.info(f"Parsed OPENAI_HEADERS_JSON: {list(parsed.keys())}")
-            return parsed
-        except json.JSONDecodeError as e:
-            self.logger.warning(f"Failed to parse OPENAI_HEADERS_JSON: {e}")
-            return {}
+        return {}
 
     def _build_url(self, model: str = None) -> str:
         """APIエンドポイントURLを構築"""
@@ -161,12 +151,9 @@ class OpenAIHandler(BaseCustomHandler):
         settings = get_settings()
 
         # model priority: common.toml [config].model > .env OPENAI_MODEL (ignore explicit arg)
-        actual_model = (
-            settings.config.get("model", "")
-            or os.getenv("OPENAI_MODEL", "")
-        )
+        actual_model = settings.config.get("model", "")
         if not actual_model:
-            raise ValueError("Model is required (config.model or OPENAI_MODEL in .env)")
+            raise ValueError("Model is required (config.model)")
         self.logger.info(f"Using model: {actual_model}")
 
         # max_completion_tokens: common.toml [config] max_model_tokens
@@ -183,12 +170,12 @@ class OpenAIHandler(BaseCustomHandler):
             body["temperature"] = temperature
 
         # reasoning_effort: common.toml [config]
-        reasoning_effort = settings.config.get("reasoning_effort", "high")
+        reasoning_effort = settings.config.get("reasoning_effort", "low")
         if reasoning_effort:
             body["reasoning_effort"] = reasoning_effort
 
         # verbosity: common.toml [config]
-        verbosity = settings.config.get("verbosity", "high")
+        verbosity = settings.config.get("verbosity", "low")
         if verbosity:
             body["verbosity"] = verbosity
 

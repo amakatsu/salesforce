@@ -10,6 +10,9 @@ import os
 import json
 import importlib
 import uuid
+import subprocess
+from dataclasses import dataclass
+from typing import Dict
 from pathlib import Path
 from dotenv import load_dotenv
 from streamlit.runtime.scriptrunner import get_script_run_ctx
@@ -39,7 +42,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from word.pr_agent import (
     PRAgentRunner,
     ConfigManager,
-    Logger,
     UrlValidator,
     ConfigRepository,
 )
@@ -66,16 +68,106 @@ from pr_agent_components.ui_helpers import (
 # ヘルパー関数
 # =============================================================================
 
-def _render_openai_config():
+@dataclass
+class ExecutionContext:
+    """PR-Agent実行に必要なパラメータをまとめる"""
+    gitlab_token: str
+    gitlab_url: str | None
+    ai_provider: str
+    api_key: str
+    user_id: str | None
+    pr_url: str
+    pr_command: str
+    question: str
+    gemini_model: str
+    config_path: str | None
+    custom_prompt: str
+    selected_config: str
+    debug_level: int
+    verbosity_level: int
+    is_preview_mode: bool
+    session_id: str | None
+    resolved_config_file: str | None = None
+
+    @staticmethod
+    def from_ui(
+        gitlab_token, gitlab_url, ai_provider, api_key, user_id, pr_url,
+        pr_command, question, gemini_model, config_path, custom_prompt,
+        selected_config, debug_level, verbosity_level, is_preview_mode, session_id
+    ) -> "ExecutionContext":
+        return ExecutionContext(
+            gitlab_token=gitlab_token,
+            gitlab_url=gitlab_url if gitlab_url else None,
+            ai_provider=ai_provider,
+            api_key=api_key,
+            user_id=user_id,
+            pr_url=pr_url,
+            pr_command=pr_command,
+            question=question,
+            gemini_model=gemini_model,
+            config_path=config_path,
+            custom_prompt=custom_prompt,
+            selected_config=selected_config,
+            debug_level=debug_level,
+            verbosity_level=verbosity_level,
+            is_preview_mode=is_preview_mode,
+            session_id=session_id,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            'gitlab_token': self.gitlab_token,
+            'gitlab_url': self.gitlab_url,
+            'ai_provider': self.ai_provider,
+            'api_key': self.api_key,
+            'user_id': self.user_id,
+            'pr_url': self.pr_url,
+            'pr_command': self.pr_command,
+            'question': self.question,
+            'gemini_model': self.gemini_model,
+            'config_path': self.config_path,
+            'custom_prompt': self.custom_prompt,
+            'selected_config': self.selected_config,
+            'debug_level': self.debug_level,
+            'verbosity_level': self.verbosity_level,
+            'is_preview_mode': self.is_preview_mode,
+            'session_id': self.session_id,
+            'resolved_config_file': self.resolved_config_file,
+        }
+
+    @staticmethod
+    def from_dict(data: dict) -> "ExecutionContext":
+        return ExecutionContext(
+            gitlab_token=data.get('gitlab_token'),
+            gitlab_url=data.get('gitlab_url'),
+            ai_provider=data.get('ai_provider'),
+            api_key=data.get('api_key'),
+            user_id=data.get('user_id'),
+            pr_url=data.get('pr_url'),
+            pr_command=data.get('pr_command'),
+            question=data.get('question'),
+            gemini_model=data.get('gemini_model'),
+            config_path=data.get('config_path'),
+            custom_prompt=data.get('custom_prompt'),
+            selected_config=data.get('selected_config'),
+            debug_level=data.get('debug_level'),
+            verbosity_level=data.get('verbosity_level'),
+            is_preview_mode=data.get('is_preview_mode'),
+            session_id=data.get('session_id'),
+            resolved_config_file=data.get('resolved_config_file'),
+        )
+
+def _render_openai_config(default_api_key: str = "", default_user_id: str = ""):
     """OpenAI設定を表示"""
-    headers_json = os.getenv("OPENAI_HEADERS_JSON", "{}")
-    try:
-        headers_dict = json.loads(headers_json)
-        default_api_key = headers_dict.get("api-key", "")
-        default_user_id = headers_dict.get("apim-user-id", "")
-    except:
-        default_api_key = ""
-        default_user_id = ""
+    if not default_api_key or not default_user_id:
+        headers_json = os.getenv("OPENAI_HEADERS_JSON", "{}")
+        try:
+            headers_dict = json.loads(headers_json)
+            default_api_key = default_api_key or headers_dict.get("api-key", "")
+            default_user_id = default_user_id or headers_dict.get("apim-user-id", "")
+        except:
+            default_api_key = default_api_key or ""
+            default_user_id = default_user_id or ""
 
     api_key = st.text_input(
         "OpenAI APIキー",
@@ -93,17 +185,24 @@ def _render_openai_config():
     return api_key, user_id
 
 
-def _render_gemini_config():
+def _render_gemini_config(default_api_key: str = "", default_model: str = ""):
     """Gemini設定を表示"""
     api_key = st.text_input(
         "Gemini APIキー",
-        value=os.getenv("GEMINI_API_KEY", ""),
+        value=default_api_key or os.getenv("GEMINI_API_KEY", ""),
         help="Google Gemini APIのキーを入力してください"
     )
+
+    default_model = default_model or ""
+    if default_model in GEMINI_MODELS:
+        model_index = GEMINI_MODELS.index(default_model)
+    else:
+        model_index = 0
 
     gemini_model = st.selectbox(
         "Geminiモデル",
         GEMINI_MODELS,
+        index=model_index,
         help="使用するGeminiモデルを選択"
     )
 
@@ -137,58 +236,53 @@ def _extract_description(path):
         return Path(path).stem
 
 
-def _render_advanced_settings():
-    """詳細設定を表示"""
-    debug_level = 1
-    verbosity_level = 2
-    gitlab_url = None
-    custom_prompt = ""
-    with st.expander("🔧 詳細設定", expanded=False):
-        col1, col2 = st.columns(2)
+def _build_child_env(params: dict) -> Dict[str, str]:
+    """
+    子プロセスに渡す環境変数。
+    親プロセス(os.environ)は絶対に書き換えない。
+    """
+    env = os.environ.copy()
 
-        with col1:
-            st.markdown("#### 🔍 ログレベル")
-            debug_level = st.selectbox(
-                "ログ出力レベル",
-                options=[0, 1, 2],
-                index=1,
-                format_func=lambda x: {0: "エラーのみ", 1: "標準（推奨）", 2: "詳細"}[x],
-                help="0:エラーのみ / 1:進捗情報 / 2:デバッグ詳細"
-            )
-            verbosity_level = min(debug_level, 2)
-            st.caption("※ Verbosityは常にHigh (2) で固定されます。")
+    # 子プロセスが word.pr_agent を import できるように PYTHONPATH を通す
+    project_root = str(Path(__file__).parent.parent.parent)
+    env["PYTHONPATH"] = project_root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
 
-        with col2:
-            st.markdown("#### 🌐 GitLab URL")
-            default_gitlab_url = os.getenv("GITLAB_URL", "")
-            gitlab_url = st.text_input(
-                "GitLab URL（任意）",
-                value=default_gitlab_url,
-                placeholder="例: https://gitlab.example.com",
-                help="通常はMR URLから自動抽出されます"
-            )
+    return env
 
-        if gitlab_url:
-            normalized_url = UrlValidator.normalize_gitlab_url(gitlab_url)
-            if UrlValidator.validate_gitlab_url(normalized_url):
-                gitlab_url = normalized_url
-            else:
-                st.error("❌ 無効なGitLab URL")
-                gitlab_url = None
 
-        custom_prompt = st.text_area(
-            "📝 カスタムプロンプト（任意）",
-            placeholder="例: セキュリティ脆弱性を重点的にチェック",
-            height=80,
-            help="レビューに適用する追加の指示"
-        )
+def _load_prefill_from_toml(config_path: Path) -> dict:
+    """セッション用TOMLから初期表示値を読み取る（読み取りのみ）"""
+    try:
+        import toml
+        if not config_path.exists():
+            return {}
+        data = toml.load(str(config_path))
+    except Exception:
+        return {}
 
-    if st.session_state.get("spec_include_in_prompt") and st.session_state.get("spec_prompt_text"):
-        spec_prompt = st.session_state["spec_prompt_text"]
-        if spec_prompt not in custom_prompt:
-            custom_prompt = f"{custom_prompt}\n\n{spec_prompt}" if custom_prompt else spec_prompt
-    verbosity_level = 2
-    return debug_level, verbosity_level, gitlab_url, custom_prompt
+    gitlab = data.get("gitlab", {})
+    openai = data.get("openai", {})
+    gemini = data.get("gemini", {})
+    config = data.get("config", {})
+    custom_headers = config.get("custom_headers", {})
+
+    return {
+        "gitlab_token": gitlab.get("personal_access_token", ""),
+        "openai_api_key": (
+            config.get("openai_key")
+            or openai.get("key")
+            or custom_headers.get("api-key", "")
+        ),
+        "openai_user_id": (
+            openai.get("user_id")
+            or custom_headers.get("apim-user-id", "")
+        ),
+        "gemini_api_key": (
+            config.get("gemini_key")
+            or gemini.get("key")
+        ),
+        "gemini_model": config.get("model", ""),
+    }
 
 
 def _render_excel_spec_validator():
@@ -379,15 +473,37 @@ def _render_execute_buttons(gitlab_token, api_key, user_id, pr_url, ai_provider,
                             pr_command, question, gemini_model, config_path, custom_prompt,
                             selected_config, debug_level, verbosity_level, gitlab_url, runtime_config_manager):
     """実行ボタンを表示"""
-    # 実行状態の初期化
-    if 'is_running' not in st.session_state:
-        st.session_state.is_running = False
-    if 'execute_params' not in st.session_state:
-        st.session_state.execute_params = None
-    if 'log_text' not in st.session_state:
-        st.session_state.log_text = ""
-    if 'last_result' not in st.session_state:
-        st.session_state.last_result = None
+    def _init_execution_state():
+        if 'is_running' not in st.session_state:
+            st.session_state.is_running = False
+        if 'execute_params' not in st.session_state:
+            st.session_state.execute_params = None
+        if 'log_text' not in st.session_state:
+            st.session_state.log_text = ""
+        if 'last_result' not in st.session_state:
+            st.session_state.last_result = None
+
+    def _build_execute_params(is_preview_mode: bool) -> dict:
+        return ExecutionContext.from_ui(
+            gitlab_token,
+            gitlab_url,
+            ai_provider,
+            api_key,
+            user_id,
+            pr_url,
+            pr_command,
+            question,
+            gemini_model,
+            config_path,
+            custom_prompt,
+            selected_config,
+            debug_level,
+            verbosity_level,
+            is_preview_mode,
+            st.session_state.get("config_session_id"),
+        ).to_dict()
+
+    _init_execution_state()
 
     # ボタン有効/無効判定
     if ai_provider == "Gemini":
@@ -432,23 +548,7 @@ def _render_execute_buttons(gitlab_token, api_key, user_id, pr_url, ai_provider,
 
             st.session_state.log_text = ""
             st.session_state.last_result = None
-            st.session_state.execute_params = {
-                'gitlab_token': gitlab_token,
-                'gitlab_url': gitlab_url if gitlab_url else None,
-                'ai_provider': ai_provider,
-                'api_key': api_key,
-                'user_id': user_id,
-                'pr_url': pr_url,
-                'pr_command': pr_command,
-                'question': question,
-                'gemini_model': gemini_model,
-                'config_path': config_path,
-                'custom_prompt': custom_prompt,
-                'selected_config': selected_config,
-                'debug_level': debug_level,
-                'verbosity_level': verbosity_level,
-                'is_preview_mode': is_preview_mode
-            }
+            st.session_state.execute_params = _build_execute_params(is_preview_mode)
             st.session_state.is_running = True
             st.rerun()
 
@@ -481,16 +581,12 @@ def _execute_pr_agent(runtime_config_manager):
     import toml
     import concurrent.futures
 
-    params = st.session_state.execute_params
+    ctx = ExecutionContext.from_dict(st.session_state.execute_params)
     st.session_state.execute_params = None
 
     try:
-        # 環境変数設定
-        os.environ['GITLAB_TOKEN'] = params['gitlab_token']
-        os.environ['GIT_PROVIDER'] = 'gitlab'
-
         # API設定
-        api_config = _build_api_config(params)
+        api_config = _build_api_config(ctx)
 
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -499,21 +595,20 @@ def _execute_pr_agent(runtime_config_manager):
         status_text.text("⚙️ 設定ファイルを適用中...")
         progress_bar.progress(10)
 
-        config_applied = _apply_config(params, api_config, runtime_config_manager)
-
-        if not config_applied:
+        config_file_path = _apply_config(ctx, api_config, runtime_config_manager)
+        if not config_file_path:
             st.error("❌ 設定ファイルの適用に失敗しました")
             st.session_state.is_running = False
             return
 
-        config_file_path = runtime_config_manager.config_file
+        params = ctx.to_dict()
         params['resolved_config_file'] = str(config_file_path)
         status_text.text(f"✅ 設定ファイルを適用しました")
 
         # 設定表示
-        _display_applied_config(params, config_file_path)
+        _display_applied_config(ctx, config_file_path)
 
-        status_text.text(f"🔄 PR-Agent {params['pr_command']} コマンドを実行中...")
+        status_text.text(f"🔄 PR-Agent {ctx.pr_command} コマンドを実行中...")
         progress_bar.progress(30)
 
         st.info("💡 **実行中の操作:** 途中で中断したい場合は、ブラウザをリロード（F5キー）してください。")
@@ -527,7 +622,12 @@ def _execute_pr_agent(runtime_config_manager):
             result_placeholder = st.empty()
 
         # PR-Agent実行
-        result, log_lines = _run_pr_agent(params, log_placeholder)
+        if not params.get('resolved_config_file'):
+            st.error("❌ 設定ファイルパスが解決できませんでした")
+            st.session_state.is_running = False
+            return
+        ctx.resolved_config_file = str(config_file_path)
+        result, log_lines = _run_pr_agent(ctx, log_placeholder)
 
         progress_bar.progress(100)
 
@@ -540,15 +640,15 @@ def _execute_pr_agent(runtime_config_manager):
             'warnings': warnings,
             'errors': [] if result else errors,
             'params': {
-                'pr_command': params['pr_command'],
-                'pr_url': params['pr_url'],
-                'gitlab_url': params.get('gitlab_url'),
-                'ai_provider': params['ai_provider'],
-                'gemini_model': params.get('gemini_model'),
-                'selected_config': params.get('selected_config', 'デフォルト'),
-                'question': params.get('question'),
-                'custom_prompt': params.get('custom_prompt'),
-                'is_preview_mode': params.get('is_preview_mode')
+                'pr_command': ctx.pr_command,
+                'pr_url': ctx.pr_url,
+                'gitlab_url': ctx.gitlab_url,
+                'ai_provider': ctx.ai_provider,
+                'gemini_model': ctx.gemini_model,
+                'selected_config': ctx.selected_config or 'デフォルト',
+                'question': ctx.question,
+                'custom_prompt': ctx.custom_prompt,
+                'is_preview_mode': ctx.is_preview_mode
             }
         }
 
@@ -568,63 +668,61 @@ def _execute_pr_agent(runtime_config_manager):
         st.exception(e)
 
 
-def _build_api_config(params):
-    """API設定を構築"""
-    if params['ai_provider'] == "Gemini":
-        os.environ['AI_PROVIDER'] = 'google'
-        os.environ['GEMINI_API_KEY'] = params['api_key']
-        os.environ['GEMINI_MODEL'] = params['gemini_model']
+def _build_api_config(ctx: ExecutionContext):
+    """API設定を構築（※親プロセスのos.environは変更しない）"""
+    if ctx.ai_provider == "Gemini":
         return {
             'provider': 'gemini',
-            'api_key': params['api_key'],
-            'model': params['gemini_model']
+            'api_key': ctx.api_key,
+            'model': ctx.gemini_model
         }
     else:
         base_url = os.getenv("OPENAI_BASE_URL", "")
         api_path = os.getenv("OPENAI_PATH", "/chat/completions")
-        os.environ.pop('GEMINI_API_KEY', None)
-        os.environ.pop('GEMINI_MODEL', None)
-        os.environ['AI_PROVIDER'] = 'openai'
         return {
             'provider': 'openai',
-            'api_key': params['api_key'],
+            'api_key': ctx.api_key,
             'base_url': base_url,
             'api_path': api_path,
-            'user_id': params['user_id'],
+            'user_id': ctx.user_id,
             'custom_headers': {
-                'api-key': params['api_key'],
-                'apim-user-id': params['user_id']
+                'api-key': ctx.api_key,
+                'apim-user-id': ctx.user_id
             }
         }
 
 
-def _apply_config(params, api_config, runtime_config_manager):
-    """設定を適用"""
-    gitlab_url_param = params.get('gitlab_url')
+def _apply_config(ctx: ExecutionContext, api_config, runtime_config_manager) -> Path | None:
+    """設定を適用してconfigファイルのパスを返す"""
+    gitlab_url_param = ctx.gitlab_url
+    gitlab_token_param = ctx.gitlab_token
 
-    if params['config_path']:
-        return runtime_config_manager.apply_config(
-            params['config_path'],
-            params['custom_prompt'],
+    if ctx.config_path:
+        ok = runtime_config_manager.apply_config(
+            ctx.config_path,
+            ctx.custom_prompt,
             api_config,
             gitlab_url=gitlab_url_param,
-            verbosity=params.get('verbosity_level', 1),
-            preview_mode=params.get('is_preview_mode', False),
-            pr_command=params['pr_command']
+            gitlab_token=gitlab_token_param,
+            verbosity=ctx.verbosity_level,
+            preview_mode=ctx.is_preview_mode,
+            pr_command=ctx.pr_command
         )
-    else:
-        runtime_config_manager.create_default_config(
-            params['custom_prompt'],
-            api_config,
-            gitlab_url=gitlab_url_param,
-            verbosity=params.get('verbosity_level', 1),
-            preview_mode=params.get('is_preview_mode', False),
-            pr_command=params['pr_command']
-        )
-        return True
+        return runtime_config_manager.config_file if ok else None
+
+    runtime_config_manager.create_default_config(
+        ctx.custom_prompt,
+        api_config,
+        gitlab_url=gitlab_url_param,
+        gitlab_token=gitlab_token_param,
+        verbosity=ctx.verbosity_level,
+        preview_mode=ctx.is_preview_mode,
+        pr_command=ctx.pr_command
+    )
+    return runtime_config_manager.config_file
 
 
-def _display_applied_config(params, config_file_path):
+def _display_applied_config(ctx: ExecutionContext, config_file_path):
     """適用された設定を表示"""
     import toml
 
@@ -632,43 +730,26 @@ def _display_applied_config(params, config_file_path):
         with open(config_file_path, 'r', encoding='utf-8') as f:
             applied_config = toml.load(f)
 
-        relevant_sections = COMMAND_SECTION_MAP.get(params['pr_command'], [])
+        relevant_sections = COMMAND_SECTION_MAP.get(ctx.pr_command, [])
         filtered_config = {s: applied_config[s] for s in relevant_sections if s in applied_config}
 
-        if params.get('is_preview_mode'):
+        if ctx.is_preview_mode:
             st.info("💡 プレビューモードで実行されます（GitLabに投稿されません）")
 
-        with st.expander(f"📄 適用された設定 ({params['pr_command']}コマンド用)", expanded=False):
+        with st.expander(f"📄 適用された設定 ({ctx.pr_command}コマンド用)", expanded=False):
             if relevant_sections:
-                st.info(f"💡 {params['pr_command']}コマンドに関連する設定のみ表示")
+                st.info(f"💡 {ctx.pr_command}コマンドに関連する設定のみ表示")
                 st.code(toml.dumps(filtered_config), language="toml")
     except Exception as e:
         st.warning(f"設定の読み込みに失敗しました: {e}")
 
 
-def _run_pr_agent(params, log_placeholder):
-    """PR-Agentを実行してログを取得"""
-    import sys
-    import io
+def _run_pr_agent(ctx: ExecutionContext, log_placeholder):
+    """PR-Agentを子プロセスで実行してログを取得（セッション分離）"""
     import time
-    import concurrent.futures
 
     log_lines = []
-
-    class OutputCapture:
-        def __init__(self, original_stream):
-            self.original_stream = original_stream
-
-        def write(self, text):
-            self.original_stream.write(text)
-            self.original_stream.flush()
-            if text.strip():
-                log_lines.append(text.rstrip())
-                if len(log_lines) > 100:
-                    log_lines.pop(0)
-
-        def flush(self):
-            self.original_stream.flush()
+    session_id = ctx.session_id or st.session_state.get("config_session_id")
 
     def update_log_display(text):
         st.session_state.log_text = text
@@ -677,58 +758,98 @@ def _run_pr_agent(params, log_placeholder):
         else:
             log_placeholder.info("実行ログはここに表示されます")
 
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    sys.stdout = OutputCapture(old_stdout)
-    sys.stderr = OutputCapture(old_stderr)
+    # 子プロセスに渡すenv（トークン分離の核心）
+    child_env = _build_child_env(ctx.to_dict())
+
+    # 子プロセスで PRAgentRunner.run_sync を呼ぶワンショットコード
+    # 返り値は sentinel 行で JSON 返却して親が判定する
+    child_code = r"""
+import json, sys, traceback
+from word.pr_agent import PRAgentRunner
+
+p = json.loads(sys.argv[1])
+extra_args = p.get("extra_args", [])
+try:
+    ok = PRAgentRunner.run_sync(
+        p["pr_url"],
+        p["pr_command"],
+        extra_args,
+        p.get("config_file"),
+        p.get("gitlab_url"),
+        p.get("debug_level", 1),
+        p.get("session_id"),
+    )
+    print("__PR_AGENT_RESULT__=" + json.dumps({"ok": bool(ok)}), flush=True)
+except Exception as e:
+    traceback.print_exc()
+    print("__PR_AGENT_RESULT__=" + json.dumps({"ok": False, "error": str(e)}), flush=True)
+    sys.exit(1)
+"""
+
+    extra_args = []
+    if ctx.pr_command == "ask" and ctx.question:
+        extra_args.append(ctx.question)
+
+    payload = {
+        "pr_url": ctx.pr_url,
+        "pr_command": ctx.pr_command,
+        "extra_args": extra_args,
+        "config_file": ctx.resolved_config_file,
+        "gitlab_url": ctx.gitlab_url,
+        "debug_level": ctx.debug_level or 1,
+        "session_id": session_id,
+    }
+
+    proc = subprocess.Popen(
+        [sys.executable, "-c", child_code, json.dumps(payload, ensure_ascii=False)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        env=child_env,
+    )
+
+    result_ok = False
+    sentinel = "__PR_AGENT_RESULT__="
 
     try:
-        ctx = get_script_run_ctx()
-        session_id = ctx.session_id if ctx else None
+        # ストリーミングでログ表示（このセッションだけに蓄積）
+        while True:
+            line = proc.stdout.readline() if proc.stdout else ""
+            if not line:
+                if proc.poll() is not None:
+                    break
+                time.sleep(0.1)
+                continue
 
-        if session_id:
-            Logger.clear_session_logs(session_id)
+            line = line.rstrip("\n")
+            if line:
+                log_lines.append(line)
+                if len(log_lines) > 500:
+                    log_lines.pop(0)
 
-        extra_args = []
-        if params['pr_command'] == "ask" and params['question']:
-            extra_args.append(params['question'])
+                # sentinel判定
+                if line.startswith(sentinel):
+                    try:
+                        data = json.loads(line[len(sentinel):])
+                        result_ok = bool(data.get("ok"))
+                    except Exception:
+                        pass
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(
-                PRAgentRunner.run_sync,
-                params['pr_url'],
-                params['pr_command'],
-                extra_args,
-                params.get('resolved_config_file'),
-                params.get('gitlab_url'),
-                params.get('debug_level', 1),
-                session_id,
-            )
+                update_log_display("\n".join(log_lines))
 
-            while not future.done():
-                if session_id:
-                    session_logs = Logger.get_session_logs(session_id)
-                    if session_logs:
-                        log_text = '\n'.join([log['message'] for log in session_logs])
-                        update_log_display(log_text)
-                elif log_lines:
-                    update_log_display('\n'.join(log_lines))
-                time.sleep(0.5)
-
-            result = future.result()
-
-        # 最終ログ
-        if session_id:
-            session_logs = Logger.get_session_logs(session_id)
-            if session_logs:
-                log_lines = [log['message'] for log in session_logs]
-                update_log_display('\n'.join(log_lines))
-
-        return result, log_lines
+        proc.wait()
 
     finally:
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
+        try:
+            if proc.stdout:
+                proc.stdout.close()
+        except Exception:
+            pass
+
+    # 最終表示
+    update_log_display("\n".join(log_lines))
+    return result_ok, log_lines
 
 
 # =============================================================================
@@ -765,6 +886,12 @@ if 'config_session_id' not in st.session_state:
 runtime_config_manager = ConfigManager(session_id=st.session_state.config_session_id)
 config_repo = ConfigRepository()
 
+if "prefill_loaded" not in st.session_state:
+    st.session_state.prefill_loaded = True
+    # セッション専用のtomlから初期値を読み取る（共有ファイルの混線を避ける）
+    st.session_state.prefill_values = _load_prefill_from_toml(runtime_config_manager.config_file)
+prefill_values = st.session_state.get("prefill_values", {})
+
 with st.sidebar:
     apply_sidebar_styles()
 
@@ -783,7 +910,7 @@ with st.sidebar:
     # GitLab Token
     gitlab_token = st.text_input(
         "🔑 GitLab Token",
-        value=os.getenv("GITLAB_TOKEN", ""),
+        value=prefill_values.get("gitlab_token") or os.getenv("GITLAB_TOKEN", ""),
         type="password",
         help="GitLabアクセストークン（api scope必須）"
     )
@@ -793,9 +920,15 @@ with st.sidebar:
     user_id = None
 
     if ai_provider == "OpenAI (Azure)":
-        api_key, user_id = _render_openai_config()
+        api_key, user_id = _render_openai_config(
+            default_api_key=prefill_values.get("openai_api_key", ""),
+            default_user_id=prefill_values.get("openai_user_id", "")
+        )
     else:
-        api_key, gemini_model = _render_gemini_config()
+        api_key, gemini_model = _render_gemini_config(
+            default_api_key=prefill_values.get("gemini_api_key", ""),
+            default_model=prefill_values.get("gemini_model", "")
+        )
 
     st.markdown("---")
 
@@ -855,8 +988,13 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # 詳細設定
-    debug_level, verbosity_level, gitlab_url, custom_prompt = _render_advanced_settings()
+    # 詳細設定は固定値で使用
+    debug_level = 1
+    verbosity_level = 2
+    gitlab_url = None
+    custom_prompt = ""
+    if st.session_state.get("spec_include_in_prompt") and st.session_state.get("spec_prompt_text"):
+        custom_prompt = st.session_state["spec_prompt_text"]
 
 
 # =============================================================================

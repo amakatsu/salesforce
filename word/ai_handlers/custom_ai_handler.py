@@ -31,10 +31,11 @@ class CustomAzureAIHandler:
         self.logger = get_logger()
         settings = get_settings()
 
-        # プロバイダー判定
+        # プロバイダー判定（settings優先、envはフォールバック）
         self.provider = (
+            settings.config.get("ai_provider", "").lower() or
             os.getenv("AI_PROVIDER", "").lower() or
-            settings.config.get("ai_provider", "openai").lower()
+            "openai"
         )
         self.logger.info(f"CustomAzureAIHandler: provider={self.provider}")
 

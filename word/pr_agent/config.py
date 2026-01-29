@@ -13,7 +13,7 @@ from .utils import Logger, Colors
 
 
 class ConfigManager:
-    """設定ファイル管理クラス"""
+    """設定ファイル管理クラス（セッション分離対応）"""
 
     def __init__(self, session_id: Optional[str] = None):
         resolved_path = Path(__file__).resolve()
@@ -24,18 +24,19 @@ class ConfigManager:
         else:
             self.project_root = Path.cwd()
 
-        # 各セッション用の設定ファイルを分離する
+        # 各セッション用の設定ファイルを分離する（同一プロセス内の混線防止）
         self.session_id = session_id
         self.global_config_file = self.project_root / ".pr_agent.toml"
         self.global_backup_file = self.project_root / ".pr_agent.toml.backup"
         self.sessions_dir = self.project_root / ".pr_agent_sessions"
 
         if self.session_id:
-            # セッション用ディレクトリを作成し、専用の設定＋バックアップファイルを割り当てる
+            # セッション単位の設定ファイル（ユーザ間のトークン混線を防ぐ）
             self.sessions_dir.mkdir(parents=True, exist_ok=True)
             self.config_file = self.sessions_dir / f"{self.session_id}.toml"
             self.backup_file = self.sessions_dir / f"{self.session_id}.toml.backup"
         else:
+            # セッションIDがない場合は共有設定ファイルを使用
             self.config_file = self.global_config_file
             self.backup_file = self.global_backup_file
 
@@ -49,7 +50,7 @@ class ConfigManager:
         self.common_config_path = configs_base / "common.toml"
 
     def _seed_session_config(self) -> None:
-        """共有設定をベースにセッションファイルを作成／更新"""
+        """共有設定をベースにセッションファイルを作成／更新（初期値の引き継ぎ用）"""
         if not self.session_id:
             return
 
@@ -70,13 +71,8 @@ class ConfigManager:
 
     def _sync_shared_config(self) -> None:
         """セッションファイルでマージした結果を .pr_agent.toml に反映"""
-        if not self.session_id:
-            return
-
-        try:
-            shutil.copy(self.config_file, self.global_config_file)
-        except Exception as e:
-            Logger.warning(f"共有設定への同期に失敗: {e}")
+        # 共有ファイルへの同期は競合要因になるため無効化
+        return
 
     def backup_current_config(self) -> bool:
         """現在の設定をバックアップ"""
@@ -95,7 +91,7 @@ class ConfigManager:
             return True
         return False
 
-    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> bool:
+    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, gitlab_token: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> bool:
         """指定された設定ファイルを適用（共通設定とマージ）"""
         config_file = Path(config_path)
 
@@ -110,8 +106,8 @@ class ConfigManager:
         merged_config.setdefault('config', {})['temperature'] = 1.0
         merged_config['config']['max_model_tokens'] = 8192
         merged_config['config']['custom_model_max_tokens'] = 8192
-        merged_config['config']['reasoning_effort'] = "high"
-        merged_config['config']['verbosity'] = "high"
+        merged_config['config']['reasoning_effort'] = "low"
+        merged_config['config']['verbosity'] = "low"
         merged_config['config']['verbosity_level'] = 2
 
         # API設定を追加
@@ -121,6 +117,10 @@ class ConfigManager:
         # GitLab URL設定を追加
         if gitlab_url:
             merged_config = self._inject_gitlab_url(merged_config, gitlab_url)
+
+        # GitLab Token設定を追加
+        if gitlab_token:
+            merged_config = self._inject_gitlab_token(merged_config, gitlab_token)
 
         # Verbosity設定を追加
         if verbosity is not None:
@@ -149,7 +149,7 @@ class ConfigManager:
 
         return True
 
-    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> None:
+    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, gitlab_token: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> None:
         """デフォルト設定ファイルを作成（共通設定ベース）"""
         self.backup_current_config()
 
@@ -171,6 +171,10 @@ class ConfigManager:
             # GitLab URL設定を追加
             if gitlab_url:
                 common_config = self._inject_gitlab_url(common_config, gitlab_url)
+
+            # GitLab Token設定を追加
+            if gitlab_token:
+                common_config = self._inject_gitlab_token(common_config, gitlab_token)
 
             # Verbosity設定を追加
             if verbosity is not None:
@@ -378,6 +382,8 @@ num_code_suggestions = 4
             if 'openai' not in config:
                 config['openai'] = {}
 
+            config['config']['ai_provider'] = 'openai'
+
             # OpenAI API Key
             if 'api_key' in api_config:
                 config['config']['openai_key'] = api_config['api_key']
@@ -385,7 +391,6 @@ num_code_suggestions = 4
 
             # OpenAI Base URL (Azure OpenAI用)
             if 'base_url' in api_config:
-                config['config']['ai_provider'] = 'openai'
                 config['openai']['api_base'] = api_config['base_url']
 
             # User ID (Azure APIM用)
@@ -419,6 +424,16 @@ num_code_suggestions = 4
         config['gitlab']['url'] = normalized_url
 
         Logger.info(f"GitLab URL設定を適用: {normalized_url}")
+
+        return config
+
+    def _inject_gitlab_token(self, config: Dict, gitlab_token: str) -> Dict:
+        """GitLab Tokenを設定ファイルに注入"""
+        if 'gitlab' not in config:
+            config['gitlab'] = {}
+
+        config['gitlab']['personal_access_token'] = gitlab_token
+        Logger.info("GitLab Token設定を適用")
 
         return config
 
