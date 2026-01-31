@@ -83,7 +83,6 @@ class ExecutionContext:
     config_path: str | None
     custom_prompt: str
     selected_config: str
-    debug_level: int
     verbosity_level: int
     is_preview_mode: bool
     session_id: str | None
@@ -93,7 +92,7 @@ class ExecutionContext:
     def from_ui(
         gitlab_token, gitlab_url, ai_provider, api_key, user_id, pr_url,
         pr_command, question, gemini_model, config_path, custom_prompt,
-        selected_config, debug_level, verbosity_level, is_preview_mode, session_id
+        selected_config, verbosity_level, is_preview_mode, session_id
     ) -> "ExecutionContext":
         return ExecutionContext(
             gitlab_token=gitlab_token,
@@ -108,7 +107,6 @@ class ExecutionContext:
             config_path=config_path,
             custom_prompt=custom_prompt,
             selected_config=selected_config,
-            debug_level=debug_level,
             verbosity_level=verbosity_level,
             is_preview_mode=is_preview_mode,
             session_id=session_id,
@@ -128,7 +126,6 @@ class ExecutionContext:
             'config_path': self.config_path,
             'custom_prompt': self.custom_prompt,
             'selected_config': self.selected_config,
-            'debug_level': self.debug_level,
             'verbosity_level': self.verbosity_level,
             'is_preview_mode': self.is_preview_mode,
             'session_id': self.session_id,
@@ -150,7 +147,6 @@ class ExecutionContext:
             config_path=data.get('config_path'),
             custom_prompt=data.get('custom_prompt'),
             selected_config=data.get('selected_config'),
-            debug_level=data.get('debug_level'),
             verbosity_level=data.get('verbosity_level'),
             is_preview_mode=data.get('is_preview_mode'),
             session_id=data.get('session_id'),
@@ -242,6 +238,9 @@ def _build_child_env(params: dict) -> Dict[str, str]:
     親プロセス(os.environ)は絶対に書き換えない。
     """
     env = os.environ.copy()
+
+    # 子プロセスの出力バッファリングを無効化
+    env["PYTHONUNBUFFERED"] = "1"
 
     # 子プロセスが word.pr_agent を import できるように PYTHONPATH を通す
     project_root = str(Path(__file__).parent.parent.parent)
@@ -471,7 +470,7 @@ def _render_project_selector(gitlab_token):
 
 def _render_execute_buttons(gitlab_token, api_key, user_id, pr_url, ai_provider,
                             pr_command, question, gemini_model, config_path, custom_prompt,
-                            selected_config, debug_level, verbosity_level, gitlab_url, runtime_config_manager):
+                            selected_config, verbosity_level, gitlab_url, runtime_config_manager):
     """実行ボタンを表示"""
     def _init_execution_state():
         if 'is_running' not in st.session_state:
@@ -497,7 +496,6 @@ def _render_execute_buttons(gitlab_token, api_key, user_id, pr_url, ai_provider,
             config_path,
             custom_prompt,
             selected_config,
-            debug_level,
             verbosity_level,
             is_preview_mode,
             st.session_state.get("config_session_id"),
@@ -748,13 +746,28 @@ def _run_pr_agent(ctx: ExecutionContext, log_placeholder):
     """PR-Agentを子プロセスで実行してログを取得（セッション分離）"""
     import time
 
+    import re
     log_lines = []
     session_id = ctx.session_id or st.session_state.get("config_session_id")
+
+    # ANSIエスケープコードを除去する正規表現
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+    def strip_ansi(text):
+        return ansi_escape.sub('', text)
 
     def update_log_display(text):
         st.session_state.log_text = text
         if text:
-            log_placeholder.text(text)
+            # key重複エラーを避けるため、毎回ユニークなkeyを生成
+            unique_key = f"log_display_{uuid.uuid4().hex[:8]}"
+            log_placeholder.text_area(
+                "実行ログ",
+                strip_ansi(text),
+                height=700,
+                disabled=True,
+                key=unique_key
+            )
         else:
             log_placeholder.info("実行ログはここに表示されます")
 
@@ -776,7 +789,6 @@ try:
         extra_args,
         p.get("config_file"),
         p.get("gitlab_url"),
-        p.get("debug_level", 1),
         p.get("session_id"),
     )
     print("__PR_AGENT_RESULT__=" + json.dumps({"ok": bool(ok)}), flush=True)
@@ -796,7 +808,6 @@ except Exception as e:
         "extra_args": extra_args,
         "config_file": ctx.resolved_config_file,
         "gitlab_url": ctx.gitlab_url,
-        "debug_level": ctx.debug_level or 1,
         "session_id": session_id,
     }
 
@@ -807,6 +818,8 @@ except Exception as e:
         text=True,
         bufsize=1,
         env=child_env,
+        encoding="utf-8",
+        errors="replace",
     )
 
     result_ok = False
@@ -825,7 +838,7 @@ except Exception as e:
             line = line.rstrip("\n")
             if line:
                 log_lines.append(line)
-                if len(log_lines) > 500:
+                if len(log_lines) > 2000:
                     log_lines.pop(0)
 
                 # sentinel判定
@@ -989,7 +1002,6 @@ with st.sidebar:
     st.markdown("---")
 
     # 詳細設定は固定値で使用
-    debug_level = 1
     verbosity_level = 2
     gitlab_url = None
     custom_prompt = ""
@@ -1019,7 +1031,7 @@ st.markdown("---")
 _render_execute_buttons(
     gitlab_token, api_key, user_id, pr_url, ai_provider,
     pr_command, question, gemini_model, config_path, custom_prompt,
-    selected_config, debug_level, verbosity_level, gitlab_url, runtime_config_manager
+    selected_config, verbosity_level, gitlab_url, runtime_config_manager
 )
 
 # フッター

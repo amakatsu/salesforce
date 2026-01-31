@@ -67,7 +67,8 @@ class PRAgentRunner:
     def _resolve_config_path(project_root: Path, settings_path: Optional[str]) -> Path:
         if settings_path:
             return Path(settings_path).resolve(strict=False)
-        return project_root / ".pr_agent.toml"
+        # マルチユーザー環境での競合防止のため、settings_path は必須
+        raise ValueError("settings_path is required for multi-user safety")
 
     @staticmethod
     def _write_gitlab_url_to_config(config_path: Path, gitlab_url: str) -> None:
@@ -100,11 +101,9 @@ class PRAgentRunner:
         return settings
 
     @staticmethod
-    def _reset_logger(settings, pr_agent_log_level: str, debug_level: Optional[int]) -> str:
+    def _reset_logger(settings, pr_agent_log_level: str) -> str:
         from pr_agent.log import setup_logger
         final_log_level = settings.get("config.log_level") if settings.get("config.log_level") else pr_agent_log_level
-        if debug_level is not None:
-            final_log_level = pr_agent_log_level
         setup_logger(level=final_log_level)
         return final_log_level
 
@@ -144,7 +143,6 @@ class PRAgentRunner:
         extra_args: Optional[List[str]] = None,
         settings_path: Optional[str] = None,
         gitlab_url: Optional[str] = None,
-        debug_level: Optional[int] = None,
         session_id: Optional[str] = None
     ) -> bool:
         """PR-Agentを実行
@@ -166,17 +164,8 @@ class PRAgentRunner:
         changed_cwd = False
 
         try:
-            # デバッグレベル設定（ツールのログ出力 + PR-Agentログレベル）
-            pr_agent_log_level = "WARNING"  # デフォルト: 警告以上のみ
-            if debug_level is not None:
-                Logger.set_debug_level(debug_level)
-                # debug_levelに応じてPR-Agentのログレベルを設定
-                if debug_level >= 2:
-                    pr_agent_log_level = "DEBUG"  # 詳細ログ
-                elif debug_level >= 1:
-                    pr_agent_log_level = "INFO"   # 情報ログ
-                else:
-                    pr_agent_log_level = "ERROR"  # エラーのみ
+            # PR-Agentログレベル（INFO固定）
+            pr_agent_log_level = "INFO"
 
             if original_cwd != project_root:
                 os.chdir(project_root)
@@ -213,7 +202,7 @@ class PRAgentRunner:
             # 8) 設定の最終適用はDynaconfの読み込み結果に委ねる
 
             # 9-10) PR-Agentロガーを再初期化し、必要ならセッションに流す
-            final_log_level = PRAgentRunner._reset_logger(settings, pr_agent_log_level, debug_level)
+            final_log_level = PRAgentRunner._reset_logger(settings, pr_agent_log_level)
             loguru_handler_id = PRAgentRunner._attach_loguru_handler(session_id, final_log_level)
             # 11) PR-Agent本体を実行
             Logger.print_colored("🚀 PR-Agent を実行しています...", Colors.BLUE)
@@ -269,7 +258,6 @@ class PRAgentRunner:
         extra_args: Optional[List[str]] = None,
         settings_path: Optional[str] = None,
         gitlab_url: Optional[str] = None,
-        debug_level: Optional[int] = None,
         session_id: Optional[str] = None
     ) -> bool:
         """PR-Agentを同期実行（Web環境用）
@@ -287,10 +275,10 @@ class PRAgentRunner:
                 # イベントループが既に実行中の場合
                 import nest_asyncio
                 nest_asyncio.apply()
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level, session_id))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, session_id))
             except RuntimeError:
                 # イベントループが実行中でない場合（通常のCLI実行）
-                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, debug_level, session_id))
+                return asyncio.run(PRAgentRunner.run(pr_url, command, extra_args, settings_path, gitlab_url, session_id))
         except ImportError:
             Logger.error("nest_asyncio がインストールされていません")
             Logger.print_colored("   pip install nest_asyncio でインストールしてください", Colors.WHITE)

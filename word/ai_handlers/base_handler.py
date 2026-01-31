@@ -26,7 +26,7 @@ class BaseCustomHandler(BaseAiHandler, ABC):
 
         # 共通設定
         self.timeout = settings.config.get("ai_timeout", 120)
-        self.max_retries = 10
+        self.max_retries = 5
         self.retry_delay = 5
 
         # サブクラスで初期化

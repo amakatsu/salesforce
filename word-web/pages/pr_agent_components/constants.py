@@ -109,10 +109,10 @@ CONFIG_SECTIONS = {
 
 # Geminiモデルリスト
 GEMINI_MODELS = [
-    "gemini/gemini-2.0-flash-exp",
-    "gemini/gemini-1.5-pro-latest",
-    "gemini/gemini-1.5-flash-latest",
-    "gemini/gemini-1.5-flash-002"
+    "gemini/gemini-2.0-flash",
+    "gemini/gemini-2.0-flash-lite",
+    "gemini/gemini-1.5-pro",
+    "gemini/gemini-1.5-flash",
 ]
 
 # AIプロバイダーリスト

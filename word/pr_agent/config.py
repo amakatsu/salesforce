@@ -160,8 +160,8 @@ class ConfigManager:
             common_config.setdefault('config', {})['temperature'] = 1.0
             common_config['config']['max_model_tokens'] = 8192
             common_config['config']['custom_model_max_tokens'] = 8192
-            common_config['config']['reasoning_effort'] = "high"
-            common_config['config']['verbosity'] = "high"
+            common_config['config']['reasoning_effort'] = "low"
+            common_config['config']['verbosity'] = "low"
             common_config['config']['verbosity_level'] = 2
 
             # API設定を追加
@@ -229,8 +229,8 @@ temperature = 1.0
 response_language = "ja-JP"
 max_model_tokens = 8192
 custom_model_max_tokens = 8192
-reasoning_effort = "high"
-verbosity = "high"
+reasoning_effort = "low"
+verbosity = "low"
 verbosity_level = 2
 git_provider = "gitlab"
 
@@ -442,11 +442,11 @@ num_code_suggestions = 4
         if 'config' not in config:
             config['config'] = {}
 
-        # verbosityはAPI向けに文字列High、verbosity_levelはローカルログ向けに最大値を設定
-        config['config']['verbosity'] = "high"
+        # verbosityはAPI向けに文字列Low、verbosity_levelはローカルログ向けに最大値を設定
+        config['config']['verbosity'] = "low"
         config['config']['verbosity_level'] = 2
 
-        Logger.info("Verbosity設定を適用: verbosity=high, verbosity_level=2 (固定)")
+        Logger.info("Verbosity設定を適用: verbosity=low, verbosity_level=2 (固定)")
 
         return config
 
