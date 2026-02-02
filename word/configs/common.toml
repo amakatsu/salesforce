@@ -18,8 +18,10 @@ enable_custom_labels = false
 # 精度向上のための設定
 max_description_tokens = 1500
 max_commits_tokens = 1500
-patch_extra_lines_before = 5
-patch_extra_lines_after = 5
+patch_extra_lines_before = 4
+patch_extra_lines_after = 2
+large_patch_policy = "clip"
+allow_dynamic_context = true
 enable_ai_metadata = true
 use_extra_bad_extensions = true
 enable_help_text = true
@@ -95,6 +97,9 @@ enable_help_text = true
 
 [pr_similar_issue]
 enable_help_text = true
+
+[ignore]
+glob = ['*.md']
 
 [gitlab]
 url = "https://gitlab.rp.dss.itmufg"

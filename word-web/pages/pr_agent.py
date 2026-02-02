@@ -242,6 +242,11 @@ def _build_child_env(params: dict) -> Dict[str, str]:
     # 子プロセスの出力バッファリングを無効化
     env["PYTHONUNBUFFERED"] = "1"
 
+    # UTF-8エンコーディングを強制（日本語文字化け防止）
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["LANG"] = "C.UTF-8"
+    env["LC_ALL"] = "C.UTF-8"
+
     # 子プロセスが word.pr_agent を import できるように PYTHONPATH を通す
     project_root = str(Path(__file__).parent.parent.parent)
     env["PYTHONPATH"] = project_root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
@@ -754,7 +759,11 @@ def _run_pr_agent(ctx: ExecutionContext, log_placeholder):
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
     def strip_ansi(text):
-        return ansi_escape.sub('', text)
+        # ANSIエスケープコード除去
+        text = ansi_escape.sub('', text)
+        # 制御文字除去（改行・タブ以外）
+        text = ''.join(c for c in text if c >= ' ' or c in '\n\t\r')
+        return text
 
     def update_log_display(text):
         st.session_state.log_text = text
