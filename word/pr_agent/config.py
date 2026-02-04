@@ -91,7 +91,7 @@ class ConfigManager:
             return True
         return False
 
-    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, gitlab_token: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> bool:
+    def apply_config(self, config_path: str, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, gitlab_token: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None, global_settings: Optional[Dict] = None) -> bool:
         """指定された設定ファイルを適用（共通設定とマージ）"""
         config_file = Path(config_path)
 
@@ -101,103 +101,43 @@ class ConfigManager:
 
         self.backup_current_config()
 
-        # 共通設定とカスタム設定をマージ
         merged_config = self._merge_configs(config_path)
-        merged_config.setdefault('config', {})['temperature'] = 1.0
-        merged_config['config']['max_model_tokens'] = 8192
-        merged_config['config']['custom_model_max_tokens'] = 8192
-        merged_config['config']['reasoning_effort'] = "low"
-        merged_config['config']['verbosity'] = "low"
-        merged_config['config']['verbosity_level'] = 2
+        self._finalize_and_write(
+            merged_config, custom_prompt=custom_prompt, api_config=api_config,
+            gitlab_url=gitlab_url, gitlab_token=gitlab_token,
+            verbosity=verbosity, preview_mode=preview_mode, pr_command=pr_command,
+            global_settings=global_settings,
+        )
 
-        # API設定を追加
-        if api_config:
-            merged_config = self._inject_api_config(merged_config, api_config)
-
-        # GitLab URL設定を追加
-        if gitlab_url:
-            merged_config = self._inject_gitlab_url(merged_config, gitlab_url)
-
-        # GitLab Token設定を追加
-        if gitlab_token:
-            merged_config = self._inject_gitlab_token(merged_config, gitlab_token)
-
-        # Verbosity設定を追加
-        if verbosity is not None:
-            merged_config = self._inject_verbosity(merged_config, verbosity)
-
-        # プレビューモード設定を追加
-        if preview_mode and pr_command:
-            Logger.info(f"🔍 プレビューモードが有効です（コマンド: {pr_command}）")
-            merged_config = self._inject_preview_mode(merged_config, pr_command)
-        elif preview_mode:
-            Logger.warning("⚠️ プレビューモードが指定されていますが、コマンドが不明です")
-
-        # マージした設定を書き込み
-        with open(self.config_file, 'w', encoding='utf-8') as f:
-            toml.dump(merged_config, f)
-
+        source_label = f"common.toml + {config_file.name}"
         if custom_prompt:
-            self._append_custom_prompt(custom_prompt)
-            Logger.success(f"設定ファイルを適用しました: common.toml + {Path(config_path).name} + カスタムプロンプト")
+            Logger.success(f"設定ファイルを適用しました: {source_label} + カスタムプロンプト")
         else:
-            Logger.success(f"設定ファイルを適用しました: common.toml + {Path(config_path).name}")
+            Logger.success(f"設定ファイルを適用しました: {source_label}")
 
         Logger.debug(f".pr_agent.toml 出力先: {self.config_file}")
-        self._sync_shared_config()
-        self._sync_shared_config()
-
         return True
 
-    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, gitlab_token: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None) -> None:
+    def create_default_config(self, custom_prompt: Optional[str] = None, api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None, gitlab_token: Optional[str] = None, verbosity: Optional[int] = None, preview_mode: bool = False, pr_command: Optional[str] = None, global_settings: Optional[Dict] = None) -> None:
         """デフォルト設定ファイルを作成（共通設定ベース）"""
         self.backup_current_config()
 
-        # 共通設定を読み込み
         if self.common_config_path.exists():
             with open(self.common_config_path, 'r', encoding='utf-8') as f:
-                common_config = toml.load(f)
-            common_config.setdefault('config', {})['temperature'] = 1.0
-            common_config['config']['max_model_tokens'] = 8192
-            common_config['config']['custom_model_max_tokens'] = 8192
-            common_config['config']['reasoning_effort'] = "low"
-            common_config['config']['verbosity'] = "low"
-            common_config['config']['verbosity_level'] = 2
+                base_config = toml.load(f)
 
-            # API設定を追加
-            if api_config:
-                common_config = self._inject_api_config(common_config, api_config)
-
-            # GitLab URL設定を追加
-            if gitlab_url:
-                common_config = self._inject_gitlab_url(common_config, gitlab_url)
-
-            # GitLab Token設定を追加
-            if gitlab_token:
-                common_config = self._inject_gitlab_token(common_config, gitlab_token)
-
-            # Verbosity設定を追加
-            if verbosity is not None:
-                common_config = self._inject_verbosity(common_config, verbosity)
-
-            # プレビューモード設定を追加
-            if preview_mode and pr_command:
-                Logger.info(f"🔍 プレビューモードが有効です（コマンド: {pr_command}）")
-                common_config = self._inject_preview_mode(common_config, pr_command)
-            elif preview_mode:
-                Logger.warning("⚠️ プレビューモードが指定されていますが、コマンドが不明です")
-
-            # 共通設定を書き込み
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                toml.dump(common_config, f)
+            self._finalize_and_write(
+                base_config, custom_prompt=custom_prompt, api_config=api_config,
+                gitlab_url=gitlab_url, gitlab_token=gitlab_token,
+                verbosity=verbosity, preview_mode=preview_mode, pr_command=pr_command,
+                global_settings=global_settings,
+            )
 
             if custom_prompt:
-                self._append_custom_prompt(custom_prompt)
                 Logger.info("共通設定 (common.toml) + カスタムプロンプトを適用しました")
             else:
                 Logger.info("共通設定 (common.toml) を適用しました")
         else:
-            # 共通設定がない場合は従来のテンプレートを使用
             config_template = self._get_default_config_template()
             if custom_prompt:
                 config_content = config_template.format(
@@ -213,6 +153,44 @@ class ConfigManager:
 
         Logger.debug(f".pr_agent.toml 出力先: {self.config_file}")
 
+    def _finalize_and_write(self, config: Dict, *, custom_prompt: Optional[str] = None,
+                            api_config: Optional[Dict] = None, gitlab_url: Optional[str] = None,
+                            gitlab_token: Optional[str] = None, verbosity: Optional[int] = None,
+                            preview_mode: bool = False, pr_command: Optional[str] = None,
+                            global_settings: Optional[Dict] = None) -> None:
+        """設定にランタイム値を注入し、ファイルに書き出す。
+
+        apply_config / create_default_config の共通後処理。
+        「TOMLを読む → この関数を通す → 実行」の流れで統一される。
+
+        global_settings（UIからの明示的な設定）はTOMLの既存値を上書きする。
+        ユーザが画面上で変更した値を最終出力に確実に反映するため。
+        """
+        cfg = config.setdefault('config', {})
+        cfg.setdefault('verbosity_level', 2)
+
+        if global_settings:
+            self._inject_global_settings(config, global_settings)
+        if api_config:
+            self._inject_api_config(config, api_config)
+        if gitlab_url:
+            self._inject_gitlab_url(config, gitlab_url)
+        if gitlab_token:
+            self._inject_gitlab_token(config, gitlab_token)
+        if verbosity is not None:
+            self._inject_verbosity(config, verbosity)
+        if preview_mode and pr_command:
+            Logger.info(f"🔍 プレビューモードが有効です（コマンド: {pr_command}）")
+            self._inject_preview_mode(config, pr_command)
+        elif preview_mode:
+            Logger.warning("⚠️ プレビューモードが指定されていますが、コマンドが不明です")
+
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            toml.dump(config, f)
+
+        if custom_prompt:
+            self._append_custom_prompt(custom_prompt)
+
     def handle_existing_config_with_prompt(self, custom_prompt: str) -> None:
         """既存設定にプロンプトを追加"""
         Logger.print_colored("🔄 既存の設定ファイルを発見しました", Colors.YELLOW)
@@ -221,14 +199,15 @@ class ConfigManager:
 
     def _get_default_config_template(self) -> str:
         """デフォルト設定テンプレートを取得"""
+        # common.toml が存在しない場合のフォールバックテンプレート
         return """{header}
 
 [config]
 model = "PBkBKGPT0SpkSub001OAI001MDL015"
 temperature = 1.0
 response_language = "ja-JP"
-max_model_tokens = 8192
-custom_model_max_tokens = 8192
+max_model_tokens = 128000
+custom_model_max_tokens = 128000
 reasoning_effort = "low"
 verbosity = "low"
 verbosity_level = 2
@@ -344,121 +323,78 @@ num_code_suggestions = 4
 
     def _inject_api_config(self, config: Dict, api_config: Dict) -> Dict:
         """API設定を設定ファイルに注入 (OpenAI/Gemini対応)"""
-        if 'config' not in config:
-            config['config'] = {}
+        cfg = config.setdefault('config', {})
+        cfg['git_provider'] = 'gitlab'
 
-        # GitLabを明示的に指定（PR-AgentのURL判定をオーバーライド）
-        config['config']['git_provider'] = 'gitlab'
-
-        # プロバイダー判定（デフォルトはopenai）
         provider = api_config.get('provider', 'openai').lower()
 
         if provider == 'gemini':
-            # Gemini設定
-            config['config']['ai_provider'] = 'google'
+            cfg['ai_provider'] = 'google'
+            gemini = config.setdefault('gemini', {})
 
-            if 'gemini' not in config:
-                config['gemini'] = {}
-
-            # Gemini API Key
             if 'api_key' in api_config:
-                config['config']['gemini_key'] = api_config['api_key']
-                config['gemini']['key'] = api_config['api_key']
+                cfg['gemini_key'] = api_config['api_key']
+                gemini['key'] = api_config['api_key']
 
-            # Geminiモデル指定
-            if 'model' in api_config:
-                config['config']['model'] = api_config['model']
-            else:
-                # デフォルトモデル
-                config['config']['model'] = 'gemini/gemini-2.0-flash-exp'
+            cfg['model'] = api_config.get('model', 'gemini/gemini-2.0-flash-exp')
+            cfg['custom_model_max_tokens'] = 1000000
 
-            # Gemini最大トークン数を設定（1M tokens for gemini-2.0-flash-exp）
-            config['config']['custom_model_max_tokens'] = 1000000
-
-            Logger.info(f"Gemini設定を適用: モデル={config['config']['model']}, max_tokens=1000000")
+            Logger.info(f"Gemini設定を適用: モデル={cfg['model']}, max_tokens=1000000")
 
         else:
-            # OpenAI設定（既存のロジック）
-            if 'openai' not in config:
-                config['openai'] = {}
+            openai = config.setdefault('openai', {})
+            cfg['ai_provider'] = 'openai'
 
-            config['config']['ai_provider'] = 'openai'
-
-            # OpenAI API Key
             if 'api_key' in api_config:
-                config['config']['openai_key'] = api_config['api_key']
-                config['openai']['key'] = api_config['api_key']
-
-            # OpenAI Base URL (Azure OpenAI用)
+                cfg['openai_key'] = api_config['api_key']
+                openai['key'] = api_config['api_key']
             if 'base_url' in api_config:
-                config['openai']['api_base'] = api_config['base_url']
-
-            # User ID (Azure APIM用)
+                openai['api_base'] = api_config['base_url']
             if 'user_id' in api_config:
-                config['openai']['user_id'] = api_config['user_id']
-
-            # OpenAI Path
+                openai['user_id'] = api_config['user_id']
             if 'api_path' in api_config:
-                config['openai']['path'] = api_config['api_path']
-
-            # カスタムヘッダー (Azure OpenAIのapim-user-id等)
+                openai['path'] = api_config['api_path']
             if 'custom_headers' in api_config:
-                config['config']['custom_headers'] = api_config['custom_headers']
+                cfg['custom_headers'] = api_config['custom_headers']
 
-            Logger.info(f"OpenAI設定を適用: プロバイダー={config['config'].get('ai_provider', 'openai')}")
+            Logger.info(f"OpenAI設定を適用: プロバイダー={cfg.get('ai_provider', 'openai')}")
 
         return config
 
     def _inject_gitlab_url(self, config: Dict, gitlab_url: str) -> Dict:
         """GitLab URLを設定ファイルに注入"""
-        if 'gitlab' not in config:
-            config['gitlab'] = {}
-
-        # URLの正規化（trailing slashを削除）
         normalized_url = gitlab_url.rstrip('/')
-
-        # スキームが指定されていない場合はhttpsを追加
         if not normalized_url.startswith(('http://', 'https://')):
             normalized_url = f'https://{normalized_url}'
 
-        config['gitlab']['url'] = normalized_url
-
+        config.setdefault('gitlab', {})['url'] = normalized_url
         Logger.info(f"GitLab URL設定を適用: {normalized_url}")
-
         return config
 
     def _inject_gitlab_token(self, config: Dict, gitlab_token: str) -> Dict:
         """GitLab Tokenを設定ファイルに注入"""
-        if 'gitlab' not in config:
-            config['gitlab'] = {}
-
-        config['gitlab']['personal_access_token'] = gitlab_token
+        config.setdefault('gitlab', {})['personal_access_token'] = gitlab_token
         Logger.info("GitLab Token設定を適用")
-
         return config
 
-    def _inject_verbosity(self, config: Dict, _verbosity: int) -> Dict:
-        """Verbosity設定を設定ファイルに注入（常にHighで固定）"""
-        if 'config' not in config:
-            config['config'] = {}
-
-        # verbosityはAPI向けに文字列Low、verbosity_levelはローカルログ向けに最大値を設定
-        config['config']['verbosity'] = "low"
-        config['config']['verbosity_level'] = 2
-
-        Logger.info("Verbosity設定を適用: verbosity=low, verbosity_level=2 (固定)")
-
+    def _inject_verbosity(self, config: Dict, verbosity: int) -> Dict:
+        """Verbosity設定を設定ファイルに注入（TOMLに既存値があればそちらを優先）"""
+        config.setdefault('config', {}).setdefault('verbosity_level', verbosity)
+        Logger.info(f"Verbosity設定を適用: verbosity_level={config['config']['verbosity_level']}")
         return config
 
     def _inject_preview_mode(self, config: Dict, pr_command: str) -> Dict:
         """プレビューモード設定を設定ファイルに注入（GitLabへの投稿を無効化）"""
-        # グローバル設定でpublish_outputを無効化
-        if 'config' not in config:
-            config['config'] = {}
+        cfg = config.setdefault('config', {})
+        cfg['publish_output'] = False
+        cfg['publish_output_progress'] = False
+        Logger.info("プレビューモード設定を適用: publish_output=False")
+        return config
 
-        config['config']['publish_output'] = False
-        config['config']['publish_output_progress'] = False
-
-        Logger.info(f"プレビューモード設定を適用: config.publish_output = False, config.publish_output_progress = False")
-
+    def _inject_global_settings(self, config: Dict, global_settings: Dict) -> Dict:
+        """グローバル設定をconfigセクションに注入（UIで明示的に設定された値で上書き）"""
+        cfg = config.setdefault('config', {})
+        for key, value in global_settings.items():
+            cfg[key] = value
+        Logger.info(f"グローバル設定を適用: {list(global_settings.keys())}")
         return config

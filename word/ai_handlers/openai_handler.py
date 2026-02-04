@@ -109,7 +109,7 @@ class OpenAIHandler(BaseCustomHandler):
         {
             "messages": [...],
             "model": .env OPENAI_MODEL
-            "max_completion_tokens": common.toml max_model_tokens (8192)
+            "max_completion_tokens": common.toml max_model_tokens (128000)
             "n": 1
             "reasoning_effort": common.toml (high)
             "verbosity": common.toml (high)
@@ -134,8 +134,8 @@ class OpenAIHandler(BaseCustomHandler):
             raise ValueError("Model is required (config.model)")
         self.logger.info(f"Using model: {actual_model}")
 
-        # max_completion_tokens: common.toml [config] max_model_tokens
-        max_tokens = settings.config.get("max_model_tokens", 8192)
+        # PR-Agent設定(common.toml)から取得。未設定時は128000をフォールバック
+        max_tokens = settings.config.get("max_model_tokens", 128000)
 
         body = {
             "messages": messages,

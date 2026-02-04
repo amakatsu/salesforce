@@ -18,6 +18,22 @@ from word.pr_agent.config_repository import ConfigRepository, ConfigConflictErro
 
 from .constants import CONFIG_SECTIONS, MODAL_STATE_KEY
 
+
+def fill_missing_fields_with_defaults(config_data: dict) -> dict:
+    """CONFIG_SECTIONSで定義された全セクション・全フィールドをデフォルト値で補完する。
+
+    TOMLファイルには [config] 等のセクションが存在しないことがある。
+    TOML読み込み直後にこの関数を一度通すことで、
+    以降のコードは「セクションやフィールドが存在するか」を気にしなくてよくなる。
+    """
+    for section_key, section_info in CONFIG_SECTIONS.items():
+        section = config_data.setdefault(section_key, {})
+        for field_key, field_info in section_info["fields"].items():
+            if field_key not in section:
+                section[field_key] = field_info.get("default")
+    return config_data
+
+
 # トラッキングをインポート（遅延インポート）
 _track_usage = None
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -99,11 +115,10 @@ def _render_form_tab(edited_config: dict, config_name: str, mode_key: str, valid
     st.info("💡 各セクションを展開して設定を編集してください。入力内容はリアルタイムで検証されます。")
 
     for section_key, section_info in CONFIG_SECTIONS.items():
-        if section_key not in edited_config:
-            continue
+        section_data = edited_config.get(section_key, {})
+        # edited_config にセクションがなくても、デフォルト値でフォームを表示する
 
         with st.expander(section_info["label"], expanded=False):
-            section_data = edited_config.get(section_key, {})
 
             for field_key, field_info in section_info["fields"].items():
                 _render_field(
@@ -169,12 +184,27 @@ def _render_field(edited_config: dict, section_key: str, section_data: dict,
             key=widget_key
         )
 
+    elif field_type == "select":
+        options = field_info.get("options", [])
+        default_val = field_info.get("default", options[0] if options else "")
+        current_str = str(current_value) if current_value is not None else default_val
+        if current_str in options:
+            default_index = options.index(current_str)
+        else:
+            default_index = 0
+
+        new_value = st.selectbox(
+            field_label,
+            options=options,
+            index=default_index,
+            help=field_help,
+            key=widget_key
+        )
+
     if new_value is not None:
         if new_value != previous_value:
             st.session_state[mode_key] = "form"
-        if section_key not in edited_config:
-            edited_config[section_key] = {}
-        edited_config[section_key][field_key] = new_value
+        edited_config.setdefault(section_key, {})[field_key] = new_value
 
 
 # =============================================================================
@@ -523,6 +553,7 @@ def config_editor_modal(config_name: str, config_path: str, config_repo: ConfigR
     try:
         config_file_path, config_text, config_signature = repo.load_text(config_file_path)
         current_config = toml.load(io.StringIO(config_text))
+        current_config = fill_missing_fields_with_defaults(current_config)
     except Exception as e:
         st.error(f"❌ 設定ファイルの読み込みに失敗: {e}")
         return
@@ -530,8 +561,6 @@ def config_editor_modal(config_name: str, config_path: str, config_repo: ConfigR
     # ヘルパー関数
     def reset_widget_values_from_config(config_data):
         for section_key, section_info in CONFIG_SECTIONS.items():
-            if section_key not in config_data:
-                continue
             for field_key in section_info["fields"].keys():
                 widget_key = f"{widget_prefix}{section_key}_{field_key}"
                 st.session_state.pop(widget_key, None)
@@ -550,8 +579,6 @@ def config_editor_modal(config_name: str, config_path: str, config_repo: ConfigR
         if not config_data:
             return {}
         for section_key, section_info in CONFIG_SECTIONS.items():
-            if section_key not in config_data:
-                continue
             section = config_data.setdefault(section_key, {})
             for field_key in section_info["fields"].keys():
                 widget_key = f"{widget_prefix}{section_key}_{field_key}"

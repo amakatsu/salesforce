@@ -37,7 +37,7 @@ def get_word_config() -> Dict[str, Any]:
         "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
         "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
         "VERIFY_SSL": _as_bool(os.getenv("VERIFY_SSL", "true")),
-        "MAX_TOKENS": 8192,
+        "MAX_TOKENS": 128000,  # LLMへのリクエスト時の max_completion_tokens。API上限に合わせて設定
         "TEMPERATURE": 1.0,
         "TOP_P": 1.0,
         "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
@@ -77,7 +77,7 @@ def get_domain_config() -> Dict[str, Any]:
         "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
         "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
         "VERIFY_SSL": _as_bool(os.getenv("VERIFY_SSL", "false")),
-        "MAX_TOKENS": 8192,
+        "MAX_TOKENS": 128000,  # LLMへのリクエスト時の max_completion_tokens。API上限に合わせて設定
         "TEMPERATURE": 1.0,
         "TOP_P": 1.0,
         "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),

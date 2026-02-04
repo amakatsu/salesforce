@@ -190,7 +190,7 @@ with st.sidebar:
         help="モデルへの基本指示。デフォルトでは日本語で回答するよう指定しています。",
     )
     temperature = 1.0
-    max_tokens = 8192
+    max_tokens = 128000
     reasoning_effort = "high"
 
     if st.button("🧹 会話をリセット", use_container_width=True):

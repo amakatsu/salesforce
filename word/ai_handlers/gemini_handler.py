@@ -80,7 +80,8 @@ class GeminiHandler(BaseCustomHandler):
             self.logger.warning("Image input not yet implemented for Gemini")
 
         settings = get_settings()
-        max_tokens = settings.config.get("max_model_tokens", 8192)
+        # PR-Agent設定(common.toml)から取得。未設定時は128000をフォールバック
+        max_tokens = settings.config.get("max_model_tokens", 128000)
 
         body = {
             "systemInstruction": system_instruction,

@@ -278,7 +278,7 @@ if st.button("🚀 照合実行", type="primary", use_container_width=True, disa
                 config = WORD_CONFIG.copy()
                 config["SCREEN_COL"] = screen_col
                 config["VOCAB_TERM_COL"] = vocab_col
-                config["MAX_TOKENS"] = 8192
+                config["MAX_TOKENS"] = 128000
                 config["TEMPERATURE"] = 1.0
                 config["FUZZY_THRESHOLD"] = float(fuzzy_threshold)
                 config["OUT_DIR"] = str(tmpdir / "out")

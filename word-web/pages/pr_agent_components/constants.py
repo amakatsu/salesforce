@@ -29,11 +29,53 @@ COMMAND_SECTION_MAP = {
 
 # 設定フォーム用セクション定義
 CONFIG_SECTIONS = {
+    "config": {
+        "label": "⚙️ 基本パラメータ",
+        "fields": {
+            "reasoning_effort": {
+                "type": "select",
+                "label": "推論の深さ (Reasoning Effort)",
+                "options": ["low", "medium", "high"],
+                "default": "low",
+                "help": "AIがどれだけ深く考えるか。highは精度が上がるがトークン消費・応答時間が増える"
+            },
+            "verbosity": {
+                "type": "select",
+                "label": "レビュー出力の詳細度 (Verbosity)",
+                "options": ["low", "medium", "high"],
+                "default": "low",
+                "help": "レビュー結果の情報量。highにするとより詳細なフィードバックが出力される"
+            },
+            "max_description_tokens": {
+                "type": "number",
+                "label": "MR説明の最大トークン数",
+                "min": 100,
+                "max": 128000,
+                "default": 128000,
+                "help": "PR/MR説明文の生成に使えるトークン数の上限。大きいほど長い説明を生成できる"
+            },
+            "max_commits_tokens": {
+                "type": "number",
+                "label": "コミット解析の最大トークン数",
+                "min": 100,
+                "max": 128000,
+                "default": 128000,
+                "help": "コミットメッセージや履歴の解析に使えるトークン数の上限"
+            },
+            "large_patch_policy": {
+                "type": "select",
+                "label": "大きなパッチの扱い (Large Patch Policy)",
+                "options": ["clip", "skip"],
+                "default": "clip",
+                "help": "変更量が大きいファイルの処理方法。clip=切り詰めてレビュー、skip=対象から除外"
+            },
+        }
+    },
     "pr_reviewer": {
         "label": "📝 レビュー設定",
         "fields": {
             "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "レビュー時のAIへの追加指示"},
-            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 20, "default": 10},
+            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 30, "default": 10},
             "require_score_review": {"type": "checkbox", "label": "スコアレビューを要求", "default": True},
             "require_tests_review": {"type": "checkbox", "label": "テストレビューを要求", "default": True},
             "require_estimate_effort_to_review": {"type": "checkbox", "label": "レビュー工数見積もり", "default": True},
@@ -45,7 +87,7 @@ CONFIG_SECTIONS = {
         "label": "✨ コード提案設定",
         "fields": {
             "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "コード提案時のAIへの追加指示"},
-            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 20, "default": 10},
+            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 30, "default": 10},
             "commitable_code_suggestions": {"type": "checkbox", "label": "コミット可能な形式で提案", "default": True},
             "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
         }
@@ -54,7 +96,7 @@ CONFIG_SECTIONS = {
         "label": "🔧 コード改善設定",
         "fields": {
             "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "コード改善時のAIへの追加指示"},
-            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 20, "default": 10},
+            "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 30, "default": 10},
             "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
         }
     },
