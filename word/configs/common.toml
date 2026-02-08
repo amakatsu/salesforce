@@ -54,6 +54,7 @@ extra_instructions = """
 """
 
 [pr_code_suggestions]
+max_context_tokens = 128000
 num_code_suggestions = 10
 commitable_code_suggestions = true
 enable_help_text = true

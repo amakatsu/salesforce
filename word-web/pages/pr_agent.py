@@ -68,6 +68,17 @@ from pr_agent_components.ui_helpers import (
 # ヘルパー関数
 # =============================================================================
 
+import re
+
+_ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+
+def strip_ansi(text: str) -> str:
+    """ANSIエスケープコードと制御文字を除去する"""
+    text = _ANSI_ESCAPE.sub('', text)
+    return ''.join(c for c in text if c >= ' ' or c in '\n\t\r')
+
+
 @dataclass
 class ExecutionContext:
     """PR-Agent実行に必要なパラメータをまとめる"""
@@ -564,7 +575,7 @@ def _render_execute_buttons(gitlab_token, api_key, user_id, pr_url, ai_provider,
 
         with log_tab_prev:
             if st.session_state.get('last_log'):
-                st.text(st.session_state.last_log)
+                st.text_area("実行ログ", st.session_state.last_log, height=700, disabled=True)
             else:
                 st.info("実行ログはありません")
 
@@ -657,7 +668,7 @@ def _execute_pr_agent(runtime_config_manager):
 
         status_text.text("✅ 実行完了！" if result else "❌ レビュー失敗")
         st.session_state.last_result = result_state
-        st.session_state.last_log = '\n'.join(log_lines) if log_lines else ""
+        st.session_state.last_log = strip_ansi('\n'.join(log_lines)) if log_lines else ""
         render_result_summary(result_placeholder, result_state)
 
         st.session_state.is_running = False
@@ -751,19 +762,8 @@ def _run_pr_agent(ctx: ExecutionContext, log_placeholder):
     """PR-Agentを子プロセスで実行してログを取得（セッション分離）"""
     import time
 
-    import re
     log_lines = []
     session_id = ctx.session_id or st.session_state.get("config_session_id")
-
-    # ANSIエスケープコードを除去する正規表現
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
-    def strip_ansi(text):
-        # ANSIエスケープコード除去
-        text = ansi_escape.sub('', text)
-        # 制御文字除去（改行・タブ以外）
-        text = ''.join(c for c in text if c >= ' ' or c in '\n\t\r')
-        return text
 
     def update_log_display(text):
         st.session_state.log_text = text

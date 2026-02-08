@@ -87,6 +87,14 @@ CONFIG_SECTIONS = {
         "label": "✨ コード提案設定",
         "fields": {
             "extra_instructions": {"type": "textarea", "label": "追加指示", "help": "コード提案時のAIへの追加指示"},
+            "max_context_tokens": {
+                "type": "number",
+                "label": "コンテキストの最大トークン数",
+                "min": 1000,
+                "max": 128000,
+                "default": 128000,
+                "help": "improveコマンド実行時のコンテキストトークン上限。PR-Agentのデフォルトは14000だが、大きいMRには不十分"
+            },
             "num_code_suggestions": {"type": "number", "label": "提案数", "min": 1, "max": 30, "default": 10},
             "commitable_code_suggestions": {"type": "checkbox", "label": "コミット可能な形式で提案", "default": True},
             "enable_help_text": {"type": "checkbox", "label": "ヘルプテキスト有効", "default": True},
