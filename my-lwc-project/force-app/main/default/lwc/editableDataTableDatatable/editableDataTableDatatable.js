@@ -5,7 +5,7 @@ import picklistEdit from "./picklistEdit.html";
 /**
  * 拡張データテーブルコンポーネント
  * Lightning Datatableを継承し、カスタムセルタイプを提供します
- * 
+ *
  * 機能:
  * - picklistCellタイプによる選択リストの表示・編集
  * - 標準のDatatableの全機能を継承
@@ -19,11 +19,11 @@ export default class EditableDataTableDatatable extends LightningDatatable {
   static customTypes = {
     // 選択リスト（ピックリスト）セルタイプ
     picklistCell: {
-      template: picklistView,        // 表示用テンプレート
-      editTemplate: picklistEdit,    // 編集用テンプレート
-      typeAttributes: ["options"],   // 必要な属性（選択肢のリスト）
-      standardCellLayout: true,      // 標準セルレイアウトを使用
-      editable: true                 // 編集可能フラグ
+      template: picklistView, // 表示用テンプレート
+      editTemplate: picklistEdit, // 編集用テンプレート
+      typeAttributes: ["options"], // 必要な属性（選択肢のリスト）
+      standardCellLayout: true, // 標準セルレイアウトを使用
+      editable: true // 編集可能フラグ
     }
     // 将来的に他のカスタムタイプを追加する場合は、ここに定義を追加
     // 例: datePickerCell, currencyCell, etc.
@@ -43,8 +43,8 @@ export default class EditableDataTableDatatable extends LightningDatatable {
    * セルの編集中にエラーが発生した場合の処理
    */
   handleCellError(error, cellInfo) {
-    console.error('データテーブルセルでエラーが発生しました:', error);
-    console.error('セル情報:', cellInfo);
+    console.error("データテーブルセルでエラーが発生しました:", error);
+    console.error("セル情報:", cellInfo);
     // 必要に応じてカスタムエラー処理を実装
   }
 }

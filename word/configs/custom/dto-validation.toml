@@ -1,166 +1,48 @@
-# DTO用（単語帳準拠チェック、命名規則、バリデーション）
-# DTOの命名規則、必須項目、単語帳準拠のチェックに特化
-
 [pr_reviewer]
-extra_instructions = """
-必ず日本語でレビューしてください。
-
-**DTO（Data Transfer Object）の単語帳準拠チェック：**
-
-1. **命名規則チェック**
-   - クラス名が「〜Dto」「〜Request」「〜Response」で終わっているか
-   - プロパティ名が camelCase になっているか
-   - Boolean型プロパティが「is〜」「has〜」で始まっているか
-
-2. **単語帳の標準用語チェック**
-   以下の標準用語が使われているかチェックし、非標準の用語があれば指摘してください：
-
-   **標準用語（推奨）：**
-   - id, userId, customerId, accountId
-   - name, displayName, fullName, firstName, lastName
-   - type, status, statusCode
-   - createdAt, updatedAt, deletedAt
-   - isActive, isDeleted, isEnabled
-   - description, comment, remarks
-   - startDate, endDate, effectiveDate
-   - amount, price, total, subtotal
-   - count, quantity, number
-   - email, phoneNumber, address
-   - code, errorCode, messageCode
-
-   **非推奨用語（避けるべき）：**
-   - flg（→ isXxx に変更）
-   - datetime（→ xxxAt に変更）
-   - kbn（→ type, category に変更）
-   - kubun（→ type, category に変更）
-   - mei（→ name に変更）
-   - cd（→ code に変更）
-
-3. **必須項目チェック**
-   - ID項目の存在（id, xxxId）
-   - タイムスタンプ項目（createdAt, updatedAt）
-   - バリデーションアノテーション（@NotNull, @NotEmpty, @Valid等）
-
-4. **構造チェック**
-   - ネストしたDTOの適切な設計
-   - コレクション型の適切な使用（List, Set, Map）
-   - Optional の適切な使用
-
-5. **ドキュメント**
-   - クラスレベルのコメント
-   - 各プロパティの説明コメント
-   - 必須/任意の明示
-   - 値の制約（最大長、範囲等）
-
-6. **Lombokアノテーション（Java）**
-   - @Data, @Getter, @Setter の使用
-   - @Builder の使用（推奨）
-   - @NoArgsConstructor, @AllArgsConstructor
-"""
+extra_instructions = "必ず日本語でレビューしてください。\n\n**DTO（Data Transfer Object）の単語帳準拠チェック：**\n\n1. **命名規則チェック**\n   - クラス名が「〜Dto」「〜Request」「〜Response」で終わっているか\n   - プロパティ名が camelCase になっているか\n   - Boolean型プロパティが「is〜」「has〜」で始まっているか\n\n2. **単語帳の標準用語チェック**\n   以下の標準用語が使われているかチェックし、非標準の用語があれば指摘してください：\n\n   **標準用語（推奨）：**\n   - id, userId, customerId, accountId\n   - name, displayName, fullName, firstName, lastName\n   - type, status, statusCode\n   - createdAt, updatedAt, deletedAt\n   - isActive, isDeleted, isEnabled\n   - description, comment, remarks\n   - startDate, endDate, effectiveDate\n   - amount, price, total, subtotal\n   - count, quantity, number\n   - email, phoneNumber, address\n   - code, errorCode, messageCode\n\n   **非推奨用語（避けるべき）：**\n   - flg（→ isXxx に変更）\n   - datetime（→ xxxAt に変更）\n   - kbn（→ type, category に変更）\n   - kubun（→ type, category に変更）\n   - mei（→ name に変更）\n   - cd（→ code に変更）\n\n3. **必須項目チェック**\n   - ID項目の存在（id, xxxId）\n   - タイムスタンプ項目（createdAt, updatedAt）\n   - バリデーションアノテーション（@NotNull, @NotEmpty, @Valid等）\n\n4. **構造チェック**\n   - ネストしたDTOの適切な設計\n   - コレクション型の適切な使用（List, Set, Map）\n   - Optional の適切な使用\n\n5. **ドキュメント**\n   - クラスレベルのコメント\n   - 各プロパティの説明コメント\n   - 必須/任意の明示\n   - 値の制約（最大長、範囲等）\n\n6. **Lombokアノテーション（Java）**\n   - @Data, @Getter, @Setter の使用\n   - @Builder の使用（推奨）\n   - @NoArgsConstructor, @AllArgsConstructor\n"
+num_code_suggestions = 10
+require_score_review = true
+require_tests_review = true
+require_estimate_effort_to_review = true
+enable_review_labels_effort = true
+enable_review_labels_security = true
 
 [pr_code_suggestions]
-extra_instructions = """
-必ず日本語でコード提案を記述してください。
-
-**DTO改善の優先順位：**
-1. **Critical**: 非標準用語の使用、必須項目の欠如、命名規則違反
-2. **Important**: バリデーションアノテーション不足、ドキュメント不足
-3. **Nice to have**: Lombokアノテーション活用、Optional使用
-"""
+extra_instructions = "必ず日本語でコード提案を記述してください。\n\n**DTO改善の優先順位：**\n1. **Critical**: 非標準用語の使用、必須項目の欠如、命名規則違反\n2. **Important**: バリデーションアノテーション不足、ドキュメント不足\n3. **Nice to have**: Lombokアノテーション活用、Optional使用\n"
+num_code_suggestions = 10
+commitable_code_suggestions = true
+enable_help_text = true
 
 [pr_improve]
 num_code_suggestions = 10
-extra_instructions = """
-必ず日本語でDTOの改善提案を記述してください。
-
-**DTO改善の観点：**
-- **単語帳準拠**: 非標準用語を標準用語に変更（flg→isXxx, kbn→type, cd→code等）
-- **命名規則**: camelCase、Boolean型のis/has接頭辞の適用
-- **バリデーション**: @NotNull, @NotEmpty, @Valid, @Size等のアノテーション追加
-- **ドキュメント**: クラス・プロパティへのコメント、必須/任意の明示
-- **構造**: ネストDTO、コレクション型、Optionalの適切な使用
-- **Lombok**: @Data, @Builder, @NoArgsConstructor等の活用
-
-具体的なDTOコード例を必ず含めてください。
-"""
+extra_instructions = "必ず日本語でDTOの改善提案を記述してください。\n\n**DTO改善の観点：**\n- **単語帳準拠**: 非標準用語を標準用語に変更（flg→isXxx, kbn→type, cd→code等）\n- **命名規則**: camelCase、Boolean型のis/has接頭辞の適用\n- **バリデーション**: @NotNull, @NotEmpty, @Valid, @Size等のアノテーション追加\n- **ドキュメント**: クラス・プロパティへのコメント、必須/任意の明示\n- **構造**: ネストDTO、コレクション型、Optionalの適切な使用\n- **Lombok**: @Data, @Builder, @NoArgsConstructor等の活用\n\n具体的なDTOコード例を必ず含めてください。\n"
+enable_help_text = true
 
 [pr_description]
-extra_instructions = """
-必ず日本語でMR説明を記述してください。
-
-DTOの変更内容を以下の観点で説明してください：
-- 変更したDTOクラスとその目的
-- 単語帳準拠の改善内容（非標準用語の修正等）
-- 追加したバリデーション
-- APIへの影響（リクエスト/レスポンス形式の変更等）
-"""
+extra_instructions = "必ず日本語でMR説明を記述してください。\n\nDTOの変更内容を以下の観点で説明してください：\n- 変更したDTOクラスとその目的\n- 単語帳準拠の改善内容（非標準用語の修正等）\n- 追加したバリデーション\n- APIへの影響（リクエスト/レスポンス形式の変更等）\n"
+publish_description = true
+add_original_user_description = true
+enable_pr_type = true
+use_bullet_points = true
+enable_semantic_files_types = true
+generate_ai_title = false
 
 [pr_questions]
-extra_instructions = """
-必ず日本語で質問への回答を記述してください。
-
-DTOに関する質問には以下の観点で回答してください：
-- **単語帳準拠**: 使用している用語が標準用語かどうか
-- **命名規則**: プロパティ名、クラス名の妥当性
-- **バリデーション**: 必要なバリデーションルール
-- **API互換性**: 既存APIへの影響、破壊的変更の有無
-- **ネスト構造**: DTOの階層設計の妥当性
-
-具体的なDTOコード例を含めて説明してください。
-"""
+extra_instructions = "必ず日本語で質問への回答を記述してください。\n\nDTOに関する質問には以下の観点で回答してください：\n- **単語帳準拠**: 使用している用語が標準用語かどうか\n- **命名規則**: プロパティ名、クラス名の妥当性\n- **バリデーション**: 必要なバリデーションルール\n- **API互換性**: 既存APIへの影響、破壊的変更の有無\n- **ネスト構造**: DTOの階層設計の妥当性\n\n具体的なDTOコード例を含めて説明してください。\n"
+enable_help_text = true
 
 [pr_add_docs]
-extra_instructions = """
-必ず日本語でDTOドキュメントを生成してください。
-
-DTOドキュメントには以下を含めてください：
-- クラスの目的（どのAPIで使用されるか）
-- 各プロパティの説明
-  - 意味・用途
-  - 必須/任意
-  - 型と制約（最大長、範囲、パターン等）
-  - デフォルト値
-- リクエスト/レスポンスの具体例（JSON形式）
-- バリデーションルール一覧
-- 関連するDTO（ネストDTO、継承元等）
-
-JavaDoc/TSDoc標準形式に従ってください。
-"""
+extra_instructions = "必ず日本語でDTOドキュメントを生成してください。\n\nDTOドキュメントには以下を含めてください：\n- クラスの目的（どのAPIで使用されるか）\n- 各プロパティの説明\n  - 意味・用途\n  - 必須/任意\n  - 型と制約（最大長、範囲、パターン等）\n  - デフォルト値\n- リクエスト/レスポンスの具体例（JSON形式）\n- バリデーションルール一覧\n- 関連するDTO（ネストDTO、継承元等）\n\nJavaDoc/TSDoc標準形式に従ってください。\n"
+enable_help_text = true
 
 [pr_update_changelog]
-extra_instructions = """
-必ず日本語でchangelogを記述してください。
-
-DTOの変更を以下のカテゴリで分類：
-- **Added**: 新しいDTOクラス/プロパティ
-- **Changed**: プロパティ名変更、型変更、バリデーション追加
-- **Deprecated**: 非推奨化したプロパティ/DTO
-- **Removed**: 削除したプロパティ/DTO
-- **Fixed**: バグ修正（バリデーション不足、命名規則違反等）
-- **Standardized**: 単語帳準拠への修正（flg→isXxx, kbn→type等）
-
-破壊的変更（API互換性に影響）は必ず明記してください。
-"""
+extra_instructions = "必ず日本語でchangelogを記述してください。\n\nDTOの変更を以下のカテゴリで分類：\n- **Added**: 新しいDTOクラス/プロパティ\n- **Changed**: プロパティ名変更、型変更、バリデーション追加\n- **Deprecated**: 非推奨化したプロパティ/DTO\n- **Removed**: 削除したプロパティ/DTO\n- **Fixed**: バグ修正（バリデーション不足、命名規則違反等）\n- **Standardized**: 単語帳準拠への修正（flg→isXxx, kbn→type等）\n\n破壊的変更（API互換性に影響）は必ず明記してください。\n"
+enable_help_text = true
 
 [pr_generate_labels]
-extra_instructions = """
-DTOの変更内容を分析して適切なラベルを提案してください：
-
-- **変更の種類**: feature, bugfix, refactor, standardization
-- **影響範囲**: api-breaking-change, backward-compatible, new-dto
-- **品質**: validation-added, documentation-added, naming-convention-fixed
-- **単語帳**: standardized-terminology, non-standard-terms-remain
-- **優先度**: critical, high, medium, low
-- **レビュー**: needs-api-review, needs-validation-review
-"""
+extra_instructions = "DTOの変更内容を分析して適切なラベルを提案してください：\n\n- **変更の種類**: feature, bugfix, refactor, standardization\n- **影響範囲**: api-breaking-change, backward-compatible, new-dto\n- **品質**: validation-added, documentation-added, naming-convention-fixed\n- **単語帳**: standardized-terminology, non-standard-terms-remain\n- **優先度**: critical, high, medium, low\n- **レビュー**: needs-api-review, needs-validation-review\n"
+enable_help_text = true
 
 [pr_similar_issue]
-extra_instructions = """
-必ず日本語で類似Issueの分析を記述してください。
-
-DTOの変更と類似Issueの関連性を以下の観点で分析：
-- 同じAPI/エンドポイントへのDTO変更
-- 類似の単語帳準拠対応
-- 同様のバリデーション追加
-- 類似の命名規則修正
-"""
+extra_instructions = "必ず日本語で類似Issueの分析を記述してください。\n\nDTOの変更と類似Issueの関連性を以下の観点で分析：\n- 同じAPI/エンドポイントへのDTO変更\n- 類似の単語帳準拠対応\n- 同様のバリデーション追加\n- 類似の命名規則修正\n"
+enable_help_text = true

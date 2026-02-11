@@ -1,0 +1,90 @@
+<template>
+  <!-- 取引先情報 -->
+  <lightning-accordion
+    allow-multiple-sections-open
+    active-section-name="{activeSections}"
+  >
+    <lightning-accordion-section
+      name="a"
+      label="取引先情報"
+      icon-name="standard:choice"
+    >
+      <lightning-card>
+        <lightning-layout multiple-rows horizontal-align="start">
+          <lightning-layout-item size="12">
+            <lightning-layout
+              multiple-rows
+              padding="horizontal-small"
+              horizontal-align="start"
+            >
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="組織店番"
+                  value="{branchNumber}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="horizontal-small">
+                <lightning-input
+                  label="組織店名"
+                  value="{branchName}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+            </lightning-layout>
+          </lightning-layout-item>
+          <lightning-layout-item size="12">
+            <lightning-layout
+              multiple-rows
+              padding="horizontal-small"
+              horizontal-align="start"
+            >
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="店番"
+                  value="{branchNumber}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="取引先番号"
+                  value="{customerNumber}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="4" padding="horizontal-small">
+                <lightning-input
+                  label="取引先名"
+                  value="{customerName}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="債務者格付"
+                  value="{debtorRating}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="コア企業"
+                  value="{coreCompany}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+            </lightning-layout>
+          </lightning-layout-item>
+        </lightning-layout>
+      </lightning-card>
+    </lightning-accordion-section>
+  </lightning-accordion>
+</template>

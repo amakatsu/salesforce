@@ -1,6 +1,6 @@
 /**
  * stateService Mock - 本格的開発用
- * 
+ *
  * 外部依存をモック化し、テスト対象のコンポーネント本体は
  * 実際のソースコードを使用するアプローチ
  */
@@ -74,6 +74,6 @@ export const __testHelpers__ = {
   // 展開状態を設定
   setExpandedNodes: (nodeIds) => {
     mockState.expanded.clear();
-    nodeIds.forEach(id => mockState.expanded.add(id));
+    nodeIds.forEach((id) => mockState.expanded.add(id));
   }
 };

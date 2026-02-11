@@ -6,7 +6,6 @@ export default class TableTestHarness extends LightningElement {
   @track sampleInput = "";
   @track notes = "";
 
-
   testTypeOptions = [
     { label: "単純なカード内配置", value: "simple-card" },
     { label: "タブ内配置", value: "tab-test" },
@@ -43,8 +42,6 @@ export default class TableTestHarness extends LightningElement {
     return this.selectedTestType === "scroll-test";
   }
 
-
-
   handleTestTypeChange(event) {
     this.selectedTestType = event.detail.value;
   }
@@ -61,5 +58,4 @@ export default class TableTestHarness extends LightningElement {
     console.log("サンプルボタンがクリックされました");
     // テーブルとの相互作用テスト用
   }
-
 }

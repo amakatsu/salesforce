@@ -5,6 +5,7 @@ import argparse
 import concurrent.futures as cf
 import difflib
 import json
+import logging
 import os
 import re
 import sys
@@ -19,13 +20,11 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 from string import Template
-# .envファイルを読み込み（Streamlitからインポートされる前に環境変数を設定）
-# Dockerコンテナ内: /app/word/word.py → /app/.env
-from pathlib import Path as _EnvPath
-_env_file = _EnvPath(__file__).parent.parent / '.env'
-if _env_file.exists():
-    load_dotenv(_env_file)
-del _env_file, _EnvPath
+
+try:
+    from .config import get_word_config
+except ImportError:  # script execution fallback
+    from config import get_word_config
 
 # ====== GUI（任意） ===========================================================
 try:
@@ -42,52 +41,36 @@ HARD_EXACT_SCORE = 1.0  # 完全一致のみに限定
 FALLBACK_EXACT_FLOOR = 0.95
 
 # ====== 設定（.envで上書き可） =============================================
-DEFAULT_CONFIG: Dict[str, Any] = {
-    # --- API（OpenAI互換）
-    "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "http://170.49.125.91:53000/api/curl/v1/chat/"),
-    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-    "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-    "OPENAI_PATH": os.getenv("OPENAI_PATH", "/chat/completions"),
-    "OPENAI_HEADERS_JSON": os.getenv("OPENAI_HEADERS_JSON", "{\"api-key\":\"QXwXLlZijq1U8WwiYfIu3znm3wWK3qIG\",\"apim-user-id\":\"PIT03077\"}"),
-    "OPENAI_SEND_AUTH": os.getenv("OPENAI_SEND_AUTH", "false").lower() != "false",
-    "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
-    "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
-    "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
-    "VERIFY_SSL": os.getenv("VERIFY_SSL", "true").lower() != "false",
-    # --- 生成パラメタ
-    "MAX_TOKENS": int(os.getenv("MAX_TOKENS", "800")),
-    "TEMPERATURE": float(os.getenv("TEMPERATURE", "0.3")),  # 精度向上のため0.7→0.3に下げて決定的な出力を促す
-    "TOP_P": float(os.getenv("TOP_P", "0.95")),
-    "PRESENCE_PENALTY": float(os.getenv("PRESENCE_PENALTY", "0.0")),
-    "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
-    # --- 入力検出
-    "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
-    "VOCAB_GLOB": os.getenv("VOCAB_GLOB", "*単語名一覧*.xlsx"),
-    # --- シート/列（必要に応じて引数で上書き）
-    # シート名は複数指定可能（カンマ区切り）例: "画面項目定義,システム設計書,IF定義書"
-    # ワイルドカード指定可能（*）例: "*" で全シート、"画面*" で「画面」で始まるシート
-    # デフォルト "*" で全シートを読み込むことで、ファイル構造に依存しない柔軟な運用が可能
-    "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
-    "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
-    "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
-    "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
-    "VOCAB_PHYS_COL": os.getenv("VOCAB_PHYS_COL", "物理名（正式名称）,物理名"),
-    "VOCAB_PHYS_ABBR_COL": os.getenv("VOCAB_PHYS_ABBR_COL", "物理名（略称）"),
-    "VOCAB_NO_COL": os.getenv("VOCAB_NO_COL", "No,#"),
-    # --- 類似度設定
-    "FUZZY_THRESHOLD": float(os.getenv("FUZZY_THRESHOLD", "0.68")),  # 候補プールの下限（精度向上のため0.72→0.68に下げてより多くの候補を拾う）
-    "TOP_K": int(os.getenv("TOP_K", "5")),  # 直接候補の上位件数（精度向上のため3→5に増加）
+DEFAULT_CONFIG: Dict[str, Any] = get_word_config()
 
-    # --- 出力
-    "OUT_DIR": os.getenv("OUT_DIR", "out"),
-    # --- 実行制御
-    "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "30")),
-    "MAX_WORKERS": int(os.getenv("MAX_WORKERS", "6")),
-    "RETRY": int(os.getenv("RETRY", "30")),
-    # --- レート制限（サーバー負荷対策）
-    # 同時実行するAPI呼び出しの最大数（MAX_WORKERSより小さい値にするとAPI負荷を抑制）
-    "MAX_CONCURRENT_API": int(os.getenv("MAX_CONCURRENT_API", "5"))
-}
+# ====== ロガー設定 ============================================================
+logger = logging.getLogger("word_tool.api")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("[WORD-API] %(asctime)s %(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+SENSITIVE_HEADER_KEYS = {"authorization", "api-key", "apikey", "x-api-key"}
+
+
+def _mask_headers(headers: Dict[str, Any]) -> Dict[str, Any]:
+    masked = {}
+    for key, value in headers.items():
+        if key.lower() in SENSITIVE_HEADER_KEYS and value:
+            masked[key] = "***"
+        else:
+            masked[key] = value
+    return masked
+
+
+def _dump_payload(payload: Dict[str, Any]) -> str:
+    try:
+        return json.dumps(payload, ensure_ascii=False)
+    except Exception:
+        return str(payload)
 
 # ====== 文字列正規化／類似度 =================================================
 
@@ -606,9 +589,52 @@ class ApiClient:
         self.headers = headers
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
-        resp = self.session.post(url, headers=self.headers, json=body, timeout=self.timeout, verify=self.verify)
-        resp.raise_for_status()
-        return resp.json()
+        logger.info(
+            "HTTP POST開始 url=%s model=%s tokens=%s messages=%s headers=%s",
+            url,
+            body.get("model"),
+            body.get("max_completion_tokens"),
+            len(body.get("messages", [])),
+            _mask_headers(self.headers),
+        )
+        request_dump = _dump_payload(body)
+        logger.info("HTTP リクエストボディ:\n%s", request_dump)
+        print(f"[WORD-API] HTTP リクエストボディ:\n{request_dump}", flush=True)
+        start = time.time()
+        resp = None
+        try:
+            resp = self.session.post(
+                url,
+                headers=self.headers,
+                json=body,
+                timeout=self.timeout,
+                verify=self.verify,
+            )
+            resp.raise_for_status()
+            elapsed = time.time() - start
+            resp_text = resp.text
+            logger.info(
+                "HTTP POST完了 status=%s elapsed=%.2fs request_id=%s",
+                resp.status_code,
+                elapsed,
+                resp.headers.get("x-request-id") or resp.headers.get("X-Request-ID") or "-",
+            )
+            logger.info("HTTP レスポンスボディ:\n%s", resp_text)
+            print(f"[WORD-API] HTTP レスポンスボディ:\n{resp_text}", flush=True)
+            return resp.json()
+        except requests.RequestException as exc:
+            elapsed = time.time() - start
+            status = resp.status_code if resp is not None else getattr(exc.response, "status_code", "n/a")
+            logger.error(
+                "HTTP POST失敗: status=%s elapsed=%.2fs error=%s",
+                status,
+                elapsed,
+                exc,
+            )
+            if resp is not None:
+                logger.error("HTTP レスポンスボディ(エラー):\n%s", resp.text)
+                print(f"[WORD-API] HTTP レスポンスボディ(エラー):\n{resp.text}", flush=True)
+            raise
 
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = """あなたは業務システム開発における命名規則の専門家です。
@@ -917,11 +943,10 @@ def build_llm_payload(
             component_payload["component_tokens_original"] = component_result.matched_terms
     return {
         "model": cfg["OPENAI_MODEL"],
-        "max_tokens": cfg["MAX_TOKENS"],
-        "temperature": cfg["TEMPERATURE"],
-        "top_p": cfg["TOP_P"],
-        "presence_penalty": cfg["PRESENCE_PENALTY"],
-        "frequency_penalty": cfg["FREQUENCY_PENALTY"],
+        "max_completion_tokens": cfg["MAX_TOKENS"],  # GPT-5 Cline Proxy用
+        "n": 1,
+        "reasoning_effort": "low",
+        "verbosity": "low",
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": LLM_SYSTEM},

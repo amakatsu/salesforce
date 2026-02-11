@@ -1,0 +1,127 @@
+<template>
+  <lightning-accordion
+    allow-multiple-sections-open
+    active-section-name="{activeSections}"
+  >
+    <!-- 禀査番号・基準日 -->
+    <lightning-accordion-section
+      name="b"
+      label="禀査番号・基準日"
+      icon-name="standard:choice"
+    >
+      <lightning-card>
+        <lightning-layout
+          multiple-rows
+          padding="horizontal-small"
+          horizontal-align="start"
+        >
+          <lightning-layout-item size="2" padding="horizontal-small">
+            <lightning-input
+              label="禀査番号"
+              value="{reviewNumber}"
+              readonly
+              class="underline"
+            ></lightning-input>
+          </lightning-layout-item>
+          <lightning-layout-item size="2" padding="horizontal-small">
+            <lightning-input
+              label="基準日"
+              value="{date}"
+              readonly
+              class="underline"
+            ></lightning-input>
+          </lightning-layout-item>
+        </lightning-layout>
+      </lightning-card>
+    </lightning-accordion-section>
+
+    <!-- 補正理由・プール区分等 -->
+    <lightning-accordion-section
+      name="c"
+      label="補正理由・プール区分等"
+      icon-name="standard:choice"
+    >
+      <lightning-card>
+        <lightning-layout multiple-rows horizontal-align="start">
+          <lightning-layout-item size="12" flexibility="auto">
+            <lightning-textarea
+              label="補正理由等"
+              value="{correctionReason}"
+              readonly
+              class="underline"
+              style="--sds-c-textarea-sizing-min-height: 5rem"
+            ></lightning-textarea>
+          </lightning-layout-item>
+          <lightning-layout-item size="12" flexibility="auto">
+            <div class="slds-grid slds-gutters">
+              <div
+                class="slds-col slds-text-align_right slds-var-p-top_x-large"
+              >
+                <p>金額単位〇〇〇</p>
+              </div>
+            </div>
+            <lightning-layout
+              multiple-rows
+              vertical-align="end"
+              class="slds-gutters_small slds-box slds-box_small"
+            >
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="プール区分"
+                  value="{poolCategory}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="4">
+                <div class="slds-grid slds-gutters">
+                  <div
+                    class="slds-col slds-text-align_left slds-text-title_bold"
+                  >
+                    <p>限度算入</p>
+                  </div>
+                </div>
+                <div class="slds-box slds-box_small">
+                  <lightning-layout multiple-rows>
+                    <lightning-layout-item size="6" padding="horizontal-small">
+                      <lightning-input
+                        label="一般"
+                        value="{limitGeneral}"
+                        readonly
+                        class="underline"
+                      ></lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="6" padding="horizontal-small">
+                      <lightning-input
+                        label="市場性"
+                        value="{marketInclusion}"
+                        readonly
+                        class="underline"
+                      ></lightning-input>
+                    </lightning-layout-item>
+                  </lightning-layout>
+                </div>
+              </lightning-layout-item>
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="規定担保"
+                  value="{regulatoryCollateral}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+              <lightning-layout-item size="2" padding="horizontal-small">
+                <lightning-input
+                  label="保全率（％）"
+                  value="{protectionRate}"
+                  readonly
+                  class="underline"
+                ></lightning-input>
+              </lightning-layout-item>
+            </lightning-layout>
+          </lightning-layout-item>
+        </lightning-layout>
+      </lightning-card>
+    </lightning-accordion-section>
+  </lightning-accordion>
+</template>

@@ -10,7 +10,7 @@
       </header>
     </div>
     <div class="slds-card__body slds-card__body_inner">
-      <lightning-tabset active-tab-value={activeTab}>
+      <lightning-tabset active-tab-value="{activeTab}">
         <lightning-tab label="利率情報" value="riritu">
           <!-- 動的テーブルコンポーネント -->
           <div class="slds-grid slds-gutters slds-wrap">
@@ -23,9 +23,9 @@
                   🔧 １行テーブル
                 </h3>
                 <c-row-dynamic-o-p-c
-                  table-data={multiHeaderData}
-                  onfieldchange={handleFieldChange}
-                  onvalidationerror={handleValidationError}
+                  table-data="{multiHeaderData}"
+                  onfieldchange="{handleFieldChange}"
+                  onvalidationerror="{handleValidationError}"
                 ></c-row-dynamic-o-p-c>
 
                 <!-- 保存・確認ボタン -->
@@ -34,7 +34,11 @@
                     variant="brand"
                     label="親から保存"
                     data-component="opc"
-                    onclick={handleSave}
+                    onclick="
+                      {
+                        handleSave;
+                      }
+                    "
                     class="slds-m-right_x-small"
                   >
                   </lightning-button>
@@ -42,7 +46,11 @@
                     variant="neutral"
                     label="🔍 確認"
                     data-component="opc"
-                    onclick={handleDataVerification}
+                    onclick="
+                      {
+                        handleDataVerification;
+                      }
+                    "
                   >
                   </lightning-button>
                 </div>
@@ -58,9 +66,9 @@
                   📊 マルチヘッダー テーブル
                 </h3>
                 <c-row-dynamic-multi-header
-                  table-data={multiHeaderData}
-                  onfieldchange={handleFieldChange}
-                  onvalidationerror={handleValidationError}
+                  table-data="{multiHeaderData}"
+                  onfieldchange="{handleFieldChange}"
+                  onvalidationerror="{handleValidationError}"
                 >
                 </c-row-dynamic-multi-header>
 
@@ -70,7 +78,11 @@
                     variant="brand"
                     label="親から保存"
                     data-component="multi"
-                    onclick={handleSave}
+                    onclick="
+                      {
+                        handleSave;
+                      }
+                    "
                     class="slds-m-right_x-small"
                   >
                   </lightning-button>
@@ -78,17 +90,20 @@
                     variant="neutral"
                     label="🔍 確認"
                     data-component="multi"
-                    onclick={handleDataVerification}
+                    onclick="
+                      {
+                        handleDataVerification;
+                      }
+                    "
                   >
                   </lightning-button>
                 </div>
               </div>
             </div>
           </div>
-
         </lightning-tab>
         <lightning-tab label="係数情報" value="keisu">
-          <c-keisu data={keisuData}></c-keisu>
+          <c-keisu data="{keisuData}"></c-keisu>
         </lightning-tab>
       </lightning-tabset>
     </div>

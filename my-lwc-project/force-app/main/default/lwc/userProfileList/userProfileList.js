@@ -69,10 +69,10 @@ export default class UserProfileList extends LightningElement {
         photos: profile.photos || []
       }));
 
-      console.log('Loaded profiles:', this.profiles);
+      console.log("Loaded profiles:", this.profiles);
       this.applyFilters();
     } catch (error) {
-      console.error('Profile loading error:', error);
+      console.error("Profile loading error:", error);
       this.hasError = true;
       this.errorMessage = error.body ? error.body.message : error.message;
       this.showToast("エラー", "プロフィールの読み込みに失敗しました", "error");
@@ -80,7 +80,6 @@ export default class UserProfileList extends LightningElement {
       this.isLoading = false;
     }
   }
-
 
   // 検索実行
   async performSearch() {
@@ -126,17 +125,17 @@ export default class UserProfileList extends LightningElement {
       if (this.searchKeyword && this.searchKeyword.trim()) {
         const keyword = this.searchKeyword.toLowerCase().trim();
         const searchFields = [
-          profile.name?.toLowerCase() || '',
-          profile.occupation?.toLowerCase() || '',
-          profile.location?.toLowerCase() || '',
-          profile.bio?.toLowerCase() || '',
-          ...(profile.interests?.map(i => i.toLowerCase()) || [])
+          profile.name?.toLowerCase() || "",
+          profile.occupation?.toLowerCase() || "",
+          profile.location?.toLowerCase() || "",
+          profile.bio?.toLowerCase() || "",
+          ...(profile.interests?.map((i) => i.toLowerCase()) || [])
         ];
-        
-        const hasKeyword = searchFields.some(field => 
+
+        const hasKeyword = searchFields.some((field) =>
           field.includes(keyword)
         );
-        
+
         if (!hasKeyword) return false;
       }
 
@@ -223,7 +222,6 @@ export default class UserProfileList extends LightningElement {
   getFirstPhoto(photos) {
     return photos && photos.length > 0 ? photos[0] : null;
   }
-
 
   // イベントハンドラー
   handleSearch() {

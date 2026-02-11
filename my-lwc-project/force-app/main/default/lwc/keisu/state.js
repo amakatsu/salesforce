@@ -1,5 +1,10 @@
 // 利率コンポーネント用の状態管理サービス
-import { rawCreditSource, rawCollateralSource, attachEditableFlags, deepCopy } from "./data";
+import {
+  rawCreditSource,
+  rawCollateralSource,
+  attachEditableFlags,
+  deepCopy
+} from "./data";
 
 let isInitialized = false;
 let creditSource = [];

@@ -15,15 +15,17 @@ if env_path.exists():
 
 # 利用トラッキングをインポート
 sys.path.insert(0, str(Path(__file__).parent))
-from usage_tracker import track_usage
+from pages.util.usage_tracker import track_usage
+from pages.util import layout_utils
 
 # ページ設定
 st.set_page_config(
     page_title="ツール",
     page_icon="🛠️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
+layout_utils.apply_fullscreen_layout()
 
 # 利用記録（初回訪問時のみ）
 if 'visited_home' not in st.session_state:
@@ -33,22 +35,7 @@ if 'visited_home' not in st.session_state:
 # メインタイトル
 st.title("🛠️ ツール")
 
-# ヒーローセクション
-st.markdown("""
-<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 3rem 2rem;
-            border-radius: 20px;
-            margin-bottom: 3rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            text-align: center;'>
-    <h1 style='color: white; margin: 0 0 1rem 0; font-size: 3rem; font-weight: 700;'>
-        🛠️ ツール
-    </h1>
-    <p style='color: #e0e7ff; margin: 0; font-size: 1.3rem; font-weight: 300;'>
-        開発をサポートするツール集
-    </p>
-</div>
-""", unsafe_allow_html=True)
+st.caption("開発をサポートするツール集")
 
 # タブでツールを切り替え
 tab1, tab2, tab3, tab4 = st.tabs([
@@ -57,6 +44,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "🔄 PR-Agent実行フロー",
     "🛠️ 技術スタック"])
 
+CARD_STYLE = "padding:1.2rem;border-radius:10px;border-left:5px solid"
+
 with tab1:
     st.header("利用可能なツール")
     st.markdown("用途に合わせて以下のツールを選択してください。")
@@ -64,58 +53,73 @@ with tab1:
     col_excel, col_domain, col_pr_agent = st.columns(3)
 
     with col_excel:
-        st.markdown("""
-        <div style='background: #e8f5e9; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #4caf50;'>
-            <h4 style='color: #2e7d32; margin-top: 0;'>📝 単語マッチングツール</h4>
-            <ul style='margin: 0;'>
-                <li>Excelファイルの単語照合</li>
-                <li>単語帳との突合チェック</li>
-                <li>一致/不一致の色分け表示</li>
-                <li>結果のCSV出力</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style='background:#e8f5e9;{CARD_STYLE};border-color:#4caf50'>
+                <h4 style='margin:0 0 .5rem 0;'>📝 単語マッチングツール</h4>
+                <ul>
+                    <li>Excelファイルの単語照合</li>
+                    <li>単語帳との突合チェック</li>
+                    <li>一致/不一致の色分け表示</li>
+                    <li>結果のCSV出力</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         if st.button("📝 単語マッチングツールを開く", key="open_word_matching", type="primary", use_container_width=True):
-            st.switch_page("pages/1_word_matching.py")
+            st.switch_page("pages/word_matching.py")
 
     with col_domain:
-        st.markdown("""
-        <div style='background: #fff3e0; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #ff9800;'>
-            <h4 style='color: #e65100; margin-top: 0;'>🔍 ドメインチェックツール</h4>
-            <ul style='margin: 0;'>
-                <li>ドメイン名の検証</li>
-                <li>URL形式のチェック</li>
-                <li>DNSレコード確認</li>
-                <li>バッチ処理対応</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style='background:#fff3e0;{CARD_STYLE};border-color:#ff9800'>
+                <h4 style='margin:0 0 .5rem 0;'>🔍 ドメインチェックツール</h4>
+                <ul>
+                    <li>ドメイン名の検証</li>
+                    <li>URL形式のチェック</li>
+                    <li>DNSレコード確認</li>
+                    <li>バッチ処理対応</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         if st.button("🔍 ドメインチェックツールを開く", key="open_domain_checker", type="primary", use_container_width=True):
-            st.switch_page("pages/2_domain_check.py")
+            st.switch_page("pages/domain_checker.py")
 
     with col_pr_agent:
+        st.markdown(
+            f"""
+            <div style='background:#f3e5f5;{CARD_STYLE};border-color:#9c27b0'>
+                <h4 style='margin:0 0 .5rem 0;'>🤖 PR-Agent</h4>
+                <ul>
+                    <li><strong>AIによる自動コードレビュー</strong></li>
+                    <li><strong>ドメイン特化設定</strong></li>
+                    <li><strong>複数コマンド対応</strong></li>
+                    <li><strong>GitLab MRへの自動投稿</strong></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("🤖 PR-Agentを開く", key="open_pr_agent", type="primary", use_container_width=True):
+            st.switch_page("pages/pr_agent.py")
+        st.info("⏱️ 実行時間: 2～3分程度（MRのサイズによって変動）")
+
+    st.markdown("### 🤖 AIアシスタント")
+    chat_col, _, _ = st.columns([1, 1, 1])
+    with chat_col:
         st.markdown("""
-        <div style='background: #f3e5f5; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #9c27b0;'>
-            <h4 style='color: #6a1b9a; margin-top: 0;'>🤖 PR-Agent</h4>
+        <div style='background: #e0f2fe; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #0284c7;'>
+            <h4 style='color: #0369a1; margin-top: 0;'>💬 GPT-5 チャット</h4>
             <ul style='margin: 0;'>
-                <li><strong>AIによる自動コードレビュー</strong><br/>
-                    Gemini/OpenAIを使用した詳細な分析
-                </li>
-                <li><strong>ドメイン特化設定</strong><br/>
-                    Java、Salesforce、DTO、Batch/Shell/SQL、API YAML
-                </li>
-                <li><strong>複数コマンド対応</strong><br/>
-                    review、improve、describe、ask、add_docs
-                </li>
-                <li><strong>GitLab MRへの自動投稿</strong><br/>
-                    レビュー結果を直接MRにコメント
-                </li>
+                <li>API疎通や挙動確認向けの試験用チャット</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("🤖 PR-Agentを開く", key="open_pr_agent", type="primary", use_container_width=True):
-            st.switch_page("pages/3_pr_agent.py")
-        st.info("⏱️ 実行時間: 2～3分程度（MRのサイズによって変動）")
+        if st.button("💬 GPT-5 チャットを開く", key="open_gpt5_chat", type="primary", use_container_width=True):
+            st.switch_page("pages/gpt5_chat.py")
 
 with tab2:
     st.header("システム構成")
@@ -125,9 +129,9 @@ with tab2:
     arch_diagram = """
     digraph Architecture {
         rankdir=LR;
-        graph [fontname="MS Gothic", bgcolor="white", ranksep=1.0];
+        graph [fontname="MS Gothic", bgcolor="white", ranksep=1.5, compound=true];
         node [shape=box, style="rounded,filled", color="#475569", fontname="MS Gothic", fontcolor="#1f2937", fillcolor="#ffffff"];
-        edge [color="#475569", arrowsize=0.8, fontname="MS Gothic"];
+        edge [color="#475569", arrowsize=0.8, fontname="MS Gothic", penwidth=2.0];
 
         user [shape=oval, fillcolor="#fde68a", label="ユーザー\n(Webブラウザ)"];
 
@@ -182,21 +186,13 @@ with tab2:
             svc_openai [label="OpenAI API"];
         }
 
-        user -> app -> pages;
-        app -> data_env [style=dashed, label="環境変数"];
-        user -> data_excel [label="アップロード"];
-        user -> data_configs [label="アップロード"];
-        pages -> tool_word;
-        pages -> tool_domain;
-        pages -> tool_pr;
-        data_excel -> tool_word;
-        data_excel -> tool_domain;
-        data_configs -> tool_pr;
-        tool_word -> svc_gemini [style=dashed, label="AI解析"];
-        tool_word -> svc_openai [style=dashed, label="AI解析"];
-        tool_pr -> svc_gitlab;
-        tool_pr -> svc_gemini;
-        tool_pr -> svc_openai;
+        // クラスター間の接続（矢印を大幅削減）
+        user -> app [lhead=cluster_ui, label="操作"];
+        app -> data_excel [ltail=cluster_ui, lhead=cluster_data, label="アップロード"];
+        app -> tool_word [ltail=cluster_ui, lhead=cluster_tools, label="実行"];
+        data_env -> tool_word [ltail=cluster_data, lhead=cluster_tools, style=dashed, label="設定読込"];
+        tool_pr -> svc_gitlab [ltail=cluster_tools, lhead=cluster_git, label="API"];
+        tool_pr -> svc_gemini [ltail=cluster_tools, lhead=cluster_llm, label="AI解析"];
     }
     """
     st.graphviz_chart(arch_diagram)

@@ -48,3 +48,8 @@ sfca_results.json
 
 # Maven build output
 openAPI/server/target/
+
+# PR-Agent session-specific configs
+.pr_agent.toml
+.pr_agent.toml.backup
+.pr_agent_sessions/

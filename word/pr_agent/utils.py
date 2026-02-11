@@ -99,7 +99,6 @@ class Logger:
     def set_debug_level(level: int) -> None:
         """デバッグレベルを設定"""
         Logger.DEBUG_LEVEL = level
-        Logger.info(f"デバッグレベルを {level} に設定しました")
 
     @staticmethod
     def _log_to_buffer(level: str, message: str, color: str) -> None:

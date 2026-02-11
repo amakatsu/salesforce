@@ -3,37 +3,52 @@
     <lightning-button
       label="保存"
       slot="actions"
-      onclick={handleSave}
-      disabled={hasError}
+      onclick="
+        {
+          handleSave;
+        }
+      "
+      disabled="{hasError}"
       variant="brand"
       aria-label="変更内容を保存"
     ></lightning-button>
     <lightning-button
       label="リセット"
       slot="actions"
-      onclick={handleReset}
-      disabled={hasError}
+      onclick="
+        {
+          handleReset;
+        }
+      "
+      disabled="{hasError}"
       variant="neutral"
       aria-label="変更内容をリセット"
     ></lightning-button>
 
     <!-- エラー表示 -->
-    <template if:true={hasError}>
-      <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error" role="alert">
+    <template if:true="{hasError}">
+      <div
+        class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error"
+        role="alert"
+      >
         <span class="slds-assistive-text">エラー</span>
         <h2>{errorMessage}</h2>
       </div>
     </template>
 
     <div class="slds-scrollable_x">
-      <table 
+      <table
         class="slds-table slds-table_cell-buffer slds-table_bordered"
         role="treegrid"
         aria-label="編集可能な階層データテーブル"
       >
         <thead>
           <tr role="row">
-            <th scope="col" style="width: 34px" aria-label="展開/折りたたみ"></th>
+            <th
+              scope="col"
+              style="width: 34px"
+              aria-label="展開/折りたたみ"
+            ></th>
             <th scope="col">名前</th>
             <th scope="col">ステータス</th>
             <th scope="col">入社日</th>
@@ -43,34 +58,42 @@
         </thead>
 
         <tbody>
-          <template for:each={rows} for:item="row">
-            <tr key={row.id} role="row" aria-level={row.level}>
+          <template for:each="{rows}" for:item="row">
+            <tr key="{row.id}" role="row" aria-level="{row.level}">
               <!-- 展開トグル -->
               <td role="gridcell">
                 <lightning-button-icon
-                  if:true={row.hasChildren}
-                  icon-name={row.icon}
+                  if:true="{row.hasChildren}"
+                  icon-name="{row.icon}"
                   variant="bare"
                   size="small"
                   alternative-text="展開/折りたたみ"
-                  onclick={handleToggle}
-                  data-id={row.id}
-                  aria-expanded={row.isExpanded}
-                  aria-label={row.name}
+                  onclick="
+                    {
+                      handleToggle;
+                    }
+                  "
+                  data-id="{row.id}"
+                  aria-expanded="{row.isExpanded}"
+                  aria-label="{row.name}"
                 ></lightning-button-icon>
               </td>
 
               <!-- 名前 -->
               <td role="gridcell">
-                <div class={row.nameClass}>
+                <div class="{row.nameClass}">
                   <lightning-input
                     type="text"
                     variant="label-hidden"
-                    value={row.name}
-                    data-id={row.id}
+                    value="{row.name}"
+                    data-id="{row.id}"
                     data-field="name"
-                    onchange={handleEdit}
-                    disabled={row.nameDisabled}
+                    onchange="
+                      {
+                        handleEdit;
+                      }
+                    "
+                    disabled="{row.nameDisabled}"
                     aria-label="名前"
                     required
                   >
@@ -80,15 +103,19 @@
 
               <!-- ステータス -->
               <td role="gridcell">
-                <div class={row.statusClass}>
+                <div class="{row.statusClass}">
                   <lightning-input
                     type="text"
                     variant="label-hidden"
-                    value={row.status}
-                    data-id={row.id}
+                    value="{row.status}"
+                    data-id="{row.id}"
                     data-field="status"
-                    onchange={handleEdit}
-                    disabled={row.statusDisabled}
+                    onchange="
+                      {
+                        handleEdit;
+                      }
+                    "
+                    disabled="{row.statusDisabled}"
                     aria-label="ステータス"
                   >
                   </lightning-input>
@@ -97,15 +124,19 @@
 
               <!-- 入社日 -->
               <td role="gridcell">
-                <div class={row.joinDateClass}>
+                <div class="{row.joinDateClass}">
                   <lightning-input
                     type="date"
                     variant="label-hidden"
-                    value={row.joinDate}
-                    data-id={row.id}
+                    value="{row.joinDate}"
+                    data-id="{row.id}"
                     data-field="joinDate"
-                    onchange={handleEdit}
-                    disabled={row.joinDateDisabled}
+                    onchange="
+                      {
+                        handleEdit;
+                      }
+                    "
+                    disabled="{row.joinDateDisabled}"
                     aria-label="入社日"
                   >
                   </lightning-input>
@@ -114,15 +145,19 @@
 
               <!-- アクティブ -->
               <td role="gridcell" style="text-align: center">
-                <div class={row.activeClass}>
+                <div class="{row.activeClass}">
                   <lightning-input
                     type="checkbox"
                     variant="label-hidden"
-                    checked={row.active}
-                    data-id={row.id}
+                    checked="{row.active}"
+                    data-id="{row.id}"
                     data-field="active"
-                    onchange={handleEdit}
-                    disabled={row.activeDisabled}
+                    onchange="
+                      {
+                        handleEdit;
+                      }
+                    "
+                    disabled="{row.activeDisabled}"
                     aria-label="アクティブ状態"
                   >
                   </lightning-input>
@@ -131,15 +166,19 @@
 
               <!-- 役職 -->
               <td role="gridcell">
-                <div class={row.roleClass}>
+                <div class="{row.roleClass}">
                   <lightning-input
                     type="text"
                     variant="label-hidden"
-                    value={row.role}
-                    data-id={row.id}
+                    value="{row.role}"
+                    data-id="{row.id}"
                     data-field="role"
-                    onchange={handleEdit}
-                    disabled={row.roleDisabled}
+                    onchange="
+                      {
+                        handleEdit;
+                      }
+                    "
+                    disabled="{row.roleDisabled}"
                     aria-label="役職"
                   >
                   </lightning-input>
@@ -152,14 +191,14 @@
     </div>
 
     <!-- ドラフト変更の詳細表示 -->
-    <template if:true={hasDraft}>
+    <template if:true="{hasDraft}">
       <div class="slds-m-top_medium">
         <h3 class="slds-text-heading_small slds-m-bottom_x-small">
           未保存の変更 ({draft.size}件)
         </h3>
         <lightning-textarea
           label="変更詳細（JSON形式）"
-          value={draftJson}
+          value="{draftJson}"
           readonly
           rows="6"
           aria-label="未保存の変更内容"

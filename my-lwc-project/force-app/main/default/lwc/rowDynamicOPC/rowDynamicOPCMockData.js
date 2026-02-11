@@ -41,7 +41,7 @@ export const SUBJECT_OPTIONS = [
 
 export const SAVING_BTN_LIST = [
   "Id",
-  "label", 
+  "label",
   "num1",
   "num2",
   "str1",
