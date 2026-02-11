@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SearchTool Settings UI Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+            background: #f5f6fb;
+            padding: 24px 32px 48px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            padding: 32px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            margin: 0 0 20px 0;
+            color: #101828;
+        }
+
+        .section-card {
+            background: white;
+            border: 1px solid #e4e7ec;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .section-card:hover {
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .ai-section {
+            background: linear-gradient(135deg, #ffffff 0%, #fef9f3 100%);
+            border: 2px solid #f59e0b;
+            box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .section-header h3 {
+            margin: 0;
+        }
+
+        .field-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d0d5dd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #1d8df5;
+            box-shadow: 0 0 0 3px rgba(29, 141, 245, 0.1);
+        }
+
+        input[type="password"]:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        small {
+            display: block;
+            color: #666;
+            margin-top: 4px;
+            font-size: 12px;
+        }
+
+        .limits-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .actions {
+            margin-top: 30px;
+            text-align: right;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
+
+        .new-feature {
+            background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+        }
+
+        .info-box {
+            display: flex;
+            gap: 16px;
+            background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+            border: 2px solid #0ea5e9;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
+        }
+
+        .info-box-icon {
+            font-size: 2rem;
+            line-height: 1;
+        }
+
+        .info-box-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #0c4a6e;
+            margin-bottom: 8px;
+        }
+
+        .info-box-text {
+            color: #075985;
+            line-height: 1.6;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 SearchTool - 設定</h1>
+        <p class="subtitle">v1.0.0 - APIキー設定機能追加</p>
+
+        <div class="info-box">
+            <div class="info-box-icon">🆕</div>
+            <div>
+                <div class="info-box-title">新機能: 設定画面からAPIキーを登録可能に！</div>
+                <div class="info-box-text">環境変数の設定が不要になりました。この画面から直接OpenAI APIキーを入力できます。</div>
+            </div>
+        </div>
+
+        <div class="section-card ai-section">
+            <div class="section-header">
+                <h3>AI設定</h3>
+                <span class="badge new-feature">NEW</span>
+            </div>
+
+            <div class="field-group">
+                <label for="apiKey">OpenAI API キー</label>
+                <input
+                    type="password"
+                    id="apiKey"
+                    placeholder="sk-..."
+                    value=""
+                />
+                <small>AI要約機能を使用する場合は必須です。取得方法: https://platform.openai.com/api-keys</small>
+            </div>
+
+            <div class="field-group">
+                <label for="modelId">AI モデル ID</label>
+                <input
+                    type="text"
+                    id="modelId"
+                    placeholder="openai/gpt-4o-mini"
+                    value="openai/gpt-4o-mini"
+                />
+                <small>例: openai/gpt-4o-mini, openai/gpt-4o, openai/gpt-3.5-turbo</small>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>ローカル検索設定</h3>
+
+        <div class="field-group">
+            <label for="keyword">デフォルトキーワード</label>
+            <input
+                type="text"
+                id="keyword"
+                placeholder="例: 監査"
+                value=""
+            />
+        </div>
+
+        <div class="field-group">
+            <label for="localRoot">ローカル検索ルート (複数行で指定)</label>
+            <textarea
+                id="localRoot"
+                rows="3"
+                placeholder="C:\docs&#10;D:\knowledge"
+>/home/user/projects
+/home/user/documents</textarea>
+        </div>
+
+        <div class="field-group">
+            <label for="excludeGlobs">除外グロブ</label>
+            <textarea
+                id="excludeGlobs"
+                rows="2"
+                placeholder=".git&#10;node_modules"
+>.git
+node_modules
+.venv
+target
+dist</textarea>
+        </div>
+
+            <div class="field-group">
+                <label for="userDataDir">ブラウザ userDataDir</label>
+                <input
+                    type="text"
+                    id="userDataDir"
+                    placeholder="C:\Users\me\AppData\Local\Microsoft\Edge\User Data"
+                    value=""
+                />
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>Web検索ソース（複数指定可能）</h3>
+
+        <div class="field-group">
+            <label for="redmineUrls">Redmine URLs (複数行で指定)</label>
+            <textarea
+                id="redmineUrls"
+                rows="3"
+                placeholder="https://redmine1.example.com&#10;https://redmine2.example.com"
+></textarea>
+        </div>
+
+        <div class="field-group">
+            <label for="sharepointUrls">SharePoint URLs (複数行で指定)</label>
+            <textarea
+                id="sharepointUrls"
+                rows="3"
+                placeholder="https://company1.sharepoint.com&#10;https://company2.sharepoint.com"
+></textarea>
+        </div>
+
+        <div class="field-group">
+            <label for="teamsUrls">Teams URLs (複数行で指定)</label>
+            <textarea
+                id="teamsUrls"
+                rows="3"
+                placeholder="https://teams.microsoft.com/_#/discover&#10;https://teams.microsoft.com"
+></textarea>
+        </div>
+
+            <div class="field-group">
+                <label for="internalDocsUrl">社内ドキュメントサイト URL</label>
+                <input
+                    type="text"
+                    id="internalDocsUrl"
+                    placeholder="https://docs.company.com"
+                    value=""
+                />
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>制限設定</h3>
+            <div class="limits-grid">
+            <div class="field-group">
+                <label for="localMaxResults">Local max results</label>
+                <input
+                    type="number"
+                    id="localMaxResults"
+                    min="1"
+                    max="2000"
+                    value="200"
+                />
+            </div>
+            <div class="field-group">
+                <label for="redmineMaxResults">Redmine max results</label>
+                <input
+                    type="number"
+                    id="redmineMaxResults"
+                    min="1"
+                    max="200"
+                    value="50"
+                />
+            </div>
+            <div class="field-group">
+                <label for="timeoutSeconds">Timeout (sec)</label>
+                <input
+                    type="number"
+                    id="timeoutSeconds"
+                    min="5"
+                    max="300"
+                    value="30"
+                />
+            </div>
+            <div class="field-group">
+                <label for="scrollSteps">Scroll steps</label>
+                <input
+                    type="number"
+                    id="scrollSteps"
+                    min="1"
+                    max="50"
+                    value="5"
+                />
+            </div>
+        </div>
+
+        <div class="actions">
+            <button onclick="saveSettings()">設定を保存</button>
+        </div>
+    </div>
+
+    <script>
+        function saveSettings() {
+            const settings = {
+                keyword: document.getElementById('keyword').value,
+                ai: {
+                    apiKey: document.getElementById('apiKey').value,
+                    modelId: document.getElementById('modelId').value,
+                },
+                local: {
+                    root: document.getElementById('localRoot').value.split('\n').filter(Boolean),
+                },
+                redmine: {
+                    urls: document.getElementById('redmineUrls').value.split('\n').filter(Boolean),
+                },
+                sharepoint: {
+                    urls: document.getElementById('sharepointUrls').value.split('\n').filter(Boolean),
+                },
+                teams: {
+                    urls: document.getElementById('teamsUrls').value.split('\n').filter(Boolean),
+                },
+                internalDocs: {
+                    baseUrl: document.getElementById('internalDocsUrl').value,
+                },
+                browser: {
+                    userDataDir: document.getElementById('userDataDir').value,
+                },
+                excludeGlobs: document.getElementById('excludeGlobs').value.split('\n').filter(Boolean),
+                limits: {
+                    localMaxResults: parseInt(document.getElementById('localMaxResults').value),
+                    redmineMaxResults: parseInt(document.getElementById('redmineMaxResults').value),
+                    timeoutSeconds: parseInt(document.getElementById('timeoutSeconds').value),
+                    scrollSteps: parseInt(document.getElementById('scrollSteps').value),
+                },
+            };
+
+            console.log('設定が保存されました:');
+            console.log(JSON.stringify(settings, null, 2));
+            alert('設定が保存されました！\n（コンソールでJSON確認可能）');
+        }
+
+        // パスワードフィールドの表示/非表示トグル（開発用）
+        document.getElementById('apiKey').addEventListener('dblclick', function() {
+            this.type = this.type === 'password' ? 'text' : 'password';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "keyword": "API 認証",
+  "ai": {
+    "apiKey": "sk-proj-example-xxxxxxxxxxxxxxxxxxxxx",
+    "modelId": "openai/gpt-4o-mini"
+  },
+  "local": {
+    "root": [
+      "/home/user/projects",
+      "/home/user/documents"
+    ]
+  },
+  "redmine": {
+    "urls": [
+      "https://redmine.example.com"
+    ]
+  },
+  "sharepoint": {
+    "urls": [
+      "https://company.sharepoint.com/sites/docs"
+    ]
+  },
+  "teams": {
+    "urls": [
+      "https://teams.microsoft.com/_#/discover"
+    ]
+  },
+  "internalDocs": {
+    "baseUrl": "https://docs.internal.example.com"
+  },
+  "browser": {
+    "userDataDir": "/home/user/.config/chromium"
+  },
+  "excludeGlobs": [
+    ".git",
+    "node_modules",
+    ".venv",
+    "target",
+    "dist"
+  ],
+  "limits": {
+    "localMaxResults": 200,
+    "redmineMaxResults": 50,
+    "timeoutSeconds": 30,
+    "scrollSteps": 5
+  }
+}
