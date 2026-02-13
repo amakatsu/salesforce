@@ -2,8 +2,6 @@ import { z } from 'zod'
 import { runLocalSearch } from '../../mcp-servers/local-fs.server'
 import { runRedmineSearch } from '../../mcp-servers/redmine-ui.server'
 import { runSharePointSearch } from '../../mcp-servers/sharepoint-search.server'
-import { runTeamsSearch } from '../../mcp-servers/teams-search.server'
-import { runInternalDocsSearch } from '../../mcp-servers/internal-docs-search.server'
 
 const localSearchInputSchema = z.object({
   root: z.array(z.string().min(1)).nonempty(),
@@ -24,8 +22,6 @@ export type McpToolName =
   | 'local.search'
   | 'redmine.search'
   | 'sharepoint.search'
-  | 'teams.search'
-  | 'internalDocs.search'
 
 export const invokeMcp = async (toolName: McpToolName, payload: unknown): Promise<unknown> => {
   switch (toolName) {
@@ -42,16 +38,6 @@ export const invokeMcp = async (toolName: McpToolName, payload: unknown): Promis
     case 'sharepoint.search': {
       const parsed = webSearchInputSchema.parse(payload)
       const results = await runSharePointSearch(parsed)
-      return { results }
-    }
-    case 'teams.search': {
-      const parsed = webSearchInputSchema.parse(payload)
-      const results = await runTeamsSearch(parsed)
-      return { results }
-    }
-    case 'internalDocs.search': {
-      const parsed = webSearchInputSchema.parse(payload)
-      const results = await runInternalDocsSearch(parsed)
       return { results }
     }
     default:

@@ -1,4 +1,4 @@
-# SearchTool v2 実装計画書
+# SearchTool 実装計画書
 
 > **Version**: 2.0.0-draft
 > **Created**: 2026-02-11
@@ -7,10 +7,10 @@
 ## 目次
 
 1. [概要](#1-概要)
-2. [v1 → v2 移行戦略](#2-v1--v2-移行戦略)
+2. [v1 からの移行戦略](#2-v1-からの移行戦略)
 3. [Phase 1: SharePoint検索MVP](#3-phase-1-sharepoint検索mvp)
-4. [Phase 2: 自己修復メカニズム](#4-phase-2-自己修復メカニズム)
-5. [Phase 3: Teams対応（ファイル検索）](#5-phase-3-teams対応ファイル検索)
+4. [Phase 2: 社内ドキュメント検索](#4-phase-2-社内ドキュメント検索)
+5. [Phase 3: Teamsメッセージ検索 + Redmine検索 + ローカル検索](#5-phase-3-teamsメッセージ検索--redmine検索--ローカル検索)
 6. [Phase 4: ポータブル配布](#6-phase-4-ポータブル配布)
 7. [Phase 5: 拡張（将来）](#7-phase-5-拡張将来)
 8. [技術的リスクと対策](#8-技術的リスクと対策)
@@ -20,28 +20,29 @@
 
 ## 1. 概要
 
-### v2 で何が変わるか
+### 何が変わるか
 
 v1 は「5ソース統合検索の Electron アプリ」として完成した（95%）。
-v2 は **SharePoint/Teams 検索の実用化** にフォーカスする。
+現行は **SharePoint/Teams 検索の実用化** にフォーカスする。
 
-| 観点 | v1 | v2 |
+| 観点 | v1 | 現行 |
 |------|----|----|
 | SharePoint検索 | モノリシック Tool（固定セレクタ） | 責務分離（Navigation / Extract / Repair） |
-| 抽出失敗時 | エラー返却のみ | playwright-mcp スナップショットで自己修復 |
-| Teams検索 | メッセージ検索（不安定） | ファイル検索優先（SharePoint基盤を再利用） |
+| 社内ドキュメント検索 | 汎用 auto-detect（不安定） | 専用 ExtractTool で抽出精度向上 |
+| Teams検索 | メッセージ検索（不安定） | Playwright UI操作でメッセージ本文を検索 |
+| Redmine / ローカル | v1 実装 | v1 から維持（Phase 3 で統合確認） |
 | 配布形態 | NSIS インストーラのみ | ポータブル exe 追加 |
 | Node.js | 20.x（Electron 30 内蔵） | 22.x（Electron 33+ に更新） |
 
 ### 設計方針（殿の決定事項）
 
-- **最小プロダクトの切り方**: SharePoint検索結果トップN → Teamsファイル → Teamsチャット
+- **最小プロダクトの切り方**: SharePoint検索 → 社内ドキュメント検索 → Teams/Redmine/ローカル
 - **リーダブルコード（t-wada流）**: 過剰設計禁止、必要最小限
 - **実装者が迷わず着手できる精度** のタスク分解
 
 ---
 
-## 2. v1 → v2 移行戦略
+## 2. v1 からの移行戦略
 
 ### 現状のv1アーキテクチャ
 
@@ -67,29 +68,29 @@ Main Process (Electron 30)
 |---------------|------|------|
 | Electron シェル（main.ts, preload.ts） | **残す** | IPC 構造は堅実。Electron 33 へ更新のみ |
 | React UI（App, SearchPane, Settings, Metrics） | **残す** | 変更不要。検索結果の表示形式はそのまま |
-| shared/contracts.ts | **残す** | SearchHit / SearchResponse の型は v2 でも有効 |
+| shared/contracts.ts | **残す** | SearchHit / SearchResponse の型は現行でも有効 |
 | shared/settings.ts | **残す + 拡張** | ブラウザ channel 設定を追加 |
 | SettingsStore, Logger, MetricsService | **残す** | ポータブル対応で dataDir の解決ロジックのみ追加 |
 | searchService.ts | **残す + 改修** | 新 Tool 群を呼ぶように Agent 生成部を差し替え |
-| mastra/agent.ts | **大幅改修** | v2 Tool 構成（Navigation/Extract/Repair）に対応 |
-| mastra/tools/*.ts（全5ファイル） | **捨てる** | v2 の責務分離 Tool に置き換え |
-| mastra/tools/mcpClient.ts | **捨てる** | v2 は各 Tool が直接 playwright-mcp を使用 |
-| mcp-servers/*.server.ts（全5ファイル） | **段階的に捨てる** | Phase 1 で sharepoint、Phase 3 で teams を置き換え |
-| localTool + local-fs.server.ts | **残す** | ripgrep 検索は v2 でも変更なし |
+| mastra/agent.ts | **大幅改修** | 新 Tool 構成（Navigation/Extract/Repair）に対応 |
+| mastra/tools/*.ts（全5ファイル） | **捨てる** | 責務分離 Tool に置き換え |
+| mastra/tools/mcpClient.ts | **捨てる** | 各 Tool が直接 playwright-mcp を使用 |
+| mcp-servers/*.server.ts（全5ファイル） | **段階的に捨てる** | Phase 1 で sharepoint、Phase 2 で internalDocs、Phase 3 で teams を置き換え |
+| localTool + local-fs.server.ts | **残す** | ripgrep 検索は変更なし |
 
 ### 移行の順序
 
 ```
-Phase 1: SharePoint 系を v2 Tool に置き換え（他はv1のまま動く）
-Phase 2: 自己修復を SharePoint Tool に組み込み
-Phase 3: Teams Tool を SharePoint 基盤で再実装
+Phase 0: Electron 33 更新（Node 22.13+ 対応）
+Phase 1: SharePoint 検索を新 Tool に置き換え（他はv1のまま動く）
+Phase 2: 社内ドキュメント検索を新 Tool で実装
+Phase 3: Teamsメッセージ検索 + Redmine検索 + ローカル検索（まとめて統合確認）
 Phase 4: ポータブル配布対応
-Phase 5: 残りのソース（Redmine, InternalDocs）も v2 化（必要に応じて）
+Phase 5: 自己修復メカニズム、MCP公開、検索レシピ等の拡張
 ```
 
-**重要**: Phase 1 完了時点で v1 の SharePoint 検索は完全に置き換わるが、
-Redmine / InternalDocs / Local は v1 のまま動作し続ける。段階的移行により、
-常にアプリ全体が動作する状態を保つ。
+**重要**: 各 Phase 完了時点で、未着手ソースは v1 のまま動作し続ける。
+段階的移行により、常にアプリ全体が動作する状態を保つ。
 
 ---
 
@@ -170,7 +171,7 @@ Mastra `@mastra/core ^0.23` が Node.js 22.13+ を要求するため。
 - NavigationTool で検索ページへ遷移
 - 結果読み込みを待機（wait action）
 - snapshot を取得し ExtractTool に渡す
-- confidence が low の場合は空結果を返す（Phase 2 で RepairTool に委譲）
+- confidence が low の場合は空結果を返す（将来 Phase 5 で自己修復メカニズムを導入予定）
 
 **完了条件**:
 - SharePoint サイトでキーワード検索を実行し、結果がトップN件返ること
@@ -232,118 +233,236 @@ P0-1〜P0-5 (Electron更新)
 
 ---
 
-## 4. Phase 2: 自己修復メカニズム
+## 4. Phase 2: 社内ドキュメント検索
 
-> **ゴール**: SharePoint の HTML 構造が変更されても、自動的に検索結果を抽出できる
+> **ゴール**: 社内ドキュメントサイト（Wiki、ナレッジベース等）の検索を新 Tool パターンで実装する
 
-**詳細設計**: [repair_prompts.md](./repair_prompts.md) を参照
+### 背景
+
+v1 の `internal-docs-search.server.ts` は汎用的な auto-detect 方式（検索入力欄を複数セレクタで探索）を採用している。
+これは対象サイトによって安定性が大きく異なり、実用的ではなかった。
+
+Phase 1 で確立した責務分離パターン（NavigationTool + ExtractTool）を適用し、
+社内ドキュメントサイト向けの専用 ExtractTool を実装することで抽出精度を向上させる。
 
 ### 実装タスク一覧
 
-- [ ] **P2-1**: RepairTool の実装（`mastra/tools/repairTool.ts`）
-  - インターフェースは `tool_interfaces.md` §3d に準拠
-  - 修復戦略: セレクター変更 → ページ再読み込み → エスカレーション
-  - リトライ上限: 通常1回 + 修復1回 = 最大2回
+#### Step 1: InternalDocsExtractTool の実装
 
-- [ ] **P2-2**: 修復プロンプトの実装（`mastra/tools/repairPrompt.ts`）
-  - スナップショット → LLM → 構造化 JSON の変換
-  - プロンプトテンプレートは `repair_prompts.md` §4 に準拠
-  - Mastra Agent とは別の軽量 LLM 呼び出し（generateText）
+- [ ] **P2-1**: `mastra/tools/internalDocsExtractTool.ts` を新規作成
+  - 入力: pageSnapshot（Markdown形式のスナップショット）
+  - 出力: results[], confidence, rawItemCount
+  - SharePointExtractTool と同じインターフェース（`tool_interfaces.md` §3b 準拠）
+  - **ブラウザ操作は一切行わない**（純粋なテキスト解析）
 
-- [ ] **P2-3**: SharePointSearchTool に修復フローを組み込み
-  - ExtractTool の confidence が `low` → RepairTool を呼ぶ
-  - RepairTool も失敗 → escalation メッセージを reasoning に含める
-  - Phase 1 で空結果を返していた箇所を修復フローに差し替え
+**実装の要点**:
+- 社内ドキュメントサイトは構造が多様なため、複数の抽出パターンを試行
+- 抽出パターン: `.search-result`, `.result`, `article`, `[class*="result"]` 等
+- 3件以上マッチした最初のパターンを採用（v1 の auto-detect ロジックを ExtractTool 内に移植）
+- confidence 判定は SharePointExtractTool と同基準
 
-- [ ] **P2-4**: 結合テスト
-  - 正常系: 通常の SharePoint 検索が引き続き動作
-  - 異常系: ExtractTool が意図的に失敗した場合に RepairTool が発動
-  - エスカレーション: RepairTool も失敗した場合にエラーメッセージが表示
+**完了条件**:
+- 社内ドキュメントサイトのスナップショットから検索結果を抽出できること
+- 対象サイトの構造が異なっても複数パターンで対応できること
+
+#### Step 2: InternalDocsSearchTool の実装
+
+- [ ] **P2-2**: `mastra/tools/internalDocsSearchTool.ts` を新規作成
+  - NavigationTool + InternalDocsExtractTool のオーケストレーション
+  - 検索 URL の構築: baseUrl にアクセス → 検索入力欄を探索 → キーワード入力 → 結果待機
+  - NavigationTool の navigate → snapshot → type → snapshot のフローで実現
+
+**実装の要点**:
+- 社内サイトは検索 URL パターンが統一されていないため、UI 操作で検索を実行
+- NavigationTool で baseUrl に遷移
+- snapshot で検索入力欄の ref を取得
+- type action でキーワードを入力し、submit
+- 結果ページの snapshot を取得し ExtractTool に渡す
+
+**完了条件**:
+- 社内ドキュメントサイトでキーワード検索を実行し、結果が返ること
+- 検索結果なしの場合に空配列が返ること
+
+#### Step 3: Agent への登録
+
+- [ ] **P2-3**: `mastra/agent.ts` を改修
+  - InternalDocsSearchTool を Agent の tools に登録
+  - 旧 internalDocsTool を削除
+  - buildAgentPrompt() を更新
+
+- [ ] **P2-4**: `mastra/tools/mcpClient.ts` から internalDocs のルーティングを削除
+
+**完了条件**:
+- Agent が InternalDocsSearchTool を使って検索を実行できること
+- 既存の SharePoint / Local / Redmine / Teams 検索が引き続き動作すること
+- `npm run typecheck` が通ること
+
+#### Step 4: 結合テスト
+
+- [ ] **P2-5**: 社内ドキュメント検索の E2E 動作確認
+  - `npm run dev` で起動
+  - 社内ドキュメントソースを有効にして検索を実行
+  - 結果が返ること
+  - 他の全ソースも引き続き動作すること
+
+**完了条件**: 全ソースが動作する状態でビルドが通ること
 
 ### Phase 2 の依存関係
 
 ```
-Phase 1 完了
-  └→ P2-1 (RepairTool)
-       └→ P2-2 (修復プロンプト)
-            └→ P2-3 (SearchTool統合)
-                 └→ P2-4 (結合テスト)
+Phase 1 完了（NavigationTool が存在、Tool パターンが確立）
+  └→ P2-1 (InternalDocsExtractTool)
+       └→ P2-2 (InternalDocsSearchTool)
+            └→ P2-3, P2-4 (Agent登録)
+                 └→ P2-5 (結合テスト)
 ```
 
 ### Phase 2 の Definition of Done
 
-- [ ] ExtractTool 失敗時に RepairTool が自動発動する
-- [ ] RepairTool がスナップショットから検索結果を再抽出できる
-- [ ] 修復不能時にユーザーに適切なエラーメッセージが表示される
-- [ ] 通常の検索フロー（confidence: high）のパフォーマンスに影響がないこと
-- [ ] LLM 呼び出しコストが修復時のみに限定されていること
+- [ ] 社内ドキュメントサイトの検索でトップN件が返る
+- [ ] 複数パターンの抽出ロジックで多様なサイト構造に対応できる
+- [ ] 既存の全ソース（SharePoint / Local / Redmine / Teams）が壊れていない
+- [ ] `npm run typecheck` がエラーゼロ
+- [ ] `npm run build:linux` が成功
+- [ ] 旧 internal-docs-search.server.ts が使われていないこと
 
 ### リスクと対策
 
 | リスク | 影響 | 対策 |
 |--------|------|------|
-| LLM の修復精度が低い | 抽出結果の品質低下 | プロンプトのチューニング、confidence 閾値の調整 |
-| スナップショットが巨大 | LLM のトークン上限超過 | main 要素のみ抽出、ナビ/フッター除外でトリミング |
-| 修復の API コスト | 頻繁な修復で費用増 | リトライ上限2回、修復発動率のメトリクス記録 |
+| サイト構造が多様で抽出パターンが網羅できない | 特定サイトで結果が取れない | confidence: low を返し、ユーザーに通知。将来 Phase 5 の自己修復で対応 |
+| 検索入力欄の auto-detect が失敗する | 検索自体が実行できない | 設定で検索 URL パターンを直接指定する代替手段を用意 |
+| ログイン必須の社内サイト | 未認証で検索ページにアクセスできない | 既存ブラウザ（Edge）接続で SSO セッションを再利用 |
 
 ---
 
-## 5. Phase 3: Teams対応（ファイル検索）
+## 5. Phase 3: Teamsメッセージ検索 + Redmine検索 + ローカル検索
 
-> **ゴール**: Teams のファイル検索（SharePoint ベース）を Phase 1 の基盤で実現する
+> **ゴール**: 残りの3ソースをまとめて統合確認し、全ソース検索を完成させる
 
 ### 背景
 
-Teams のファイルストレージは SharePoint である。
-Teams の「ファイル」タブで検索すると、実体は SharePoint のドキュメントライブラリ検索。
-そのため、Phase 1 の SharePointSearchTool をほぼ再利用できる。
+Phase 1（SharePoint）、Phase 2（社内ドキュメント）で Tool パターンが確立されている。
+Phase 3 では残りの 3 ソースを対応する:
 
-### 実装タスク一覧
+| ソース | 対応方針 |
+|--------|---------|
+| **Teamsメッセージ検索** | 新規 Tool（Playwright UI操作でチャット/チャンネルのメッセージ本文を検索） |
+| **Redmine検索** | v1 から維持（playwright-mcp でチケット検索。動作確認のみ） |
+| **ローカル検索** | v1 から維持（ripgrep。動作確認のみ） |
 
-- [ ] **P3-1**: TeamsFileExtractTool の実装
-  - SharePointExtractTool をベースにした Teams ファイル検索結果の抽出
-  - Teams 固有の UI 要素（チーム名、チャネル名）の追加抽出
-  - 出力スキーマに `teamName`, `channelName` フィールドを追加
+### 3a. Teamsメッセージ検索（新規実装）
 
-- [ ] **P3-2**: TeamsFileSearchTool の実装
-  - NavigationTool + TeamsFileExtractTool のオーケストレーション
-  - Teams ファイル検索 URL の構築
-  - SharePoint ベースのナビゲーションパターンを再利用
+Teams のチャット/チャンネルメッセージ本文を Playwright UI 操作で検索する。
+SharePoint ベースのファイル検索ではなく、Teams 独自 UI の自動操作で実現する。
 
-- [ ] **P3-3**: Agent への登録
-  - TeamsFileSearchTool を Agent の tools に追加
+#### 実装タスク一覧
+
+- [ ] **P3-1**: TeamsMessageExtractTool の実装（`mastra/tools/teamsMessageExtractTool.ts`）
+  - 入力: pageSnapshot（Markdown形式のスナップショット）
+  - 出力: results[], confidence, rawItemCount
+  - 抽出フィールド: title（送信者 + 日時）, url（メッセージへのリンク）, snippet（メッセージ本文抜粋）
+  - Teams 検索結果ページ固有のセレクタパターン:
+    - `[data-tid="search-result-item"]`
+    - `.search-result-item`
+    - メッセージ本文、送信者名、タイムスタンプの抽出
+
+**実装の要点**:
+- Teams の検索結果は「メッセージ」「ファイル」「人」などのタブに分かれる
+- メッセージタブのみを対象とするフィルタリングが必要
+- スナップショットから送信者名・日時・本文を構造化して抽出
+
+**完了条件**:
+- Teams メッセージ検索結果のスナップショットから正しく結果を抽出できること
+- メッセージタブの結果のみが抽出されること（ファイル・人は除外）
+
+- [ ] **P3-2**: TeamsMessageSearchTool の実装（`mastra/tools/teamsMessageSearchTool.ts`）
+  - NavigationTool + TeamsMessageExtractTool のオーケストレーション
+  - Teams 検索 URL の構築:
+    - teams.microsoft.com: `/_#/search/messages/{keyword}`
+    - カスタム: `?search={keyword}`
+  - NavigationTool で検索ページへ遷移 → メッセージタブ選択 → 結果待機 → snapshot → ExtractTool
+
+**実装の要点**:
+- Teams Web UI は SPA のため、ページ遷移後に結果が非同期で読み込まれる
+- wait action で結果表示を待つ（最大タイムアウト: settings.limits.timeoutSeconds）
+- メッセージタブへの切り替えが必要な場合は click action を使用
+
+**完了条件**:
+- Teams でキーワード検索を実行し、メッセージ結果がトップN件返ること
+- 検索結果なしの場合に空配列が返ること
+
+- [ ] **P3-3**: Agent への Teamsメッセージ検索の登録
+  - TeamsMessageSearchTool を Agent の tools に追加
   - 旧 teamsTool を削除
+  - `mastra/tools/mcpClient.ts` から teams のルーティングを削除
   - buildAgentPrompt() を更新
 
-- [ ] **P3-4**: 結合テスト
-  - Teams ファイル検索が動作すること
-  - SharePoint 検索と競合しないこと
-  - 自己修復（RepairTool）が Teams でも動作すること
+**完了条件**:
+- Agent が TeamsMessageSearchTool を使って検索を実行できること
+- `npm run typecheck` が通ること
+
+### 3b. Redmine検索（v1 維持）
+
+v1 の Redmine 検索（`redmineTool.ts` + `redmine-ui.server.ts`）はそのまま維持する。
+Playwright UI オートメーションでチケット検索を行う既存実装は十分に機能している。
+
+- [ ] **P3-4**: Redmine 検索の動作確認
+  - Phase 2 完了時点の状態で Redmine 検索が正常に動作することを確認
+  - 新 Tool（SharePoint, InternalDocs, Teams）との共存に問題がないこと
+
+### 3c. ローカル検索（v1 維持）
+
+v1 のローカル検索（`localTool.ts` + `local-fs.server.ts`）はそのまま維持する。
+ripgrep（rg/rga）によるファイル検索は安定しており変更不要。
+
+- [ ] **P3-5**: ローカル検索の動作確認
+  - Phase 2 完了時点の状態でローカル検索が正常に動作することを確認
+  - 他の新 Tool との共存に問題がないこと
+
+### 3d. 全ソース結合テスト
+
+- [ ] **P3-6**: 全5ソースの結合テスト
+  - `npm run dev` で起動
+  - 全ソース（SharePoint, InternalDocs, Teams, Redmine, Local）を有効にして検索を実行
+  - 各ソースから結果が返ること
+  - Promise.allSettled による並列検索が正常に動作すること
+  - 一部ソースが失敗しても他のソースの結果が返ること（部分障害耐性）
+  - `npm run build:linux` が成功すること
 
 ### Phase 3 の依存関係
 
 ```
-Phase 1 完了（NavigationTool, SharePointExtractTool が存在）
-Phase 2 完了（RepairTool が存在）
-  └→ P3-1 (TeamsFileExtractTool)
-       └→ P3-2 (TeamsFileSearchTool)
-            └→ P3-3 (Agent登録)
-                 └→ P3-4 (結合テスト)
+Phase 2 完了（NavigationTool, ExtractTool パターンが確立）
+  ├→ P3-1 (TeamsMessageExtractTool)
+  │    └→ P3-2 (TeamsMessageSearchTool)
+  │         └→ P3-3 (Agent登録)
+  ├→ P3-4 (Redmine動作確認)     ← 独立して実行可能
+  ├→ P3-5 (ローカル動作確認)     ← 独立して実行可能
+  └→ 全て完了後 → P3-6 (全ソース結合テスト)
 ```
+
+P3-1〜P3-3（Teams）と P3-4（Redmine）と P3-5（ローカル）は互いに独立しており、並行実施可能。
 
 ### Phase 3 の Definition of Done
 
-- [ ] Teams のファイル検索でトップN件が返る
-- [ ] RepairTool が Teams ファイル検索でも動作する
-- [ ] 既存の全ソースが壊れていない
+- [ ] Teams のメッセージ検索でトップN件（送信者/本文/リンク）が返る
+- [ ] Redmine 検索が v1 と同等に動作する
+- [ ] ローカル検索が v1 と同等に動作する
+- [ ] 全5ソース同時検索が正常に動作する
+- [ ] 部分障害時に他ソースの結果が返る（部分障害耐性）
 - [ ] `npm run typecheck` がエラーゼロ
+- [ ] `npm run build:linux` が成功
+- [ ] 旧 teamsTool.ts, teams-search.server.ts が使われていないこと
 
 ### リスクと対策
 
 | リスク | 影響 | 対策 |
 |--------|------|------|
-| Teams の UI が SharePoint と大きく異なる | ExtractTool の再利用が困難 | Teams 固有の ExtractTool を書く（NavigationTool は共通） |
-| Teams の認証が SharePoint と異なる | ログインセッションが別 | 既存ブラウザ（Edge）接続で SSO を再利用 |
+| Teams Web UI が SPA で結果読み込みが遅い | タイムアウト頻発 | wait の待機時間を十分に確保（デフォルト30秒）。段階的待機 |
+| Teams のメッセージタブの UI 構造が頻繁に変更される | ExtractTool の抽出が壊れる | confidence 判定で検出。将来 Phase 5 の自己修復で対応 |
+| Teams の認証が SharePoint と異なる | 未認証で検索ページにアクセスできない | 既存ブラウザ（Edge）接続で SSO セッションを再利用 |
+| Redmine / ローカル検索が新 Tool との共存で壊れる | 既存機能の回帰 | 結合テスト（P3-6）で全ソース同時動作を確認 |
 
 ---
 
@@ -412,11 +531,23 @@ P4-1〜P4-4 は互いに独立しており、並行実装可能。
 
 > **ゴール**: 追加機能で SearchTool の利便性を向上させる
 
-### 5a. Teamsチャット本文検索
+### 5a. 自己修復メカニズム
 
-- Teams メッセージ検索 API または UI 操作で本文を取得
-- Phase 3 の TeamsFileSearchTool とは別の TeamsMessageSearchTool として実装
-- 検索結果スキーマに `sender`, `timestamp`, `messageBody` を追加
+全ソース共通の自己修復機能。サイト側の HTML 構造変更で固定セレクタが壊れた場合に、
+playwright-mcp のアクセシビリティスナップショットを使って自動的に再抽出する。
+
+**詳細設計**: [repair_prompts.md](./repair_prompts.md) を参照
+
+- RepairTool の実装（`mastra/tools/repairTool.ts`）
+  - `tool_interfaces.md` §3d に準拠
+  - 修復戦略: セレクター変更 → ページ再読み込み → エスカレーション
+  - リトライ上限: 通常1回 + 修復1回 = 最大2回
+- 修復プロンプトの実装（`mastra/tools/repairPrompt.ts`）
+  - スナップショット → LLM → 構造化 JSON の変換
+  - Mastra Agent とは別の軽量 LLM 呼び出し（generateText）
+- 全 SearchTool（SharePoint, InternalDocs, Teams）に修復フローを組み込み
+  - ExtractTool の confidence が `low` → RepairTool を呼ぶ
+  - RepairTool も失敗 → escalation メッセージを reasoning に含める
 
 ### 5b. MCP 対応による外部ツール連携
 
@@ -430,11 +561,11 @@ P4-1〜P4-4 は互いに独立しており、並行実装可能。
 - `data/recipes/*.json` に保存（ポータブル対応済み）
 - Settings 画面にレシピ管理タブを追加
 
-### 5d. Redmine / InternalDocs の v2 化
+### 5d. Redmine の責務分離化
 
-- Phase 1-2 で確立した責務分離パターン（Navigation / Extract / Repair）を適用
-- RedmineExtractTool, InternalDocsExtractTool を作成
-- RepairTool は共通で再利用
+- Phase 1-2 で確立した責務分離パターン（Navigation / Extract / Repair）を Redmine に適用
+- RedmineExtractTool を作成し、v1 の固定セレクタ方式を置き換え
+- NavigationTool, RepairTool は共通で再利用
 
 ---
 
@@ -495,7 +626,7 @@ P4-1〜P4-4 は互いに独立しており、並行実装可能。
 
 | ドキュメント | 内容 | Phase |
 |-------------|------|-------|
-| [tool_interfaces.md](./tool_interfaces.md) | v2 Tool のインターフェース定義（Zod スキーマ、呼び出しフロー） | Phase 1-3 |
+| [tool_interfaces.md](./tool_interfaces.md) | Tool のインターフェース定義（Zod スキーマ、呼び出しフロー） | Phase 1-3 |
 | [repair_prompts.md](./repair_prompts.md) | 自己修復メカニズム設計（修復判定基準、プロンプト雛形、実装箇所） | Phase 2 |
 | [portable_data_layout.md](./portable_data_layout.md) | ポータブル配布のディレクトリレイアウト設計 | Phase 4 |
 | [STATUS.md](./STATUS.md) | v1 の実装ステータス（95%完了） | 参考 |
@@ -519,29 +650,37 @@ P4-1〜P4-4 は互いに独立しており、並行実装可能。
 | `mastra/tools/navigationTool.ts` | **新規**: ブラウザ操作 Tool |
 | `mastra/tools/sharepointExtractTool.ts` | **新規**: スナップショット解析 Tool |
 | `mastra/tools/sharepointSearchTool.ts` | **新規**: オーケストレーター Tool |
-| `mastra/agent.ts` | **改修**: v2 Tool 構成に変更 |
+| `mastra/agent.ts` | **改修**: 新 Tool 構成に変更 |
 | `mastra/tools/sharepointTool.ts` | **削除** |
 | `mastra/tools/mcpClient.ts` | **改修**: sharepoint ルーティング削除 |
 | `mcp-servers/sharepoint-search.server.ts` | **削除**（Phase 1 完了後） |
 | `shared/settings.ts` | **改修**: browser.channel 追加 |
 
-### Phase 2（自己修復）
+### Phase 2（社内ドキュメント検索）
 
 | ファイル | 変更内容 |
 |----------|---------|
-| `mastra/tools/repairTool.ts` | **新規**: 修復 Tool |
-| `mastra/tools/repairPrompt.ts` | **新規**: 修復プロンプトテンプレート |
-| `mastra/tools/sharepointSearchTool.ts` | **改修**: 修復フロー統合 |
+| `mastra/tools/internalDocsExtractTool.ts` | **新規**: 社内ドキュメント抽出 Tool |
+| `mastra/tools/internalDocsSearchTool.ts` | **新規**: 社内ドキュメント検索 Tool |
+| `mastra/agent.ts` | **改修**: InternalDocsSearchTool 登録 |
+| `mastra/tools/internalDocsTool.ts` | **削除** |
+| `mastra/tools/mcpClient.ts` | **改修**: internalDocs ルーティング削除 |
+| `mcp-servers/internal-docs-search.server.ts` | **削除**（Phase 2 完了後） |
 
-### Phase 3（Teams ファイル検索）
+### Phase 3（Teamsメッセージ検索 + Redmine + ローカル）
 
 | ファイル | 変更内容 |
 |----------|---------|
-| `mastra/tools/teamsFileExtractTool.ts` | **新規**: Teams ファイル抽出 Tool |
-| `mastra/tools/teamsFileSearchTool.ts` | **新規**: Teams ファイル検索 Tool |
-| `mastra/agent.ts` | **改修**: TeamsFileSearchTool 登録 |
+| `mastra/tools/teamsMessageExtractTool.ts` | **新規**: Teams メッセージ抽出 Tool |
+| `mastra/tools/teamsMessageSearchTool.ts` | **新規**: Teams メッセージ検索 Tool |
+| `mastra/agent.ts` | **改修**: TeamsMessageSearchTool 登録 |
 | `mastra/tools/teamsTool.ts` | **削除** |
-| `mcp-servers/teams-search.server.ts` | **削除** |
+| `mastra/tools/mcpClient.ts` | **改修**: teams ルーティング削除 |
+| `mcp-servers/teams-search.server.ts` | **削除**（Phase 3 完了後） |
+| `mastra/tools/redmineTool.ts` | **維持**: v1 のまま動作確認 |
+| `mcp-servers/redmine-ui.server.ts` | **維持**: v1 のまま動作確認 |
+| `mastra/tools/localTool.ts` | **維持**: v1 のまま動作確認 |
+| `mcp-servers/local-fs.server.ts` | **維持**: v1 のまま動作確認 |
 
 ### Phase 4（ポータブル配布）
 

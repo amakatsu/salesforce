@@ -1,6 +1,6 @@
 import { AppSettings } from '../../shared/settings'
 import { SearchPayload, SearchResponse, SearchService, type SearchSource } from '../../shared/contracts'
-import { generateAgentSummary } from '../mastra/agent'
+import { generateAgentSummary } from '../mastra/agent-legacy'
 import type { Logger } from './logger'
 import type { MetricsService } from './metricsService'
 
