@@ -44,7 +44,7 @@ def get_word_config() -> Dict[str, Any]:
         "FREQUENCY_PENALTY": float(os.getenv("FREQUENCY_PENALTY", "0.0")),
         "SCREEN_GLOB": os.getenv("SCREEN_GLOB", "*画面項目定義*.xlsx"),
         "VOCAB_GLOB": os.getenv("VOCAB_GLOB", "*単語名一覧*.xlsx"),
-        "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
+        "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "項目定義"),
         "VOCAB_SHEET": os.getenv("VOCAB_SHEET", "*"),
         "SCREEN_COL": os.getenv("SCREEN_COL", "項目名称"),
         "VOCAB_TERM_COL": os.getenv("VOCAB_TERM_COL", "論理名"),
@@ -85,8 +85,8 @@ def get_domain_config() -> Dict[str, Any]:
         "DOMAIN_GLOB": os.getenv("DOMAIN_GLOB", "*ドメイン定義*.xlsx"),
         "TABLE_GLOB": os.getenv("TABLE_GLOB", "*テーブル定義*.xlsx"),
         "SCREEN_SHEET": os.getenv("SCREEN_SHEET", "*"),
-        "DOMAIN_SHEET": os.getenv("DOMAIN_SHEET", "*"),
-        "TABLE_SHEET": os.getenv("TABLE_SHEET", "*"),
+        "DOMAIN_SHEET": os.getenv("DOMAIN_SHEET", "ドメイン定義"),
+        "TABLE_SHEET": os.getenv("TABLE_SHEET", "table"),
         # --- 画面項目定義 列名（確定仕様: 10列） ---
         "SCREEN_FILE_COL": os.getenv("SCREEN_FILE_COL", "ファイル名"),  # ※ 確定仕様の対象列には含まれない。出力用
         "SCREEN_ITEM_COL": os.getenv("SCREEN_ITEM_COL", "項目名称"),

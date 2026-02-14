@@ -168,7 +168,7 @@ class DomainDef:
 # ====== Excel I/O =============================================================
 
 HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
-HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
+HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "15"))
 
 
 def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[str]:
@@ -216,15 +216,15 @@ def _detect_header_row(
     path: Path, sheet_name: str, required_cols: List[str], scan_rows: int,
 ) -> int:
     head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
-    req = {normalize_text(c) for c in required_cols if c}
+    req = [normalize_text(c) for c in required_cols if c]
     for i in range(len(head_df)):
-        row_vals = {
+        row_vals = [
             normalize_text(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan"}
-        }
-        if req.issubset(row_vals):
+        ]
+        if all(any(r in v for v in row_vals) for r in req):
             return i
     raise KeyError(
-        f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name}"
+        f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name} (scan_rows={scan_rows})"
     )
 
 
@@ -394,6 +394,9 @@ def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
                         source_sheet=sheet,
                     ))
                 print(f"[INFO] 画面項目定義読み込み: {path.name}/{sheet}")
+            except KeyError as e:
+                print(f"[警告] {path.name}({sheet}): {e} -> スキップ")
+                continue
             except Exception as e:
                 print(f"[警告] {path.name}({sheet}) エラー: {e}")
     print(f"[INFO] 合計画面項目: {len(items)}件")
@@ -459,6 +462,9 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
                         source_sheet=sheet,
                     )
                 print(f"[INFO] ドメイン定義読み込み: {path.name}/{sheet} ({len(domains)}件)")
+            except KeyError as e:
+                print(f"[警告] {path.name}({sheet}): {e} -> スキップ")
+                continue
             except Exception as e:
                 print(f"[警告] {path.name}({sheet}) エラー: {e}")
     print(f"[INFO] 合計ドメイン定義: {len(domains)}件")
@@ -526,6 +532,9 @@ def load_table_definitions(dir_path: Path, cfg: Dict[str, Any]) -> List[TableIte
                         source_sheet=sheet,
                     ))
                 print(f"[INFO] テーブル定義読み込み: {path.name}/{sheet}")
+            except KeyError as e:
+                print(f"[警告] {path.name}({sheet}): {e} -> スキップ")
+                continue
             except Exception as e:
                 print(f"[警告] {path.name}({sheet}) エラー: {e}")
     print(f"[INFO] 合計テーブル定義: {len(items)}件")

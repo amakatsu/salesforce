@@ -11,6 +11,8 @@ import streamlit as st
 import pandas as pd
 import tempfile
 from pathlib import Path
+import io
+import contextlib
 
 # 親ディレクトリのwordモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -141,49 +143,51 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
     status = st.empty()
     detail = st.empty()
 
+    log_buf = io.StringIO()
     try:
-        with tempfile.TemporaryDirectory() as tmpdir_str:
-            tmpdir = Path(tmpdir_str)
-            config = DOMAIN_CONFIG.copy()
-            config["FUZZY_THRESHOLD"] = float(fuzzy_threshold)
-            config["OUT_DIR"] = str(tmpdir / "out")
+        with contextlib.redirect_stdout(log_buf), contextlib.redirect_stderr(log_buf):
+            with tempfile.TemporaryDirectory() as tmpdir_str:
+                tmpdir = Path(tmpdir_str)
+                config = DOMAIN_CONFIG.copy()
+                config["FUZZY_THRESHOLD"] = float(fuzzy_threshold)
+                config["OUT_DIR"] = str(tmpdir / "out")
 
-            # Step 1: ファイル保存
-            status.text("📁 ステップ 1/5: ファイルを保存中...")
-            file_summary = (
-                f"{match_target}: {len(screen_files) + len(table_files)}件、"
-                f"ドメイン定義: {len(domain_files)}件"
-            )
-            detail.text(file_summary)
-            progress.progress(5)
+                # Step 1: ファイル保存
+                status.text("📁 ステップ 1/5: ファイルを保存中...")
+                file_summary = (
+                    f"{match_target}: {len(screen_files) + len(table_files)}件、"
+                    f"ドメイン定義: {len(domain_files)}件"
+                )
+                detail.text(file_summary)
+                progress.progress(5)
 
-            if screen_files:
-                _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
-            if table_files:
-                _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
-            _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
-            progress.progress(15)
+                if screen_files:
+                    _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
+                if table_files:
+                    _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
+                _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
+                progress.progress(15)
 
-            # Step 2: データ読み込み
-            screen_items, table_items, domains = _load_all_data(
-                tmpdir, config, progress, status, detail, match_target,
-            )
+                # Step 2: データ読み込み
+                screen_items, table_items, domains = _load_all_data(
+                    tmpdir, config, progress, status, detail, match_target,
+                )
 
-            # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
-            screen_df, table_df = _run_matching(
-                screen_items, table_items, domains, config, progress, status, detail, match_target,
-            )
+                # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
+                screen_df, table_df = _run_matching(
+                    screen_items, table_items, domains, config, progress, status, detail, match_target,
+                )
 
-            # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
-            screen_dedup_df, table_dedup_df = _dedup_results(
-                screen_df, table_df, progress, status, detail, match_target,
-            )
+                # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
+                screen_dedup_df, table_dedup_df = _dedup_results(
+                    screen_df, table_df, progress, status, detail, match_target,
+                )
 
-            # Step 5: 結果保存（4シート: 抽出×2 + 重複排除×2）
-            _save_and_store_results(
-                screen_df, table_df, screen_dedup_df, table_dedup_df,
-                config, progress, status, detail, match_target,
-            )
+                # Step 5: 結果保存（4シート: 抽出×2 + 重複排除×2）
+                _save_and_store_results(
+                    screen_df, table_df, screen_dedup_df, table_dedup_df,
+                    config, progress, status, detail, match_target,
+                )
 
     except FileNotFoundError as e:
         st.error(f"❌ ファイルが見つかりません: {e}")
@@ -192,6 +196,11 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
     except Exception as e:
         st.error(f"❌ エラーが発生しました: {e}")
         st.exception(e)
+    finally:
+        log_text = log_buf.getvalue().strip()
+        if log_text:
+            with st.expander("実行ログ", expanded=False):
+                st.text(log_text)
 
 
 def _load_all_data(tmpdir, config, progress, status, detail, match_target):
@@ -231,7 +240,8 @@ def _run_matching(screen_items, table_items, domains, config, progress, status, 
         def on_screen_progress(processed, total):
             pct = 30 + int(35 * processed / total) if total > 0 else 30
             progress.progress(pct)
-            detail.text(f"画面項目照合中: {processed}/{total}件")
+            status.text(f"🔄 ステップ 3/5: 照合処理中... {pct}%")
+            detail.text(f"画面項目照合中: {processed}/{total}件（最新）")
 
         screen_df = process_screen_domain_matching(
             screen_items, domains, config, progress_callback=on_screen_progress,
@@ -241,7 +251,8 @@ def _run_matching(screen_items, table_items, domains, config, progress, status, 
         def on_table_progress(processed, total):
             pct = 30 + int(35 * processed / total) if total > 0 else 30
             progress.progress(pct)
-            detail.text(f"テーブル定義照合中: {processed}/{total}件")
+            status.text(f"🔄 ステップ 3/5: 照合処理中... {pct}%")
+            detail.text(f"テーブル定義照合中: {processed}/{total}件（最新）")
 
         table_df = process_table_domain_matching(
             table_items, domains, config, progress_callback=on_table_progress,
