@@ -125,6 +125,7 @@ def get_domain_config() -> Dict[str, Any]:
         "SHEET_TABLE_DEDUP": os.getenv("SHEET_TABLE_DEDUP", "テーブル定義_重複排除"),
         # --- マッチング判定 設定 ---
         "SYNONYM_FILE_PATH": os.getenv("SYNONYM_FILE_PATH", "word/domain/synonyms.yaml"),
+        "DOMAIN_MAPPING_PATH": os.getenv("DOMAIN_MAPPING_PATH", "word/domain/domain_mapping.yaml"),
         "MATCHING_STRIP_NUMBERS": _as_bool(os.getenv("MATCHING_STRIP_NUMBERS", "true")),
         "MATCHING_PARTIAL_THRESHOLD": int(os.getenv("MATCHING_PARTIAL_THRESHOLD", "2")),
         "MATCHING_FLAG_KEYWORDS": os.getenv("MATCHING_FLAG_KEYWORDS", "フラグ,FLG,flag"),
@@ -134,8 +135,12 @@ def get_domain_config() -> Dict[str, Any]:
         "MATCHING_COMMENT_KEYWORDS": os.getenv("MATCHING_COMMENT_KEYWORDS", "コメント,補記"),
         "MATCHING_GENERIC_COMMENT_DOMAIN": os.getenv("MATCHING_GENERIC_COMMENT_DOMAIN", "改行あり/なしを確認して選択してください"),
         # --- LLM判定 設定（B方式用・将来用） ---
-        "LLM_MATCHING_ENABLED": _as_bool(os.getenv("LLM_MATCHING_ENABLED", "false")),
-        "LLM_MATCHING_BATCH_SIZE": int(os.getenv("LLM_MATCHING_BATCH_SIZE", "20")),
+        "LLM_MATCHING_ENABLED": _as_bool(os.getenv("LLM_MATCHING_ENABLED", "true")),
+        "LLM_CANDIDATE_TOP_N": int(os.getenv("LLM_CANDIDATE_TOP_N", "20")),
+        "LLM_CANDIDATE_MIN_SIM": float(os.getenv("LLM_CANDIDATE_MIN_SIM", "0.4")),
+        "LLM_CANDIDATE_MIN_DIGIT": float(os.getenv("LLM_CANDIDATE_MIN_DIGIT", "0.4")),
+        "SYNONYM_PARTIAL_SIM_THRESHOLD": float(os.getenv("SYNONYM_PARTIAL_SIM_THRESHOLD", "0.78")),
+        "LLM_MATCHING_BATCH_SIZE": int(os.getenv("LLM_MATCHING_BATCH_SIZE", "5")),
         # --- 出力・実行制御 ---
         "OUT_DIR": os.getenv("OUT_DIR", "out"),
         "TIMEOUT_SEC": float(os.getenv("TIMEOUT_SEC", "120")),

@@ -1,0 +1,110 @@
+# ドメインチェッカー設定（仕様書 Section 4）
+# - 型の大分類マッピング
+# - テキストタイプ → ドメインデータ型
+# - 特殊パターン定義
+
+type_mapping:
+  screen:
+    文字列系:
+      - テキスト
+      - テキストエリア
+      - テーブルカラムテキスト
+    数値系:
+      - 数値
+    日付系:
+      - 日付
+    真偽値系:
+      - チェックボックス
+    コード系:
+      - コンボボックス
+      - ラジオボタン
+  table:
+    文字列系:
+      - CHAR
+      - VARCHAR
+      - NCHAR
+      - NVARCHAR
+      - CLOB
+    数値系:
+      - NUMBER
+      - INT
+      - INTEGER
+      - DECIMAL
+      - FLOAT
+      - NUMERIC
+      - BIGINT
+    日付系:
+      - DATE
+      - TIMESTAMP
+    バイナリ系:
+      - RAW
+      - ROWID
+  domain:
+    文字列系:
+      - 半角文字
+      - 半角英字
+      - 半角数字
+      - 半角カナ
+      - 半角英数字
+      - 半角英数字記号
+      - 全角文字
+      - 全角英字
+      - 全角数字
+      - 全角ひらがな
+      - 全角カタカナ
+      - 全角英数字
+      - 全角英数字記号
+      - 全半角混合
+    数値系:
+      - 数値（整数）
+      - 数値（少数）
+    日付系:
+      - 日付
+    真偽値系:
+      - 真偽値
+    コード系:
+      - コード
+
+text_type_mapping:
+  半角英字:
+    - 半角英字
+  半角数字:
+    - 半角数字
+  半角英数字:
+    - 半角英数字
+  半角カナ文字:
+    - 半角カナ
+  半角文字:
+    - 半角文字
+    - 半角英数字記号
+  全角文字:
+    - 全角文字
+    - 全角ひらがな
+    - 全角カタカナ
+  全半角混合:
+    - 全半角混合
+
+special_patterns:
+  flag:
+    keywords: [フラグ, flag, FLG]
+    types: [boolean, bool, チェックボックス]
+    digits: ["0", "1", "0-1", "0,1"]
+    match_type: special_flag
+    output: "以下から選択: 0/1, 0/9, null/1, スペース/1"
+  comment:
+    keywords: [コメント, 補記, 備考, メモ]
+    match_type: special_comment
+    output: "改行あり/なしを確認して選択してください"
+  date:
+    keywords: [日付, 日時, date, 時刻]
+    generic_types: [date, datetime, timestamp, 日付]
+    generic_formats:
+      - yyyymmdd
+      - yyyy-mm-dd
+      - yyyymmddhhmmss
+      - yyyy-mm-dd hh:mm:ss
+    individual_string_types: [varchar, char, テキスト]
+    individual_format_regex: "yyyy[/.]mm|mm[/.]dd|yyyy年|hh:mm|hh24|yy/mm"
+    generic_match_type: special_date
+    generic_output: 汎用日付ドメイン
+    individual_match_type: special_date_individual

@@ -6,7 +6,6 @@ from .domain_check import (
     DomainDef,
     TableItem,
     MatchResult,
-    MatcherFn,
     load_screen_items,
     load_domains,
     load_table_definitions,

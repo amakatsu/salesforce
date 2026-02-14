@@ -70,39 +70,38 @@ def _clear_results():
 # ---------------------------------------------------------------------------
 
 def _render_file_uploaders():
-    """3つのファイルアップローダーを配置し、ファイルリストを返す。"""
+    """ファイルアップローダーを配置し、選択種別とファイルリストを返す。"""
     st.subheader("📄 入力ファイル")
-    col1, col2, col3 = st.columns(3)
+
+    match_target = st.radio(
+        "マッチング対象を選択",
+        options=["画面項目定義", "テーブル定義"],
+        horizontal=True,
+    )
+
+    col1, col2 = st.columns(2)
 
     with col1:
-        st.caption("画面項目定義ファイル（必須）")
-        screen_files = st.file_uploader(
-            "画面項目定義 (*.xlsx)",
+        st.caption(f"{match_target}ファイル（必須）")
+        target_key = "screen" if match_target == "画面項目定義" else "table"
+        target_help = (
+            "項目名称、型、テキストタイプ、桁数、外部コード"
+            if match_target == "画面項目定義"
+            else "論理項目名、データ型、Length、全体数値、少数桁"
+        )
+        target_files = st.file_uploader(
+            f"{match_target} (*.xlsx)",
             type=["xlsx"],
             accept_multiple_files=True,
-            key="screen",
-            help="項目名称、型、テキストタイプ、桁数、外部コード",
+            key=target_key,
+            help=target_help,
         )
-        if screen_files:
-            st.success(f"✅ {len(screen_files)}件")
-            for f in screen_files:
+        if target_files:
+            st.success(f"✅ {len(target_files)}件")
+            for f in target_files:
                 st.text(f"  • {f.name}")
 
     with col2:
-        st.caption("テーブル定義ファイル（必須）")
-        table_files = st.file_uploader(
-            "テーブル定義 (*.xlsx)",
-            type=["xlsx"],
-            accept_multiple_files=True,
-            key="table",
-            help="論理項目名、データ型、Length、全体数値、少数桁",
-        )
-        if table_files:
-            st.success(f"✅ {len(table_files)}件")
-            for f in table_files:
-                st.text(f"  • {f.name}")
-
-    with col3:
         st.caption("ドメイン定義ファイル（必須）")
         domain_files = st.file_uploader(
             "ドメイン定義 (*.xlsx)",
@@ -116,7 +115,10 @@ def _render_file_uploaders():
             for f in domain_files:
                 st.text(f"  • {f.name}")
 
-    return screen_files, table_files, domain_files
+    screen_files = target_files if match_target == "画面項目定義" else []
+    table_files = target_files if match_target == "テーブル定義" else []
+
+    return match_target, screen_files, table_files, domain_files
 
 
 # ---------------------------------------------------------------------------
@@ -130,9 +132,9 @@ def _save_files_to_tmpdir(files, tmpdir, label, detail_text):
         detail_text.text(f"{label}保存中: {i + 1}/{len(files)} - {f.name}")
 
 
-def _run_domain_check(screen_files, table_files, domain_files, fuzzy_threshold):
+def _run_domain_check(match_target, screen_files, table_files, domain_files, fuzzy_threshold):
     """ドメインチェック全工程を実行し、結果を session_state に保存する。"""
-    track_usage(action="実行ボタン押下", tool_name="ドメイン照合")
+    track_usage(action="実行ボタン押下", tool_name="マッチング")
     _clear_results()
 
     progress = st.progress(0)
@@ -149,37 +151,38 @@ def _run_domain_check(screen_files, table_files, domain_files, fuzzy_threshold):
             # Step 1: ファイル保存
             status.text("📁 ステップ 1/5: ファイルを保存中...")
             file_summary = (
-                f"画面項目定義: {len(screen_files)}件、"
-                f"テーブル定義: {len(table_files)}件、"
+                f"{match_target}: {len(screen_files) + len(table_files)}件、"
                 f"ドメイン定義: {len(domain_files)}件"
             )
             detail.text(file_summary)
             progress.progress(5)
 
-            _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
-            _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
+            if screen_files:
+                _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
+            if table_files:
+                _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
             _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
             progress.progress(15)
 
             # Step 2: データ読み込み
             screen_items, table_items, domains = _load_all_data(
-                tmpdir, config, progress, status, detail,
+                tmpdir, config, progress, status, detail, match_target,
             )
 
             # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
             screen_df, table_df = _run_matching(
-                screen_items, table_items, domains, config, progress, status, detail,
+                screen_items, table_items, domains, config, progress, status, detail, match_target,
             )
 
             # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
             screen_dedup_df, table_dedup_df = _dedup_results(
-                screen_df, table_df, progress, status, detail,
+                screen_df, table_df, progress, status, detail, match_target,
             )
 
             # Step 5: 結果保存（4シート: 抽出×2 + 重複排除×2）
             _save_and_store_results(
                 screen_df, table_df, screen_dedup_df, table_dedup_df,
-                config, progress, status, detail,
+                config, progress, status, detail, match_target,
             )
 
     except FileNotFoundError as e:
@@ -191,19 +194,22 @@ def _run_domain_check(screen_files, table_files, domain_files, fuzzy_threshold):
         st.exception(e)
 
 
-def _load_all_data(tmpdir, config, progress, status, detail):
+def _load_all_data(tmpdir, config, progress, status, detail, match_target):
     """3種類のExcelファイルを読み込む。"""
     status.text("📂 ステップ 2/5: データを読み込み中...")
 
-    detail.text("画面項目定義を解析中...")
-    screen_items = load_screen_items(tmpdir, config)
-    detail.text(f"✓ 画面項目定義: {len(screen_items)}件")
-    progress.progress(25)
-
-    detail.text("テーブル定義を解析中...")
-    table_items = load_table_definitions(tmpdir, config)
-    detail.text(f"✓ テーブル定義: {len(table_items)}件")
-    progress.progress(35)
+    screen_items = []
+    table_items = []
+    if match_target == "画面項目定義":
+        detail.text("画面項目定義を解析中...")
+        screen_items = load_screen_items(tmpdir, config)
+        detail.text(f"✓ 画面項目定義: {len(screen_items)}件")
+        progress.progress(30)
+    else:
+        detail.text("テーブル定義を解析中...")
+        table_items = load_table_definitions(tmpdir, config)
+        detail.text(f"✓ テーブル定義: {len(table_items)}件")
+        progress.progress(30)
 
     detail.text("ドメイン定義を解析中...")
     domains = load_domains(tmpdir, config)
@@ -213,48 +219,52 @@ def _load_all_data(tmpdir, config, progress, status, detail):
     return screen_items, table_items, domains
 
 
-def _run_matching(screen_items, table_items, domains, config, progress, status, detail):
-    """画面項目×ドメイン、テーブル定義×ドメインの照合を実行する（全件対象）。"""
+def _run_matching(screen_items, table_items, domains, config, progress, status, detail, match_target):
+    """画面項目×ドメイン、テーブル定義×ドメインの照合を実行する。"""
     status.text("🔄 ステップ 3/5: 照合処理中...")
-    detail.text(
-        f"画面項目 {len(screen_items)}件 + テーブル定義 {len(table_items)}件 "
-        f"× ドメイン {len(domains)}件"
-    )
+    detail.text(f"{match_target} × ドメイン {len(domains)}件")
 
-    def on_screen_progress(processed, total):
-        pct = 30 + int(25 * processed / total) if total > 0 else 30
-        progress.progress(pct)
-        detail.text(f"画面項目照合中: {processed}/{total}件")
+    screen_df = pd.DataFrame()
+    table_df = pd.DataFrame()
 
-    screen_df = process_screen_domain_matching(
-        screen_items, domains, config, progress_callback=on_screen_progress,
-    )
-    progress.progress(55)
+    if match_target == "画面項目定義":
+        def on_screen_progress(processed, total):
+            pct = 30 + int(35 * processed / total) if total > 0 else 30
+            progress.progress(pct)
+            detail.text(f"画面項目照合中: {processed}/{total}件")
 
-    def on_table_progress(processed, total):
-        pct = 55 + int(20 * processed / total) if total > 0 else 55
-        progress.progress(pct)
-        detail.text(f"テーブル定義照合中: {processed}/{total}件")
+        screen_df = process_screen_domain_matching(
+            screen_items, domains, config, progress_callback=on_screen_progress,
+        )
+        progress.progress(70)
+    else:
+        def on_table_progress(processed, total):
+            pct = 30 + int(35 * processed / total) if total > 0 else 30
+            progress.progress(pct)
+            detail.text(f"テーブル定義照合中: {processed}/{total}件")
 
-    table_df = process_table_domain_matching(
-        table_items, domains, config, progress_callback=on_table_progress,
-    )
-    progress.progress(75)
+        table_df = process_table_domain_matching(
+            table_items, domains, config, progress_callback=on_table_progress,
+        )
+        progress.progress(70)
 
     return screen_df, table_df
 
 
-def _dedup_results(screen_df, table_df, progress, status, detail):
+def _dedup_results(screen_df, table_df, progress, status, detail, match_target):
     """照合済みDataFrameを項目名（数字除去後）＋桁数で重複排除する。"""
     status.text("🔧 ステップ 4/5: 重複排除中...")
 
-    before_screen = len(screen_df)
-    screen_dedup = dedup_by_name_and_digits(screen_df, "項目名称", "最大桁")
-    detail.text(f"✓ 画面項目: {before_screen}件 → {len(screen_dedup)}件")
-
-    before_table = len(table_df)
-    table_dedup = dedup_by_name_and_digits(table_df, "論理項目名", "Length")
-    detail.text(f"✓ テーブル定義: {before_table}件 → {len(table_dedup)}件")
+    screen_dedup = pd.DataFrame()
+    table_dedup = pd.DataFrame()
+    if match_target == "画面項目定義":
+        before_screen = len(screen_df)
+        screen_dedup = dedup_by_name_and_digits(screen_df, "項目名称", "最大桁")
+        detail.text(f"✓ 画面項目: {before_screen}件 → {len(screen_dedup)}件")
+    else:
+        before_table = len(table_df)
+        table_dedup = dedup_by_name_and_digits(table_df, "論理項目名", "Length")
+        detail.text(f"✓ テーブル定義: {before_table}件 → {len(table_dedup)}件")
     progress.progress(80)
 
     return screen_dedup, table_dedup
@@ -262,14 +272,20 @@ def _dedup_results(screen_df, table_df, progress, status, detail):
 
 def _save_and_store_results(
     screen_df, table_df, screen_dedup_df, table_dedup_df,
-    config, progress, status, detail,
+    config, progress, status, detail, match_target,
 ):
     """結果をExcel（4シート）に保存し、session_state に格納する。"""
     status.text("💾 ステップ 5/5: 結果を保存中...")
     detail.text("Excelファイルを作成しています...")
 
     save_domain_check_results(
-        screen_df, table_df, screen_dedup_df, table_dedup_df, config,
+        screen_df,
+        table_df,
+        screen_dedup_df,
+        table_dedup_df,
+        config,
+        include_screen=(match_target == "画面項目定義"),
+        include_table=(match_target == "テーブル定義"),
     )
 
     # tempdir 消失に備え、Excelバイトを session_state に退避
@@ -280,8 +296,8 @@ def _save_and_store_results(
         break
 
     st.session_state.processing_done = True
-    st.session_state.screen_result_df = screen_dedup_df
-    st.session_state.table_result_df = table_dedup_df
+    st.session_state.screen_result_df = screen_dedup_df if match_target == "画面項目定義" else None
+    st.session_state.table_result_df = table_dedup_df if match_target == "テーブル定義" else None
 
     total = len(screen_dedup_df) + len(table_dedup_df)
     progress.progress(100)
@@ -327,18 +343,17 @@ def _show_summary(label, df):
     total = len(df)
     col1, col2, col3, col4, col5 = st.columns(5)
 
-    confirmed = len(df[df["判定結果"] == "確定"])
-    candidate = len(df[df["判定結果"] == "候補"])
-    select_needed = len(df[df["判定結果"] == "選択必要"])
+    confirmed = len(df[df["判定結果"] == "完全一致"])
+    candidate = len(df[df["判定結果"].str.startswith("提案")])
+    select_needed = len(df[df["判定結果"] == "選択必須"])
     excluded = len(df[df["判定結果"] == "対象外"])
-    no_match = len(df[df["判定結果"] == "一致なし"])
 
     pct = lambda n: f"{n * 100 / total:.1f}%" if total > 0 else "0%"
     col1.metric("総項目数", f"{total}件")
-    col2.metric("確定", f"{confirmed}件", pct(confirmed))
-    col3.metric("候補", f"{candidate}件", pct(candidate))
-    col4.metric("選択必要", f"{select_needed}件", pct(select_needed))
-    col5.metric("一致なし", f"{no_match}件", pct(no_match))
+    col2.metric("完全一致", f"{confirmed}件", pct(confirmed))
+    col3.metric("提案", f"{candidate}件", pct(candidate))
+    col4.metric("選択必須", f"{select_needed}件", pct(select_needed))
+    col5.metric("対象外", f"{excluded}件", pct(excluded))
 
 
 def _show_preview(df, label):
@@ -381,28 +396,28 @@ def _show_download():
 # ===========================================================================
 
 st.set_page_config(
-    page_title="ドメイン照合ツール",
+    page_title="マッチングツール",
     page_icon="🔍",
     layout="wide",
 )
 
 if "visited_domain_check" not in st.session_state:
-    track_usage(action="ページ訪問", tool_name="ドメイン照合")
+    track_usage(action="ページ訪問", tool_name="マッチング")
     st.session_state.visited_domain_check = True
 
 _init_session_state()
 
 # ── ヘッダー ──
-st.title("🔍 ドメイン照合ツール")
+st.title("🔍 マッチングツール")
 st.markdown("""
 <div style='background: linear-gradient(90deg, #f56565 0%, #ed8936 100%);
             padding: 1rem;
             border-radius: 10px;
             margin-bottom: 1.5rem;'>
-    <h3 style='color: white; margin: 0;'>💡 画面項目・テーブル定義のドメイン存在チェックと提案</h3>
+    <h3 style='color: white; margin: 0;'>💡 画面項目・テーブル定義のマッチング</h3>
     <p style='color: #fff5f5; margin: 0.5rem 0 0 0; font-size: 0.9rem;'>
-        画面項目定義・テーブル定義に対応するドメインの存在をチェックし、
-        存在しない場合は新規ドメインを提案します
+        画面項目定義・テーブル定義とドメイン一覧を照合し、
+        最適なドメイン候補を提案します
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -433,11 +448,10 @@ with st.expander("💡 使い方を見る", expanded=False):
 
     ### ステップ3️⃣: 結果を確認
 
-    - **確定**: 型＋桁数＋名前が一致するドメインあり
-    - **候補**: 類似するドメインの候補を提案
-    - **選択必要**: フラグ・コメント等の特殊パターン（人間が選択）
-    - **対象外**: 属性列が全て空のためドメイン不要
-    - **一致なし**: 該当ドメインなし → 新規ドメイン定義が必要
+    - **完全一致**: 型＋桁数＋名前が一致するドメインあり
+    - **提案**: 候補からの提案、もしくは新規ドメイン提案
+    - **選択必須**: フラグ・コメント等の特殊パターン（人間が選択）
+    - **対象外**: 属性列が全て空のためマッチング対象外
     """)
 
 st.markdown("---")
@@ -456,19 +470,22 @@ with st.sidebar:
         )
 
 # ── ファイルアップロード ──
-screen_files, table_files, domain_files = _render_file_uploaders()
+match_target, screen_files, table_files, domain_files = _render_file_uploaders()
 
 st.markdown("---")
 
 # ── 実行ボタン ──
-all_files_ready = bool(screen_files and table_files and domain_files)
+if match_target == "画面項目定義":
+    all_files_ready = bool(screen_files and domain_files)
+else:
+    all_files_ready = bool(table_files and domain_files)
 if st.button(
     "🚀 チェック実行",
     type="primary",
     use_container_width=True,
     disabled=not all_files_ready,
 ):
-    _run_domain_check(screen_files, table_files, domain_files, fuzzy_threshold)
+    _run_domain_check(match_target, screen_files, table_files, domain_files, fuzzy_threshold)
 
 # ── 結果表示（session_state ベース — rerun 後も維持される） ──
 _show_results()
@@ -478,7 +495,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: gray; font-size: 0.9em;'>
-        ドメイン照合ツール v2.0 | Powered by Streamlit
+        マッチングツール v2.0 | Powered by Streamlit
     </div>
     """,
     unsafe_allow_html=True,

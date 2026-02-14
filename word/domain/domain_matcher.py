@@ -23,23 +23,92 @@ C方式マッチングエンジン — 前処理・情報収集
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+import unicodedata
 
-try:
-    from .domain_check import (
-        DomainDef,
-        normalize_text,
-        normalize_data_type,
-        calc_similarity,
-    )
-except ImportError:
-    from domain_check import (
-        DomainDef,
-        normalize_text,
-        normalize_data_type,
-        calc_similarity,
-    )
+if TYPE_CHECKING:
+    from .domain_check import DomainDef
+else:
+    DomainDef = Any
+
+
+def normalize_text(text: str) -> str:
+    """NFKC正規化 + 小文字化 + 同義語統一"""
+    if text is None or text == "":
+        return ""
+    s = unicodedata.normalize("NFKC", str(text)).lower().strip()
+    s = re.sub(r"[\u3000\s]+", " ", s)
+
+    # 日付・時刻
+    s = re.sub(r"取引日$", "日付", s)
+    s = re.sub(r"年月日$", "日付", s)
+    s = re.sub(r"(\\w+)日$", r"\\1日付", s)
+    s = re.sub(r"日時$", "日時", s)
+    s = re.sub(r"時刻$", "時刻", s)
+    s = re.sub(r"タイムスタンプ$", "日時", s)
+
+    # 金額・数量
+    s = re.sub(r"金額$", "金額", s)
+    s = re.sub(r"価格$", "金額", s)
+    s = re.sub(r"料金$", "金額", s)
+    s = re.sub(r"単価$", "単価", s)
+    s = re.sub(r"数量$", "数量", s)
+    s = re.sub(r"件数$", "数量", s)
+    s = re.sub(r"個数$", "数量", s)
+
+    # コード・ID
+    s = re.sub(r"コード$", "コード", s)
+    s = re.sub(r"cd$", "コード", s)
+    s = re.sub(r"識別子$", "id", s)
+    s = re.sub(r"番号$", "番号", s)
+    s = re.sub(r"no$", "番号", s)
+
+    # 名称
+    s = re.sub(r"名称$", "名称", s)
+    s = re.sub(r"名前$", "名称", s)
+    s = re.sub(r"氏名$", "名称", s)
+    s = re.sub(r"name$", "名称", s)
+
+    # 区分・種別
+    s = re.sub(r"区分$", "区分", s)
+    s = re.sub(r"種別$", "区分", s)
+    s = re.sub(r"タイプ$", "区分", s)
+    s = re.sub(r"type$", "区分", s)
+
+    # フラグ・状態
+    s = re.sub(r"フラグ$", "フラグ", s)
+    s = re.sub(r"flag$", "フラグ", s)
+    s = re.sub(r"状態$", "状態", s)
+    s = re.sub(r"ステータス$", "状態", s)
+    s = re.sub(r"status$", "状態", s)
+
+    # 備考・メモ
+    s = re.sub(r"備考$", "備考", s)
+    s = re.sub(r"メモ$", "備考", s)
+    s = re.sub(r"コメント$", "備考", s)
+    s = re.sub(r"摘要$", "備考", s)
+
+    return s
+
+
+def normalize_data_type(dtype: str) -> str:
+    """データ型の正規化"""
+    if not dtype:
+        return ""
+    dt = normalize_text(dtype)
+    type_map = {
+        "varchar": "varchar", "varchar2": "varchar", "char": "char",
+        "int": "integer", "integer": "integer", "bigint": "bigint",
+        "decimal": "decimal", "numeric": "decimal", "number": "decimal",
+        "date": "date", "datetime": "datetime", "timestamp": "timestamp",
+        "boolean": "boolean", "bool": "boolean",
+    }
+    for key, value in type_map.items():
+        if key in dt:
+            return value
+    return dt
 
 
 # ===========================================================================
@@ -158,8 +227,8 @@ def _compare_min_max(
 
 
 # ===========================================================================
-# YAML設定（暫定インライン定義）
-# ashigaru1 の config_loader.py 完成後、_load_mappings() 内の1行を有効化
+# YAML設定（外出し）
+# 設定ファイルが見つからない場合は既定値へフォールバックする
 # ===========================================================================
 
 # --- 型の大分類マッピング (Section 3-2) ---
@@ -227,20 +296,71 @@ _DEFAULT_SPECIAL_PATTERNS: dict = {
         "individual_string_types": ["varchar", "char", "テキスト"],
         "individual_format_regex": r"yyyy[/.]mm|mm[/.]dd|yyyy年|hh:mm|hh24|yy/mm",
         "generic_match_type": "special_date",
-        "generic_output": "汎用日付",
+        "generic_output": "汎用日付ドメイン",
         "individual_match_type": "special_date_individual",
     },
 }
 
 
-def _load_mappings() -> tuple[dict, dict, dict]:
+def _resolve_config_path(path_str: str) -> Path:
+    """設定ファイルのパスを解決する。
+
+    - 絶対パスはそのまま
+    - 相対パスは CWD → プロジェクトルート → モジュールディレクトリ の順で探索
+    """
+    path = Path(path_str)
+    if path.is_absolute():
+        return path
+
+    # CWD 起点
+    cwd_candidate = Path(path_str)
+    if cwd_candidate.exists():
+        return cwd_candidate.resolve()
+
+    # プロジェクトルート（/word/domain の2階層上）
+    root_candidate = Path(__file__).resolve().parents[2] / path_str
+    if root_candidate.exists():
+        return root_candidate
+
+    # モジュールディレクトリ直下
+    return Path(__file__).resolve().parent / path_str
+
+
+def _load_yaml(path: Path) -> dict:
+    """YAMLを読み込む。失敗時は空dictを返す。"""
+    try:
+        import yaml
+    except Exception:
+        return {}
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _load_mappings(config: dict | None = None) -> tuple[dict, dict, dict]:
     """設定マッピングを読み込む。
 
     Returns: (type_mapping, text_type_mapping, special_patterns)
     """
-    # TODO: ashigaru1 の config_loader.py 完成後、以下を有効化:
-    # from .config_loader import load_type_mapping, load_text_type_mapping, load_special_patterns
-    # return load_type_mapping(), load_text_type_mapping(), load_special_patterns()
+    mapping_path = None
+    if config:
+        mapping_path = config.get("DOMAIN_MAPPING_PATH") or config.get("DOMAIN_MAPPING_FILE")
+
+    if mapping_path:
+        resolved = _resolve_config_path(mapping_path)
+        data = _load_yaml(resolved)
+        if data:
+            return (
+                data.get("type_mapping") or _DEFAULT_TYPE_MAPPING,
+                data.get("text_type_mapping") or _DEFAULT_TEXT_TYPE_MAPPING,
+                data.get("special_patterns") or _DEFAULT_SPECIAL_PATTERNS,
+            )
+
+    # フォールバック（内蔵デフォルト）
     return _DEFAULT_TYPE_MAPPING, _DEFAULT_TEXT_TYPE_MAPPING, _DEFAULT_SPECIAL_PATTERNS
 
 
@@ -287,12 +407,13 @@ def _resolved(
 
 
 def _check_special_patterns(
+    item: dict,
     name_stripped: str, type_norm: str, digits: str,
     patterns_cfg: dict,
 ) -> MatchEvidence | None:
     """特殊パターンを順に判定する。該当すれば確定済み MatchEvidence を返す。"""
     # フラグ
-    flag = _check_flag_pattern(name_stripped, type_norm, digits, patterns_cfg.get("flag", {}))
+    flag = _check_flag_pattern(item, name_stripped, type_norm, digits, patterns_cfg.get("flag", {}))
     if flag is not None:
         return flag
 
@@ -310,6 +431,7 @@ def _check_special_patterns(
 
 
 def _check_flag_pattern(
+    item: dict,
     name_stripped: str, type_norm: str, digits: str,
     cfg: dict,
 ) -> MatchEvidence | None:
@@ -320,7 +442,12 @@ def _check_flag_pattern(
 
     types = frozenset(cfg.get("types", []))
     digit_patterns = frozenset(cfg.get("digits", []))
-    if type_norm not in types and digits not in digit_patterns:
+
+    min_val = _clean_str(item.get("min_value"))
+    max_val = _clean_str(item.get("max_value"))
+    range_zero_one = (min_val == "0" and max_val == "1") or (min_val == "1" and max_val == "0")
+
+    if type_norm not in types and digits not in digit_patterns and not range_zero_one:
         return None
 
     return _resolved(
@@ -437,11 +564,77 @@ def _filter_by_major_type(
     return matched
 
 
+def _filter_by_subtype(
+    item_dtype: str,
+    domains: Dict[str, DomainDef],
+) -> Dict[str, DomainDef]:
+    """データ型の細分類一致で絞り込む。空ならスキップ。"""
+    if not item_dtype:
+        return dict(domains)
+    item_norm = normalize_data_type(item_dtype)
+    if not item_norm:
+        return dict(domains)
+    matched: Dict[str, DomainDef] = {}
+    for key, domain in domains.items():
+        d_norm = normalize_data_type(domain.data_type)
+        if not d_norm or d_norm == item_norm:
+            matched[key] = domain
+    return matched if matched else dict(domains)
+
+
 # ===========================================================================
 # 桁数照合（詳細照合）(Section 3-4)
 # ===========================================================================
 
 FilteredDomain = tuple[DomainDef, dict]
+
+
+def _digit_match_rate(details: dict) -> float | None:
+    """桁数/長さ系の一致率（0.0-1.0）を算出する。重み付き。"""
+    if not details:
+        return None
+    weights = {
+        "string_length_match": 1.0,
+        "string_max_chars_match": 0.7,
+        "string_max_bytes_match": 0.3,
+        "numeric_integer_digits_match": 0.5,
+        "numeric_decimal_digits_match": 0.5,
+        "numeric_min_max_match": 1.0,
+    }
+    total = 0.0
+    matched = 0.0
+    for key, weight in weights.items():
+        v = details.get(key)
+        if v is True or v is False:
+            total += weight
+            if v is True:
+                matched += weight
+    if total <= 0:
+        return None
+    return matched / total
+
+
+def digit_match_rate_from_details(details: dict) -> float | None:
+    """外部向け: 桁一致率を返す。"""
+    return _digit_match_rate(details)
+
+
+def _has_digit_mismatch(details: dict | None) -> bool:
+    if not details:
+        return False
+    keys = {
+        "string_length_match",
+        "string_max_chars_match",
+        "string_max_bytes_match",
+        "numeric_integer_digits_match",
+        "numeric_decimal_digits_match",
+        "numeric_min_max_match",
+    }
+    for k in keys:
+        v = details.get(k)
+        if v is False:
+            return True
+    return False
 
 
 def _compute_detail_matches(
@@ -479,6 +672,12 @@ def _compute_detail_matches(
                 item.get("decimal_digits"), _clean_str(domain.decimal_digits),
             )
         else:
+            # 画面項目: 最大桁がある場合は整数部桁数として照合（小数部なし前提）
+            screen_max_digits = _clean_str(item.get("max_chars"))
+            domain_int = _clean_str(domain.integer_digits)
+            domain_dec = _clean_str(domain.decimal_digits)
+            if screen_max_digits and domain_int and not domain_dec:
+                details["numeric_integer_digits_match"] = _compare_value(screen_max_digits, domain_int)
             details["numeric_min_max_match"] = _compare_min_max(
                 item.get("min_value"), item.get("max_value"),
                 domain.min_value, domain.max_value,
@@ -501,17 +700,15 @@ def _has_hard_mismatch(details: dict) -> bool:
     return any(v is False for v in details.values())
 
 
-def _filter_by_digits(
+def _attach_digit_details(
     item: dict,
     domains: Dict[str, DomainDef],
     item_major: str,
 ) -> Dict[str, FilteredDomain]:
-    """桁数照合で明確な不一致があるドメインを除外する。"""
+    """桁数照合の詳細を付与する（不一致でも除外しない）。"""
     matched: Dict[str, FilteredDomain] = {}
     for key, domain in domains.items():
         details = _compute_detail_matches(item, domain, item_major)
-        if _has_hard_mismatch(details):
-            continue
         matched[key] = (domain, details)
     return matched
 
@@ -558,9 +755,18 @@ def _check_exact_name_match(
     type_norm: str, digits: str,
 ) -> MatchEvidence | None:
     """数字除去後の項目名で完全一致を検索する。"""
+    name_cmp = _strip_code_id_token(name_stripped)
     for key, (domain, details) in filtered.items():
         domain_name_stripped = strip_digits(key)
-        if name_stripped == domain_name_stripped:
+        domain_cmp = _strip_code_id_token(domain_name_stripped)
+        if name_cmp == domain_cmp:
+            if _has_digit_mismatch(details):
+                return _resolved(
+                    name_stripped, type_norm, digits,
+                    match_type="no_type_digits_match",
+                    domain=None,
+                    reason=f"完全一致だが桁数不一致（{domain.name}）",
+                )
             ev = _resolved(
                 name_stripped, type_norm, digits,
                 match_type="exact",
@@ -576,6 +782,7 @@ def _check_synonym_matches(
     name_stripped: str,
     filtered: Dict[str, FilteredDomain],
     synonyms: dict | None,
+    partial_sim_threshold: float = 0.78,
 ) -> dict[str, list[str]]:
     """同義語辞書を使って、フィルタ通過ドメインから同義語ヒットを検索する。
 
@@ -585,10 +792,16 @@ def _check_synonym_matches(
     if not synonyms:
         return {}
 
+    name_cmp = _strip_code_id_token(name_stripped)
     hits: dict[str, list[str]] = {}
     for key, (domain, _details) in filtered.items():
         domain_stripped = strip_digits(key)
-        matched_syns = _find_synonym_hits(name_stripped, domain_stripped, synonyms)
+        domain_cmp = _strip_code_id_token(domain_stripped)
+        sim = calc_similarity(name_cmp, domain_cmp)
+        matched_syns = _find_synonym_hits(
+            name_cmp, domain_cmp, synonyms,
+            allow_partial=True, sim=sim, partial_sim_threshold=partial_sim_threshold,
+        )
         if matched_syns:
             hits[domain.name] = matched_syns
     return hits
@@ -597,6 +810,9 @@ def _check_synonym_matches(
 def _find_synonym_hits(
     item_name: str, domain_key: str,
     synonyms: dict,
+    allow_partial: bool = False,
+    sim: float = 0.0,
+    partial_sim_threshold: float = 0.78,
 ) -> list[str]:
     """同義語辞書から項目名↔ドメイン名の共通ヒットを検索する。
 
@@ -608,6 +824,8 @@ def _find_synonym_hits(
         item_hit = any(form in item_name for form in all_forms)
         domain_hit = any(form in domain_key for form in all_forms)
         if item_hit and domain_hit:
+            hits.append(canonical)
+        elif allow_partial and (item_hit or domain_hit) and sim >= partial_sim_threshold:
             hits.append(canonical)
     return hits
 
@@ -642,22 +860,36 @@ def _gather_evidence_for_llm(
     filtered: Dict[str, FilteredDomain],
     synonyms: dict | None,
     top_n: int = 5,
+    min_similarity: float = 0.4,
+    min_digit_rate: float = 0.4,
+    synonym_partial_sim: float = 0.78,
 ) -> MatchEvidence:
     """フィルタ通過ドメインの中から、LLM判定用の証拠を収集する。"""
     candidates: list[dict] = []
     partial_scores: dict[str, float] = {}
-    synonym_map = _check_synonym_matches(name_stripped, filtered, synonyms)
+    synonym_map = _check_synonym_matches(
+        name_stripped, filtered, synonyms, partial_sim_threshold=synonym_partial_sim,
+    )
     best_details: dict = {}
 
     for key, (domain, details) in filtered.items():
         domain_stripped = strip_digits(key)
         sim = calc_similarity(name_stripped, domain_stripped)
+        digit_rate = _digit_match_rate(details)
+        syn_hit = domain.name in synonym_map
+        if (
+            (sim < min_similarity)
+            and (digit_rate is None or digit_rate < min_digit_rate)
+            and not syn_hit
+        ):
+            continue
 
         candidates.append({
             "domain_name": domain.name,
             "domain_type": domain.data_type,
             "name_similarity": round(sim, 3),
-            "has_synonym_hit": domain.name in synonym_map,
+            "digit_match_rate": None if digit_rate is None else round(digit_rate, 3),
+            "has_synonym_hit": syn_hit,
             "detail": details,
         })
 
@@ -665,7 +897,13 @@ def _gather_evidence_for_llm(
         if partial > 0.3:
             partial_scores[domain.name] = round(partial, 3)
 
-    candidates.sort(key=lambda c: c["name_similarity"], reverse=True)
+    def _combined_score(c: dict) -> float:
+        digit = c.get("digit_match_rate")
+        if digit is None:
+            return float(c.get("name_similarity") or 0.0)
+        return 0.5 * float(c.get("name_similarity") or 0.0) + 0.5 * float(digit)
+
+    candidates.sort(key=_combined_score, reverse=True)
     candidates = candidates[:top_n]
 
     if candidates:
@@ -726,7 +964,7 @@ def collect_evidence(
         config: 設定辞書（FUZZY_THRESHOLD 等）
         synonyms: 同義語辞書 { "正規形": ["同義語", ...] }。None可。
     """
-    type_mapping, text_type_mapping, special_patterns = _load_mappings()
+    type_mapping, text_type_mapping, special_patterns = _load_mappings(config)
 
     item_name = item.get("item_name", "")
     raw_data_type = item.get("data_type", "")
@@ -749,13 +987,16 @@ def collect_evidence(
         )
 
     # Step 1: 特殊パターン判定
-    sp = _check_special_patterns(name_stripped, type_norm, digits_clean, special_patterns)
+    sp = _check_special_patterns(item, name_stripped, type_norm, digits_clean, special_patterns)
     if sp is not None:
         return sp
 
-    # Step 2: 大分類判定でドメインフィルタ
+    # Step 2: データ型の細分類一致で絞り込み
+    subtype_filtered = _filter_by_subtype(raw_data_type, domains)
+
+    # Step 3: 大分類判定でドメインフィルタ
     item_major = _classify_major_type(raw_data_type, source, type_mapping)
-    major_filtered = _filter_by_major_type(item_major, domains, type_mapping)
+    major_filtered = _filter_by_major_type(item_major, subtype_filtered, type_mapping)
     if not major_filtered:
         return _resolved(
             name_stripped, type_norm, digits_clean,
@@ -764,8 +1005,8 @@ def collect_evidence(
             reason=f"大分類不一致: 型={raw_data_type}（{item_major}）に一致するドメインなし",
         )
 
-    # Step 3: 桁数一致判定（最重要・大前提）
-    digits_filtered = _filter_by_digits(item, major_filtered, item_major)
+    # Step 4: 桁数情報を付与（不一致でも除外しない）
+    digits_filtered = _attach_digit_details(item, major_filtered, item_major)
     if not digits_filtered:
         return _resolved(
             name_stripped, type_norm, digits_clean,
@@ -774,23 +1015,31 @@ def collect_evidence(
             reason=f"桁数不一致: 大分類={item_major}, 桁={digits_clean or '(空)'} に一致するドメインなし",
         )
 
-    # Step 4: テキストタイプで絞り込み（画面項目定義のみ）
+    # Step 5: テキストタイプで絞り込み（画面項目定義のみ）
     if source == "screen" and text_type:
         final_filtered = _filter_by_text_type(text_type, digits_filtered, text_type_mapping)
     else:
         final_filtered = digits_filtered
 
-    # Step 5a: 完全一致（数字除去後の名前）
+    # Step 6a: 完全一致（数字除去後の名前）
     exact = _check_exact_name_match(
         name_stripped, final_filtered, type_norm, digits_clean,
     )
     if exact is not None:
         return exact
 
-    # Step 5b/5c: 同義語ヒット + LLM用証拠を収集
+    # Step 6b/6c: 同義語ヒット + LLM用証拠を収集
+    top_n = int(config.get("LLM_CANDIDATE_TOP_N", 20) or 20)
+    min_similarity = float(config.get("LLM_CANDIDATE_MIN_SIM", 0.4))
+    min_digit_rate = float(config.get("LLM_CANDIDATE_MIN_DIGIT", 0.4))
+    synonym_partial_sim = float(config.get("SYNONYM_PARTIAL_SIM_THRESHOLD", 0.78))
     return _gather_evidence_for_llm(
         name_stripped, type_norm, digits_clean,
         final_filtered, synonyms,
+        top_n=top_n,
+        min_similarity=min_similarity,
+        min_digit_rate=min_digit_rate,
+        synonym_partial_sim=synonym_partial_sim,
     )
 
 
@@ -887,3 +1136,41 @@ def build_llm_context(evidence: MatchEvidence) -> dict:
         "detail_matches": evidence.detail_matches,
         "summary": evidence.reason,
     }
+# ===========================================================================
+# 類似度計算
+# ===========================================================================
+
+try:
+    from rapidfuzz import fuzz
+    _FUZZ_AVAILABLE = True
+except ImportError:
+    from difflib import SequenceMatcher
+    _FUZZ_AVAILABLE = False
+
+
+def calc_similarity(s1: str, s2: str) -> float:
+    """2つの文字列の類似度を計算（0.0〜1.0）"""
+    def _norm_for_similarity(text: str) -> str:
+        if not text:
+            return ""
+        s = normalize_text(text)
+        # コード/ID/番号は類似度判定から除外する
+        s = re.sub(r"(コード|id|番号)", "", s)
+        s = re.sub(r"[\u3000\s]+", " ", s).strip()
+        return s
+
+    s1 = _norm_for_similarity(s1)
+    s2 = _norm_for_similarity(s2)
+    if _FUZZ_AVAILABLE:
+        return fuzz.ratio(s1, s2) / 100.0
+    return SequenceMatcher(None, s1, s2).ratio()
+
+
+def _strip_code_id_token(text: str) -> str:
+    """コード/ID/番号を除去して比較用に整形する。"""
+    if not text:
+        return ""
+    s = normalize_text(text)
+    s = re.sub(r"(コード|id|番号)", "", s)
+    s = re.sub(r"[\u3000\s]+", " ", s).strip()
+    return s

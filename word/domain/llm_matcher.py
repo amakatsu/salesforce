@@ -23,6 +23,8 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
+import requests
+
 if TYPE_CHECKING:
     from .domain_matcher import MatchEvidence
 
@@ -37,7 +39,7 @@ LlmCallFn = Callable[[str, str], str]
 # ============================================================================
 
 # LLMから受け付ける判定結果の値（自動確定 "exact" は禁止）
-_VALID_LLM_MATCH_TYPES = frozenset({"suggested", "human_choice", "no_match"})
+_VALID_LLM_MATCH_TYPES = frozenset({"suggested", "human_choice", "no_match", "new_domain"})
 
 
 @dataclass
@@ -55,6 +57,7 @@ class MatchResult:
         check_point: 人間への確認事項（例: "改行有無を確認"）
         confidence: 信頼度 0.0--1.0
         reason: 判定理由の説明
+        generalized_candidates: 汎化候補（既存ドメイン候補）
     """
     item_name: str
     match_type: str
@@ -63,6 +66,7 @@ class MatchResult:
     check_point: str = ""
     confidence: float = 0.0
     reason: str = ""
+    generalized_candidates: list[str] | None = None
 
 
 # ============================================================================
@@ -122,6 +126,68 @@ def run_llm_matching(
 
 
 # ============================================================================
+# LLM呼び出し関数ビルダー
+# ============================================================================
+
+
+def build_llm_call(config: dict[str, Any]) -> LlmCallFn:
+    """OpenAI互換API向けの LLM 呼び出し関数を構築する。"""
+    base_url = str(config.get("OPENAI_BASE_URL", "")).rstrip("/")
+    path = str(config.get("OPENAI_PATH", ""))
+    url = f"{base_url}{path}"
+    timeout = float(config.get("TIMEOUT_SEC", 120))
+    verify = bool(config.get("VERIFY_SSL", False))
+
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if config.get("OPENAI_SEND_AUTH") and config.get("OPENAI_API_KEY"):
+        headers["Authorization"] = f"Bearer {config['OPENAI_API_KEY']}"
+    if config.get("OPENAI_ORG_ID"):
+        headers["OpenAI-Organization"] = str(config["OPENAI_ORG_ID"])
+    extra = config.get("OPENAI_HEADERS_JSON")
+    if extra:
+        try:
+            headers.update(json.loads(extra))
+        except Exception:
+            pass
+
+    proxies: dict[str, str] = {}
+    if config.get("HTTP_PROXY"):
+        proxies["http"] = config["HTTP_PROXY"]
+    if config.get("HTTPS_PROXY"):
+        proxies["https"] = config["HTTPS_PROXY"]
+
+    model = config.get("OPENAI_MODEL", "")
+    max_tokens = int(config.get("MAX_TOKENS", 2048))
+    temperature = float(config.get("TEMPERATURE", 1.0))
+    top_p = float(config.get("TOP_P", 1.0))
+
+    def _call(system_prompt: str, user_prompt: str) -> str:
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "max_completion_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+        resp = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=timeout,
+            verify=verify,
+            proxies=proxies or None,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
+    return _call
+
+
+# ============================================================================
 # LLMシステムプロンプト（仕様書 Section 3-6 準拠）
 # ============================================================================
 
@@ -161,6 +227,7 @@ _SYSTEM_PROMPT = """\
 - 末尾数字は既に除去済み（例: 顧客名1 -> 顧客名）
 - 同じデータ型・桁数でも、意味が異なれば別ドメイン
 - "exact" は使用禁止。必ず "suggested" / "human_choice" / "no_match" のいずれか
+- ドメイン一覧に適切な候補がない場合は "new_domain" を返して新規候補名を提案すること
 """
 
 # ============================================================================
@@ -234,7 +301,9 @@ def _build_batch_prompt(evidences: list[MatchEvidence]) -> str:
                 name = c.get("domain_name", "?")
                 sim = c.get("name_similarity", 0)
                 syn_flag = " [同義語HIT]" if c.get("has_synonym_hit") else ""
-                candidate_parts.append(f"{name}（類似度{sim:.0%}{syn_flag}）")
+                digit = c.get("digit_match_rate")
+                digit_text = f" / 桁一致率{digit:.0%}" if isinstance(digit, (int, float)) else ""
+                candidate_parts.append(f"{name}（類似度{sim:.0%}{digit_text}{syn_flag}）")
             lines.append(f"    型桁一致候補: {', '.join(candidate_parts)}")
         else:
             lines.append("    型桁一致候補: なし")
@@ -270,11 +339,23 @@ def _build_batch_prompt(evidences: list[MatchEvidence]) -> str:
 
     return f"""\
 以下の{len(evidences)}件の項目について、最適なドメインを判定してください。
+**各項目は1件ずつ丁寧に判断**し、拙速に結論を出さないでください。
 
 前提条件:
-- 型・桁が不一致の候補は既に除外済み
+- 型（大分類）が不一致の候補は既に除外済み
 - 項目名の末尾数字は除去済み（顧客名1 -> 顧客名）
+- 候補は最大20件まで提示される
 - 判定結果は全て「候補提案」（最終確定は人間が行う）
+
+判断基準:
+- **日本語の意味比較と桁一致率を同じ重要度**で評価する（文字列類似度は参考情報）
+- **データ型（大分類）一致は前提条件**として扱う
+- 意味が一致しており、**桁一致率も十分に高い**（目安: 0.80以上）場合は候補を提案（suggested）
+- 意味が合っていても桁一致率が低い、または桁一致率は高いが意味が合わない場合は新規ドメイン提案（new_domain）
+
+追加要件:
+- **和名が大きく異なっていても、意味が近く、データ型/桁数が一致する既存ドメインがある場合は**
+  new_domain を選ぶ際に "generalized_candidates" に既存ドメイン名を列挙する。
 
 特殊パターン（自動割当禁止 -> 人間選択方式）:
 - フラグ系（フラグ/FLG/flag）-> 候補を全て列挙し human_choice
@@ -282,87 +363,16 @@ def _build_batch_prompt(evidences: list[MatchEvidence]) -> str:
 
 {items_text}
 
-各項目に対して以下のJSON配列で回答してください:
+各項目に対して以下のJSON配列で回答してください。
+理由（reason）には **意味の一致根拠** と **桁一致率の評価** の両方を必ず書いてください。
 
-通常: {{"index": N, "match_type": "suggested", "domain": "名前", "confidence": 0.0-1.0, "reason": "理由"}}
+通常: {{"index": N, "match_type": "suggested", "domain": "名前", "confidence": 0.0-1.0, "reason": "意味: ... / 桁: ..."}}
+新規: {{"index": N, "match_type": "new_domain", "domain": "新規候補名", "confidence": 0.0-1.0, "reason": "意味: ... / 桁: ...", "generalized_candidates": ["既存候補...", "..."]}}
 フラグ系: {{"index": N, "match_type": "human_choice", "candidates": ["候補..."], "reason": "フラグ系"}}
 コメント系: {{"index": N, "match_type": "human_choice", "check_point": "改行有無を確認", "candidates": ["候補..."], "reason": "改行有無"}}
 該当なし: {{"index": N, "match_type": "no_match", "reason": "理由"}}
 
 JSON配列以外出力禁止。
-"""
-
-
-def _build_single_prompt(ev: MatchEvidence) -> str:
-    """1件分のLLMプロンプトを構築する。
-
-    バッチが使えない場合の個別リクエスト用。
-    """
-    # 型桁一致候補
-    if ev.type_digits_matches:
-        candidates_lines: list[str] = []
-        for c in ev.type_digits_matches:
-            name = c.get("domain_name", "?")
-            dtype = c.get("domain_type", "?")
-            sim = c.get("name_similarity", 0)
-            syn_flag = " [同義語HIT]" if c.get("has_synonym_hit") else ""
-            candidates_lines.append(
-                f"  - {name}（型: {dtype}, 類似度: {sim:.0%}{syn_flag}）"
-            )
-        candidates_text = "\n".join(candidates_lines)
-    else:
-        candidates_text = "  （型桁一致の候補なし -> no_match）"
-
-    # 同義語ヒット
-    synonym_text = ""
-    if ev.synonym_hits:
-        syn_details = [
-            f"  - {domain}: {', '.join(syns)}"
-            for domain, syns in ev.synonym_hits.items()
-        ]
-        synonym_text = "\n同義語ヒット:\n" + "\n".join(syn_details)
-
-    # 部分一致スコア
-    partial_text = ""
-    if ev.partial_match_scores:
-        top_scores = sorted(
-            ev.partial_match_scores.items(),
-            key=lambda x: x[1],
-            reverse=True,
-        )[:5]
-        partial_text = "\n部分一致スコア（上位5件）:\n" + "\n".join(
-            f"  - {name}: {score:.0%}" for name, score in top_scores
-        )
-
-    # 桁数照合詳細
-    detail_text = ""
-    detail_summary = _summarize_detail_matches(ev.detail_matches)
-    if detail_summary:
-        detail_text = f"\n桁数照合: {detail_summary}"
-
-    return f"""\
-対象項目: {ev.item_name}（数字除去済み）
-大分類: {ev.data_type or '不明'}
-桁数: {ev.digits or '不明'}
-
-型・桁一致の候補ドメイン（大前提クリア済み）:
-{candidates_text}
-{synonym_text}
-{partial_text}
-{detail_text}
-
-タスク:
-上記の型桁一致候補の中から、項目名と意味的に最も一致するドメインを判定してください。
-判定結果は「候補提案」です（最終確定は人間が行います）。
-
-特殊パターン（自動割当禁止）:
-- フラグ系項目 -> 候補を全て列挙し human_choice とする
-- コメント/補記系項目 -> 改行有無の確認を促し human_choice とする
-
-通常: {{"match_type": "suggested", "domain": "ドメイン名", "confidence": 0.0-1.0, "reason": "判断理由"}}
-フラグ系: {{"match_type": "human_choice", "candidates": ["候補1", ...], "reason": "理由"}}
-コメント系: {{"match_type": "human_choice", "check_point": "改行有無を確認", "candidates": ["候補1", ...], "reason": "理由"}}
-該当なし: {{"match_type": "no_match", "reason": "判断理由"}}
 """
 
 
@@ -374,6 +384,11 @@ _CODE_BLOCK_RE = re.compile(
     r"```(?:json)?\s*\n?(.*?)\n?\s*```",
     re.DOTALL,
 )
+
+_GROUP_SYSTEM_PROMPT = """\
+あなたはデータベース設計の専門家です。
+新規ドメイン提案の中から、意味が近いものをグルーピングします。
+"""
 
 
 def _parse_llm_response(response: str) -> list[dict[str, Any]]:
@@ -418,6 +433,61 @@ def _parse_llm_response(response: str) -> list[dict[str, Any]]:
     return validated
 
 
+def _extract_json(text: str) -> Any:
+    raw = text.strip()
+    code_match = _CODE_BLOCK_RE.search(raw)
+    if code_match:
+        raw = code_match.group(1).strip()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def _build_new_domain_group_prompt(items: list[dict[str, Any]]) -> str:
+    lines: list[str] = [
+        "以下の新規提案候補について、日本語の意味が近いものをグルーピングしてください。",
+        "条件: データ型と桁定義が一致するもの同士のみグループ化する。",
+        "出力は JSON 配列で、各要素は {\"group\": [index,...], \"reason\": \"...\"} とする。",
+        "index は 1 始まり。1件だけのグループは出力しない。",
+        "",
+    ]
+    for i, item in enumerate(items, 1):
+        lines.append(
+            f"[{i}] name={item.get('name','')}, data_type={item.get('data_type','')}, digits={item.get('digits','')}"
+        )
+    return "\n".join(lines)
+
+
+def group_new_domain_proposals(
+    items: list[dict[str, Any]],
+    llm_call: LlmCallFn | None,
+) -> list[dict[str, Any]]:
+    """新規提案の汎化候補をLLMでグルーピングする。"""
+    if not items or llm_call is None:
+        return []
+    prompt = _build_new_domain_group_prompt(items)
+    try:
+        response = llm_call(_GROUP_SYSTEM_PROMPT, prompt)
+    except Exception:
+        return []
+    parsed = _extract_json(response)
+    if not isinstance(parsed, list):
+        return []
+    valid_groups: list[dict[str, Any]] = []
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        group = item.get("group")
+        if not isinstance(group, list) or len(group) <= 1:
+            continue
+        # index validation
+        if not all(isinstance(i, int) and 1 <= i <= len(items) for i in group):
+            continue
+        valid_groups.append(item)
+    return valid_groups
+
+
 # ============================================================================
 # 結果変換
 # ============================================================================
@@ -442,6 +512,7 @@ def _llm_response_to_result(
         check_point=llm_item.get("check_point", ""),
         confidence=float(llm_item.get("confidence", 0.0)),
         reason=llm_item.get("reason", ""),
+        generalized_candidates=llm_item.get("generalized_candidates"),
     )
 
 
@@ -453,6 +524,7 @@ def _resolved_evidence_to_result(ev: MatchEvidence) -> MatchResult:
         suggested_domain=ev.resolved_domain or "",
         confidence=1.0 if ev.match_type == "exact" else 0.95,
         reason=ev.reason,
+        generalized_candidates=None,
     )
 
 
@@ -470,6 +542,7 @@ def _fallback_from_evidence(ev: MatchEvidence) -> MatchResult:
             match_type="no_match",
             confidence=0.0,
             reason=f"型桁一致候補なし。{ev.reason}",
+            generalized_candidates=None,
         )
 
     return MatchResult(
@@ -478,6 +551,7 @@ def _fallback_from_evidence(ev: MatchEvidence) -> MatchResult:
         suggested_domain=best_domain,
         confidence=confidence,
         reason=reason,
+        generalized_candidates=None,
     )
 
 
