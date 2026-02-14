@@ -178,9 +178,9 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
                 config["FUZZY_THRESHOLD"] = float(fuzzy_threshold)
                 config["OUT_DIR"] = str(tmpdir / "out")
 
-            _log("[WEB] Step1: save files start")
-            # Step 1: ファイル保存
-            status.text("📁 ステップ 1/5: ファイルを保存中...")
+                _log("[WEB] Step1: save files start")
+                # Step 1: ファイル保存
+                status.text("📁 ステップ 1/5: ファイルを保存中...")
                 file_summary = (
                     f"{match_target}: {len(screen_files) + len(table_files)}件、"
                     f"ドメイン定義: {len(domain_files)}件"
@@ -188,12 +188,12 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
                 detail.text(file_summary)
                 progress.progress(5)
 
-            if screen_files:
-                _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
-            if table_files:
-                _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
-            _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
-            progress.progress(15)
+                if screen_files:
+                    _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
+                if table_files:
+                    _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
+                _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
+                progress.progress(15)
             _log("[WEB] Step1: save files done")
 
             # Step 2: データ読み込み
