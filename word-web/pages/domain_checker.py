@@ -13,6 +13,8 @@ import tempfile
 from pathlib import Path
 import io
 import contextlib
+import sys
+import time
 
 # 親ディレクトリのwordモジュールをインポート
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -143,17 +145,42 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
     status = st.empty()
     detail = st.empty()
 
+    class _Tee(io.TextIOBase):
+        def __init__(self, *streams):
+            self._streams = streams
+        def write(self, s):
+            for st in self._streams:
+                st.write(s)
+                st.flush()
+            return len(s)
+        def flush(self):
+            for st in self._streams:
+                st.flush()
+
     log_buf = io.StringIO()
+    log_placeholder = st.empty()
+    log_lines: list[str] = []
+    last_log_time = {"ts": 0.0}
+
+    def _log(msg: str) -> None:
+        log_lines.append(msg)
+        # keep last 200 lines for UI
+        view = "\n".join(log_lines[-200:])
+        log_placeholder.code(view)
+        print(msg)
+    tee_out = _Tee(sys.stdout, log_buf)
+    tee_err = _Tee(sys.stderr, log_buf)
     try:
-        with contextlib.redirect_stdout(log_buf), contextlib.redirect_stderr(log_buf):
+        with contextlib.redirect_stdout(tee_out), contextlib.redirect_stderr(tee_err):
             with tempfile.TemporaryDirectory() as tmpdir_str:
                 tmpdir = Path(tmpdir_str)
                 config = DOMAIN_CONFIG.copy()
                 config["FUZZY_THRESHOLD"] = float(fuzzy_threshold)
                 config["OUT_DIR"] = str(tmpdir / "out")
 
-                # Step 1: ファイル保存
-                status.text("📁 ステップ 1/5: ファイルを保存中...")
+            _log("[WEB] Step1: save files start")
+            # Step 1: ファイル保存
+            status.text("📁 ステップ 1/5: ファイルを保存中...")
                 file_summary = (
                     f"{match_target}: {len(screen_files) + len(table_files)}件、"
                     f"ドメイン定義: {len(domain_files)}件"
@@ -161,33 +188,42 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
                 detail.text(file_summary)
                 progress.progress(5)
 
-                if screen_files:
-                    _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
-                if table_files:
-                    _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
-                _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
-                progress.progress(15)
+            if screen_files:
+                _save_files_to_tmpdir(screen_files, tmpdir, "画面項目定義", detail)
+            if table_files:
+                _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
+            _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
+            progress.progress(15)
+            _log("[WEB] Step1: save files done")
 
-                # Step 2: データ読み込み
-                screen_items, table_items, domains = _load_all_data(
-                    tmpdir, config, progress, status, detail, match_target,
-                )
+            # Step 2: データ読み込み
+            _log("[WEB] Step2: load data start")
+            screen_items, table_items, domains = _load_all_data(
+                tmpdir, config, progress, status, detail, match_target,
+            )
+            _log(f"[WEB] Step2: load data done (screen={len(screen_items)}, table={len(table_items)}, domains={len(domains)})")
 
-                # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
-                screen_df, table_df = _run_matching(
-                    screen_items, table_items, domains, config, progress, status, detail, match_target,
-                )
+            # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
+            _log("[WEB] Step3: matching start")
+            screen_df, table_df = _run_matching(
+                screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=_log,
+            )
+            _log("[WEB] Step3: matching done")
 
-                # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
-                screen_dedup_df, table_dedup_df = _dedup_results(
-                    screen_df, table_df, progress, status, detail, match_target,
-                )
+            # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
+            _log("[WEB] Step4: dedup start")
+            screen_dedup_df, table_dedup_df = _dedup_results(
+                screen_df, table_df, progress, status, detail, match_target,
+            )
+            _log("[WEB] Step4: dedup done")
 
-                # Step 5: 結果保存（4シート: 抽出×2 + 重複排除×2）
-                _save_and_store_results(
-                    screen_df, table_df, screen_dedup_df, table_dedup_df,
-                    config, progress, status, detail, match_target,
-                )
+            # Step 5: 結果保存（4シート: 抽出×2 + 重複排除×2）
+            _log("[WEB] Step5: save results start")
+            _save_and_store_results(
+                screen_df, table_df, screen_dedup_df, table_dedup_df,
+                config, progress, status, detail, match_target,
+            )
+            _log("[WEB] Step5: save results done")
 
     except FileNotFoundError as e:
         st.error(f"❌ ファイルが見つかりません: {e}")
@@ -228,7 +264,7 @@ def _load_all_data(tmpdir, config, progress, status, detail, match_target):
     return screen_items, table_items, domains
 
 
-def _run_matching(screen_items, table_items, domains, config, progress, status, detail, match_target):
+def _run_matching(screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=None):
     """画面項目×ドメイン、テーブル定義×ドメインの照合を実行する。"""
     status.text("🔄 ステップ 3/5: 照合処理中...")
     detail.text(f"{match_target} × ドメイン {len(domains)}件")
@@ -242,6 +278,14 @@ def _run_matching(screen_items, table_items, domains, config, progress, status, 
             progress.progress(pct)
             status.text(f"🔄 ステップ 3/5: 照合処理中... {pct}%")
             detail.text(f"画面項目照合中: {processed}/{total}件（最新）")
+            now = time.time()
+            if now - on_screen_progress.last_log_ts >= 10:
+                on_screen_progress.last_log_ts = now
+                print(f"[WEB] progress screen {processed}/{total} ({pct}%)")
+            if log_cb and (processed % 10 == 0 or processed == total):
+                pct_text = f"{(processed * 100 / total):.1f}%" if total else "0.0%"
+                log_cb(f"[INFO] {processed}/{total} 件処理済み ({pct_text})")
+        on_screen_progress.last_log_ts = 0.0
 
         screen_df = process_screen_domain_matching(
             screen_items, domains, config, progress_callback=on_screen_progress,
@@ -253,6 +297,14 @@ def _run_matching(screen_items, table_items, domains, config, progress, status, 
             progress.progress(pct)
             status.text(f"🔄 ステップ 3/5: 照合処理中... {pct}%")
             detail.text(f"テーブル定義照合中: {processed}/{total}件（最新）")
+            now = time.time()
+            if now - on_table_progress.last_log_ts >= 10:
+                on_table_progress.last_log_ts = now
+                print(f"[WEB] progress table {processed}/{total} ({pct}%)")
+            if log_cb and (processed % 10 == 0 or processed == total):
+                pct_text = f"{(processed * 100 / total):.1f}%" if total else "0.0%"
+                log_cb(f"[INFO] {processed}/{total} 件処理済み ({pct_text})")
+        on_table_progress.last_log_ts = 0.0
 
         table_df = process_table_domain_matching(
             table_items, domains, config, progress_callback=on_table_progress,

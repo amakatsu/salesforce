@@ -289,18 +289,32 @@ def _find_columns(df: pd.DataFrame, column_names: Dict[str, str]) -> Dict[str, i
         {内部キー: 列インデックス} の辞書（見つかった列のみ）
     """
     headers = [str(h).strip() for h in df.columns]
+    headers_norm = [normalize_text(h) for h in headers]
+
+    def _aliases(target: str) -> list[str]:
+        return [target]
     col_map: Dict[str, int] = {}
     for key, col_name in column_names.items():
         target = col_name.strip()
+        target_norm = normalize_text(target)
+        alias_list = _aliases(target_norm)
         # 完全一致を優先
         exact = [i for i, h in enumerate(headers) if h == target]
         if exact:
             col_map[key] = exact[0]
             continue
-        # 部分一致にフォールバック
-        partial = [i for i, h in enumerate(headers) if target in h]
-        if partial:
-            col_map[key] = partial[0]
+        # 正規化した完全一致
+        exact_norm = [i for i, h in enumerate(headers_norm) if h == target_norm]
+        if exact_norm:
+            col_map[key] = exact_norm[0]
+            continue
+        # 部分一致にフォールバック（別名も含める）
+        for alias in alias_list:
+            alias_norm = normalize_text(alias)
+            partial = [i for i, h in enumerate(headers_norm) if alias_norm in h]
+            if partial:
+                col_map[key] = partial[0]
+                break
     return col_map
 
 
