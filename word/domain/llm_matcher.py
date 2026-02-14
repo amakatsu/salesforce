@@ -481,14 +481,21 @@ def _build_new_domain_group_prompt(items: list[dict[str, Any]]) -> str:
     lines: list[str] = [
         "以下の新規提案候補について、日本語の意味が近いものをグルーピングしてください。",
         "条件: データ型と桁定義が一致するもの同士のみグループ化する。",
+        "参考: pre_group は事前に似たものを仮グループ化した結果（必ずしも同一グループにする必要はない）。",
         "出力は JSON 配列で、各要素は {\"group\": [index,...], \"reason\": \"...\"} とする。",
         "index は 1 始まり。1件だけのグループは出力しない。",
         "",
     ]
     for i, item in enumerate(items, 1):
-        lines.append(
-            f"[{i}] name={item.get('name','')}, data_type={item.get('data_type','')}, digits={item.get('digits','')}"
-        )
+        pre = item.get("pre_group", "")
+        if pre:
+            lines.append(
+                f"[{i}] name={item.get('name','')}, data_type={item.get('data_type','')}, digits={item.get('digits','')}, pre_group={pre}"
+            )
+        else:
+            lines.append(
+                f"[{i}] name={item.get('name','')}, data_type={item.get('data_type','')}, digits={item.get('digits','')}"
+            )
     return "\n".join(lines)
 
 

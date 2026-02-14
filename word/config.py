@@ -132,13 +132,13 @@ def get_domain_config() -> Dict[str, Any]:
         "MATCHING_DATE_KEYWORDS": os.getenv("MATCHING_DATE_KEYWORDS", "日付,日,年月日"),
         "MATCHING_GENERIC_FLAG_DOMAIN": os.getenv("MATCHING_GENERIC_FLAG_DOMAIN", "以下から選択: 0/1, 0/9, null/1, スペース/1"),
         "MATCHING_GENERIC_DATE_DOMAIN": os.getenv("MATCHING_GENERIC_DATE_DOMAIN", "ドメイン（日付）"),
-        "MATCHING_COMMENT_KEYWORDS": os.getenv("MATCHING_COMMENT_KEYWORDS", "コメント,補記"),
+        "MATCHING_COMMENT_KEYWORDS": os.getenv("MATCHING_COMMENT_KEYWORDS", "コメント,補記,備考,メモ"),
         "MATCHING_GENERIC_COMMENT_DOMAIN": os.getenv("MATCHING_GENERIC_COMMENT_DOMAIN", "改行あり/なしを確認して選択してください"),
         # --- LLM判定 設定（B方式用・将来用） ---
         "LLM_MATCHING_ENABLED": _as_bool(os.getenv("LLM_MATCHING_ENABLED", "true")),
         "LLM_CANDIDATE_TOP_N": int(os.getenv("LLM_CANDIDATE_TOP_N", "20")),
-        "LLM_CANDIDATE_MIN_SIM": float(os.getenv("LLM_CANDIDATE_MIN_SIM", "0.4")),
-        "LLM_CANDIDATE_MIN_DIGIT": float(os.getenv("LLM_CANDIDATE_MIN_DIGIT", "0.4")),
+        "LLM_CANDIDATE_MIN_SIM": float(os.getenv("LLM_CANDIDATE_MIN_SIM", "0.7")),
+        "LLM_CANDIDATE_MIN_DIGIT": float(os.getenv("LLM_CANDIDATE_MIN_DIGIT", "0.7")),
         "SYNONYM_PARTIAL_SIM_THRESHOLD": float(os.getenv("SYNONYM_PARTIAL_SIM_THRESHOLD", "0.78")),
         "LLM_MATCHING_BATCH_SIZE": int(os.getenv("LLM_MATCHING_BATCH_SIZE", "5")),
         # --- 出力・実行制御 ---

@@ -113,6 +113,19 @@ def normalize_data_type(dtype: str) -> str:
     return dt
 
 
+def _is_string_like_type(dt: str) -> bool:
+    if not dt:
+        return False
+    s = dt
+    return any(
+        k in s
+        for k in (
+            "varchar", "char", "text", "string",
+            "半角", "全角", "英字", "英数字", "カナ", "ひらがな", "文字",
+        )
+    )
+
+
 # ====== データクラス ==========================================================
 
 @dataclass
@@ -150,6 +163,7 @@ class DomainDef:
     """ドメイン定義（殿の確定仕様: 12列）"""
     name: str                      # ドメイン名
     data_type: str                 # データ型
+    column_def_type: Optional[str] # カラム定義から抽出した型
     min_char: Optional[str]        # 最小文字数
     max_char: Optional[str]        # 最大文字数
     min_byte: Optional[str]        # 最小バイト長
@@ -168,7 +182,7 @@ class DomainDef:
 # ====== Excel I/O =============================================================
 
 HEADER_DETECT = os.getenv("HEADER_DETECT", "true").lower() != "false"
-HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "15"))
+HEADER_SCAN_ROWS = int(os.getenv("HEADER_SCAN_ROWS", "10"))
 
 
 def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[str]:
@@ -178,6 +192,8 @@ def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[s
     patterns = [p.strip() for p in preferred.split(",") if p.strip()]
     if not patterns:
         return [xls.sheet_names[0]]
+    if any(p.strip() == "*" for p in patterns):
+        return list(xls.sheet_names)
     all_matches = []
     for pattern in patterns:
         want = norm(pattern)
@@ -191,7 +207,7 @@ def _pick_matching_sheets(xls: pd.ExcelFile, preferred: Optional[str]) -> List[s
         if sheet not in seen:
             result.append(sheet)
             seen.add(sheet)
-    return result if result else [xls.sheet_names[0]]
+    return result
 
 
 def _domain_column_names(cfg: Dict[str, Any]) -> Dict[str, str]:
@@ -199,6 +215,7 @@ def _domain_column_names(cfg: Dict[str, Any]) -> Dict[str, str]:
     return {
         "name":           cfg.get("DOMAIN_NAME_COL", "ドメイン名"),
         "data_type":      cfg.get("DOMAIN_TYPE_COL", "データ型"),
+        "column_def":     cfg.get("DOMAIN_COLUMN_DEF_COL", "カラム定義"),
         "min_char":       cfg.get("DOMAIN_STR_MIN_CHARS_COL", "最小文字数"),
         "max_char":       cfg.get("DOMAIN_STR_MAX_CHARS_COL", "最大文字数"),
         "min_byte":       cfg.get("DOMAIN_BYTES_MIN_COL", "最小バイト長"),
@@ -212,17 +229,58 @@ def _domain_column_names(cfg: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
+_SUBHEADER_HINTS = {
+    "最小文字数", "最大文字数", "最小バイト数", "最大バイト数",
+    "全体数桁", "小数桁", "整数部桁数", "小数部桁数",
+    "最小値", "最大値",
+}
+
+
 def _detect_header_row(
     path: Path, sheet_name: str, required_cols: List[str], scan_rows: int,
-) -> int:
+) -> tuple[int, bool]:
     head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
     req = [normalize_text(c) for c in required_cols if c]
+    best_row = -1
+    best_hits = 0
+    use_multi = False
+
     for i in range(len(head_df)):
         row_vals = [
             normalize_text(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan"}
         ]
-        if all(any(r in v for v in row_vals) for r in req):
-            return i
+        row_hits = sum(1 for r in req if any(r in v for v in row_vals))
+        if row_hits == len(req) and row_hits > 0:
+            if i + 1 < len(head_df):
+                next_vals = [
+                    normalize_text(x) for x in head_df.iloc[i + 1].values if str(x) not in {"", "nan"}
+                ]
+                if any(hint in v for hint in _SUBHEADER_HINTS for v in next_vals):
+                    return i, True
+            return i, False
+
+        if i + 1 < len(head_df):
+            next_vals = [
+                normalize_text(x) for x in head_df.iloc[i + 1].values if str(x) not in {"", "nan"}
+            ]
+            next_hits = sum(1 for r in req if any(r in v for v in next_vals))
+            if next_hits == len(req) and next_hits > 0:
+                if row_vals:
+                    return i, True
+                return i + 1, False
+            if next_hits > best_hits:
+                best_hits = next_hits
+                best_row = i + 1
+                use_multi = False
+
+        if row_hits > best_hits:
+            best_hits = row_hits
+            best_row = i
+            use_multi = False
+
+    if best_row >= 0 and best_hits > 0:
+        return best_row, use_multi
+
     raise KeyError(
         f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name} (scan_rows={scan_rows})"
     )
@@ -233,7 +291,7 @@ def read_excel_with_header_detection(
     sheet_name: Optional[str],
     required_cols: List[str],
     explicit_header_row_1based: Optional[int] = None,
-    scan_rows: int = 30,
+    scan_rows: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, int]:
     """ヘッダ行が1行目とは限らないExcelに対応。"""
     if explicit_header_row_1based is not None:
@@ -241,7 +299,33 @@ def read_excel_with_header_detection(
         return pd.read_excel(path, sheet_name=sheet_name, header=hdr0), hdr0
     if not HEADER_DETECT:
         return pd.read_excel(path, sheet_name=sheet_name), 0
-    header_row = _detect_header_row(path, sheet_name, required_cols, scan_rows)
+    scan_rows = HEADER_SCAN_ROWS if scan_rows is None else scan_rows
+    header_row, use_multi = _detect_header_row(path, sheet_name, required_cols, scan_rows)
+    if use_multi:
+        raw = pd.read_excel(path, sheet_name=sheet_name, header=None)
+        if header_row + 1 >= len(raw):
+            return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
+        top = list(raw.iloc[header_row].values)
+        bottom = list(raw.iloc[header_row + 1].values)
+        # forward-fill top header to align merged cells
+        for i in range(len(top)):
+            if (pd.isna(top[i]) or str(top[i]).strip() in {"", "nan"}) and i > 0:
+                top[i] = top[i - 1]
+        group_headers = {"文字列長", "SJISバイト長", "数値"}
+        new_cols = []
+        for t, b in zip(top, bottom):
+            t_str = "" if pd.isna(t) else str(t).strip()
+            b_str = "" if pd.isna(b) else str(b).strip()
+            if t_str in group_headers:
+                if b_str:
+                    new_cols.append(f"{t_str}_{b_str}")
+                else:
+                    new_cols.append(t_str)
+            else:
+                new_cols.append(t_str if t_str else b_str)
+        df = raw.iloc[header_row + 2:].reset_index(drop=True)
+        df.columns = new_cols
+        return df, header_row + 1
     return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
 
 
@@ -274,6 +358,79 @@ def _get_cell_value(
     return val_str
 
 
+_RE_COLUMN_DEF = re.compile(r"(?:n?varchar2?|char|number|numeric|decimal|int|integer|date|timestamp)\s*\(\s*(\d+)", re.IGNORECASE)
+_RE_COLUMN_DEF_TYPE = re.compile(r"(?:n?varchar2?|char|number|numeric|decimal|int|integer|date|timestamp)", re.IGNORECASE)
+_RE_NUMERIC_DEF = re.compile(r"(?:number|numeric|decimal)\s*\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\)", re.IGNORECASE)
+_RE_LENGTH_DEF = re.compile(r"(?:n?varchar2?|char)\s*\(\s*(\d+)\s*(?:byte|char)?\s*\)", re.IGNORECASE)
+
+
+def _parse_column_def(value: str) -> Optional[int]:
+    """カラム定義文字列から文字数を抽出する（例: char(12), varchar(20)）。"""
+    if not value:
+        return None
+    m = _RE_COLUMN_DEF.search(value)
+    if not m:
+        return None
+    try:
+        return int(m.group(1))
+    except ValueError:
+        return None
+
+
+def _parse_column_def_type(value: str) -> str:
+    """カラム定義文字列から型名を抽出する（例: char, varchar2, number）。"""
+    if not value:
+        return ""
+    m = _RE_COLUMN_DEF_TYPE.search(value)
+    if not m:
+        return ""
+    return m.group(0)
+
+
+def _parse_length_from_type(value: str) -> Optional[int]:
+    """型文字列から長さを抽出する（例: char(12), varchar2(20)）。"""
+    if not value:
+        return None
+    m = _RE_LENGTH_DEF.search(value)
+    if m:
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return None
+    return _parse_column_def(value)
+
+
+def _parse_numeric_from_type(value: str) -> tuple[Optional[int], Optional[int]]:
+    """型文字列から数値の精度/スケールを抽出する（例: number(10,2)）。"""
+    if not value:
+        return None, None
+    m = _RE_NUMERIC_DEF.search(value)
+    if not m:
+        return None, None
+    try:
+        precision = int(m.group(1))
+    except ValueError:
+        precision = None
+    scale = None
+    if m.group(2):
+        try:
+            scale = int(m.group(2))
+        except ValueError:
+            scale = None
+    return precision, scale
+
+
+def _clean_code_id(value: str) -> str:
+    """参照外部コードIDの余分な注記を除去する。"""
+    if not value:
+        return ""
+    s = str(value).strip()
+    s = s.splitlines()[0].strip()
+    s = re.sub(r"（旧[:：].*?）", "", s).strip()
+    s = re.sub(r"\\(旧[:：].*?\\)", "", s).strip()
+    return s
+
+
 def _find_columns(df: pd.DataFrame, column_names: Dict[str, str]) -> Dict[str, int]:
     """ヘッダー行から列名→列インデックスの対応を動的に取得する（部分一致）。
 
@@ -290,9 +447,24 @@ def _find_columns(df: pd.DataFrame, column_names: Dict[str, str]) -> Dict[str, i
     """
     headers = [str(h).strip() for h in df.columns]
     headers_norm = [normalize_text(h) for h in headers]
+    headers_compact = [re.sub(r"[\s_]+", "", h) for h in headers_norm]
 
     def _aliases(target: str) -> list[str]:
-        return [target]
+        aliases = [target]
+        if "全体数値" in target:
+            aliases.append(target.replace("全体数値", "全体数桁"))
+            aliases.append("整数部桁数")
+            aliases.append("整数桁数")
+        if "少数桁" in target:
+            aliases.append(target.replace("少数桁", "小数桁"))
+            aliases.append("小数部桁数")
+        if "最大バイト数" in target:
+            aliases.append("最大バイト長")
+            aliases.append("最大バイト")
+        if "最小バイト数" in target:
+            aliases.append("最小バイト長")
+            aliases.append("最小バイト")
+        return aliases
     col_map: Dict[str, int] = {}
     for key, col_name in column_names.items():
         target = col_name.strip()
@@ -308,12 +480,22 @@ def _find_columns(df: pd.DataFrame, column_names: Dict[str, str]) -> Dict[str, i
         if exact_norm:
             col_map[key] = exact_norm[0]
             continue
+        target_compact = re.sub(r"[\s_]+", "", target_norm)
+        exact_compact = [i for i, h in enumerate(headers_compact) if h == target_compact]
+        if exact_compact:
+            col_map[key] = exact_compact[0]
+            continue
         # 部分一致にフォールバック（別名も含める）
         for alias in alias_list:
             alias_norm = normalize_text(alias)
+            alias_compact = re.sub(r"[\s_]+", "", alias_norm)
             partial = [i for i, h in enumerate(headers_norm) if alias_norm in h]
             if partial:
                 col_map[key] = partial[0]
+                break
+            partial_compact = [i for i, h in enumerate(headers_compact) if alias_compact and alias_compact in h]
+            if partial_compact:
+                col_map[key] = partial_compact[0]
                 break
     return col_map
 
@@ -367,10 +549,14 @@ def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
     items: List[ScreenItem] = []
     for path in files:
         xls = pd.ExcelFile(path)
-        for sheet in _pick_matching_sheets(xls, cfg["SCREEN_SHEET"]):
+        sheets = _pick_matching_sheets(xls, cfg["SCREEN_SHEET"])
+        if not sheets:
+            print(f"[警告] {path.name}: 対象シートが見つかりません (指定={cfg['SCREEN_SHEET']})")
+            continue
+        for sheet in sheets:
             try:
                 df, header_row = read_excel_with_header_detection(
-                    path, sheet, [screen_col_names["item_name"]], None, 30,
+                    path, sheet, [screen_col_names["item_name"]], None,
                 )
                 col_map = _find_columns(df, screen_col_names)
                 if "item_name" not in col_map:
@@ -417,7 +603,7 @@ def load_screen_items(dir_path: Path, cfg: Dict[str, Any]) -> List[ScreenItem]:
     return items
 
 
-def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
+def load_domains(dir_path: Path, cfg: Dict[str, Any], return_raw: bool = False):
     """ドメイン定義を読み込み（ヘッダー文字列検索方式・正規化名でキー・行番号付き）。
 
     殿の確定仕様（12列）:
@@ -430,13 +616,21 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
     if not files:
         raise FileNotFoundError("ドメイン定義ファイルが見つかりません")
     domains: Dict[str, DomainDef] = {}
+    raw_rows: list[dict] = []
+    raw_columns: list[str] | None = None
     for path in files:
         xls = pd.ExcelFile(path)
-        for sheet in _pick_matching_sheets(xls, cfg["DOMAIN_SHEET"]):
+        sheets = _pick_matching_sheets(xls, cfg["DOMAIN_SHEET"])
+        if not sheets:
+            print(f"[警告] {path.name}: 対象シートが見つかりません (指定={cfg['DOMAIN_SHEET']})")
+            continue
+        for sheet in sheets:
             try:
                 df, header_row = read_excel_with_header_detection(
-                    path, sheet, [domain_col_names["name"]], None, 30,
+                    path, sheet, [domain_col_names["name"]], None,
                 )
+                if raw_columns is None:
+                    raw_columns = [str(c) for c in df.columns]
                 col_map = _find_columns(df, domain_col_names)
                 if "name" not in col_map:
                     print(f"[警告] {path.name}({sheet}): 「{domain_col_names['name']}」列が見つかりません")
@@ -457,24 +651,46 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
                     name = _val("name")
                     if not name:
                         continue
+                    if name.strip() in {"*", "＊"}:
+                        continue
+
+                    col_def = _val("column_def")
+                    col_len = _parse_column_def(col_def)
+                    col_type = _parse_column_def_type(col_def)
+                    data_type = _val("data_type")
+                    min_char = _val("min_char") or None
+                    max_char = _val("max_char") or None
+                    min_byte = _val("min_byte") or None
+                    max_byte = _val("max_byte") or None
+                    if col_len is not None:
+                        if not max_char:
+                            max_char = str(col_len)
+                        if not max_byte:
+                            max_byte = str(col_len)
+
+                    if not data_type and col_type:
+                        data_type = col_type
 
                     domains[normalize_text(name)] = DomainDef(
                         name=name,
-                        data_type=_val("data_type"),
-                        min_char=_val("min_char") or None,
-                        max_char=_val("max_char") or None,
-                        min_byte=_val("min_byte") or None,
-                        max_byte=_val("max_byte") or None,
+                        data_type=data_type,
+                        column_def_type=col_type or None,
+                        min_char=min_char,
+                        max_char=max_char,
+                        min_byte=min_byte,
+                        max_byte=max_byte,
                         integer_digits=_val("integer_digits") or None,
                         decimal_digits=_val("decimal_digits") or None,
                         min_value=_val("min_value") or None,
                         max_value=_val("max_value") or None,
                         regex=_val("regex") or None,
-                        code_id=_val("code_id"),
+                        code_id=_clean_code_id(_val("code_id")),
                         row_number=header_row + idx + 2,
                         source_file=path.name,
                         source_sheet=sheet,
                     )
+                    if return_raw:
+                        raw_rows.append({str(c): row[c] for c in df.columns})
                 print(f"[INFO] ドメイン定義読み込み: {path.name}/{sheet} ({len(domains)}件)")
             except KeyError as e:
                 print(f"[警告] {path.name}({sheet}): {e} -> スキップ")
@@ -482,6 +698,9 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any]) -> Dict[str, DomainDef]:
             except Exception as e:
                 print(f"[警告] {path.name}({sheet}) エラー: {e}")
     print(f"[INFO] 合計ドメイン定義: {len(domains)}件")
+    if return_raw:
+        raw_df = pd.DataFrame(raw_rows, columns=raw_columns or None)
+        return domains, raw_df
     return domains
 
 
@@ -509,10 +728,14 @@ def load_table_definitions(dir_path: Path, cfg: Dict[str, Any]) -> List[TableIte
     items: List[TableItem] = []
     for path in files:
         xls = pd.ExcelFile(path)
-        for sheet in _pick_matching_sheets(xls, cfg["TABLE_SHEET"]):
+        sheets = _pick_matching_sheets(xls, cfg["TABLE_SHEET"])
+        if not sheets:
+            print(f"[警告] {path.name}: 対象シートが見つかりません (指定={cfg['TABLE_SHEET']})")
+            continue
+        for sheet in sheets:
             try:
                 df, header_row = read_excel_with_header_detection(
-                    path, sheet, [table_col_names["item_name"]], None, 30,
+                    path, sheet, [table_col_names["item_name"]], None,
                 )
                 col_map = _find_columns(df, table_col_names)
                 if "item_name" not in col_map:
@@ -535,12 +758,30 @@ def load_table_definitions(dir_path: Path, cfg: Dict[str, Any]) -> List[TableIte
                     if not item_name:
                         continue
 
+                    raw_data_type = _val("data_type")
+                    length = _val("length") or None
+                    integer_part = _val("integer_part") or None
+                    decimal_part = _val("decimal_part") or None
+
+                    # 型文字列から補完（Length / 数値桁）
+                    if raw_data_type:
+                        if not length:
+                            parsed_len = _parse_length_from_type(raw_data_type)
+                            if parsed_len is not None:
+                                length = str(parsed_len)
+                        if not integer_part and not decimal_part:
+                            precision, scale = _parse_numeric_from_type(raw_data_type)
+                            if precision is not None:
+                                integer_part = str(precision - (scale or 0))
+                                if scale is not None:
+                                    decimal_part = str(scale)
+
                     items.append(TableItem(
                         item_name=item_name,
-                        data_type=_val("data_type"),
-                        length=_val("length") or None,
-                        integer_part=_val("integer_part") or None,
-                        decimal_part=_val("decimal_part") or None,
+                        data_type=raw_data_type,
+                        length=length,
+                        integer_part=integer_part,
+                        decimal_part=decimal_part,
                         row_number=header_row + idx + 2,
                         source_file=path.name,
                         source_sheet=sheet,
@@ -817,10 +1058,18 @@ def _make_screen_digits_key(max_digits: Optional[str], max_bytes: Optional[str])
       1) 最大桁
       2) 最大バイト数
     """
-    d = str(max_digits).strip() if max_digits else ""
+    def _norm(v: Optional[str]) -> str:
+        if v is None:
+            return ""
+        s = str(v).strip()
+        if re.fullmatch(r"\d+\.0+", s):
+            return s.split(".")[0]
+        return s
+
+    d = _norm(max_digits) if max_digits else ""
     if d:
         return d
-    b = str(max_bytes).strip() if max_bytes else ""
+    b = _norm(max_bytes) if max_bytes else ""
     return b
 
 
@@ -831,15 +1080,23 @@ def _make_table_digits_key(length: Optional[str], integer_part: Optional[str], d
       1) 整数部/小数部（数値系）
       2) Length（文字列系）
     """
-    int_s = str(integer_part).strip() if integer_part else ""
-    dec_s = str(decimal_part).strip() if decimal_part else ""
+    def _norm(v: Optional[str]) -> str:
+        if v is None:
+            return ""
+        s = str(v).strip()
+        if re.fullmatch(r"\d+\.0+", s):
+            return s.split(".")[0]
+        return s
+
+    int_s = _norm(integer_part) if integer_part else ""
+    dec_s = _norm(decimal_part) if decimal_part else ""
     if int_s or dec_s:
         if not int_s:
             int_s = "0"
         if not dec_s:
             dec_s = "0"
         return f"{int_s}.{dec_s}"
-    return str(length).strip() if length else ""
+    return _norm(length) if length else ""
 
 
 def _find_domain_by_stripped_name(domains: Dict[str, DomainDef], item_name: str) -> Optional[DomainDef]:
@@ -959,7 +1216,76 @@ def _propose_new_domain_name(raw_name: str) -> str:
     base = _strip_digits(str(raw_name or "")).strip()
     if not base:
         return "新規ドメイン"
-    return f"{base}_新規ドメイン"
+    return base
+
+
+def _format_candidate_summary(
+    ev,
+    cfg: Dict[str, Any],
+    max_items: int = 5,
+) -> tuple[str, str]:
+    """LLM未使用時の候補情報を要約し、(top_name, summary) を返す。"""
+    candidates = getattr(ev, "type_digits_matches", None) or []
+    if not candidates:
+        return "", ""
+    min_sim = float(cfg.get("LLM_CANDIDATE_MIN_SIM", 0.6))
+    min_digit = float(cfg.get("LLM_CANDIDATE_MIN_DIGIT", 0.5))
+    filtered = []
+    for c in candidates:
+        sim = c.get("name_similarity")
+        digit = c.get("digit_match_rate")
+        sim_ok = sim is not None and float(sim) >= min_sim
+        digit_ok = digit is not None and float(digit) >= min_digit
+        if sim_ok and digit_ok:
+            filtered.append(c)
+    if not filtered:
+        return "", ""
+    top = filtered[0].get("domain_name", "")
+    names = [c.get("domain_name", "") for c in filtered[:max_items] if c.get("domain_name")]
+    summary = f"候補: {', '.join(names)}" if names else ""
+    return top, summary
+
+
+def _candidate_names_from_ev(ev, cfg: Dict[str, Any], same_name: str | None = None) -> str:
+    """候補名を理由付きで返す（LLMに投げた候補名を優先）。"""
+    candidates = getattr(ev, "type_digits_matches", None) or []
+    min_sim = float(cfg.get("LLM_CANDIDATE_MIN_SIM", 0.6))
+    min_digit = float(cfg.get("LLM_CANDIDATE_MIN_DIGIT", 0.5))
+    labels: list[str] = []
+    for c in candidates:
+        name = c.get("domain_name", "")
+        if not name:
+            continue
+        sim = c.get("name_similarity")
+        digit = c.get("digit_match_rate")
+        sim_ok = sim is not None and float(sim) >= min_sim
+        digit_ok = digit is not None and float(digit) >= min_digit
+        if not (sim_ok and digit_ok):
+            continue
+        reasons: list[str] = []
+        if c.get("name_exact"):
+            reasons.append("同名")
+        if c.get("has_synonym_hit"):
+            reasons.append("同義語")
+        if sim is not None:
+            reasons.append(f"類似度{float(sim):.2f}")
+        if digit is not None:
+            reasons.append(f"桁一致率{float(digit):.2f}")
+        reason_text = " / ".join(reasons)
+        labels.append(f"{name}({reason_text})" if reason_text else name)
+    if same_name:
+        same_label = f"{same_name}(同名/桁違い)"
+        if all(not lbl.startswith(f"{same_name}(") and lbl != same_name for lbl in labels):
+            try:
+                from .domain_matcher import calc_similarity, strip_digits
+                item_name = getattr(ev, "item_name", "")
+                sim = calc_similarity(strip_digits(item_name), strip_digits(same_name))
+            except Exception:
+                sim = 0.0
+            min_sim = float(cfg.get("LLM_CANDIDATE_MIN_SIM", 0.6))
+            if sim >= min_sim:
+                labels.insert(0, same_label)
+    return ", ".join(labels)
 
 
 # ====== 重複排除 ==============================================================
@@ -1071,6 +1397,7 @@ def process_screen_domain_matching(
             unresolved.append((ev, idx))
 
     # B方式（LLM/フォールバック）
+    llm_used_indices: set[int] = set()
     if unresolved:
         use_llm = bool(cfg.get("LLM_MATCHING_ENABLED")) and run_llm_matching is not None and build_llm_call is not None
         llm_call = build_llm_call(cfg) if use_llm else None
@@ -1084,6 +1411,7 @@ def process_screen_domain_matching(
                     mr = _llm_result_to_match(ev, llm_result, domains)
                     results[idx] = (screen_items[idx], mr)
                     evidence_by_index[idx] = ev
+                    llm_used_indices.add(idx)
         else:
             for ev, idx in unresolved:
                 mr = _match_from_llm(ev, domains, cfg, llm_call=llm_call)
@@ -1098,6 +1426,7 @@ def process_screen_domain_matching(
         if display_type == "提案":
             display_type = "提案（候補から）" if not _is_new_domain_proposal(mr.match_type, mr.domain) else "提案（新規）"
         remark = mr.reason
+        forced_candidate_name = ""
         digit_rate: float | None = None
         if digit_match_rate_from_details and i in evidence_by_index:
             ev = evidence_by_index[i]
@@ -1117,12 +1446,13 @@ def process_screen_domain_matching(
             remark += f" / 汎化候補: {', '.join(mr.generalized_candidates)}"
 
         if _should_propose(mr.match_type):
-            has_digits = bool(item.max_digits and str(item.max_digits).strip() not in _EMPTY_VALUES)
-            has_bytes = bool(item.max_bytes and str(item.max_bytes).strip() not in _EMPTY_VALUES)
-            if has_digits or has_bytes:
-                remark = "桁数/バイト数の定義あり → 新規ドメイン提案が必要"
-            else:
-                remark = "桁数/バイト数なし → ドメイン設定不要の可能性"
+            if mr.match_type != "needs_llm":
+                has_digits = bool(item.max_digits and str(item.max_digits).strip() not in _EMPTY_VALUES)
+                has_bytes = bool(item.max_bytes and str(item.max_bytes).strip() not in _EMPTY_VALUES)
+                if has_digits or has_bytes:
+                    remark = "桁数/バイト数の定義あり → 新規ドメイン提案が必要"
+                else:
+                    remark = "桁数/バイト数なし → ドメイン設定不要の可能性"
             same_name_domain = _find_domain_by_stripped_name(domains, item.item_name)
             if same_name_domain:
                 item_key = _make_screen_digits_key(item.max_digits, item.max_bytes)
@@ -1136,13 +1466,41 @@ def process_screen_domain_matching(
             others = sorted({d for d in screen_name_digits[name_key] if d != digits_key})
             if others:
                 remark += f" / 同名で別桁定義あり（他: {', '.join(others)}）"
+        if i in evidence_by_index:
+            ev = evidence_by_index[i]
+            if getattr(ev, "name_match_mismatch", False):
+                remark += " / 注意: 同じ項目名で別桁/別データ型があります"
+                display_type = "提案（候補）同名/桁違い"
+                same_name_domain = _find_domain_by_stripped_name(domains, item.item_name)
+                if same_name_domain:
+                    forced_candidate_name = same_name_domain.name
+                    remark += f" / 候補: {forced_candidate_name}"
 
+        matched_domain_name = ""
         proposed_domain = ""
-        if mr.domain:
-            proposed_domain = mr.domain.name
+        if mr.match_type == "exact" and mr.domain:
+            matched_domain_name = mr.domain.name
         elif mr.match_type == "new_domain":
             proposed_domain = _propose_new_domain_name(item.item_name)
         elif _should_auto_new_domain(mr.match_type):
+            proposed_domain = _propose_new_domain_name(item.item_name)
+        elif mr.domain:
+            proposed_domain = mr.domain.name
+        if forced_candidate_name:
+            proposed_domain = forced_candidate_name
+
+        candidate_names = ""
+        if i in evidence_by_index:
+            candidate_names = _candidate_names_from_ev(evidence_by_index[i], cfg, forced_candidate_name or None)
+
+        if i in llm_used_indices:
+            remark = mr.reason
+        else:
+            remark = ""
+
+        if display_type == "提案（候補から）" and not candidate_names:
+            display_type = "提案（新規）"
+        if display_type == "提案（新規）" and not proposed_domain:
             proposed_domain = _propose_new_domain_name(item.item_name)
 
         row: Dict[str, Any] = {
@@ -1156,11 +1514,13 @@ def process_screen_domain_matching(
             "最小値": item.min_value if item.min_value else "",
             "最大値": item.max_value if item.max_value else "",
             "外部コード": item.code_id if item.code_id else "",
-            "一致ドメイン名": proposed_domain,
+            "一致ドメイン名": matched_domain_name,
+            "提案ドメイン名": proposed_domain,
+            "候補名": candidate_names,
             "判定結果": display_type,
             "備考": remark,
             "桁一致率": "" if digit_rate is None else round(float(digit_rate), 3),
-            "汎化候補": "" if not mr.generalized_candidates else ", ".join(mr.generalized_candidates),
+            "汎化ドメイン候補名": "" if not mr.generalized_candidates else ", ".join(mr.generalized_candidates),
         }
         row.update(_domain_detail_dict(mr.domain))
 
@@ -1253,6 +1613,7 @@ def process_table_domain_matching(
         else:
             unresolved.append((ev, idx))
 
+    llm_used_indices: set[int] = set()
     if unresolved:
         use_llm = bool(cfg.get("LLM_MATCHING_ENABLED")) and run_llm_matching is not None and build_llm_call is not None
         llm_call = build_llm_call(cfg) if use_llm else None
@@ -1266,6 +1627,7 @@ def process_table_domain_matching(
                     mr = _llm_result_to_match(ev, llm_result, domains)
                     results[idx] = (table_items[idx], mr)
                     evidence_by_index[idx] = ev
+                    llm_used_indices.add(idx)
         else:
             for ev, idx in unresolved:
                 mr = _match_from_llm(ev, domains, cfg, llm_call=llm_call)
@@ -1279,6 +1641,7 @@ def process_table_domain_matching(
         if display_type == "提案":
             display_type = "提案（候補から）" if not _is_new_domain_proposal(mr.match_type, mr.domain) else "提案（新規）"
         remark = mr.reason
+        forced_candidate_name = ""
         digit_rate: float | None = None
         if digit_match_rate_from_details and i in evidence_by_index:
             ev = evidence_by_index[i]
@@ -1290,12 +1653,13 @@ def process_table_domain_matching(
                 remark += " / 注意: 意味は近いが桁数が一致していない可能性"
 
         if _should_propose(mr.match_type):
-            has_type = bool(item.data_type and item.data_type.strip())
-            has_length = bool(item.length and str(item.length).strip() not in _EMPTY_VALUES)
-            if has_type or has_length:
-                remark = "データ型/桁数の定義あり → 新規ドメイン提案が必要"
-            else:
-                remark = "データ型/桁数なし → ドメイン設定不要の可能性"
+            if mr.match_type != "needs_llm":
+                has_type = bool(item.data_type and item.data_type.strip())
+                has_length = bool(item.length and str(item.length).strip() not in _EMPTY_VALUES)
+                if has_type or has_length:
+                    remark = "データ型/桁数の定義あり → 新規ドメイン提案が必要"
+                else:
+                    remark = "データ型/桁数なし → ドメイン設定不要の可能性"
             same_name_domain = _find_domain_by_stripped_name(domains, item.item_name)
             if same_name_domain:
                 item_key = _make_table_digits_key(item.length, item.integer_part, item.decimal_part)
@@ -1309,19 +1673,52 @@ def process_table_domain_matching(
             others = sorted({d for d in table_name_digits[name_key] if d != digits_key})
             if others:
                 remark += f" / 同名で別桁定義あり（他: {', '.join(others)}）"
+        if i in evidence_by_index:
+            ev = evidence_by_index[i]
+            if getattr(ev, "name_match_mismatch", False):
+                remark += " / 注意: 同じ項目名で別桁/別データ型があります"
+                display_type = "提案（候補）同名/桁違い"
+                same_name_domain = _find_domain_by_stripped_name(domains, item.item_name)
+                if same_name_domain:
+                    forced_candidate_name = same_name_domain.name
+                    remark += f" / 候補: {forced_candidate_name}"
 
         if mr.domain and item.data_type:
             item_type_norm = normalize_data_type(item.data_type)
             domain_type_norm = normalize_data_type(mr.domain.data_type)
-            if item_type_norm and domain_type_norm and item_type_norm != domain_type_norm:
+            if (
+                item_type_norm
+                and domain_type_norm
+                and item_type_norm != domain_type_norm
+                and not (_is_string_like_type(item_type_norm) and _is_string_like_type(domain_type_norm))
+            ):
                 remark += f" / 型不一致: テーブル={item.data_type}, ドメイン={mr.domain.data_type}"
 
+        matched_domain_name = ""
         proposed_domain = ""
-        if mr.domain:
-            proposed_domain = mr.domain.name
+        if mr.match_type == "exact" and mr.domain:
+            matched_domain_name = mr.domain.name
         elif mr.match_type == "new_domain":
             proposed_domain = _propose_new_domain_name(item.item_name)
         elif _should_auto_new_domain(mr.match_type):
+            proposed_domain = _propose_new_domain_name(item.item_name)
+        elif mr.domain:
+            proposed_domain = mr.domain.name
+        if forced_candidate_name:
+            proposed_domain = forced_candidate_name
+
+        candidate_names = ""
+        if i in evidence_by_index:
+            candidate_names = _candidate_names_from_ev(evidence_by_index[i], cfg, forced_candidate_name or None)
+
+        if i in llm_used_indices:
+            remark = mr.reason
+        else:
+            remark = ""
+
+        if display_type == "提案（候補から）" and not candidate_names:
+            display_type = "提案（新規）"
+        if display_type == "提案（新規）" and not proposed_domain:
             proposed_domain = _propose_new_domain_name(item.item_name)
 
         row: Dict[str, Any] = {
@@ -1331,11 +1728,13 @@ def process_table_domain_matching(
             "Length": item.length if item.length else "",
             "全体数値": item.integer_part if item.integer_part else "",
             "少数桁": item.decimal_part if item.decimal_part else "",
-            "一致ドメイン名": proposed_domain,
+            "一致ドメイン名": matched_domain_name,
+            "提案ドメイン名": proposed_domain,
+            "候補名": candidate_names,
             "判定結果": display_type,
             "備考": remark,
             "桁一致率": "" if digit_rate is None else round(float(digit_rate), 3),
-            "汎化候補": "" if not mr.generalized_candidates else ", ".join(mr.generalized_candidates),
+            "汎化ドメイン候補名": "" if not mr.generalized_candidates else ", ".join(mr.generalized_candidates),
         }
         row.update(_domain_detail_dict(mr.domain))
         if _should_propose(mr.match_type):
@@ -1395,13 +1794,13 @@ _TABLE_RAW_COLS = [
 _SCREEN_DEDUP_COLS = [
     "項目名称", "型", "テキストタイプ",
     "最小桁", "最大桁", "最大バイト数", "最小値", "最大値", "外部コード",
-    "一致ドメイン名", "判定結果", "備考", "桁一致率", "汎化候補",
+    "判定結果", "一致ドメイン名", "提案ドメイン名", "候補名", "汎化ドメイン候補名", "備考", "桁一致率",
 ]
 
 # 重複排除シートの列（テーブル定義 — 殿の確定仕様シート4: A〜H）
 _TABLE_DEDUP_COLS = [
     "論理項目名", "データ型", "Length", "全体数値", "少数桁",
-    "一致ドメイン名", "判定結果", "備考", "桁一致率", "汎化候補",
+    "判定結果", "一致ドメイン名", "提案ドメイン名", "候補名", "汎化ドメイン候補名", "備考", "桁一致率",
 ]
 
 
@@ -1413,6 +1812,7 @@ def save_domain_check_results(
     cfg: Dict[str, Any],
     include_screen: bool = True,
     include_table: bool = True,
+    domains_df: Optional[pd.DataFrame] = None,
 ) -> Path:
     """4シート構成のExcelファイルを保存する（確定仕様）。
 
@@ -1420,6 +1820,7 @@ def save_domain_check_results(
     シート2: テーブル定義_抽出（生データ + VLOOKUP列）
     シート3: 画面項目_重複排除（A〜L + ドメイン詳細M〜）
     シート4: テーブル定義_重複排除（A〜H + ドメイン詳細I〜）
+    追加: ドメイン定義_取込（取り込んだドメイン定義の全列）
 
     Returns:
         出力ファイルのPath
@@ -1443,11 +1844,40 @@ def save_domain_check_results(
     table_raw = _select_columns(table_df, _TABLE_RAW_COLS)
 
     # 重複排除シート用に列を絞る（基本列 + ドメイン詳細列）
-    screen_dedup = _select_columns(screen_dedup_df, _SCREEN_DEDUP_COLS + _DOMAIN_DETAIL_COLS)
-    table_dedup = _select_columns(table_dedup_df, _TABLE_DEDUP_COLS + _DOMAIN_DETAIL_COLS)
     proposal_df = _build_domain_proposal_df(
         screen_dedup_df, table_dedup_df, cfg, include_screen, include_table,
     )
+    # 新規内の汎化候補がある場合は重複排除シートに反映
+    if not proposal_df.empty:
+        domain_cols = _domain_column_names(cfg)
+        name_col = domain_cols["name"]
+        gen_col = "汎化候補（新規内）"
+        if name_col in proposal_df.columns and gen_col in proposal_df.columns:
+            prop_map_screen = (
+                proposal_df[proposal_df.get("由来") == "画面"]
+                .set_index(name_col)[gen_col]
+                .dropna()
+                .to_dict()
+            )
+            prop_map_table = (
+                proposal_df[proposal_df.get("由来") == "テーブル"]
+                .set_index(name_col)[gen_col]
+                .dropna()
+                .to_dict()
+            )
+            if prop_map_screen and "提案ドメイン名" in screen_dedup_df.columns:
+                screen_dedup_df = screen_dedup_df.copy()
+                screen_dedup_df["汎化ドメイン候補名"] = screen_dedup_df.get("汎化ドメイン候補名", "")
+                mask = screen_dedup_df["汎化ドメイン候補名"].astype(str).str.strip() == ""
+                screen_dedup_df.loc[mask, "汎化ドメイン候補名"] = screen_dedup_df.loc[mask, "提案ドメイン名"].map(prop_map_screen).fillna("")
+            if prop_map_table and "提案ドメイン名" in table_dedup_df.columns:
+                table_dedup_df = table_dedup_df.copy()
+                table_dedup_df["汎化ドメイン候補名"] = table_dedup_df.get("汎化ドメイン候補名", "")
+                mask = table_dedup_df["汎化ドメイン候補名"].astype(str).str.strip() == ""
+                table_dedup_df.loc[mask, "汎化ドメイン候補名"] = table_dedup_df.loc[mask, "提案ドメイン名"].map(prop_map_table).fillna("")
+
+    screen_dedup = _select_columns(screen_dedup_df, _SCREEN_DEDUP_COLS + _DOMAIN_DETAIL_COLS)
+    table_dedup = _select_columns(table_dedup_df, _TABLE_DEDUP_COLS + _DOMAIN_DETAIL_COLS)
 
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         if include_screen:
@@ -1456,6 +1886,9 @@ def save_domain_check_results(
         if include_table:
             table_raw.to_excel(writer, sheet_name="テーブル定義_抽出", index=False)
             table_dedup.to_excel(writer, sheet_name="テーブル定義_重複排除", index=False)
+        if domains_df is not None and not domains_df.empty:
+            domains_df = _coalesce_duplicate_columns(domains_df)
+            domains_df.to_excel(writer, sheet_name="ドメイン定義_取込", index=False)
         if not proposal_df.empty:
             if include_screen:
                 screen_prop = proposal_df[proposal_df.get("由来") == "画面"]
@@ -1467,14 +1900,14 @@ def save_domain_check_results(
                     table_prop.to_excel(writer, sheet_name="提案_ドメイン一覧_テーブル", index=False)
 
     wb = load_workbook(output_file)
+    header_fill_input = PatternFill(start_color="D9EAF7", end_color="D9EAF7", fill_type="solid")
+    header_fill_judge = PatternFill(start_color="FFE5CC", end_color="FFE5CC", fill_type="solid")
 
     if include_screen:
-        # シート1: 検索キー列 + VLOOKUP列
+        # シート1: 検索キー列
         ws1 = wb["画面項目_抽出"]
-        vlookup_col_s = len(_SCREEN_RAW_COLS) + 1  # K列
-        ws1.cell(row=1, column=vlookup_col_s, value="VLOOKUP")
-        # 検索キー（L列）: 項目名称（数字除去後）＋桁数(最大桁 or 最大バイト数)
-        key_col_s = vlookup_col_s + 1  # L列
+        # 検索キー（K列）: 項目名称（数字除去後）＋桁数(最大桁 or 最大バイト数)
+        key_col_s = len(_SCREEN_RAW_COLS) + 1  # K列
         ws1.cell(row=1, column=key_col_s, value="検索キー")
         for r in range(2, ws1.max_row + 1):
             raw_name = ws1.cell(row=r, column=2).value  # B列
@@ -1487,46 +1920,33 @@ def save_domain_check_results(
         ws1_key_col_letter = get_column_letter(key_col_s)
         ws3 = wb["画面項目_重複排除"]
         ws3_domain_col = _find_col(ws3, "一致ドメイン名")
+        ws3_prop_col = _find_col(ws3, "提案ドメイン名")
+        ws3_cand_col = _find_col(ws3, "候補名")
+        ws3_gen_col = _find_col(ws3, "汎化ドメイン候補名")
         ws3_result_col = _find_col(ws3, "判定結果")
         ws3_remark_col = _find_col(ws3, "備考")
         ws3_key_col = ws3.max_column + 1
         ws3.cell(row=1, column=ws3_key_col, value="検索キー")
         for r in range(2, ws3.max_row + 1):
-            name = ws3.cell(row=r, column=1).value  # A列
+            name = ws3.cell(row=r, column=1).value  # A列=項目名称
             digits = ws3.cell(row=r, column=5).value  # E列=最大桁
             bytes_ = ws3.cell(row=r, column=6).value  # F列=最大バイト数
             digit_key = _make_screen_digits_key(digits, bytes_)
             key = _make_lookup_key(str(name or ""), digit_key or None)
             ws3.cell(row=r, column=ws3_key_col, value=key)
         dedup_key_col_s = get_column_letter(ws3_key_col)
-        # 画面項目_重複排除の検索キー列でMATCHし、J列をINDEX
-        for r in range(2, ws1.max_row + 1):
-            ws1.cell(
-                row=r,
-                column=vlookup_col_s,
-                value=(
-                    f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_domain_col)}:{get_column_letter(ws3_domain_col)},'
-                    f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
-                ),
-            )
-
-        # VLOOKUP列を分割（一致ドメイン名 / 判定結果 / 備考）
+        # 判定列（検索キーの右に配置）
         split_start = key_col_s + 1
-        ws1.cell(row=1, column=split_start, value="一致ドメイン名")
-        ws1.cell(row=1, column=split_start + 1, value="判定結果")
-        ws1.cell(row=1, column=split_start + 2, value="備考")
+        ws1.cell(row=1, column=split_start, value="判定結果")
+        ws1.cell(row=1, column=split_start + 1, value="一致ドメイン名")
+        ws1.cell(row=1, column=split_start + 2, value="提案ドメイン名")
+        ws1.cell(row=1, column=split_start + 3, value="候補名")
+        ws1.cell(row=1, column=split_start + 4, value="汎化ドメイン候補名")
+        ws1.cell(row=1, column=split_start + 5, value="備考")
         for r in range(2, ws1.max_row + 1):
             ws1.cell(
                 row=r,
                 column=split_start,
-                value=(
-                    f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_domain_col)}:{get_column_letter(ws3_domain_col)},'
-                    f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
-                ),
-            )
-            ws1.cell(
-                row=r,
-                column=split_start + 1,
                 value=(
                     f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_result_col)}:{get_column_letter(ws3_result_col)},'
                     f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
@@ -1534,7 +1954,39 @@ def save_domain_check_results(
             )
             ws1.cell(
                 row=r,
+                column=split_start + 1,
+                value=(
+                    f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_domain_col)}:{get_column_letter(ws3_domain_col)},'
+                    f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
+                ),
+            )
+            ws1.cell(
+                row=r,
                 column=split_start + 2,
+                value=(
+                    f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_prop_col)}:{get_column_letter(ws3_prop_col)},'
+                    f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
+                ),
+            )
+            ws1.cell(
+                row=r,
+                column=split_start + 3,
+                value=(
+                    f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_cand_col)}:{get_column_letter(ws3_cand_col)},'
+                    f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
+                ),
+            )
+            ws1.cell(
+                row=r,
+                column=split_start + 4,
+                value=(
+                    f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_gen_col)}:{get_column_letter(ws3_gen_col)},'
+                    f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
+                ),
+            )
+            ws1.cell(
+                row=r,
+                column=split_start + 5,
                 value=(
                     f'=IFERROR(INDEX(画面項目_重複排除!{get_column_letter(ws3_remark_col)}:{get_column_letter(ws3_remark_col)},'
                     f'MATCH({ws1_key_col_letter}{r},画面項目_重複排除!{dedup_key_col_s}:{dedup_key_col_s},0)),"")'
@@ -1542,12 +1994,10 @@ def save_domain_check_results(
             )
 
     if include_table:
-        # シート2: 検索キー列 + VLOOKUP列
+        # シート2: 検索キー列
         ws2 = wb["テーブル定義_抽出"]
-        vlookup_col_t = len(_TABLE_RAW_COLS) + 1  # G列
-        ws2.cell(row=1, column=vlookup_col_t, value="VLOOKUP")
-        # 検索キー（H列）: 論理項目名（数字除去後）＋桁数(整数/小数 or Length)
-        key_col_t = vlookup_col_t + 1  # H列
+        # 検索キー（G列）: 論理項目名（数字除去後）＋桁数(整数/小数 or Length)
+        key_col_t = len(_TABLE_RAW_COLS) + 1  # G列
         ws2.cell(row=1, column=key_col_t, value="検索キー")
         for r in range(2, ws2.max_row + 1):
             raw_name = ws2.cell(row=r, column=2).value  # B列
@@ -1559,12 +2009,15 @@ def save_domain_check_results(
             ws2.cell(row=r, column=key_col_t, value=key)
         ws4 = wb["テーブル定義_重複排除"]
         ws4_domain_col = _find_col(ws4, "一致ドメイン名")
+        ws4_prop_col = _find_col(ws4, "提案ドメイン名")
+        ws4_cand_col = _find_col(ws4, "候補名")
+        ws4_gen_col = _find_col(ws4, "汎化ドメイン候補名")
         ws4_result_col = _find_col(ws4, "判定結果")
         ws4_remark_col = _find_col(ws4, "備考")
         ws4_key_col = ws4.max_column + 1
         ws4.cell(row=1, column=ws4_key_col, value="検索キー")
         for r in range(2, ws4.max_row + 1):
-            name = ws4.cell(row=r, column=1).value  # A列
+            name = ws4.cell(row=r, column=1).value  # A列=論理項目名
             length = ws4.cell(row=r, column=3).value  # C列=Length
             int_part = ws4.cell(row=r, column=4).value  # D列=全体数値
             dec_part = ws4.cell(row=r, column=5).value  # E列=少数桁
@@ -1573,34 +2026,18 @@ def save_domain_check_results(
             ws4.cell(row=r, column=ws4_key_col, value=key)
         dedup_key_col_t = get_column_letter(ws4_key_col)
         ws2_key_col_letter = get_column_letter(key_col_t)
-        # テーブル定義_重複排除の検索キー列でMATCHし、F列をINDEX
-        for r in range(2, ws2.max_row + 1):
-            ws2.cell(
-                row=r,
-                column=vlookup_col_t,
-                value=(
-                    f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_domain_col)}:{get_column_letter(ws4_domain_col)},'
-                    f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
-                ),
-            )
-
-        # VLOOKUP列を分割（一致ドメイン名 / 判定結果 / 備考）
+        # 判定列（検索キーの右に配置）
         split_start = key_col_t + 1
-        ws2.cell(row=1, column=split_start, value="一致ドメイン名")
-        ws2.cell(row=1, column=split_start + 1, value="判定結果")
-        ws2.cell(row=1, column=split_start + 2, value="備考")
+        ws2.cell(row=1, column=split_start, value="判定結果")
+        ws2.cell(row=1, column=split_start + 1, value="一致ドメイン名")
+        ws2.cell(row=1, column=split_start + 2, value="提案ドメイン名")
+        ws2.cell(row=1, column=split_start + 3, value="候補名")
+        ws2.cell(row=1, column=split_start + 4, value="汎化ドメイン候補名")
+        ws2.cell(row=1, column=split_start + 5, value="備考")
         for r in range(2, ws2.max_row + 1):
             ws2.cell(
                 row=r,
                 column=split_start,
-                value=(
-                    f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_domain_col)}:{get_column_letter(ws4_domain_col)},'
-                    f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
-                ),
-            )
-            ws2.cell(
-                row=r,
-                column=split_start + 1,
                 value=(
                     f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_result_col)}:{get_column_letter(ws4_result_col)},'
                     f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
@@ -1608,18 +2045,83 @@ def save_domain_check_results(
             )
             ws2.cell(
                 row=r,
+                column=split_start + 1,
+                value=(
+                    f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_domain_col)}:{get_column_letter(ws4_domain_col)},'
+                    f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
+                ),
+            )
+            ws2.cell(
+                row=r,
                 column=split_start + 2,
+                value=(
+                    f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_prop_col)}:{get_column_letter(ws4_prop_col)},'
+                    f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
+                ),
+            )
+            ws2.cell(
+                row=r,
+                column=split_start + 3,
+                value=(
+                    f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_cand_col)}:{get_column_letter(ws4_cand_col)},'
+                    f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
+                ),
+            )
+            ws2.cell(
+                row=r,
+                column=split_start + 4,
+                value=(
+                    f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_gen_col)}:{get_column_letter(ws4_gen_col)},'
+                    f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
+                ),
+            )
+            ws2.cell(
+                row=r,
+                column=split_start + 5,
                 value=(
                     f'=IFERROR(INDEX(テーブル定義_重複排除!{get_column_letter(ws4_remark_col)}:{get_column_letter(ws4_remark_col)},'
                     f'MATCH({ws2_key_col_letter}{r},テーブル定義_重複排除!{dedup_key_col_t}:{dedup_key_col_t},0)),"")'
                 ),
             )
-
     # 判定結果列に色付け
     for sheet_name in ("画面項目_重複排除", "テーブル定義_重複排除"):
         if sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
             _apply_result_colors(ws, ws.max_row)
+
+    # ヘッダー色付け（同一シート内で 入力列/判定列 を分けて着色）
+    if "画面項目_抽出" in wb.sheetnames:
+        _apply_header_fill_by_columns(
+            wb["画面項目_抽出"],
+            input_cols=_SCREEN_RAW_COLS + ["検索キー"],
+            judge_cols=["判定結果", "一致ドメイン名", "提案ドメイン名", "候補名", "汎化ドメイン候補名", "備考"],
+            input_fill=header_fill_input,
+            judge_fill=header_fill_judge,
+        )
+    if "テーブル定義_抽出" in wb.sheetnames:
+        _apply_header_fill_by_columns(
+            wb["テーブル定義_抽出"],
+            input_cols=_TABLE_RAW_COLS + ["検索キー"],
+            judge_cols=["判定結果", "一致ドメイン名", "提案ドメイン名", "候補名", "汎化ドメイン候補名", "備考"],
+            input_fill=header_fill_input,
+            judge_fill=header_fill_judge,
+        )
+    if "画面項目_重複排除" in wb.sheetnames:
+        _apply_header_fill_by_columns(
+            wb["画面項目_重複排除"],
+            input_cols=["項目名称", "型", "テキストタイプ", "最小桁", "最大桁", "最大バイト数", "最小値", "最大値", "外部コード"],
+            judge_cols=["判定結果", "一致ドメイン名", "提案ドメイン名", "候補名", "汎化ドメイン候補名", "備考", "桁一致率"] + _DOMAIN_DETAIL_COLS,
+            input_fill=header_fill_input,
+            judge_fill=header_fill_judge,
+        )
+    if "テーブル定義_重複排除" in wb.sheetnames:
+        _apply_header_fill_by_columns(
+            wb["テーブル定義_重複排除"],
+            input_cols=["論理項目名", "データ型", "Length", "全体数値", "少数桁"],
+            judge_cols=["判定結果", "一致ドメイン名", "提案ドメイン名", "候補名", "汎化ドメイン候補名", "備考", "桁一致率"] + _DOMAIN_DETAIL_COLS,
+            input_fill=header_fill_input,
+            judge_fill=header_fill_judge,
+        )
 
     wb.save(output_file)
     print(f"[INFO] 保存完了: {output_file}")
@@ -1630,6 +2132,36 @@ def _select_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
     """DataFrameから存在する列のみを選択する。"""
     existing = [c for c in cols if c in df.columns]
     return df[existing].copy()
+
+
+def _coalesce_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """同名（正規化後）列が複数ある場合に値を統合し、1列にまとめる。"""
+    cols = list(df.columns)
+    norm = [
+        re.sub(r"[\\s_]+", "", unicodedata.normalize("NFKC", str(c)).strip().lower())
+        for c in cols
+    ]
+    seen = set()
+    new_cols = []
+    new_series = []
+    for idx, key in enumerate(norm):
+        if key in seen:
+            continue
+        seen.add(key)
+        dup_indices = [i for i, k in enumerate(norm) if k == key]
+        base_col = cols[idx]
+        if len(dup_indices) == 1:
+            new_cols.append(base_col)
+            new_series.append(df.iloc[:, idx])
+            continue
+        combined = df.iloc[:, dup_indices[0]].copy()
+        for j in dup_indices[1:]:
+            other = df.iloc[:, j]
+            mask = combined.isna() | (combined.astype(str).str.strip() == "") | (combined.astype(str).str.lower() == "nan")
+            combined = combined.where(~mask, other)
+        new_cols.append(base_col)
+        new_series.append(combined)
+    return pd.concat(new_series, axis=1, copy=False).set_axis(new_cols, axis=1)
 
 
 def _first_value(*values: Any) -> str:
@@ -1701,8 +2233,61 @@ def _group_new_domain_proposals(df: pd.DataFrame, name_col: str, llm_call) -> pd
     generalized = [""] * len(df)
     group_names = [""] * len(df)
 
+    # 前処理: ローカル類似度でグルーピング（LLMがあっても必ず実施）
+    from difflib import SequenceMatcher
+    groups: list[dict[str, Any]] = []
+    for idx, name in enumerate(names):
+        norm = _normalize_proposal_name(name)
+        sig = _proposal_signature(df.iloc[idx])
+        if not norm:
+            continue
+        best_group = None
+        best_score = 0.0
+        for g in groups:
+            if g["signature"] != sig:
+                continue
+            score = SequenceMatcher(None, norm, g["norm"]).ratio()
+            if score > best_score:
+                best_score = score
+                best_group = g
+        if best_group and best_score >= 0.75:
+            best_group["members"].append(idx)
+            best_group["names"].append(name)
+        else:
+            groups.append({
+                "signature": sig,
+                "norm": norm,
+                "members": [idx],
+                "names": [name],
+            })
+
+    for g in groups:
+        if len(g["members"]) <= 1:
+            continue
+        master = g["names"][0]
+        members = [n for n in g["names"] if n]
+        for i in g["members"]:
+            generalized[i] = master if names[i] != master else ""
+            group_names[i] = ", ".join(members)
+
+    # LLMが使える場合は後段で上書き（LLM結果のみを採用）
     if group_new_domain_proposals and llm_call is not None:
+        # 前処理グループをヒントとして渡す
+        pre_groups = [""] * len(df)
+        g_id = 1
+        for g in groups:
+            if len(g["members"]) <= 1:
+                continue
+            for i in g["members"]:
+                pre_groups[i] = f"G{g_id}"
+            g_id += 1
+        for idx, item in enumerate(items):
+            if pre_groups[idx]:
+                item["pre_group"] = pre_groups[idx]
+
         groups = group_new_domain_proposals(items, llm_call)
+        generalized = [""] * len(df)
+        group_names = [""] * len(df)
         for g in groups:
             members = [i - 1 for i in g.get("group", []) if isinstance(i, int)]
             members = [i for i in members if 0 <= i < len(df)]
@@ -1713,42 +2298,6 @@ def _group_new_domain_proposals(df: pd.DataFrame, name_col: str, llm_call) -> pd
             for i in members:
                 generalized[i] = master if names[i] != master else ""
                 group_names[i] = ", ".join(member_names)
-    else:
-        from difflib import SequenceMatcher
-        groups: list[dict[str, Any]] = []
-        for idx, name in enumerate(names):
-            norm = _normalize_proposal_name(name)
-            sig = _proposal_signature(df.iloc[idx])
-            if not norm:
-                continue
-            best_group = None
-            best_score = 0.0
-            for g in groups:
-                if g["signature"] != sig:
-                    continue
-                score = SequenceMatcher(None, norm, g["norm"]).ratio()
-                if score > best_score:
-                    best_score = score
-                    best_group = g
-            if best_group and best_score >= 0.75:
-                best_group["members"].append(idx)
-                best_group["names"].append(name)
-            else:
-                groups.append({
-                    "signature": sig,
-                    "norm": norm,
-                    "members": [idx],
-                    "names": [name],
-                })
-
-        for g in groups:
-            if len(g["members"]) <= 1:
-                continue
-            master = g["names"][0]
-            members = [n for n in g["names"] if n]
-            for i in g["members"]:
-                generalized[i] = master if names[i] != master else ""
-                group_names[i] = ", ".join(members)
 
     df = df.copy()
     df["汎化候補（新規内）"] = generalized
@@ -1771,7 +2320,7 @@ def _build_domain_proposal_df(
             return
         target = df[df.get("判定結果") == "提案（新規）"]
         for _, row in target.iterrows():
-            name = _first_value(row.get("一致ドメイン名"), _propose_new_domain_name(row.get("項目名称")))
+            name = _first_value(row.get("提案ドメイン名"), _propose_new_domain_name(row.get("項目名称")))
             rows.append({
                 "由来": "画面",
                 domain_cols["name"]: name,
@@ -1787,7 +2336,7 @@ def _build_domain_proposal_df(
                 domain_cols["regex"]: _first_value(row.get("D_書式（正規表現）")),
                 domain_cols["code_id"]: _first_value(row.get("D_参照外部コード"), row.get("外部コード")),
                 "根拠": _first_value(row.get("備考"), row.get("判定理由"), row.get("理由")),
-                "汎化候補": _first_value(row.get("汎化候補")),
+                "汎化候補": _first_value(row.get("汎化ドメイン候補名"), row.get("汎化候補")),
             })
 
     def add_table_rows(df: pd.DataFrame) -> None:
@@ -1795,7 +2344,7 @@ def _build_domain_proposal_df(
             return
         target = df[df.get("判定結果") == "提案（新規）"]
         for _, row in target.iterrows():
-            name = _first_value(row.get("一致ドメイン名"), _propose_new_domain_name(row.get("論理項目名")))
+            name = _first_value(row.get("提案ドメイン名"), _propose_new_domain_name(row.get("論理項目名")))
             rows.append({
                 "由来": "テーブル",
                 domain_cols["name"]: name,
@@ -1811,7 +2360,7 @@ def _build_domain_proposal_df(
                 domain_cols["regex"]: _first_value(row.get("D_書式（正規表現）")),
                 domain_cols["code_id"]: _first_value(row.get("D_参照外部コード")),
                 "根拠": _first_value(row.get("備考"), row.get("判定理由"), row.get("理由")),
-                "汎化候補": _first_value(row.get("汎化候補")),
+                "汎化候補": _first_value(row.get("汎化ドメイン候補名"), row.get("汎化候補")),
             })
 
     if include_screen:
@@ -1854,3 +2403,15 @@ def _apply_result_colors(ws, max_row: int) -> None:
                 break
         if fill:
             cell.fill = fill
+
+
+def _apply_header_fill_by_columns(ws, input_cols, judge_cols, input_fill, judge_fill) -> None:
+    """ヘッダー行の色を入力列/判定列で分けて設定する。"""
+    headers = [str(ws.cell(row=1, column=c).value or "").strip() for c in range(1, ws.max_column + 1)]
+    input_set = set(input_cols)
+    judge_set = set(judge_cols)
+    for idx, header in enumerate(headers, start=1):
+        if header in judge_set:
+            ws.cell(row=1, column=idx).fill = judge_fill
+        elif header in input_set:
+            ws.cell(row=1, column=idx).fill = input_fill

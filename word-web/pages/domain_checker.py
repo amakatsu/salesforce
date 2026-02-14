@@ -198,7 +198,7 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
 
                 # Step 2: データ読み込み
                 _log("[WEB] Step2: load data start")
-                screen_items, table_items, domains = _load_all_data(
+                screen_items, table_items, domains, domain_raw_df = _load_all_data(
                     tmpdir, config, progress, status, detail, match_target,
                 )
                 _log(f"[WEB] Step2: load data done (screen={len(screen_items)}, table={len(table_items)}, domains={len(domains)})")
@@ -221,7 +221,7 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
                 _log("[WEB] Step5: save results start")
                 _save_and_store_results(
                     screen_df, table_df, screen_dedup_df, table_dedup_df,
-                    config, progress, status, detail, match_target,
+                    config, progress, status, detail, match_target, domain_raw_df,
                 )
                 _log("[WEB] Step5: save results done")
 
@@ -257,11 +257,11 @@ def _load_all_data(tmpdir, config, progress, status, detail, match_target):
         progress.progress(30)
 
     detail.text("ドメイン定義を解析中...")
-    domains = load_domains(tmpdir, config)
+    domains, domain_raw_df = load_domains(tmpdir, config, return_raw=True)
     detail.text(f"✓ ドメイン定義: {len(domains)}件")
     progress.progress(45)
 
-    return screen_items, table_items, domains
+    return screen_items, table_items, domains, domain_raw_df
 
 
 def _run_matching(screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=None):
@@ -338,7 +338,7 @@ def _dedup_results(screen_df, table_df, progress, status, detail, match_target):
 
 def _save_and_store_results(
     screen_df, table_df, screen_dedup_df, table_dedup_df,
-    config, progress, status, detail, match_target,
+    config, progress, status, detail, match_target, domain_raw_df,
 ):
     """結果をExcel（4シート）に保存し、session_state に格納する。"""
     status.text("💾 ステップ 5/5: 結果を保存中...")
@@ -352,6 +352,7 @@ def _save_and_store_results(
         config,
         include_screen=(match_target == "画面項目定義"),
         include_table=(match_target == "テーブル定義"),
+        domains_df=domain_raw_df,
     )
 
     # tempdir 消失に備え、Excelバイトを session_state に退避

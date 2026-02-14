@@ -17,9 +17,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import pandas as pd
-import requests
 from dotenv import load_dotenv
 from string import Template
+from word.ai_handlers.common_llm import build_headers, post_chat_requests
 
 try:
     from .config import get_word_config
