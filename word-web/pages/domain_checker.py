@@ -194,36 +194,36 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
                     _save_files_to_tmpdir(table_files, tmpdir, "テーブル定義", detail)
                 _save_files_to_tmpdir(domain_files, tmpdir, "ドメイン定義", detail)
                 progress.progress(15)
-            _log("[WEB] Step1: save files done")
+                _log("[WEB] Step1: save files done")
 
-            # Step 2: データ読み込み
-            _log("[WEB] Step2: load data start")
-            screen_items, table_items, domains = _load_all_data(
-                tmpdir, config, progress, status, detail, match_target,
-            )
-            _log(f"[WEB] Step2: load data done (screen={len(screen_items)}, table={len(table_items)}, domains={len(domains)})")
+                # Step 2: データ読み込み
+                _log("[WEB] Step2: load data start")
+                screen_items, table_items, domains = _load_all_data(
+                    tmpdir, config, progress, status, detail, match_target,
+                )
+                _log(f"[WEB] Step2: load data done (screen={len(screen_items)}, table={len(table_items)}, domains={len(domains)})")
 
-            # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
-            _log("[WEB] Step3: matching start")
-            screen_df, table_df = _run_matching(
-                screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=_log,
-            )
-            _log("[WEB] Step3: matching done")
+                # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
+                _log("[WEB] Step3: matching start")
+                screen_df, table_df = _run_matching(
+                    screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=_log,
+                )
+                _log("[WEB] Step3: matching done")
 
-            # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
-            _log("[WEB] Step4: dedup start")
-            screen_dedup_df, table_dedup_df = _dedup_results(
-                screen_df, table_df, progress, status, detail, match_target,
-            )
-            _log("[WEB] Step4: dedup done")
+                # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
+                _log("[WEB] Step4: dedup start")
+                screen_dedup_df, table_dedup_df = _dedup_results(
+                    screen_df, table_df, progress, status, detail, match_target,
+                )
+                _log("[WEB] Step4: dedup done")
 
-            # Step 5: 結果保存（4シート: 抽出×2 + 重複排除×2）
-            _log("[WEB] Step5: save results start")
-            _save_and_store_results(
-                screen_df, table_df, screen_dedup_df, table_dedup_df,
-                config, progress, status, detail, match_target,
-            )
-            _log("[WEB] Step5: save results done")
+                # Step 5: 結果保存（4シート: 抽出×2 + 重複排除×2）
+                _log("[WEB] Step5: save results start")
+                _save_and_store_results(
+                    screen_df, table_df, screen_dedup_df, table_dedup_df,
+                    config, progress, status, detail, match_target,
+                )
+                _log("[WEB] Step5: save results done")
 
     except FileNotFoundError as e:
         st.error(f"❌ ファイルが見つかりません: {e}")
