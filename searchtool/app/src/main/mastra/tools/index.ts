@@ -1,5 +1,6 @@
-export { sharePointSearchTool } from './sharepoint-search'
+export { createSharePointSearchTool } from './sharepoint-search'
 export { extractTool } from './extract'
+export type { SearchHit } from './extract'
 export { internalDocsSearchTool } from './internal-docs-search'
 export { teamsMessageSearchTool } from './teams-message-search'
 export { createNavigationTool, type PlaywrightCaller } from './navigation'

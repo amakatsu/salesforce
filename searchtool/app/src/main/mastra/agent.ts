@@ -4,7 +4,7 @@ import type { SearchHit, SearchSource, PrimarySearchSource } from '../../shared/
 import { createPlaywrightMcpClient } from './mcp-config'
 import { createNavigationTool, type PlaywrightCaller } from './tools/navigation'
 import { createRetryTool } from './tools/retry'
-import { sharePointSearchTool } from './tools/sharepoint-search'
+import { createSharePointSearchTool } from './tools/sharepoint-search'
 import { extractTool } from './tools/extract'
 import { internalDocsSearchTool } from './tools/internal-docs-search'
 import { teamsMessageSearchTool } from './tools/teams-message-search'
@@ -140,7 +140,7 @@ const ensureAgent = (settings: AppSettings): Agent | null => {
     tools: {
       navigation: createNavigationTool(callPlaywrightProxy),
       retry: createRetryTool(callPlaywrightProxy),
-      sharepointSearch: sharePointSearchTool,
+      sharepointSearch: createSharePointSearchTool(callPlaywrightProxy),
       extract: extractTool,
       internalDocsSearch: internalDocsSearchTool,
       teamsMessageSearch: teamsMessageSearchTool,

@@ -1,82 +1,9 @@
 import { createTool } from '@mastra/core/tools'
 import { z } from 'zod'
-import { createRequire } from 'node:module'
-import path from 'node:path'
-import process from 'node:process'
-import { Client } from '@modelcontextprotocol/sdk/client'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import type { PlaywrightCaller } from './navigation'
 
 // ---------------------------------------------------------------------------
-// playwright-mcp 接続
-// ---------------------------------------------------------------------------
-
-const require = createRequire(import.meta.url)
-const PLAYWRIGHT_MCP_ENTRY = path.resolve(
-  require.resolve('playwright-mcp/package.json'),
-  '..',
-  'dist',
-  'server.js',
-)
-
-const DEFAULT_BROWSER = 'msedge'
-const WAIT_SECONDS = 3
-const TIMEOUT_MS = 30_000
-
-const connectPlaywright = async (userDataDir?: string): Promise<Client> => {
-  const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: [PLAYWRIGHT_MCP_ENTRY, '--browser', DEFAULT_BROWSER],
-    env: {
-      ...process.env,
-      PLAYWRIGHT_MCP_PROFILE_DIR: userDataDir ?? '',
-    },
-    stderr: 'pipe',
-  })
-
-  const client = new Client({ name: 'SharePointSearchTool', version: '0.0.0' })
-  await client.connect(transport)
-  return client
-}
-
-const callMcpTool = async (
-  client: Client,
-  name: string,
-  args: Record<string, unknown>,
-  timeoutMs: number,
-): Promise<CallToolResult> => {
-  const result = await client.request(
-    { method: 'tools/call', params: { name, arguments: args } },
-    CallToolResultSchema,
-    { timeout: timeoutMs },
-  )
-
-  if (result.isError) {
-    const message = extractText(result)
-    throw new Error(message || `${name} failed`)
-  }
-
-  return result
-}
-
-const extractText = (result: CallToolResult): string =>
-  result.content.find((c): c is { type: 'text'; text: string } => c.type === 'text')?.text ?? ''
-
-// ---------------------------------------------------------------------------
-// SharePoint 検索 URL 構築
-// ---------------------------------------------------------------------------
-
-const buildSearchUrl = (siteScope: string, keyword: string): string => {
-  const url = new URL(siteScope)
-  const basePath = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`
-  url.pathname = `${basePath}_layouts/15/osssearchresults.aspx`
-  url.search = ''
-  url.searchParams.set('k', keyword)
-  return url.toString()
-}
-
-// ---------------------------------------------------------------------------
-// Tool 定義
+// Schema（tool_interfaces.md §3a 準拠）
 // ---------------------------------------------------------------------------
 
 const inputSchema = z.object({
@@ -92,7 +19,7 @@ const inputSchema = z.object({
     .string()
     .url()
     .optional()
-    .describe('検索対象を絞るSharePointサイトURL'),
+    .describe('検索対象を絞るSharePointサイトURL（省略時はエラー）'),
 })
 
 const outputSchema = z.object({
@@ -103,32 +30,73 @@ const outputSchema = z.object({
   currentUrl: z.string().describe('スナップショット取得時のURL'),
 })
 
-export const sharePointSearchTool = createTool({
-  id: 'sharepoint_search',
-  description:
-    'SharePoint検索ページへ遷移し、結果ページのアクセシビリティスナップショットを返す。' +
-    '結果の解釈はAgentがExtractToolで行う。固定セレクタは使わない。',
-  inputSchema,
-  outputSchema,
-  execute: async ({ context }) => {
-    const { keyword, siteScope } = inputSchema.parse(context)
+// ---------------------------------------------------------------------------
+// SharePoint 検索 URL 構築
+// ---------------------------------------------------------------------------
 
-    if (!siteScope) {
-      throw new Error('siteScope（SharePointサイトURL）が必要です')
+const buildSearchUrl = (siteScope: string, keyword: string): string => {
+  const url = new URL(siteScope)
+  const basePath = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`
+  url.pathname = `${basePath}_layouts/15/osssearchresults.aspx`
+  url.search = ''
+  url.searchParams.set('k', keyword)
+  return url.toString()
+}
+
+// ---------------------------------------------------------------------------
+// MCP 結果からテキストを抽出
+// ---------------------------------------------------------------------------
+
+const extractText = (result: unknown): string => {
+  if (typeof result === 'string') return result
+  if (result && typeof result === 'object') {
+    const obj = result as Record<string, unknown>
+    if (typeof obj.text === 'string') return obj.text
+    if (Array.isArray(obj.content)) {
+      return (obj.content as Array<{ type?: string; text?: string }>)
+        .filter((c) => c.type === 'text' && c.text)
+        .map((c) => c.text!)
+        .join('\n')
     }
+  }
+  return JSON.stringify(result)
+}
 
-    const searchUrl = buildSearchUrl(siteScope, keyword)
-    const client = await connectPlaywright()
+// ---------------------------------------------------------------------------
+// SharePointSearchTool
+// ---------------------------------------------------------------------------
 
-    try {
+const WAIT_SECONDS = 3
+
+/**
+ * SharePoint 検索ページへ遷移し、結果ページのスナップショットを返す。
+ * 結果の解釈は Agent が ExtractTool で行う。固定セレクタは使わない。
+ *
+ * @param callPlaywright - 共有の playwright-mcp 呼び出し関数
+ */
+export const createSharePointSearchTool = (callPlaywright: PlaywrightCaller) =>
+  createTool({
+    id: 'sharepoint_search',
+    description:
+      'SharePoint検索ページへ遷移し、結果ページのアクセシビリティスナップショットを返す。' +
+      '結果の解釈はAgentがExtractToolで行う。固定セレクタは使わない。',
+    inputSchema,
+    outputSchema,
+    execute: async ({ context }) => {
+      if (!context.siteScope) {
+        throw new Error('siteScope（SharePointサイトURL）が必要です')
+      }
+
+      const searchUrl = buildSearchUrl(context.siteScope, context.keyword)
+
       // 1. 検索URLへ遷移（キーワードはURLパラメータで渡す）
-      await callMcpTool(client, 'browser_navigate', { url: searchUrl }, TIMEOUT_MS)
+      await callPlaywright('browser_navigate', { url: searchUrl })
 
       // 2. ページ読み込みを待機
-      await callMcpTool(client, 'browser_wait_for', { time: WAIT_SECONDS }, TIMEOUT_MS)
+      await callPlaywright('browser_wait_for', { time: WAIT_SECONDS })
 
       // 3. アクセシビリティスナップショットを取得
-      const snapshotResult = await callMcpTool(client, 'browser_snapshot', {}, TIMEOUT_MS)
+      const snapshotResult = await callPlaywright('browser_snapshot', {})
       const pageSnapshot = extractText(snapshotResult)
 
       if (!pageSnapshot) {
@@ -136,8 +104,5 @@ export const sharePointSearchTool = createTool({
       }
 
       return { pageSnapshot, searchUrl, currentUrl: searchUrl }
-    } finally {
-      await client.close().catch(() => undefined)
-    }
-  },
-})
+    },
+  })

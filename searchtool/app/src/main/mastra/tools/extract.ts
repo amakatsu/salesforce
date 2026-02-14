@@ -7,29 +7,41 @@ import { z } from 'zod'
 
 const searchHitSchema = z.object({
   title: z.string(),
-  url: z.string(),
+  url: z.string().url(),
   snippet: z.string(),
   lastModified: z.string().optional(),
 })
 
-type SearchHit = z.infer<typeof searchHitSchema>
+export type SearchHit = z.infer<typeof searchHitSchema>
 
 const inputSchema = z.object({
-  pageSnapshot: z.string().min(1)
+  pageSnapshot: z
+    .string()
+    .min(1)
     .describe('browser_snapshot で取得したアクセシビリティスナップショット'),
-  sourceType: z.enum(['sharepoint', 'teams', 'redmine', 'generic']).default('sharepoint')
+  sourceType: z
+    .enum(['sharepoint', 'teams', 'redmine', 'generic'])
+    .default('sharepoint')
     .describe('スナップショットの出典。抽出ヒントとして使用'),
-  maxResults: z.number().int().min(1).max(100).default(20)
+  maxResults: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(20)
     .describe('抽出する最大件数'),
 })
 
 const outputSchema = z.object({
   results: z.array(searchHitSchema),
-  confidence: z.enum(['high', 'medium', 'low'])
-    .describe('抽出の確信度'),
-  itemsFound: z.number().int()
+  confidence: z.enum(['high', 'medium', 'low']).describe('抽出の確信度'),
+  itemsFound: z
+    .number()
+    .int()
     .describe('スナップショット内で検出した候補要素数'),
-  interpretation: z.string().optional()
+  interpretation: z
+    .string()
+    .optional()
     .describe('スナップショットの解釈説明（デバッグ用）'),
 })
 
@@ -50,9 +62,13 @@ const NAV_KEYWORDS = [
 
 const isNavigationLink = (title: string): boolean => {
   const lower = title.toLowerCase()
-  return title.length < 2 || NAV_KEYWORDS.some(kw => lower.includes(kw))
+  return title.length < 2 || NAV_KEYWORDS.some((kw) => lower.includes(kw))
 }
 
+/**
+ * Markdownスナップショットから [title](url) 形式のリンクを抽出する。
+ * ナビゲーション要素は除外し、各リンクの直後3行をスニペットとして取得する。
+ */
 const extractLinks = (snapshot: string): RawLink[] => {
   const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
   const links: RawLink[] = []
@@ -70,8 +86,8 @@ const extractLinks = (snapshot: string): RawLink[] => {
 
       const contextLines = lines
         .slice(i + 1, Math.min(lines.length, i + 4))
-        .map(l => l.trim())
-        .filter(l => l.length > 0 && !/\[([^\]]+)\]\(https?:/.test(l))
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0 && !/\[([^\]]+)\]\(https?:/.test(l))
 
       links.push({
         title,
@@ -92,7 +108,7 @@ const judgeConfidence = (hits: SearchHit[]): 'high' | 'medium' | 'low' => {
   if (hits.length === 0) return 'low'
 
   const complete = hits.filter(
-    h => h.title.length > 0 && h.url.startsWith('http') && h.snippet.length > 0,
+    (h) => h.title.length > 0 && h.url.startsWith('http') && h.snippet.length > 0,
   )
 
   if (complete.length >= 3 && complete.length === hits.length) return 'high'
@@ -108,8 +124,9 @@ const judgeConfidence = (hits: SearchHit[]): 'high' | 'medium' | 'low' => {
  * アクセシビリティスナップショットから検索結果を構造化データに変換する。
  * ブラウザ操作は一切行わない（純粋関数）。
  *
- * 解釈の主体は Agent。このツールはスナップショット内のリンク要素を
- * 機械的に検出し、構造化された出力形式で返す。
+ * Markdownスナップショット内のリンク要素を機械的に検出し、
+ * 構造化された SearchHit[] として返す。
+ * Agent はこの出力を読み取り、必要に応じて再解釈する。
  */
 export const extractTool = createTool({
   id: 'extract',
@@ -123,7 +140,7 @@ export const extractTool = createTool({
 
     const results: SearchHit[] = rawLinks
       .slice(0, context.maxResults)
-      .map(link => ({
+      .map((link) => ({
         title: link.title,
         url: link.url,
         snippet: link.context || link.title,
