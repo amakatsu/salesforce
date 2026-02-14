@@ -24,7 +24,7 @@ def _as_bool(value: str) -> bool:
 def get_word_config() -> Dict[str, Any]:
     """Return config for word matching tool."""
     return {
-        "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "http://170.49.125.91:54000"),
+        "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "http://170.49.125.91:53000"),
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
         "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "PBkBKGPT0SpkSub001OAI001MDL015"),
         "OPENAI_PATH": os.getenv("OPENAI_PATH", "/api/curl/v2/chat/"),
@@ -64,19 +64,19 @@ def get_word_config() -> Dict[str, Any]:
 def get_domain_config() -> Dict[str, Any]:
     """Return config for domain check tool."""
     return {
-        "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "http://170.49.125.91:54000"),
+        "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "http://170.49.125.91:53000"),
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
         "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "PBkBKGPT0SpkSub001OAI001MDL015"),
         "OPENAI_PATH": os.getenv("OPENAI_PATH", "/api/curl/v2/chat/"),
         "OPENAI_HEADERS_JSON": os.getenv(
             "OPENAI_HEADERS_JSON",
-            '{"api-key":"8b843f2df20548899f93c0624452ea68","apim-user-id":"PIT04447"}',
+            '{"api-key":"QXwXLlZijq1U8WwiYfIu3znm3wWK3qIG","apim-user-id":"PIT03077"}',
         ),
         "OPENAI_SEND_AUTH": _as_bool(os.getenv("OPENAI_SEND_AUTH", "false")),
         "OPENAI_ORG_ID": os.getenv("OPENAI_ORG_ID", ""),
         "HTTP_PROXY": os.getenv("HTTP_PROXY", ""),
         "HTTPS_PROXY": os.getenv("HTTPS_PROXY", ""),
-        "VERIFY_SSL": _as_bool(os.getenv("VERIFY_SSL", "false")),
+        "VERIFY_SSL": _as_bool(os.getenv("VERIFY_SSL", "true")),
         "MAX_TOKENS": 128000,
         "TEMPERATURE": 1.0,
         "TOP_P": 1.0,

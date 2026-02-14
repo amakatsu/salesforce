@@ -12,7 +12,12 @@ from typing import List, Dict
 
 import streamlit as st
 
-import requests
+from word.ai_handlers.common_llm import (
+    build_headers,
+    build_chat_payload,
+    post_chat_requests,
+    load_env_settings,
+)
 from dotenv import load_dotenv
 
 # .env をロード
@@ -41,19 +46,6 @@ def _render_chat_history(history: List[Dict[str, str]]) -> None:
 # 設定ヘルパー
 # =============================================================================
 
-def _load_openai_headers() -> Dict[str, str]:
-    """OPENAI_HEADERS_JSON をヘッダー辞書へ変換"""
-    headers = {"Content-Type": "application/json"}
-    headers_json = os.getenv("OPENAI_HEADERS_JSON", "")
-    if headers_json:
-        try:
-            parsed = json.loads(headers_json)
-            headers.update(parsed)
-        except json.JSONDecodeError:
-            st.warning("OPENAI_HEADERS_JSON をパースできませんでした。")
-    return headers
-
-
 def _call_gpt5(
     messages: List[Dict[str, str]],
     temperature: float,
@@ -63,61 +55,44 @@ def _call_gpt5(
     on_retry=None,
 ) -> str:
     """GPT-5 へチャットリクエストを送る"""
-    base_url = os.getenv("OPENAI_BASE_URL", "")
-    api_path = os.getenv("OPENAI_PATH", "/api/curl/v2/chat/")
-    model_name = os.getenv("OPENAI_MODEL", "gpt-5")
+    env_cfg = load_env_settings()
+    base_url = env_cfg["base_url"]
+    api_path = env_cfg["path"]
+    model_name = env_cfg["model"] or "gpt-5"
 
     if not base_url:
         raise ValueError("OPENAI_BASE_URL が設定されていません (.env)")
 
     url = base_url.rstrip("/") + api_path
-    payload = {
-        "model": model_name,
-        "messages": messages,
-        "temperature": temperature,
-        "max_completion_tokens": max_tokens,
-        "n": 1,
-    }
-    payload["reasoning_effort"] = reasoning_effort or "high"
-    payload["verbosity"] = "high"
+    headers = build_headers(
+        api_key=os.getenv("OPENAI_API_KEY", ""),
+        user_id=None,
+        custom_headers=None,
+        extra_headers_json=env_cfg["headers_json"],
+        send_auth=env_cfg["send_auth"],
+    )
+    payload = build_chat_payload(
+        messages=messages,
+        model=model_name,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        reasoning_effort=reasoning_effort or "high",
+        verbosity="high",
+    )
 
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            response = requests.post(
-                url,
-                headers=_load_openai_headers(),
-                json=payload,
-                timeout=120,
-            )
-        except requests.exceptions.Timeout as exc:
-            last_error = RuntimeError("GPT-5 APIがタイムアウトしました。少し待って再試行してください。")
-        except requests.exceptions.RequestException as exc:
-            last_error = RuntimeError(f"GPT-5 APIリクエストに失敗しました: {exc}")
-        else:
-            if response.ok:
-                break
-            if response.status_code == 429 and attempt < max_retries:
-                retry_after = response.headers.get("Retry-After")
-                if retry_after and retry_after.isdigit():
-                    delay = min(int(retry_after), 30)
-                else:
-                    delay = min(2 ** attempt, 10)
-                if on_retry:
-                    on_retry(attempt + 1, max_retries, delay)
-                time.sleep(delay)
-                continue
-            detail = response.text[:200]
-            raise RuntimeError(
-                f"GPT-5 APIがエラーを返しました (HTTP {response.status_code}): {detail}"
-            )
-        if attempt < max_retries:
-            delay = min(2 ** attempt, 10)
-            if on_retry:
-                on_retry(attempt + 1, max_retries, delay)
-            time.sleep(delay)
-        else:
-            raise last_error
+    def _on_retry(attempt, total, delay):
+        if on_retry:
+            on_retry(attempt, total, delay)
+
+    data = post_chat_requests(
+        url,
+        headers,
+        payload,
+        timeout=120,
+        verify_ssl=True,
+        proxies=None,
+    )
+    return data["choices"][0]["message"]["content"]
 
     try:
         data = response.json()

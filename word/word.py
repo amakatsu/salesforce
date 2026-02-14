@@ -558,83 +558,38 @@ def summarize_matched_terms(
 
 
 class ApiClient:
-    """OpenAI互換APIへの最小ラッパ（ヘッダ/プロキシ/SSL検証対応）。"""
+    """OpenAI互換APIへの最小ラッパ（word.py準拠）。"""
 
     def __init__(self, cfg: Dict[str, Any]):
         self.base_url = cfg["OPENAI_BASE_URL"].rstrip("/")
         self.path = cfg["OPENAI_PATH"]
         self.timeout = cfg["TIMEOUT_SEC"]
         self.verify = cfg["VERIFY_SSL"]
-        self.session = requests.Session()  # ThreadPool内ではスレッド毎の生成を推奨
-        # プロキシ
-        proxies: Dict[str, str] = {}
+        self.proxies = {}
         if cfg.get("HTTP_PROXY"):
-            proxies["http"] = cfg["HTTP_PROXY"]
+            self.proxies["http"] = cfg["HTTP_PROXY"]
         if cfg.get("HTTPS_PROXY"):
-            proxies["https"] = cfg["HTTPS_PROXY"]
-        if proxies:
-            self.session.proxies.update(proxies)
-        # ヘッダ
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
-        if cfg.get("OPENAI_SEND_AUTH") and cfg.get("OPENAI_API_KEY"):
-            headers["Authorization"] = f"Bearer {cfg['OPENAI_API_KEY']}"
+            self.proxies["https"] = cfg["HTTPS_PROXY"]
+        self.headers = build_headers(
+            api_key=cfg.get("OPENAI_API_KEY"),
+            user_id=None,
+            custom_headers=None,
+            extra_headers_json=cfg.get("OPENAI_HEADERS_JSON"),
+            send_auth=bool(cfg.get("OPENAI_SEND_AUTH")),
+        )
         if cfg.get("OPENAI_ORG_ID"):
-            headers["OpenAI-Organization"] = cfg["OPENAI_ORG_ID"]
-        extra = cfg.get("OPENAI_HEADERS_JSON")
-        if extra:
-            try:
-                headers.update(json.loads(extra))
-            except Exception:
-                pass
-        self.headers = headers
+            self.headers["OpenAI-Organization"] = cfg["OPENAI_ORG_ID"]
+
     def post_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{self.path}"
-        logger.info(
-            "HTTP POST開始 url=%s model=%s tokens=%s messages=%s headers=%s",
+        return post_chat_requests(
             url,
-            body.get("model"),
-            body.get("max_completion_tokens"),
-            len(body.get("messages", [])),
-            _mask_headers(self.headers),
+            self.headers,
+            body,
+            timeout=int(self.timeout),
+            verify_ssl=bool(self.verify),
+            proxies=self.proxies or None,
         )
-        request_dump = _dump_payload(body)
-        logger.info("HTTP リクエストボディ:\n%s", request_dump)
-        print(f"[WORD-API] HTTP リクエストボディ:\n{request_dump}", flush=True)
-        start = time.time()
-        resp = None
-        try:
-            resp = self.session.post(
-                url,
-                headers=self.headers,
-                json=body,
-                timeout=self.timeout,
-                verify=self.verify,
-            )
-            resp.raise_for_status()
-            elapsed = time.time() - start
-            resp_text = resp.text
-            logger.info(
-                "HTTP POST完了 status=%s elapsed=%.2fs request_id=%s",
-                resp.status_code,
-                elapsed,
-                resp.headers.get("x-request-id") or resp.headers.get("X-Request-ID") or "-",
-            )
-            logger.info("HTTP レスポンスボディ:\n%s", resp_text)
-            print(f"[WORD-API] HTTP レスポンスボディ:\n{resp_text}", flush=True)
-            return resp.json()
-        except requests.RequestException as exc:
-            elapsed = time.time() - start
-            status = resp.status_code if resp is not None else getattr(exc.response, "status_code", "n/a")
-            logger.error(
-                "HTTP POST失敗: status=%s elapsed=%.2fs error=%s",
-                status,
-                elapsed,
-                exc,
-            )
-            if resp is not None:
-                logger.error("HTTP レスポンスボディ(エラー):\n%s", resp.text)
-                print(f"[WORD-API] HTTP レスポンスボディ(エラー):\n{resp.text}", flush=True)
-            raise
 
 # ====== LLM呼び出し（プロンプト詳細は割愛） ================================
 LLM_SYSTEM = """あなたは業務システム開発における命名規則の専門家です。

@@ -23,10 +23,15 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
-import requests
+from word.ai_handlers.common_llm import (
+    build_chat_payload,
+    build_headers,
+    post_chat_requests,
+)
 
 if TYPE_CHECKING:
     from .domain_matcher import MatchEvidence
+    from pr_agent.config_loader import Settings
 
 logger = logging.getLogger("domain_tool.llm_matcher")
 
@@ -130,25 +135,45 @@ def run_llm_matching(
 # ============================================================================
 
 
+def _get_settings_config() -> dict[str, Any]:
+    """pr-agent settings から config を取得（wordmatching準拠）。"""
+    try:
+        from pr_agent.config_loader import get_settings
+        settings = get_settings()
+        return settings.config if hasattr(settings, "config") else {}
+    except Exception:
+        return {}
+
+
 def build_llm_call(config: dict[str, Any]) -> LlmCallFn:
-    """OpenAI互換API向けの LLM 呼び出し関数を構築する。"""
-    base_url = str(config.get("OPENAI_BASE_URL", "")).rstrip("/")
-    path = str(config.get("OPENAI_PATH", ""))
+    """OpenAI互換API向けの LLM 呼び出し関数を構築する（wordmatching準拠）。"""
+    settings_cfg = _get_settings_config()
+
+    base_url = str(config.get("OPENAI_BASE_URL", settings_cfg.get("openai.api_base", ""))).rstrip("/")
+    path = str(config.get("OPENAI_PATH", settings_cfg.get("openai.path", "")))
     url = f"{base_url}{path}"
-    timeout = float(config.get("TIMEOUT_SEC", 120))
-    verify = bool(config.get("VERIFY_SSL", False))
+    timeout = float(config.get("TIMEOUT_SEC", settings_cfg.get("ai_timeout", 120)))
+    verify = bool(config.get("OPENAI_VERIFY_SSL", config.get("VERIFY_SSL", True)))
 
     headers: dict[str, str] = {"Content-Type": "application/json"}
-    if config.get("OPENAI_SEND_AUTH") and config.get("OPENAI_API_KEY"):
-        headers["Authorization"] = f"Bearer {config['OPENAI_API_KEY']}"
+    # pr-agent custom_headers 優先
+    custom_headers = settings_cfg.get("custom_headers", {})
+    if isinstance(custom_headers, str):
+        try:
+            custom_headers = json.loads(custom_headers)
+        except json.JSONDecodeError:
+            custom_headers = {}
+    extra = config.get("OPENAI_HEADERS_JSON")
+    api_key = config.get("OPENAI_API_KEY") or settings_cfg.get("openai.key") or settings_cfg.get("openai_key")
+    headers = build_headers(
+        api_key=api_key,
+        user_id=settings_cfg.get("openai.user_id"),
+        custom_headers=custom_headers if isinstance(custom_headers, dict) else {},
+        extra_headers_json=extra,
+        send_auth=bool(config.get("OPENAI_SEND_AUTH")),
+    )
     if config.get("OPENAI_ORG_ID"):
         headers["OpenAI-Organization"] = str(config["OPENAI_ORG_ID"])
-    extra = config.get("OPENAI_HEADERS_JSON")
-    if extra:
-        try:
-            headers.update(json.loads(extra))
-        except Exception:
-            pass
 
     proxies: dict[str, str] = {}
     if config.get("HTTP_PROXY"):
@@ -156,32 +181,40 @@ def build_llm_call(config: dict[str, Any]) -> LlmCallFn:
     if config.get("HTTPS_PROXY"):
         proxies["https"] = config["HTTPS_PROXY"]
 
-    model = config.get("OPENAI_MODEL", "")
-    max_tokens = int(config.get("MAX_TOKENS", 2048))
+    model = config.get("OPENAI_MODEL", settings_cfg.get("model", ""))
+    max_tokens = int(config.get("MAX_TOKENS", settings_cfg.get("max_model_tokens", 2048)))
     temperature = float(config.get("TEMPERATURE", 1.0))
     top_p = float(config.get("TOP_P", 1.0))
+    reasoning_effort = "low"
+    verbosity = "low"
+    seed = config.get("SEED")
 
     def _call(system_prompt: str, user_prompt: str) -> str:
-        payload = {
-            "model": model,
-            "messages": [
+        payload = build_chat_payload(
+            messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "max_completion_tokens": max_tokens,
-            "temperature": temperature,
-            "top_p": top_p,
-        }
-        resp = requests.post(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=None,
+            reasoning_effort=reasoning_effort,
+            verbosity=verbosity,
+            seed=seed if isinstance(seed, int) else None,
+        )
+        proxies = {}
+        if config.get("HTTP_PROXY"):
+            proxies["http"] = config["HTTP_PROXY"]
+        if config.get("HTTPS_PROXY"):
+            proxies["https"] = config["HTTPS_PROXY"]
+        data = post_chat_requests(
             url,
-            headers=headers,
-            json=payload,
-            timeout=timeout,
-            verify=verify,
+            headers,
+            payload,
+            timeout=int(timeout),
+            verify_ssl=verify,
             proxies=proxies or None,
         )
-        resp.raise_for_status()
-        data = resp.json()
         return data["choices"][0]["message"]["content"]
 
     return _call

@@ -267,7 +267,10 @@ def _load_all_data(tmpdir, config, progress, status, detail, match_target):
 def _run_matching(screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=None):
     """画面項目×ドメイン、テーブル定義×ドメインの照合を実行する。"""
     status.text("🔄 ステップ 3/5: 照合処理中...")
-    detail.text(f"{match_target} × ドメイン {len(domains)}件")
+    if match_target == "画面項目定義":
+        detail.text(f"画面項目 {len(screen_items)}件")
+    else:
+        detail.text(f"テーブル定義 {len(table_items)}件")
 
     screen_df = pd.DataFrame()
     table_df = pd.DataFrame()
