@@ -335,7 +335,16 @@ def read_excel_with_header_detection(
         df = raw.iloc[header_row + 2:].reset_index(drop=True)
         df.columns = new_cols
         return df, header_row + 1
-    return pd.read_excel(path, sheet_name=sheet_name, header=header_row), header_row
+    # Single header row — read with header=None to avoid merged-cell
+    # interference above the header, then slice manually.
+    raw = pd.read_excel(path, sheet_name=sheet_name, header=None)
+    cols = [
+        "" if pd.isna(v) else str(v).strip()
+        for v in raw.iloc[header_row].values
+    ]
+    df = raw.iloc[header_row + 1:].reset_index(drop=True)
+    df.columns = cols
+    return df, header_row
 
 
 # ====== セル値取得ユーティリティ ==============================================
@@ -781,6 +790,8 @@ def load_table_definitions(dir_path: Path, cfg: Dict[str, Any]) -> List[TableIte
                     item_name = _val("item_name")
                     if not item_name:
                         continue
+                    if item_name.upper() == "END":
+                        break
 
                     raw_data_type = _val("data_type")
                     length = _val("length") or None
@@ -921,6 +932,8 @@ def _make_placeholder_domain(name: str) -> DomainDef:
     return DomainDef(
         name=name,
         data_type="",
+        column_def_type=None,
+        column_def_raw=None,
         min_char=None,
         max_char=None,
         min_byte=None,
