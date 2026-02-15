@@ -46,6 +46,9 @@ LlmCallFn = Callable[[str, str], str]
 # LLMから受け付ける判定結果の値（自動確定 "exact" は禁止）
 _VALID_LLM_MATCH_TYPES = frozenset({"suggested", "human_choice", "no_match", "new_domain"})
 
+# LLMへの1回のバッチ件数上限（トークン溢れ防止）
+_BATCH_CHUNK_SIZE = 20
+
 
 @dataclass
 class MatchResult:
@@ -256,6 +259,11 @@ _SYSTEM_PROMPT = """\
    - -> 改行有無の確認を促し、候補を提示して人間に選択させる
    - 出力: "match_type": "human_choice", "check_point": "改行有無を確認"
 
+■ 名称一致+型桁不一致のケース
+- 「⚠ 注意」が付いている項目は、同じ項目名のドメインが存在するが型/桁数が合わないケース
+- このケースでは型桁一致の候補リストから最適なドメインを提案すること（suggested）
+- 候補がなければ new_domain を提案し、注意文言を reason に含めること
+
 ■ 注意
 - 末尾数字は既に除去済み（例: 顧客名1 -> 顧客名）
 - 同じデータ型・桁数でも、意味が異なれば別ドメイン
@@ -273,7 +281,21 @@ def _run_batch_llm(
     results: list[MatchResult | None],
     llm_call: LlmCallFn,
 ) -> None:
-    """バッチプロンプトでLLMを呼び出し、結果を results に書き込む。"""
+    """バッチプロンプトでLLMを呼び出し、結果を results に書き込む。
+
+    _BATCH_CHUNK_SIZE 件ずつチャンク分割し、トークン溢れを防止する。
+    """
+    for chunk_start in range(0, len(targets), _BATCH_CHUNK_SIZE):
+        chunk = targets[chunk_start:chunk_start + _BATCH_CHUNK_SIZE]
+        _run_single_batch(chunk, results, llm_call)
+
+
+def _run_single_batch(
+    targets: list[tuple[int, MatchEvidence]],
+    results: list[MatchResult | None],
+    llm_call: LlmCallFn,
+) -> None:
+    """1チャンク分のバッチLLM呼び出しを実行する。"""
     target_evidences = [ev for _, ev in targets]
     prompt = _build_batch_prompt(target_evidences)
 
@@ -326,18 +348,26 @@ def _build_batch_prompt(evidences: list[MatchEvidence]) -> str:
             f"    桁数: {ev.digits or '不明'}",
         ]
 
-        # 型桁一致候補（list[dict] から展開）
+        # 型桁一致候補（per-candidate detail 付き）
         candidates = ev.type_digits_matches
         if candidates:
-            candidate_parts: list[str] = []
+            lines.append("    型桁一致候補:")
             for c in candidates:
                 name = c.get("domain_name", "?")
+                dtype = c.get("domain_type", "")
                 sim = c.get("name_similarity", 0)
-                syn_flag = " [同義語HIT]" if c.get("has_synonym_hit") else ""
                 digit = c.get("digit_match_rate")
-                digit_text = f" / 桁一致率{digit:.0%}" if isinstance(digit, (int, float)) else ""
-                candidate_parts.append(f"{name}（類似度{sim:.0%}{digit_text}{syn_flag}）")
-            lines.append(f"    型桁一致候補: {', '.join(candidate_parts)}")
+                parts = [f"類似度{sim:.0%}"]
+                if isinstance(digit, (int, float)):
+                    parts.append(f"桁一致率{digit:.0%}")
+                if c.get("has_synonym_hit"):
+                    parts.append("同義語HIT")
+                detail = c.get("detail", {})
+                detail_text = _summarize_detail_matches(detail)
+                if detail_text:
+                    parts.append(detail_text)
+                dtype_label = f" [{dtype}]" if dtype else ""
+                lines.append(f"      - {name}{dtype_label}（{', '.join(parts)}）")
         else:
             lines.append("    型桁一致候補: なし")
 
@@ -365,6 +395,18 @@ def _build_batch_prompt(evidences: list[MatchEvidence]) -> str:
                 f"{name}({score:.0%})" for name, score in top_partials
             )
             lines.append(f"    部分一致: {partial_text}")
+
+        # 名称一致+型桁不一致の注意文言（Section 10-5 準拠）
+        if getattr(ev, "name_match_mismatch", False):
+            domain = getattr(ev, "name_match_domain", "?")
+            lines.append(
+                f"    ⚠ 注意: 同じ項目名のドメイン「{domain}」が存在しますが、"
+                "型または桁数が一致しません"
+            )
+
+        # C方式の分析サマリ（ev.reason）
+        if ev.reason:
+            lines.append(f"    C方式分析: {ev.reason}")
 
         items_section.append("\n".join(lines))
 
@@ -427,8 +469,13 @@ _GROUP_SYSTEM_PROMPT = """\
 def _parse_llm_response(response: str) -> list[dict[str, Any]]:
     """LLMの応答JSONをパースする。
 
-    マークダウンコードブロック（```json ... ```）にも対応する。
-    match_type のバリデーションを行い、不正な値はログ警告を出す。
+    パース戦略（優先順）:
+      1. マークダウンコードブロック（```json ... ```）を抽出
+      2. テキスト全体をJSON配列としてパース
+      3. ラップオブジェクト（{"results": [...]}等）から配列を抽出
+      4. テキスト中の最初の JSON配列（[...]）をブラケット検出で抽出
+
+    match_type のバリデーションを行い、不正な値は "suggested" に強制変換。
 
     Returns:
         パース結果の辞書リスト。パース失敗時は空リスト。
@@ -440,17 +487,14 @@ def _parse_llm_response(response: str) -> list[dict[str, Any]]:
     if code_match:
         text = code_match.group(1).strip()
 
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
+    parsed = _try_parse_json_array(text)
+    if parsed is None:
         logger.warning("LLM応答のJSONパースに失敗: %.200s", text)
         return []
 
-    items = parsed if isinstance(parsed, list) else [parsed]
-
     # バリデーション: match_type の値チェック
     validated: list[dict[str, Any]] = []
-    for item in items:
+    for item in parsed:
         if not isinstance(item, dict):
             continue
         match_type = item.get("match_type", "")
@@ -464,6 +508,36 @@ def _parse_llm_response(response: str) -> list[dict[str, Any]]:
         validated.append(item)
 
     return validated
+
+
+def _try_parse_json_array(text: str) -> list[dict[str, Any]] | None:
+    """テキストからJSON配列を抽出する。複数戦略でフォールバックする。"""
+    # 戦略1: そのままパース
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return parsed
+        # 戦略2: ラップオブジェクトから配列を抽出
+        if isinstance(parsed, dict):
+            for key in ("results", "items", "data"):
+                if isinstance(parsed.get(key), list):
+                    return parsed[key]
+            return [parsed]
+    except json.JSONDecodeError:
+        pass
+
+    # 戦略3: テキスト中の最初の [...] をブラケット検出で抽出
+    start = text.find("[")
+    if start == -1:
+        return None
+    try:
+        parsed = json.loads(text[start:])
+        if isinstance(parsed, list):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    return None
 
 
 def _extract_json(text: str) -> Any:

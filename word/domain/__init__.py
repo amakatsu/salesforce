@@ -1,5 +1,13 @@
 """word.domain パッケージ — ドメインチェック機能群"""
 
+# config_loader.py からの再エクスポート
+from .config_loader import (
+    load_type_mapping,
+    load_text_type_mapping,
+    load_special_patterns,
+    load_synonyms,
+)
+
 # domain_check.py からの再エクスポート
 from .domain_check import (
     ScreenItem,

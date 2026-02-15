@@ -1,0 +1,69 @@
+# 特殊パターン定義（仕様書 Section 3-7）
+#
+# マッチングフローの序盤で特殊パターンに該当するか判定する。
+# 該当すれば通常のマッチングをスキップし、固定の出力を返す。
+
+patterns:
+  flag:
+    keywords:
+      - フラグ
+      - flag
+      - FLG
+    condition: "項目名にキーワード含む + boolean/0,1"
+    types:
+      - boolean
+      - bool
+      - チェックボックス
+    digits:
+      - "0"
+      - "1"
+      - "0-1"
+      - "0,1"
+    output: "以下から選択: 0/1, 0/9, null/1, スペース/1"
+
+  comment:
+    keywords:
+      - コメント
+    condition: "項目名にキーワード含む"
+    output: "改行あり/なしを確認して選択してください"
+
+  supplement:
+    keywords:
+      - 補記
+      - 備考
+      - メモ
+    condition: "項目名にキーワード含む"
+    output: "改行あり/なしを確認して選択してください"
+
+  date_generic:
+    keywords:
+      - 日付
+      - 日時
+      - date
+      - 時刻
+    condition: "型=date + yyyyMMdd形式"
+    generic_types:
+      - date
+      - datetime
+      - timestamp
+      - 日付
+    generic_formats:
+      - yyyymmdd
+      - yyyy-mm-dd
+      - yyyymmddhhmmss
+      - yyyy-mm-dd hh:mm:ss
+    output: "汎用日付ドメイン"
+
+  date_individual:
+    keywords:
+      - 日付
+      - 日時
+      - date
+      - 時刻
+    condition: "型=string + yyyy/MM等、汎用に合わない形式"
+    individual_string_types:
+      - varchar
+      - char
+      - テキスト
+    individual_format_regex: "yyyy[/.]mm|mm[/.]dd|yyyy年|hh:mm|hh24|yy/mm"
+    output: "個別ドメイン定義必要"

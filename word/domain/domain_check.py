@@ -23,6 +23,13 @@ except ImportError:
     from config import get_domain_config
 
 try:
+    from .config_loader import load_synonyms, load_type_mapping
+    from .synonyms import strip_digits as _synonyms_strip_digits
+except ImportError:
+    from config_loader import load_synonyms, load_type_mapping
+    from synonyms import strip_digits as _synonyms_strip_digits
+
+try:
     from .domain_matcher import collect_evidence, resolve_without_llm, digit_match_rate_from_details
     from .llm_matcher import run_llm_matching, build_llm_call, group_new_domain_proposals
 except ImportError:
@@ -34,80 +41,81 @@ except ImportError:
     group_new_domain_proposals = None
 
 
+# ====== 同義語・型マッピングのYAMLキャッシュ ====================================
+
+_synonym_suffix_rules: list[tuple[str, str]] | None = None
+_type_norm_map: list[tuple[str, str]] | None = None
+
+
+def _get_synonym_suffix_rules() -> list[tuple[str, str]]:
+    """synonyms.yaml から末尾語の正規化ルールを構築する（遅延ロード）。
+
+    Returns:
+        [(非正規形, 正規形), ...] 長い語順でソート済み
+    """
+    global _synonym_suffix_rules
+    if _synonym_suffix_rules is not None:
+        return _synonym_suffix_rules
+    data = load_synonyms()
+    rules: list[tuple[str, str]] = []
+    for group in data.get("groups", []):
+        if len(group) < 2:
+            continue
+        canonical = unicodedata.normalize("NFKC", group[0]).lower().strip()
+        for word in group[1:]:
+            normalized_word = unicodedata.normalize("NFKC", word).lower().strip()
+            if normalized_word != canonical:
+                rules.append((normalized_word, canonical))
+    rules.sort(key=lambda x: len(x[0]), reverse=True)
+    _synonym_suffix_rules = rules
+    return _synonym_suffix_rules
+
+
+def _get_type_norm_map() -> list[tuple[str, str]]:
+    """type_mapping.yaml から型正規化マップを構築する（遅延ロード）。
+
+    全カテゴリの型名を収集し、小文字 → 小文字 のマッピングを返す。
+    長い型名から優先マッチするようソート済み。
+    """
+    global _type_norm_map
+    if _type_norm_map is not None:
+        return _type_norm_map
+    data = load_type_mapping()
+    seen: dict[str, str] = {}
+    for cat_data in data.get("categories", {}).values():
+        for source in ("screen_types", "table_types", "domain_types"):
+            for t in cat_data.get(source, []):
+                key = t.lower()
+                if key not in seen:
+                    seen[key] = key
+    entries = sorted(seen.items(), key=lambda x: len(x[0]), reverse=True)
+    _type_norm_map = entries
+    return _type_norm_map
+
+
 # ====== 正規化 ================================================================
 
 def normalize_text(text: str) -> str:
-    """NFKC正規化 + 小文字化 + 同義語統一"""
+    """NFKC正規化 + 小文字化 + 同義語統一（synonyms.yaml 駆動）"""
     if text is None or text == "":
         return ""
     s = unicodedata.normalize("NFKC", str(text)).lower().strip()
     s = re.sub(r"[\u3000\s]+", " ", s)
 
-    # 日付・時刻
-    s = re.sub(r"取引日$", "日付", s)
-    s = re.sub(r"年月日$", "日付", s)
-    s = re.sub(r"(\w+)日$", r"\1日付", s)
-    s = re.sub(r"日時$", "日時", s)
-    s = re.sub(r"時刻$", "時刻", s)
-    s = re.sub(r"タイムスタンプ$", "日時", s)
-
-    # 金額・数量
-    s = re.sub(r"金額$", "金額", s)
-    s = re.sub(r"価格$", "金額", s)
-    s = re.sub(r"料金$", "金額", s)
-    s = re.sub(r"単価$", "単価", s)
-    s = re.sub(r"数量$", "数量", s)
-    s = re.sub(r"件数$", "数量", s)
-    s = re.sub(r"個数$", "数量", s)
-
-    # コード・ID
-    s = re.sub(r"コード$", "コード", s)
-    s = re.sub(r"cd$", "コード", s)
-    s = re.sub(r"識別子$", "id", s)
-    s = re.sub(r"番号$", "番号", s)
-    s = re.sub(r"no$", "番号", s)
-
-    # 名称
-    s = re.sub(r"名称$", "名称", s)
-    s = re.sub(r"名前$", "名称", s)
-    s = re.sub(r"氏名$", "名称", s)
-    s = re.sub(r"name$", "名称", s)
-
-    # 区分・種別
-    s = re.sub(r"区分$", "区分", s)
-    s = re.sub(r"種別$", "区分", s)
-    s = re.sub(r"タイプ$", "区分", s)
-    s = re.sub(r"type$", "区分", s)
-
-    # フラグ・状態
-    s = re.sub(r"フラグ$", "フラグ", s)
-    s = re.sub(r"flag$", "フラグ", s)
-    s = re.sub(r"状態$", "状態", s)
-    s = re.sub(r"ステータス$", "状態", s)
-    s = re.sub(r"status$", "状態", s)
-
-    # 備考・メモ
-    s = re.sub(r"備考$", "備考", s)
-    s = re.sub(r"メモ$", "備考", s)
-    s = re.sub(r"コメント$", "備考", s)
-    s = re.sub(r"摘要$", "備考", s)
+    for word, canonical in _get_synonym_suffix_rules():
+        if s.endswith(word):
+            s = s[: -len(word)] + canonical
+            break
 
     return s
 
 
 def normalize_data_type(dtype: str) -> str:
-    """データ型の正規化"""
+    """データ型の正規化（type_mapping.yaml 駆動）"""
     if not dtype:
         return ""
     dt = normalize_text(dtype)
-    type_map = {
-        "varchar": "varchar", "varchar2": "varchar", "char": "char",
-        "int": "integer", "integer": "integer", "bigint": "bigint",
-        "decimal": "decimal", "numeric": "decimal", "number": "decimal",
-        "date": "date", "datetime": "datetime", "timestamp": "timestamp",
-        "boolean": "boolean", "bool": "boolean",
-    }
-    for key, value in type_map.items():
+    for key, value in _get_type_norm_map():
         if key in dt:
             return value
     return dt
@@ -163,7 +171,8 @@ class DomainDef:
     """ドメイン定義（殿の確定仕様: 12列）"""
     name: str                      # ドメイン名
     data_type: str                 # データ型
-    column_def_type: Optional[str] # カラム定義から抽出した型
+    column_def_type: Optional[str] # カラム定義から抽出した型（例: "CHAR", "VARCHAR2", "NUMBER"）
+    column_def_raw: Optional[str]  # カラム定義の生テキスト（例: "CHAR(10)", "NUMBER(3,2)"）
     min_char: Optional[str]        # 最小文字数
     max_char: Optional[str]        # 最大文字数
     min_byte: Optional[str]        # 最小バイト長
@@ -662,11 +671,25 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any], return_raw: bool = False):
                     max_char = _val("max_char") or None
                     min_byte = _val("min_byte") or None
                     max_byte = _val("max_byte") or None
+                    integer_digits = _val("integer_digits") or None
+                    decimal_digits = _val("decimal_digits") or None
+
+                    # カラム定義からの文字列長補完
                     if col_len is not None:
                         if not max_char:
                             max_char = str(col_len)
                         if not max_byte:
                             max_byte = str(col_len)
+
+                    # カラム定義からの数値桁数補完
+                    # 仕様: NUMBER(10,2) → 整数部桁数=8, 小数部桁数=2
+                    if col_type and col_type.upper() in ("NUMBER", "NUMERIC", "DECIMAL"):
+                        precision, scale = _parse_numeric_from_type(col_def)
+                        if precision is not None:
+                            if not integer_digits:
+                                integer_digits = str(precision - (scale or 0))
+                            if scale is not None and not decimal_digits:
+                                decimal_digits = str(scale)
 
                     if not data_type and col_type:
                         data_type = col_type
@@ -675,12 +698,13 @@ def load_domains(dir_path: Path, cfg: Dict[str, Any], return_raw: bool = False):
                         name=name,
                         data_type=data_type,
                         column_def_type=col_type or None,
+                        column_def_raw=col_def or None,
                         min_char=min_char,
                         max_char=max_char,
                         min_byte=min_byte,
                         max_byte=max_byte,
-                        integer_digits=_val("integer_digits") or None,
-                        decimal_digits=_val("decimal_digits") or None,
+                        integer_digits=integer_digits,
+                        decimal_digits=decimal_digits,
                         min_value=_val("min_value") or None,
                         max_value=_val("max_value") or None,
                         regex=_val("regex") or None,
@@ -1045,6 +1069,56 @@ def _domain_detail_dict(domain: Optional[DomainDef]) -> Dict[str, str]:
     }
 
 
+def _format_digit_comparison_remark(
+    details: Optional[Dict],
+    domain: Optional["DomainDef"],
+    source: str,
+) -> str:
+    """桁数比較の詳細結果を備考用の文字列に整形する。
+
+    Args:
+        details: evidence.detail_matches（各比較項目のTrue/False/None）
+        domain: マッチしたドメイン定義
+        source: "table" or "screen"
+
+    Returns:
+        備考に追加する文字列（空の場合もある）
+    """
+    if not details or not domain:
+        return ""
+
+    parts: list[str] = []
+
+    # Oracle型直接比較の情報（テーブルのみ）
+    if source == "table" and domain.column_def_type:
+        parts.append(f"比較A(Oracle型): {domain.column_def_raw or domain.column_def_type}")
+
+    _LABELS = {
+        "string_length_match": "文字列長",
+        "string_max_chars_match": "最大文字数",
+        "string_max_bytes_match": "最大バイト数",
+        "numeric_integer_digits_match": "整数桁",
+        "numeric_decimal_digits_match": "小数桁",
+        "numeric_min_max_match": "最小値/最大値",
+        "external_code_match": "外部コード",
+    }
+    mismatches: list[str] = []
+    matches: list[str] = []
+    for key, label in _LABELS.items():
+        val = details.get(key)
+        if val is True:
+            matches.append(label)
+        elif val is False:
+            mismatches.append(label)
+
+    if matches:
+        parts.append(f"一致: {', '.join(matches)}")
+    if mismatches:
+        parts.append(f"不一致: {', '.join(mismatches)}")
+
+    return " / ".join(parts)
+
+
 def _make_lookup_key(name: str, digits: Optional[str]) -> str:
     """VLOOKUP用の検索キーを生成する。"""
     d = str(digits).strip() if digits else ""
@@ -1290,15 +1364,12 @@ def _candidate_names_from_ev(ev, cfg: Dict[str, Any], same_name: str | None = No
 
 # ====== 重複排除 ==============================================================
 
-_RE_DIGITS = re.compile(r"\d+")
-
-
 def _strip_digits(name: str) -> str:
-    """項目名から数字を全て除去する。仕様書 Section 3-5 準拠。
+    """項目名末尾の数字のみを除去する。synonyms.py に委譲（DRY原則）。
 
-    例: 「ああ1」→「ああ」、「金額01」→「金額」
+    例: 「ああ1」→「ああ」、「1月売上」→「1月売上」
     """
-    return _RE_DIGITS.sub("", name).strip()
+    return _synonyms_strip_digits(name)
 
 
 def dedup_by_name_and_digits(
@@ -1498,6 +1569,14 @@ def process_screen_domain_matching(
         else:
             remark = ""
 
+        # 桁数・値・外部コード比較の詳細を備考に追加（画面項目定義）
+        if i in evidence_by_index and mr.domain:
+            ev = evidence_by_index[i]
+            ev_details = getattr(ev, "detail_matches", None)
+            digit_remark = _format_digit_comparison_remark(ev_details, mr.domain, "screen")
+            if digit_remark:
+                remark = f"{remark} / {digit_remark}" if remark else digit_remark
+
         if display_type == "提案（候補から）" and not candidate_names:
             display_type = "提案（新規）"
         if display_type == "提案（新規）" and not proposed_domain:
@@ -1684,15 +1763,23 @@ def process_table_domain_matching(
                     remark += f" / 候補: {forced_candidate_name}"
 
         if mr.domain and item.data_type:
-            item_type_norm = normalize_data_type(item.data_type)
-            domain_type_norm = normalize_data_type(mr.domain.data_type)
-            if (
-                item_type_norm
-                and domain_type_norm
-                and item_type_norm != domain_type_norm
-                and not (_is_string_like_type(item_type_norm) and _is_string_like_type(domain_type_norm))
-            ):
-                remark += f" / 型不一致: テーブル={item.data_type}, ドメイン={mr.domain.data_type}"
+            if mr.domain.column_def_type:
+                # 比較A: Oracle型同士で型不一致を検出
+                item_upper = item.data_type.strip().upper()
+                domain_upper = mr.domain.column_def_type.strip().upper()
+                if item_upper != domain_upper:
+                    remark += f" / Oracle型不一致: テーブル={item.data_type}, ドメイン={mr.domain.column_def_raw or mr.domain.column_def_type}"
+            else:
+                # フォールバック: 従来のデータ型正規化比較
+                item_type_norm = normalize_data_type(item.data_type)
+                domain_type_norm = normalize_data_type(mr.domain.data_type)
+                if (
+                    item_type_norm
+                    and domain_type_norm
+                    and item_type_norm != domain_type_norm
+                    and not (_is_string_like_type(item_type_norm) and _is_string_like_type(domain_type_norm))
+                ):
+                    remark += f" / 型不一致: テーブル={item.data_type}, ドメイン={mr.domain.data_type}"
 
         matched_domain_name = ""
         proposed_domain = ""
@@ -1715,6 +1802,14 @@ def process_table_domain_matching(
             remark = mr.reason
         else:
             remark = ""
+
+        # 桁数比較の詳細を備考に追加（テーブル定義）
+        if i in evidence_by_index and mr.domain:
+            ev = evidence_by_index[i]
+            ev_details = getattr(ev, "detail_matches", None)
+            digit_remark = _format_digit_comparison_remark(ev_details, mr.domain, "table")
+            if digit_remark:
+                remark = f"{remark} / {digit_remark}" if remark else digit_remark
 
         if display_type == "提案（候補から）" and not candidate_names:
             display_type = "提案（新規）"

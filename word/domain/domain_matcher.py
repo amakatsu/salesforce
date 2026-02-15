@@ -128,6 +128,96 @@ def _domain_type_candidates(domain: DomainDef) -> list[str]:
 
 
 # ===========================================================================
+# Oracle型直接比較（比較A: テーブル定義 vs ドメイン定義）
+# ===========================================================================
+
+_ORACLE_TYPE_GROUPS: dict[str, str] = {
+    "char": "string",
+    "varchar": "string",
+    "varchar2": "string",
+    "nchar": "string",
+    "nvarchar2": "string",
+    "clob": "string",
+    "nclob": "string",
+    "number": "numeric",
+    "numeric": "numeric",
+    "decimal": "numeric",
+    "int": "numeric",
+    "integer": "numeric",
+    "float": "numeric",
+    "date": "date",
+    "timestamp": "date",
+    "raw": "binary",
+    "rowid": "binary",
+}
+
+
+def _oracle_type_group(oracle_type: str) -> str:
+    """Oracle型名を大分類グループに分類する。"""
+    return _ORACLE_TYPE_GROUPS.get(oracle_type.strip().lower(), "unknown")
+
+
+def _is_oracle_type_compatible(table_type: str, domain_column_def_type: str) -> bool:
+    """Oracle型同士の互換性を判定する（比較A用）。
+
+    同じグループ（string, numeric, date）に属すれば互換。
+    どちらかが不明な場合はフィルタを通す（絞り込みすぎ防止）。
+    """
+    t_group = _oracle_type_group(table_type)
+    d_group = _oracle_type_group(domain_column_def_type)
+    if t_group == "unknown" or d_group == "unknown":
+        return True
+    return t_group == d_group
+
+
+_RE_NUMERIC_COLUMN_DEF = re.compile(
+    r"(?:number|numeric|decimal)\s*\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\)",
+    re.IGNORECASE,
+)
+
+
+def _parse_column_def_numeric(column_def_raw: str) -> tuple[str | None, str | None]:
+    """カラム定義の生テキストからNUMBER(p,s)の精度・スケールを抽出する。
+
+    Returns:
+        (precision_str, scale_str) — 値がなければNone
+        例: "NUMBER(10,2)" → ("10", "2")
+             "NUMBER(3)"    → ("3", None)
+    """
+    if not column_def_raw:
+        return None, None
+    m = _RE_NUMERIC_COLUMN_DEF.search(column_def_raw)
+    if not m:
+        return None, None
+    precision = m.group(1)
+    scale = m.group(2) if m.group(2) else None
+    return precision, scale
+
+
+_RE_STRING_COLUMN_DEF = re.compile(
+    r"(?:n?varchar2?|char)\s*\(\s*(\d+)\s*(?:byte|char)?\s*\)",
+    re.IGNORECASE,
+)
+
+
+def _parse_column_def_string(column_def_raw: str) -> str | None:
+    """カラム定義の生テキストから文字列長を抽出する。
+
+    Returns:
+        length_str — 値がなければNone
+        例: "VARCHAR2(200)"    → "200"
+             "CHAR(12 BYTE)"   → "12"
+             "VARCHAR2(20 CHAR)" → "20"
+    """
+    if not column_def_raw:
+        return None
+    m = _RE_STRING_COLUMN_DEF.search(column_def_raw)
+    if not m:
+        return None
+    return m.group(1)
+
+
+# ===========================================================================
 # データ構造
 # ===========================================================================
 
@@ -577,50 +667,45 @@ def _is_compatible_major(item_major: str, domain_major: str) -> bool:
     return (item_major, domain_major) in compatible
 
 
-def _is_string_like_type(dt: str) -> bool:
-    if not dt:
-        return False
-    s = dt
-    return any(
-        k in s
-        for k in (
-            "varchar", "char", "text", "string",
-            "半角", "全角", "英字", "英数字", "カナ", "ひらがな", "文字",
-        )
-    )
-
-
-def _filter_by_type(
+def _filter_by_major_type(
     item_dtype: str,
     domains: Dict[str, DomainDef],
     source: str,
     type_mapping: dict,
 ) -> Dict[str, DomainDef]:
-    """型のフィルタ（細分類 + 大分類を1段で評価）。"""
-    item_norm = normalize_data_type(item_dtype or "")
+    """大分類でドメイン候補をフィルタする (Section 3-2)。
+
+    テーブル定義の場合:
+      - ドメインにカラム定義がある → Oracle型同士で直接比較（比較A）
+      - ドメインにカラム定義がない → 従来の大分類比較にフォールバック
+    画面項目定義の場合:
+      - 従来通り大分類比較
+
+    項目の型が「不明」の場合は全候補を返す（絞り込みなし）。
+    """
     item_major = _classify_major_type(item_dtype or "", source, type_mapping)
+    if item_major == "不明":
+        return dict(domains)
+
     matched: Dict[str, DomainDef] = {}
     for key, domain in domains.items():
+        # 比較A: テーブル×カラム定義あり → Oracle型直接比較
+        if source == "table" and getattr(domain, "column_def_type", None):
+            if _is_oracle_type_compatible(item_dtype, domain.column_def_type):
+                matched[key] = domain
+            continue
+
+        # フォールバック: 従来の大分類比較（画面項目 or カラム定義なしドメイン）
         candidates = _domain_type_candidates(domain)
         if not candidates:
             matched[key] = domain
             continue
         for cand in candidates:
-            d_norm = normalize_data_type(cand)
             d_major = _classify_major_type(cand, "domain", type_mapping)
-            major_ok = (item_major == "不明" or d_major == "不明" or _is_compatible_major(item_major, d_major))
-            if not major_ok:
-                continue
-            if not item_norm or not d_norm:
+            if d_major == "不明" or _is_compatible_major(item_major, d_major):
                 matched[key] = domain
                 break
-            if d_norm == item_norm:
-                matched[key] = domain
-                break
-            if _is_string_like_type(item_norm) and _is_string_like_type(d_norm):
-                matched[key] = domain
-                break
-    return matched if matched else dict(domains)
+    return matched
 
 
 # ===========================================================================
@@ -692,9 +777,19 @@ def _compute_detail_matches(
     if item_major == "文字列系":
         if is_table:
             table_length = item.get("length") or item.get("max_chars")
-            details["string_length_match"] = _compare_value_either(
-                table_length, domain.max_char, domain.max_byte,
-            )
+            column_def_raw = getattr(domain, "column_def_raw", None)
+            if column_def_raw:
+                # 比較A本命: カラム定義から文字列長をパースして直接比較
+                parsed_length = _parse_column_def_string(column_def_raw)
+                target = parsed_length if parsed_length else domain.max_char
+                details["string_length_match"] = _compare_value(
+                    table_length, target,
+                )
+            else:
+                # フォールバック: max_char / max_byte のいずれかと一致すればOK
+                details["string_length_match"] = _compare_value_either(
+                    table_length, domain.max_char, domain.max_byte,
+                )
         else:
             details["string_max_chars_match"] = _compare_value(
                 item.get("max_chars"), domain.max_char,
@@ -706,12 +801,24 @@ def _compute_detail_matches(
     # --- 数値系 ---
     elif item_major == "数値系":
         if is_table:
-            details["numeric_integer_digits_match"] = _compare_value(
-                item.get("integer_digits"), _clean_str(domain.integer_digits),
-            )
-            details["numeric_decimal_digits_match"] = _compare_value(
-                item.get("decimal_digits"), _clean_str(domain.decimal_digits),
-            )
+            column_def_raw = getattr(domain, "column_def_raw", None)
+            if column_def_raw:
+                # 比較A: カラム定義のNUMBER(p,s)から桁数を直接比較
+                precision, scale = _parse_column_def_numeric(column_def_raw)
+                details["numeric_integer_digits_match"] = _compare_value(
+                    item.get("integer_digits"), precision,
+                )
+                details["numeric_decimal_digits_match"] = _compare_value(
+                    item.get("decimal_digits"), scale,
+                )
+            else:
+                # フォールバック: 従来のドメイン定義列から比較
+                details["numeric_integer_digits_match"] = _compare_value(
+                    item.get("integer_digits"), _clean_str(domain.integer_digits),
+                )
+                details["numeric_decimal_digits_match"] = _compare_value(
+                    item.get("decimal_digits"), _clean_str(domain.decimal_digits),
+                )
         else:
             # 画面項目: 最大桁がある場合は整数部桁数として照合（小数部なし前提）
             screen_max_digits = _clean_str(item.get("max_chars"))
@@ -723,6 +830,13 @@ def _compute_detail_matches(
                 item.get("min_value"), item.get("max_value"),
                 domain.min_value, domain.max_value,
             )
+
+    # --- 最小値/最大値（画面項目: 仕様書 比較B — 全分類で照合）---
+    if not is_table and "numeric_min_max_match" not in details:
+        details["numeric_min_max_match"] = _compare_min_max(
+            item.get("min_value"), item.get("max_value"),
+            domain.min_value, domain.max_value,
+        )
 
     # --- 外部コード（全分類共通）---
     details["external_code_match"] = _compare_value(
@@ -795,19 +909,20 @@ def _check_exact_name_match(
     filtered: Dict[str, FilteredDomain],
     type_norm: str, digits: str,
 ) -> MatchEvidence | None:
-    """数字除去後の項目名で完全一致を検索する。"""
+    """数字除去後の項目名で完全一致を検索する。
+
+    名称一致 + 型桁一致 → exact (確定)
+    名称一致 + 桁数不一致 → None (Step 7 の LLM証拠収集にフォールスルー)
+    """
     name_cmp = _strip_code_id_token(name_stripped)
     for key, (domain, details) in filtered.items():
         domain_name_stripped = strip_digits(key)
         domain_cmp = _strip_code_id_token(domain_name_stripped)
         if name_cmp == domain_cmp:
             if _has_digit_mismatch(details):
-                return _resolved(
-                    name_stripped, type_norm, digits,
-                    match_type="no_type_digits_match",
-                    domain=None,
-                    reason=f"完全一致だが桁数不一致（{domain.name}）",
-                )
+                # 名称一致だが桁数不一致 → LLMに判断を委ねる (Section 10-5)
+                # Step 7 で name_match_mismatch 情報付きの LLM証拠が生成される
+                return None
             ev = _resolved(
                 name_stripped, type_norm, digits,
                 match_type="exact",
@@ -839,69 +954,6 @@ def _domain_major_type(domain: DomainDef, type_mapping: dict) -> str:
         if cand_major != "不明":
             return cand_major
     return "不明"
-
-
-def _resolve_by_exact_name(
-    item: dict,
-    name_stripped: str,
-    type_norm: str,
-    digits_clean: str,
-    domains: Dict[str, DomainDef],
-    type_mapping: dict,
-    source: str,
-) -> MatchEvidence | None:
-    """名称一致のみを先に判定し、その後に型/桁数を確認する。"""
-    name_match_domain = _find_exact_name_domain(name_stripped, domains)
-    if not name_match_domain:
-        return None
-
-    item_major = _classify_major_type(item.get("data_type", ""), source, type_mapping)
-    domain_major = _domain_major_type(name_match_domain, type_mapping)
-    if (
-        item_major != "不明"
-        and domain_major != "不明"
-        and not _is_compatible_major(item_major, domain_major)
-    ):
-        ev = MatchEvidence(
-            item_name=name_stripped,
-            data_type=type_norm,
-            digits=digits_clean,
-            is_resolved=False,
-            match_type="needs_llm",
-            resolved_domain=None,
-            reason=(
-                f"名称一致だが大分類不一致: 項目型={item.get('data_type','')}({item_major}), "
-                f"ドメイン型={name_match_domain.data_type}({domain_major})"
-            ),
-        )
-        ev.name_match_mismatch = True
-        ev.name_match_domain = name_match_domain.name
-        return ev
-
-    details = _compute_detail_matches(item, name_match_domain, item_major)
-    if _has_digit_mismatch(details):
-        ev = MatchEvidence(
-            item_name=name_stripped,
-            data_type=type_norm,
-            digits=digits_clean,
-            is_resolved=False,
-            match_type="needs_llm",
-            resolved_domain=None,
-            reason=f"名称一致だが桁数不一致（{name_match_domain.name}）",
-            detail_matches=details,
-        )
-        ev.name_match_mismatch = True
-        ev.name_match_domain = name_match_domain.name
-        return ev
-
-    ev = _resolved(
-        name_stripped, type_norm, digits_clean,
-        match_type="exact",
-        domain=name_match_domain.name,
-        reason=f"完全一致: 名前（数字除去後）+ 型桁一致（{name_match_domain.name}）",
-    )
-    ev.detail_matches = details
-    return ev
 
 
 def _check_synonym_matches(
@@ -1075,12 +1127,13 @@ def collect_evidence(
     """1項目の判断材料を収集する。確定ケースは is_resolved=True で返す。
 
     判定フロー（domain_checker_spec.md Section 3-1 準拠）:
-        0. 対象外判定 → 属性列が全て空なら対象外
-        1. 特殊パターン判定 → 該当すれば確定
-        2. 大分類判定 → 不一致ならアウト
-        3. 桁数一致判定 → 不一致なら即アウト
-        4. テキストタイプで絞り込み（画面のみ）
-        5. 項目名比較 → 完全一致=確定 / 同義語=候補 / 他=LLM
+        1. 対象外判定 → 属性列が全て空なら対象外
+        2. 特殊パターン判定 → 該当すれば確定
+        3. 大分類判定 → 不一致ならアウト
+        4. 桁数一致判定（最重要・大前提）
+        5. テキストタイプで絞り込み（画面項目定義のみ）
+        6. C方式: 項目名の部分一致＋同義語辞書で材料収集
+        7. B方式: LLMに材料を渡して最終判定
 
     Args:
         item: 項目情報辞書。source キーで画面項目/テーブル定義を区別する。
@@ -1107,7 +1160,7 @@ def collect_evidence(
     digits_clean = _clean_str(max_chars)
     name_stripped = strip_digits(name_norm)
 
-    # Step 0: 対象外判定
+    # Step 1: 対象外判定
     if _is_out_of_scope(item):
         return _resolved(
             name_stripped, type_norm, digits_clean,
@@ -1116,40 +1169,43 @@ def collect_evidence(
             reason="対象外: 属性列が全て空",
         )
 
-    # Step 1: 特殊パターン判定
+    # Step 2: 特殊パターン判定
     sp = _check_special_patterns(item, name_stripped, type_norm, digits_clean, special_patterns)
     if sp is not None:
         return sp
 
-    # Step 1.5: 名称一致の有無だけを先に判定（型/桁数は後段で確認）
+    # Step 3: 大分類判定 → 不一致ならアウト
+    filtered = _filter_by_major_type(raw_data_type, domains, source, type_mapping)
+    if not filtered:
+        return _resolved(
+            name_stripped, type_norm, digits_clean,
+            match_type="no_type_digits_match",
+            domain=None,
+            reason=f"大分類不一致: 型={raw_data_type} に互換するドメインなし",
+        )
+
+    # Step 4: 桁数一致判定（情報を付与、不一致でも除外しない = LLMに判断委ねる）
+    item_major = _classify_major_type(raw_data_type, source, type_mapping)
+    digits_filtered = _attach_digit_details(item, filtered, item_major)
+
+    # Step 5: テキストタイプで絞り込み（画面項目定義のみ）
+    if source == "screen" and text_type:
+        final_filtered = _filter_by_text_type(text_type, digits_filtered, text_type_mapping)
+    else:
+        final_filtered = digits_filtered
+
+    # Step 6: C方式 — 項目名の完全一致チェック
+    exact = _check_exact_name_match(name_stripped, final_filtered, type_norm, digits_clean)
+    if exact is not None:
+        return exact
+
+    # Step 7: B方式 — LLM用証拠を収集
+    #   名称一致だが型/桁数でフィルタ済みのケースも補足情報としてLLMに渡す
     name_match_domain = _find_exact_name_domain(name_stripped, domains)
-    name_match_flag = name_match_domain is not None
     name_mismatch_flag = False
     name_mismatch_domain = None
     name_mismatch_reason = ""
 
-    # Step 2: 型フィルタ（細分類+大分類を1段で評価）
-    filtered = _filter_by_type(raw_data_type, domains, source, type_mapping)
-    if not filtered and not name_mismatch_flag:
-        return _resolved(
-            name_stripped, type_norm, digits_clean,
-            match_type="no_type_digits_match",
-            domain=None,
-            reason=f"型不一致: 型={raw_data_type} に一致するドメインなし",
-        )
-
-    # Step 4: 桁数情報を付与（不一致でも除外しない）
-    item_major = _classify_major_type(raw_data_type, source, type_mapping)
-    digits_filtered = _attach_digit_details(item, filtered, item_major)
-    if not digits_filtered and not name_mismatch_flag:
-        return _resolved(
-            name_stripped, type_norm, digits_clean,
-            match_type="no_type_digits_match",
-            domain=None,
-            reason=f"桁数不一致: 大分類={item_major}, 桁={digits_clean or '(空)'} に一致するドメインなし",
-        )
-
-    # Step 4.5: 名称一致がある場合は型/桁数をここで確認
     if name_match_domain is not None:
         domain_major = _domain_major_type(name_match_domain, type_mapping)
         if (
@@ -1168,33 +1224,16 @@ def collect_evidence(
                 name_mismatch_flag = True
                 name_mismatch_domain = name_match_domain.name
                 name_mismatch_reason = f"論理名一致だが桁数が不一致（{name_match_domain.name}）"
-            else:
-                ev = _resolved(
-                    name_stripped, type_norm, digits_clean,
-                    match_type="exact",
-                    domain=name_match_domain.name,
-                    reason=f"完全一致: 名前（数字除去後）+ 型桁一致（{name_match_domain.name}）",
-                )
-                ev.detail_matches = details
-                return ev
 
-    # Step 5: テキストタイプで絞り込み（画面項目定義のみ）
-    if source == "screen" and text_type:
-        final_filtered = _filter_by_text_type(text_type, digits_filtered, text_type_mapping)
-    else:
-        final_filtered = digits_filtered
-
-    # Step 6b/6c: 同義語ヒット + LLM用証拠を収集
     top_n = int(config.get("LLM_CANDIDATE_TOP_N", 20) or 20)
     min_similarity = float(config.get("LLM_CANDIDATE_MIN_SIM", 0.4))
     min_digit_rate = float(config.get("LLM_CANDIDATE_MIN_DIGIT", 0.4))
-    # 名称一致あり → 通常の下限 / 名称一致なし → 桁一致必須
-    if name_match_flag:
-        pass
-    else:
+    # 名称一致なし → 桁一致必須（名称だけでは判定不能なため厳しく）
+    if name_match_domain is None:
         min_digit_rate = max(min_digit_rate, 1.0)
         min_similarity = 0.0
     synonym_partial_sim = float(config.get("SYNONYM_PARTIAL_SIM_THRESHOLD", 0.78))
+
     evidence = _gather_evidence_for_llm(
         name_stripped, type_norm, digits_clean,
         final_filtered, synonyms,
@@ -1203,6 +1242,7 @@ def collect_evidence(
         min_digit_rate=min_digit_rate,
         synonym_partial_sim=synonym_partial_sim,
     )
+
     if name_mismatch_flag:
         evidence.name_match_mismatch = True
         if name_mismatch_domain:

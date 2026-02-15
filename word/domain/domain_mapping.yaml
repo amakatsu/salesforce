@@ -22,8 +22,10 @@ type_mapping:
     文字列系:
       - CHAR
       - VARCHAR
+      - VARCHAR2
       - NCHAR
       - NVARCHAR
+      - NCLOB
       - CLOB
     数値系:
       - NUMBER
@@ -55,6 +57,7 @@ type_mapping:
       - 全角英数字
       - 全角英数字記号
       - 全半角混合
+      - 全半角混合文字
     数値系:
       - 数値（整数）
       - 数値（少数）
