@@ -248,37 +248,39 @@ _SUBHEADER_HINTS = {
 def _detect_header_row(
     path: Path, sheet_name: str, required_cols: List[str], scan_rows: int,
 ) -> tuple[int, bool]:
-    # Read all rows to avoid nrows + merged-cell interference, then slice.
-    full_df = pd.read_excel(path, sheet_name=sheet_name, header=None)
-    head_df = full_df.iloc[:scan_rows]
+    # Use openpyxl to read cell values — handles merged cells correctly.
+    from openpyxl import load_workbook
+    wb = load_workbook(path, read_only=True, data_only=True)
+    ws = wb[sheet_name]
+    rows = list(ws.iter_rows(min_row=1, max_row=scan_rows, values_only=True))
+    wb.close()
+
     req = [normalize_text(c) for c in required_cols if c]
     best_row = -1
     best_hits = 0
     use_multi = False
 
-    for i in range(len(head_df)):
-        row_vals = [
-            normalize_text(x) for x in head_df.iloc[i].values if str(x) not in {"", "nan"}
-        ]
+    for i, row in enumerate(rows):
+        row_vals = [normalize_text(str(v)) for v in row if v is not None]
         row_hits = sum(1 for r in req if any(r in v for v in row_vals))
         if row_hits == len(req) and row_hits > 0:
-            if i + 1 < len(head_df):
-                next_vals = [
-                    normalize_text(x) for x in head_df.iloc[i + 1].values if str(x) not in {"", "nan"}
-                ]
+            if i + 1 < len(rows):
+                next_vals = [normalize_text(str(v)) for v in rows[i + 1] if v is not None]
                 if any(hint in v for hint in _SUBHEADER_HINTS for v in next_vals):
                     return i, True
             return i, False
 
-        if i + 1 < len(head_df):
-            next_vals = [
-                normalize_text(x) for x in head_df.iloc[i + 1].values if str(x) not in {"", "nan"}
-            ]
+        if i + 1 < len(rows):
+            next_vals = [normalize_text(str(v)) for v in rows[i + 1] if v is not None]
             next_hits = sum(1 for r in req if any(r in v for v in next_vals))
             if next_hits == len(req) and next_hits > 0:
-                if row_vals:
-                    return i, True
-                return i + 1, False
+                # 前の行にもヘッダーらしい列があるか確認
+                current_has_header_cols = any(
+                    any(r in v for v in row_vals) for r in req
+                )
+                if current_has_header_cols and row_vals:
+                    return i, True   # マルチヘッダー
+                return i + 1, False  # 次の行が単独ヘッダー
             if next_hits > best_hits:
                 best_hits = next_hits
                 best_row = i + 1
@@ -292,11 +294,10 @@ def _detect_header_row(
     if best_row >= 0 and best_hits > 0:
         return best_row, use_multi
 
-    # フォールバック: 見つからなければ7行目（0-indexed: 6）を使用
-    fallback_row = 6
-    print(f"[警告] {path.name}/{sheet_name}: ヘッダー自動検出失敗。"
-          f"7行目をフォールバックとして使用")
-    return fallback_row, False
+    raise KeyError(
+        f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: "
+        f"{path.name}/{sheet_name} (scan_rows={scan_rows})"
+    )
 
 
 def read_excel_with_header_detection(
@@ -339,14 +340,24 @@ def read_excel_with_header_detection(
         df = raw.iloc[header_row + 2:].reset_index(drop=True)
         df.columns = new_cols
         return df, header_row + 1
-    # Single header row — read with header=None to avoid merged-cell
-    # interference above the header, then slice manually.
+    # openpyxl でヘッダー行のセル値を取得（結合セル対応）
+    from openpyxl import load_workbook
+    wb = load_workbook(path, read_only=True, data_only=True)
+    ws = wb[sheet_name]
+    header_cells = list(ws.iter_rows(
+        min_row=header_row + 1, max_row=header_row + 1, values_only=True,
+    ))[0]
+    wb.close()
+    cols = ["" if v is None else str(v).strip() for v in header_cells]
+
+    # データ部分はpandasで読む（データ行には結合セルが少ないため）
     raw = pd.read_excel(path, sheet_name=sheet_name, header=None)
-    cols = [
-        "" if pd.isna(v) else str(v).strip()
-        for v in raw.iloc[header_row].values
-    ]
     df = raw.iloc[header_row + 1:].reset_index(drop=True)
+    # openpyxl と pandas で列数が異なる場合に合わせる
+    if len(cols) < len(df.columns):
+        cols.extend([""] * (len(df.columns) - len(cols)))
+    elif len(cols) > len(df.columns):
+        cols = cols[:len(df.columns)]
     df.columns = cols
     return df, header_row
 
