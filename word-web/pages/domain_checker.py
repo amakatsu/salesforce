@@ -55,6 +55,9 @@ def _init_session_state():
         "table_result_df": None,
         "result_excel_bytes": None,
         "result_filename": "domain_check_results.xlsx",
+        "resume_cache_screen": None,
+        "resume_cache_table": None,
+        "rate_limited": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -67,6 +70,24 @@ def _clear_results():
     st.session_state.screen_result_df = None
     st.session_state.table_result_df = None
     st.session_state.result_excel_bytes = None
+    st.session_state.rate_limited = False
+
+
+# ---------------------------------------------------------------------------
+# キャッシュユーティリティ
+# ---------------------------------------------------------------------------
+
+def _get_cache_dir() -> Path:
+    """永続的なキャッシュディレクトリを返す（tempdir外で再実行間で保持）。"""
+    cache_dir = Path(tempfile.gettempdir()) / "domain_check_cache"
+    cache_dir.mkdir(exist_ok=True)
+    return cache_dir
+
+
+def _find_latest_cache(cache_dir: Path, prefix: str):
+    """cache_dir 内の最新のJSONLキャッシュファイルを返す。"""
+    files = sorted(cache_dir.glob(f"{prefix}*.jsonl"))
+    return files[-1] if files else None
 
 
 # ---------------------------------------------------------------------------
@@ -136,9 +157,9 @@ def _save_files_to_tmpdir(files, tmpdir, label, detail_text):
         detail_text.text(f"{label}保存中: {i + 1}/{len(files)} - {f.name}")
 
 
-def _run_domain_check(match_target, screen_files, table_files, domain_files, fuzzy_threshold):
+def _run_domain_check(match_target, screen_files, table_files, domain_files, fuzzy_threshold, resume=False):
     """ドメインチェック全工程を実行し、結果を session_state に保存する。"""
-    track_usage(action="実行ボタン押下", tool_name="マッチング")
+    track_usage(action="再実行" if resume else "実行ボタン押下", tool_name="マッチング")
     _clear_results()
 
     progress = st.progress(0)
@@ -205,10 +226,18 @@ def _run_domain_check(match_target, screen_files, table_files, domain_files, fuz
 
                 # Step 3: 照合処理（全件対象 → 抽出シート用の生データ兼用）
                 _log("[WEB] Step3: matching start")
+                cache_dir = _get_cache_dir()
+                resume_screen = st.session_state.resume_cache_screen if resume else None
+                resume_table = st.session_state.resume_cache_table if resume else None
                 screen_df, table_df = _run_matching(
-                    screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=_log,
+                    screen_items, table_items, domains, config, progress, status, detail, match_target,
+                    log_cb=_log, cache_dir=cache_dir,
+                    resume_cache_screen=resume_screen, resume_cache_table=resume_table,
                 )
                 _log("[WEB] Step3: matching done")
+
+                # レート制限検出 — キャッシュパスを session_state に保存
+                _check_rate_limited(screen_df, table_df, cache_dir, match_target)
 
                 # Step 4: 重複排除（照合済みDFに対して数字除去+桁数で集約）
                 _log("[WEB] Step4: dedup start")
@@ -264,7 +293,8 @@ def _load_all_data(tmpdir, config, progress, status, detail, match_target):
     return screen_items, table_items, domains, domain_raw_df
 
 
-def _run_matching(screen_items, table_items, domains, config, progress, status, detail, match_target, log_cb=None):
+def _run_matching(screen_items, table_items, domains, config, progress, status, detail, match_target,
+                   log_cb=None, cache_dir=None, resume_cache_screen=None, resume_cache_table=None):
     """画面項目×ドメイン、テーブル定義×ドメインの照合を実行する。"""
     status.text("🔄 ステップ 3/5: 照合処理中...")
     if match_target == "画面項目定義":
@@ -292,6 +322,7 @@ def _run_matching(screen_items, table_items, domains, config, progress, status, 
 
         screen_df = process_screen_domain_matching(
             screen_items, domains, config, progress_callback=on_screen_progress,
+            cache_dir=cache_dir, resume_cache=resume_cache_screen,
         )
         progress.progress(70)
     else:
@@ -311,10 +342,33 @@ def _run_matching(screen_items, table_items, domains, config, progress, status, 
 
         table_df = process_table_domain_matching(
             table_items, domains, config, progress_callback=on_table_progress,
+            cache_dir=cache_dir, resume_cache=resume_cache_table,
         )
         progress.progress(70)
 
     return screen_df, table_df
+
+
+def _check_rate_limited(screen_df, table_df, cache_dir, match_target):
+    """結果にレート制限項目が含まれるかチェックし、キャッシュパスを保存する。"""
+    rate_limited_col = "判定結果"
+    rate_limited_label = "未処理（レート制限）"
+
+    has_rate_limited = False
+    if match_target == "画面項目定義" and len(screen_df) > 0:
+        if rate_limited_col in screen_df.columns:
+            has_rate_limited = (screen_df[rate_limited_col] == rate_limited_label).any()
+            if has_rate_limited:
+                cache_path = _find_latest_cache(cache_dir, "domain_cache_screen_")
+                st.session_state.resume_cache_screen = cache_path
+    else:
+        if len(table_df) > 0 and rate_limited_col in table_df.columns:
+            has_rate_limited = (table_df[rate_limited_col] == rate_limited_label).any()
+            if has_rate_limited:
+                cache_path = _find_latest_cache(cache_dir, "domain_cache_table_")
+                st.session_state.resume_cache_table = cache_path
+
+    st.session_state.rate_limited = has_rate_limited
 
 
 def _dedup_results(screen_df, table_df, progress, status, detail, match_target):
@@ -381,7 +435,20 @@ def _show_results():
     if not st.session_state.processing_done:
         return
 
-    st.success("✅ チェック処理が完了しました！")
+    # レート制限検出時は警告 + 再開ボタン
+    if st.session_state.rate_limited:
+        result_df = st.session_state.screen_result_df or st.session_state.table_result_df
+        if result_df is not None and "判定結果" in result_df.columns:
+            total = len(result_df)
+            rate_limited_count = len(result_df[result_df["判定結果"] == "未処理（レート制限）"])
+            processed_count = total - rate_limited_count
+            st.warning(
+                f"{processed_count}/{total}件処理済み。"
+                f"レートリミットにより{rate_limited_count}件が未処理です。"
+            )
+        st.success("✅ 部分結果を表示しています（レート制限による中断）")
+    else:
+        st.success("✅ チェック処理が完了しました！")
 
     screen_df = st.session_state.screen_result_df
     table_df = st.session_state.table_result_df
@@ -553,6 +620,11 @@ if st.button(
     disabled=not all_files_ready,
 ):
     _run_domain_check(match_target, screen_files, table_files, domain_files, fuzzy_threshold)
+
+# ── 再開ボタン（レート制限時のみ表示） ──
+if st.session_state.get("rate_limited") and all_files_ready:
+    if st.button("🔄 続きから再開", type="secondary", use_container_width=True):
+        _run_domain_check(match_target, screen_files, table_files, domain_files, fuzzy_threshold, resume=True)
 
 # ── 結果表示（session_state ベース — rerun 後も維持される） ──
 _show_results()

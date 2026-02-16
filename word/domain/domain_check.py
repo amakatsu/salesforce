@@ -8,10 +8,12 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -39,6 +41,12 @@ except ImportError:
     run_llm_matching = None
     build_llm_call = None
     group_new_domain_proposals = None
+
+try:
+    from .llm_matcher import RateLimitError
+except (ImportError, AttributeError):
+    class RateLimitError(Exception):
+        pass
 
 
 # ====== 同義語・型マッピングのYAMLキャッシュ ====================================
@@ -885,6 +893,7 @@ _MATCH_TYPE_DISPLAY = {
     "no_type_digits_match": "提案",
     "unnecessary": "対象外",
     "out_of_scope": "対象外",
+    "rate_limited": "未処理（レート制限）",
 }
 
 
@@ -1415,6 +1424,53 @@ def dedup_by_name_and_digits(
     return df.drop_duplicates(subset=["検索キー"], keep="first").reset_index(drop=True)
 
 
+# ====== 中間結果キャッシュ (JSONL) ============================================
+
+def _load_domain_cache(cache_path: Path) -> Dict[int, Dict]:
+    """JSONLキャッシュを読み込み、index → entry の dict を返す。"""
+    cached: Dict[int, Dict] = {}
+    if not cache_path.exists():
+        return cached
+    with open(cache_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entry = json.loads(line)
+                cached[entry["index"]] = entry
+    return cached
+
+
+def _append_cache_entry(cache_path: Path, index: int, item_name: str,
+                        mr: "MatchResult", llm_used: bool):
+    """1件の結果をJSONLキャッシュに追記する。"""
+    entry = {
+        "index": index,
+        "item_name": item_name,
+        "match_type": mr.match_type,
+        "domain_name": mr.domain.name if mr.domain else None,
+        "confidence": mr.confidence,
+        "reason": mr.reason,
+        "generalized_candidates": mr.generalized_candidates,
+        "llm_used": llm_used,
+    }
+    with open(cache_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def _restore_match_result(entry: Dict, domains: Dict[str, "DomainDef"]) -> "MatchResult":
+    """キャッシュエントリからMatchResultを復元する。"""
+    domain = None
+    if entry.get("domain_name"):
+        domain = domains.get(normalize_text(entry["domain_name"]))
+    return MatchResult(
+        match_type=entry["match_type"],
+        domain=domain,
+        confidence=entry["confidence"],
+        reason=entry["reason"],
+        generalized_candidates=entry.get("generalized_candidates"),
+    )
+
+
 # ====== 画面項目 突合処理 ====================================================
 
 def process_screen_domain_matching(
@@ -1422,6 +1478,8 @@ def process_screen_domain_matching(
     domains: Dict[str, DomainDef],
     cfg: Dict[str, Any],
     progress_callback: Optional[Callable[[int, int], None]] = None,
+    cache_dir: Optional[Path] = None,
+    resume_cache: Optional[Path] = None,
 ) -> pd.DataFrame:
     """画面項目とドメインの突合処理。
 
@@ -1431,6 +1489,16 @@ def process_screen_domain_matching(
     """
     if collect_evidence is None:
         raise RuntimeError("C方式マッチャーが読み込めません。domain_matcher.py を確認してください。")
+
+    # --- キャッシュ設定 ---
+    cached_results: Dict[int, Dict] = {}
+    if resume_cache:
+        cached_results = _load_domain_cache(resume_cache)
+        print(f"[INFO] キャッシュ読み込み: {len(cached_results)}件", flush=True)
+    cache_path: Optional[Path] = None
+    if cache_dir:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_path = cache_dir / f"domain_cache_screen_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
 
     # --- 新ロジック: C方式→B方式パイプライン ---
     synonyms = _load_synonym_dict(cfg)
@@ -1480,8 +1548,9 @@ def process_screen_domain_matching(
         if progress_callback:
             progress_callback(i + 1, len(screen_items))
 
-    # C方式の確定分を先に埋める
+    # C方式の確定分を先に埋める（キャッシュ復元含む）
     unresolved = []
+    llm_used_indices: set[int] = set()
     hard_resolved = {
         "exact",
         "special_flag",
@@ -1491,35 +1560,56 @@ def process_screen_domain_matching(
         "out_of_scope",
     }
     for ev, idx in zip(evidences, evidence_indices):
+        if idx in cached_results:
+            mr = _restore_match_result(cached_results[idx], domains)
+            results[idx] = (screen_items[idx], mr)
+            evidence_by_index[idx] = ev
+            if cached_results[idx].get("llm_used"):
+                llm_used_indices.add(idx)
+            continue
         if ev.is_resolved and ev.match_type in hard_resolved:
             mr = _match_from_evidence(ev, domains, cfg)
             results[idx] = (screen_items[idx], mr)
+            if cache_path:
+                _append_cache_entry(cache_path, idx, screen_items[idx].item_name, mr, False)
         else:
             unresolved.append((ev, idx))
 
     # B方式（LLM/フォールバック）
-    llm_used_indices: set[int] = set()
     if unresolved:
         use_llm = bool(cfg.get("LLM_MATCHING_ENABLED")) and run_llm_matching is not None and build_llm_call is not None
         llm_call = build_llm_call(cfg) if use_llm else None
         if use_llm:
             batch_size = int(cfg.get("LLM_MATCHING_BATCH_SIZE", 20))
-            for start in range(0, len(unresolved), batch_size):
-                chunk = unresolved[start:start + batch_size]
-                chunk_evs = [ev for ev, _ in chunk]
-                llm_results = run_llm_matching(chunk_evs, cfg, llm_call=llm_call)
-                for (ev, idx), llm_result in zip(chunk, llm_results):
-                    mr = _llm_result_to_match(ev, llm_result, domains)
-                    results[idx] = (screen_items[idx], mr)
-                    evidence_by_index[idx] = ev
-                    llm_used_indices.add(idx)
-                if progress_callback:
-                    progress_callback(start + len(chunk), len(screen_items))
+            try:
+                for start in range(0, len(unresolved), batch_size):
+                    chunk = unresolved[start:start + batch_size]
+                    chunk_evs = [ev for ev, _ in chunk]
+                    llm_results = run_llm_matching(chunk_evs, cfg, llm_call=llm_call)
+                    for (ev, idx), llm_result in zip(chunk, llm_results):
+                        mr = _llm_result_to_match(ev, llm_result, domains)
+                        results[idx] = (screen_items[idx], mr)
+                        evidence_by_index[idx] = ev
+                        llm_used_indices.add(idx)
+                        if cache_path:
+                            _append_cache_entry(cache_path, idx, screen_items[idx].item_name, mr, True)
+                    if progress_callback:
+                        progress_callback(start + len(chunk), len(screen_items))
+            except RateLimitError:
+                processed_count = sum(1 for r in results if r is not None)
+                remaining = len(screen_items) - processed_count
+                print(f"[警告] レート制限: {processed_count}件処理済み / {remaining}件未処理。"
+                      f"キャッシュ保存済み。再実行で続きから再開可能", flush=True)
         else:
             for ev, idx in unresolved:
                 mr = _match_from_llm(ev, domains, cfg, llm_call=llm_call)
                 results[idx] = (screen_items[idx], mr)
                 evidence_by_index[idx] = ev
+
+    # 未処理項目をプレースホルダーで埋める（RateLimitError時の部分結果対応）
+    for i in range(len(results)):
+        if results[i] is None:
+            results[i] = (screen_items[i], MatchResult("rate_limited", None, 0.0, "レート制限のため未処理"))
 
     # 結果整形
     output_rows: List[Dict[str, Any]] = []
@@ -1662,6 +1752,8 @@ def process_table_domain_matching(
     domains: Dict[str, DomainDef],
     cfg: Dict[str, Any],
     progress_callback: Optional[Callable[[int, int], None]] = None,
+    cache_dir: Optional[Path] = None,
+    resume_cache: Optional[Path] = None,
 ) -> pd.DataFrame:
     """テーブル定義とドメインの突合処理。
 
@@ -1671,6 +1763,16 @@ def process_table_domain_matching(
     """
     if collect_evidence is None:
         raise RuntimeError("C方式マッチャーが読み込めません。domain_matcher.py を確認してください。")
+
+    # --- キャッシュ設定 ---
+    cached_results: Dict[int, Dict] = {}
+    if resume_cache:
+        cached_results = _load_domain_cache(resume_cache)
+        print(f"[INFO] キャッシュ読み込み: {len(cached_results)}件", flush=True)
+    cache_path: Optional[Path] = None
+    if cache_dir:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_path = cache_dir / f"domain_cache_table_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
 
     # --- 新ロジック: C方式→B方式パイプライン ---
     synonyms = _load_synonym_dict(cfg)
@@ -1710,7 +1812,9 @@ def process_table_domain_matching(
         if progress_callback:
             progress_callback(i + 1, len(table_items))
 
+    # C方式の確定分を先に埋める（キャッシュ復元含む）
     unresolved = []
+    llm_used_indices: set[int] = set()
     hard_resolved = {
         "exact",
         "special_flag",
@@ -1720,34 +1824,56 @@ def process_table_domain_matching(
         "out_of_scope",
     }
     for ev, idx in zip(evidences, evidence_indices):
+        if idx in cached_results:
+            mr = _restore_match_result(cached_results[idx], domains)
+            results[idx] = (table_items[idx], mr)
+            evidence_by_index[idx] = ev
+            if cached_results[idx].get("llm_used"):
+                llm_used_indices.add(idx)
+            continue
         if ev.is_resolved and ev.match_type in hard_resolved:
             mr = _match_from_evidence(ev, domains, cfg)
             results[idx] = (table_items[idx], mr)
+            if cache_path:
+                _append_cache_entry(cache_path, idx, table_items[idx].item_name, mr, False)
         else:
             unresolved.append((ev, idx))
 
-    llm_used_indices: set[int] = set()
+    # B方式（LLM/フォールバック）
     if unresolved:
         use_llm = bool(cfg.get("LLM_MATCHING_ENABLED")) and run_llm_matching is not None and build_llm_call is not None
         llm_call = build_llm_call(cfg) if use_llm else None
         if use_llm:
             batch_size = int(cfg.get("LLM_MATCHING_BATCH_SIZE", 20))
-            for start in range(0, len(unresolved), batch_size):
-                chunk = unresolved[start:start + batch_size]
-                chunk_evs = [ev for ev, _ in chunk]
-                llm_results = run_llm_matching(chunk_evs, cfg, llm_call=llm_call)
-                for (ev, idx), llm_result in zip(chunk, llm_results):
-                    mr = _llm_result_to_match(ev, llm_result, domains)
-                    results[idx] = (table_items[idx], mr)
-                    evidence_by_index[idx] = ev
-                    llm_used_indices.add(idx)
-                if progress_callback:
-                    progress_callback(start + len(chunk), len(table_items))
+            try:
+                for start in range(0, len(unresolved), batch_size):
+                    chunk = unresolved[start:start + batch_size]
+                    chunk_evs = [ev for ev, _ in chunk]
+                    llm_results = run_llm_matching(chunk_evs, cfg, llm_call=llm_call)
+                    for (ev, idx), llm_result in zip(chunk, llm_results):
+                        mr = _llm_result_to_match(ev, llm_result, domains)
+                        results[idx] = (table_items[idx], mr)
+                        evidence_by_index[idx] = ev
+                        llm_used_indices.add(idx)
+                        if cache_path:
+                            _append_cache_entry(cache_path, idx, table_items[idx].item_name, mr, True)
+                    if progress_callback:
+                        progress_callback(start + len(chunk), len(table_items))
+            except RateLimitError:
+                processed_count = sum(1 for r in results if r is not None)
+                remaining = len(table_items) - processed_count
+                print(f"[警告] レート制限: {processed_count}件処理済み / {remaining}件未処理。"
+                      f"キャッシュ保存済み。再実行で続きから再開可能", flush=True)
         else:
             for ev, idx in unresolved:
                 mr = _match_from_llm(ev, domains, cfg, llm_call=llm_call)
                 results[idx] = (table_items[idx], mr)
                 evidence_by_index[idx] = ev
+
+    # 未処理項目をプレースホルダーで埋める（RateLimitError時の部分結果対応）
+    for i in range(len(results)):
+        if results[i] is None:
+            results[i] = (table_items[i], MatchResult("rate_limited", None, 0.0, "レート制限のため未処理"))
 
     output_rows: List[Dict[str, Any]] = []
     total = len(table_items)

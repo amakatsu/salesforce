@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -38,6 +39,17 @@ logger = logging.getLogger("domain_tool.llm_matcher")
 # LLM呼び出し関数の型。外部から注入する。
 # (system_prompt: str, user_prompt: str) -> str
 LlmCallFn = Callable[[str, str], str]
+
+
+class RateLimitError(Exception):
+    """429 レートリミットエラー。処理済み件数とキャッシュパスを保持する。"""
+
+    def __init__(self, message, processed_count=0, total_count=0, cache_path=None):
+        super().__init__(message)
+        self.processed_count = processed_count
+        self.total_count = total_count
+        self.cache_path = cache_path
+
 
 # ============================================================================
 # 結果型
@@ -275,6 +287,20 @@ _SYSTEM_PROMPT = """\
 # バッチLLM処理
 # ============================================================================
 
+_MAX_RETRIES = 7
+_BASE_WAIT_SEC = 30
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """例外が 429 レートリミットエラーか判定する。"""
+    if hasattr(exc, "status_code") and exc.status_code == 429:
+        return True
+    if hasattr(exc, "response"):
+        resp = exc.response
+        if hasattr(resp, "status_code") and resp.status_code == 429:
+            return True
+    return "429" in str(exc)
+
 
 def _run_batch_llm(
     targets: list[tuple[int, MatchEvidence]],
@@ -295,18 +321,41 @@ def _run_single_batch(
     results: list[MatchResult | None],
     llm_call: LlmCallFn,
 ) -> None:
-    """1チャンク分のバッチLLM呼び出しを実行する。"""
+    """1チャンク分のバッチLLM呼び出しを実行する。
+
+    429 レートリミット発生時は指数バックオフで最大7回リトライする。
+    """
     target_evidences = [ev for _, ev in targets]
     prompt = _build_batch_prompt(target_evidences)
 
-    try:
-        raw_response = llm_call(_SYSTEM_PROMPT, prompt)
-        parsed = _parse_llm_response(raw_response)
-    except Exception:
-        logger.exception("LLM呼び出しに失敗 -- フォールバック判定に切り替え")
-        for idx, ev in targets:
-            results[idx] = _fallback_from_evidence(ev)
-        return
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            raw_response = llm_call(_SYSTEM_PROMPT, prompt)
+            parsed = _parse_llm_response(raw_response)
+            break
+        except Exception as exc:
+            if not _is_rate_limit_error(exc):
+                logger.exception("LLM呼び出しに失敗 -- フォールバック判定に切り替え")
+                for idx, ev in targets:
+                    results[idx] = _fallback_from_evidence(ev)
+                return
+
+            if attempt < _MAX_RETRIES:
+                wait = _BASE_WAIT_SEC * (2 ** attempt)
+                print(
+                    f"[警告] 429 レートリミット。{wait}秒後にリトライ"
+                    f" ({attempt + 1}/{_MAX_RETRIES})...",
+                    flush=True,
+                )
+                time.sleep(wait)
+            else:
+                raise RateLimitError(
+                    "429 レートリミット: 7回リトライ後も失敗",
+                    processed_count=0,
+                    total_count=0,
+                )
+    else:
+        return  # 到達しない安全ガード
 
     # パース結果を index で突合
     parsed_by_index = {item.get("index"): item for item in parsed}
