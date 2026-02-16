@@ -248,7 +248,9 @@ _SUBHEADER_HINTS = {
 def _detect_header_row(
     path: Path, sheet_name: str, required_cols: List[str], scan_rows: int,
 ) -> tuple[int, bool]:
-    head_df = pd.read_excel(path, sheet_name=sheet_name, header=None, nrows=scan_rows)
+    # Read all rows to avoid nrows + merged-cell interference, then slice.
+    full_df = pd.read_excel(path, sheet_name=sheet_name, header=None)
+    head_df = full_df.iloc[:scan_rows]
     req = [normalize_text(c) for c in required_cols if c]
     best_row = -1
     best_hits = 0
@@ -290,9 +292,11 @@ def _detect_header_row(
     if best_row >= 0 and best_hits > 0:
         return best_row, use_multi
 
-    raise KeyError(
-        f"必須列{sorted(required_cols)}を含むヘッダ行が見つかりません: {path.name}/{sheet_name} (scan_rows={scan_rows})"
-    )
+    # フォールバック: 見つからなければ7行目（0-indexed: 6）を使用
+    fallback_row = 6
+    print(f"[警告] {path.name}/{sheet_name}: ヘッダー自動検出失敗。"
+          f"7行目をフォールバックとして使用")
+    return fallback_row, False
 
 
 def read_excel_with_header_detection(
@@ -1462,6 +1466,8 @@ def process_screen_domain_matching(
         evidence_by_index[i] = ev
         evidence_by_index[i] = ev
         evidence_by_index[i] = ev
+        if progress_callback:
+            progress_callback(i + 1, len(screen_items))
 
     # C方式の確定分を先に埋める
     unresolved = []
@@ -1496,6 +1502,8 @@ def process_screen_domain_matching(
                     results[idx] = (screen_items[idx], mr)
                     evidence_by_index[idx] = ev
                     llm_used_indices.add(idx)
+                if progress_callback:
+                    progress_callback(start + len(chunk), len(screen_items))
         else:
             for ev, idx in unresolved:
                 mr = _match_from_llm(ev, domains, cfg, llm_call=llm_call)
@@ -1629,7 +1637,7 @@ def process_screen_domain_matching(
 
         processed = i + 1
         if processed % 10 == 0 or processed == total:
-            print(f"[INFO] 画面項目照合: {processed}/{total} 件処理済み")
+            print(f"[INFO] 画面項目照合: {processed}/{total} 件処理済み", flush=True)
         if progress_callback:
             progress_callback(processed, total)
 
@@ -1688,6 +1696,8 @@ def process_table_domain_matching(
         ev = collect_evidence(item_dict, domains, cfg, synonyms=synonyms)
         evidences.append(ev)
         evidence_indices.append(i)
+        if progress_callback:
+            progress_callback(i + 1, len(table_items))
 
     unresolved = []
     hard_resolved = {
@@ -1720,6 +1730,8 @@ def process_table_domain_matching(
                     results[idx] = (table_items[idx], mr)
                     evidence_by_index[idx] = ev
                     llm_used_indices.add(idx)
+                if progress_callback:
+                    progress_callback(start + len(chunk), len(table_items))
         else:
             for ev, idx in unresolved:
                 mr = _match_from_llm(ev, domains, cfg, llm_call=llm_call)
@@ -1859,7 +1871,7 @@ def process_table_domain_matching(
 
         processed = i + 1
         if processed % 10 == 0 or processed == total:
-            print(f"[INFO] テーブル定義照合: {processed}/{total} 件処理済み")
+            print(f"[INFO] テーブル定義照合: {processed}/{total} 件処理済み", flush=True)
         if progress_callback:
             progress_callback(processed, total)
 
