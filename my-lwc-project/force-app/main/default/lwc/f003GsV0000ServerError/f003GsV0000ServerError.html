@@ -1,0 +1,10 @@
+<template>
+  <template lwc:if={hasErrors}>
+    <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+      <h2>サーバーエラーが発生しました</h2>
+      <template for:each={records} for:item="error">
+        <p key={error.message}>{error.message}</p>
+      </template>
+    </div>
+  </template>
+</template>

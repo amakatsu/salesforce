@@ -2,7 +2,7 @@
   <!-- 取引先情報 -->
   <lightning-accordion
     allow-multiple-sections-open
-    active-section-name="{activeSections}"
+    active-section-name={activeSections}
   >
     <lightning-accordion-section
       name="a"
@@ -11,6 +11,7 @@
     >
       <lightning-card>
         <lightning-layout multiple-rows horizontal-align="start">
+          <!-- 組織店情報 -->
           <lightning-layout-item size="12">
             <lightning-layout
               multiple-rows
@@ -20,7 +21,7 @@
               <lightning-layout-item size="2" padding="horizontal-small">
                 <lightning-input
                   label="組織店番"
-                  value="{branchNumber}"
+                  value={branchNumber}
                   readonly
                   class="underline"
                 ></lightning-input>
@@ -28,13 +29,15 @@
               <lightning-layout-item size="4" padding="horizontal-small">
                 <lightning-input
                   label="組織店名"
-                  value="{branchName}"
+                  value={branchName}
                   readonly
                   class="underline"
                 ></lightning-input>
               </lightning-layout-item>
             </lightning-layout>
           </lightning-layout-item>
+
+          <!-- 取引先詳細情報 -->
           <lightning-layout-item size="12">
             <lightning-layout
               multiple-rows
@@ -44,7 +47,7 @@
               <lightning-layout-item size="2" padding="horizontal-small">
                 <lightning-input
                   label="店番"
-                  value="{branchNumber}"
+                  value={branchNumber}
                   readonly
                   class="underline"
                 ></lightning-input>
@@ -52,7 +55,7 @@
               <lightning-layout-item size="2" padding="horizontal-small">
                 <lightning-input
                   label="取引先番号"
-                  value="{customerNumber}"
+                  value={customerNumber}
                   readonly
                   class="underline"
                 ></lightning-input>
@@ -60,7 +63,7 @@
               <lightning-layout-item size="4" padding="horizontal-small">
                 <lightning-input
                   label="取引先名"
-                  value="{customerName}"
+                  value={customerName}
                   readonly
                   class="underline"
                 ></lightning-input>
@@ -68,7 +71,7 @@
               <lightning-layout-item size="2" padding="horizontal-small">
                 <lightning-input
                   label="債務者格付"
-                  value="{debtorRating}"
+                  value={debtorRating}
                   readonly
                   class="underline"
                 ></lightning-input>
@@ -76,7 +79,7 @@
               <lightning-layout-item size="2" padding="horizontal-small">
                 <lightning-input
                   label="コア企業"
-                  value="{coreCompany}"
+                  value={coreCompany}
                   readonly
                   class="underline"
                 ></lightning-input>

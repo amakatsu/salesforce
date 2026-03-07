@@ -1,4 +1,4 @@
-import { LightningElement, track, api } from "lwc";
+import { LightningElement, track } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
 
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC6 extends LightningElement {

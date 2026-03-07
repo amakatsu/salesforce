@@ -1,32 +1,15 @@
 import { LightningElement, track } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
+
+// 定数定義
 const BANK_COLUMNS = [
-  {
-    label: "銀行名",
-    fieldName: "bankName",
-    type: "text"
-  },
-  {
-    label: "2年前",
-    fieldName: "twoYearsAgo",
-    type: "text"
-  },
-  {
-    label: "1年前",
-    fieldName: "oneYearAgo",
-    type: "text"
-  },
-  {
-    label: "直近月末",
-    fieldName: "recentEnd",
-    type: "text"
-  },
-  {
-    label: "外為シェア",
-    fieldName: "foreignCurrency",
-    type: "text"
-  }
+  { label: "銀行名", fieldName: "bankName", type: "text" },
+  { label: "２年前", fieldName: "twoYearsAgo", type: "text" },
+  { label: "１年前", fieldName: "oneYearAgo", type: "text" },
+  { label: "直近月末", fieldName: "recentEnd", type: "text" },
+  { label: "外為シェア", fieldName: "foreignCurrency", type: "text" }
 ];
+
 const INDICATOR_COLUMNS = [
   {
     label: "決算期",
@@ -53,7 +36,7 @@ const INDICATOR_COLUMNS = [
     className: "table-sticky__title table-sticky3__title02 width-100"
   },
   {
-    label: "経常利益率（%）",
+    label: "経常利益率(％)",
     fieldName: "currentProfitRate",
     type: "text",
     className: "table-sticky__title table-sticky3__title02 width-100"
@@ -65,7 +48,7 @@ const INDICATOR_COLUMNS = [
     className: "table-sticky__title table-sticky3__title02 width-100"
   },
   {
-    label: "当期利益率（%）",
+    label: "当期利益率(％)",
     fieldName: "netProfitRate",
     type: "text",
     className: "table-sticky__title table-sticky3__title02 width-100"
@@ -83,7 +66,7 @@ const INDICATOR_COLUMNS = [
     className: "table-sticky__title table-sticky3__title02 width-100"
   },
   {
-    label: "配当率（％）",
+    label: "配当率(％)",
     fieldName: "distributionRate",
     type: "text",
     className: "table-sticky__title table-sticky3__title02 width-100"
@@ -95,30 +78,31 @@ const INDICATOR_COLUMNS = [
     className: "table-sticky__title table-sticky3__title02 width-100"
   },
   {
-    label: "借入金回転期間（月）",
+    label: "借入金回転期間(月)",
     fieldName: "borrowingPeriod",
     type: "text",
     className: "table-sticky__title table-sticky3__title02 width-100"
   },
   {
-    label: "純金利負担率（％）",
+    label: "純金利負担率(％)",
     fieldName: "netInterestBurdenRate",
     type: "text",
     className: "table-sticky__title table-sticky3__title02 width-100"
   },
   {
-    label: "自己資本比率（％）",
+    label: "自己資本比率(％)",
     fieldName: "ownCapitalRatio",
     type: "text",
     className: "table-sticky__title table-sticky3__title02 width-120"
   },
   {
-    label: "経常収支比率（％）",
+    label: "経常収支比率(％)",
     fieldName: "currentBalanceRatio",
     type: "text",
     className: "table-sticky__title table-sticky3__title02 width-100"
   }
 ];
+
 const ACTIVE_SECTIONS = [
   "a",
   "b",
@@ -141,15 +125,12 @@ const ACTIVE_SECTIONS = [
 ];
 
 const MAX_AMOUNT = makeTestData("numeric", 5);
+const MAX_AMOUNT9 = makeTestData("numeric", 9);
+const MAX_AMOUNT6 = makeTestData("numeric", 6);
+const MAX_BALANCE_RATIO = "999.9";
 const MAX_RATE = "99.99";
-
-const valueField = (value, editable = true) => ({ value, editable });
-const valueMap = (values, editable = true) =>
-  Object.fromEntries(
-    Object.entries(values).map(([key, value]) => [key, valueField(value, editable)])
-  );
-const fillValueMap = (keys, value, editable = true) =>
-  Object.fromEntries(keys.map((key) => [key, valueField(value, editable)]));
+const MAX_SMALL_RATE = "99.9";
+const MAX_DISTRIBUTION_RATE = makeTestData("numeric", 3);
 
 const ASSESSMENT_KEYS = [
   "nonClassifiedAmount",
@@ -161,7 +142,6 @@ const ASSESSMENT_KEYS = [
   "managedPreferredDebt",
   "creditRelatedCosts"
 ];
-
 const OTHER_TRANSACTION_KEYS = [
   "agencyFee",
   "privateBond",
@@ -171,7 +151,6 @@ const OTHER_TRANSACTION_KEYS = [
   "extreme",
   "specialContract"
 ];
-
 const STOCK_KEYS = [
   "stockName",
   "stockQuantity",
@@ -194,32 +173,26 @@ const BANK_DISABLE_DEFAULTS = {
   recentEnd: true,
   foreignCurrency: false
 };
-const bankRow = ({ id, bankName, values = {}, disable = {} }) => ({
-  id,
-  bankName,
-  ...BANK_DEFAULTS,
-  ...values,
-  disable: { ...BANK_DISABLE_DEFAULTS, ...disable }
-});
 
 const INDICATOR_DEFAULTS = {
   type: "",
-  period: MAX_RATE,
-  sales: MAX_AMOUNT,
-  operatingProfit: MAX_AMOUNT,
-  currentProfit: MAX_AMOUNT,
-  currentProfitRate: "",
-  netProfit: MAX_AMOUNT,
-  netProfitRate: "",
-  depreciation: MAX_AMOUNT,
-  commercialCF: MAX_AMOUNT,
-  distributionRate: MAX_RATE,
-  ownCapital: MAX_AMOUNT,
-  borrowingPeriod: MAX_RATE,
-  netInterestBurdenRate: MAX_RATE,
-  ownCapitalRatio: MAX_RATE,
-  currentBalanceRatio: MAX_RATE
+  period: "99.99",
+  sales: MAX_AMOUNT9,
+  operatingProfit: MAX_AMOUNT9,
+  currentProfit: MAX_AMOUNT6,
+  currentProfitRate: MAX_RATE,
+  netProfit: MAX_AMOUNT6,
+  netProfitRate: MAX_RATE,
+  depreciation: MAX_AMOUNT6,
+  commercialCF: MAX_AMOUNT6,
+  distributionRate: MAX_DISTRIBUTION_RATE,
+  ownCapital: MAX_AMOUNT6,
+  borrowingPeriod: MAX_SMALL_RATE,
+  netInterestBurdenRate: MAX_SMALL_RATE,
+  ownCapitalRatio: MAX_SMALL_RATE,
+  currentBalanceRatio: MAX_BALANCE_RATIO
 };
+
 const INDICATOR_DISABLE_DEFAULTS = {
   period: true,
   sales: true,
@@ -237,6 +210,27 @@ const INDICATOR_DISABLE_DEFAULTS = {
   ownCapitalRatio: true,
   currentBalanceRatio: true
 };
+
+// ヘルパー関数
+const valueField = (value, editable = true) => ({ value, editable });
+const valueMap = (values, editable = true) =>
+  Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      valueField(value, editable)
+    ])
+  );
+const fillValueMap = (keys, value, editable = true) =>
+  Object.fromEntries(keys.map((key) => [key, valueField(value, editable)]));
+
+const bankRow = ({ id, bankName, values = {}, disable = {} }) => ({
+  id,
+  bankName,
+  ...BANK_DEFAULTS,
+  ...values,
+  disable: { ...BANK_DISABLE_DEFAULTS, ...disable }
+});
+
 const indicatorRow = ({ id, overrides = {}, disable = {} }) => ({
   id,
   ...INDICATOR_DEFAULTS,
@@ -244,12 +238,13 @@ const indicatorRow = ({ id, overrides = {}, disable = {} }) => ({
   disable: { ...INDICATOR_DISABLE_DEFAULTS, ...disable }
 });
 
+// データ生成関数
 function generateBankData() {
   return [
     bankRow({ id: "1", bankName: "当行" }),
     bankRow({
       id: "2",
-      bankName: "シェア(%)",
+      bankName: "シェア(％)",
       values: {
         twoYearsAgo: "99.999",
         oneYearAgo: "99.999",
@@ -258,9 +253,9 @@ function generateBankData() {
       },
       disable: { foreignCurrency: true }
     }),
-    bankRow({ id: "3", bankName: makeTestData("mixedChar", 5) }),
-    bankRow({ id: "4", bankName: makeTestData("mixedChar", 5) }),
-    bankRow({ id: "5", bankName: makeTestData("mixedChar", 5) }),
+    bankRow({ id: "3", bankName: makeTestData("mixedChar", 10) }),
+    bankRow({ id: "4", bankName: makeTestData("mixedChar", 10) }),
+    bankRow({ id: "5", bankName: makeTestData("mixedChar", 10) }),
     bankRow({ id: "6", bankName: "総借入" })
   ];
 }
@@ -319,6 +314,8 @@ function generateIndicatorData() {
     })
   ];
 }
+
+// コンポーネントクラス
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
   @track amountUnit = "〇〇〇";
   @track groupNumber = makeTestData("numeric", 1);
@@ -332,13 +329,16 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   @track assessmentData = fillValueMap(ASSESSMENT_KEYS, MAX_AMOUNT);
 
   // その他取引状況データ
-  @track otherTransactionData = fillValueMap(OTHER_TRANSACTION_KEYS, MAX_AMOUNT);
+  @track otherTransactionData = fillValueMap(
+    OTHER_TRANSACTION_KEYS,
+    MAX_AMOUNT
+  );
 
   // 政策投資株式データ
   @track stockData = fillValueMap(STOCK_KEYS, MAX_AMOUNT);
 
   // その他単体データ
-  @track memo = valueField("メモ内容", false);
+  @track memo = valueField(makeTestData("mixedChar", 214), false);
   @track total = valueField("99.9999");
 
   _getValue(group, key) {
@@ -451,6 +451,7 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
 
   updateData(data, id, field, value) {
     const item = data.find((row) => row.id === id);
+
     if (item && !item.disable[field]) {
       item[field] = value;
     }

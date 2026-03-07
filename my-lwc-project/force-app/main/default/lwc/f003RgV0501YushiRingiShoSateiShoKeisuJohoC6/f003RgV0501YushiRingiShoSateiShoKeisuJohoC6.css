@@ -1,0 +1,10 @@
+/* 見出し行（左：計数サマリー、右：金額単位） */
+.summary-header {
+  padding-bottom: 0.1rem;
+  margin-bottom: 0.1rem;
+  border-bottom: none;
+}
+
+.summary-unit {
+  white-space: nowrap;
+}

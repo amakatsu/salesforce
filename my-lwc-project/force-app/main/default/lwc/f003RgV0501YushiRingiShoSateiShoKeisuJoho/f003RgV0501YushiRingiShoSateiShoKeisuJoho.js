@@ -28,6 +28,7 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJoho extends Lightning
   @track showCalculationAndRegisterButtons = true;
   @track isModalOpen = false;
   @track editRow = {};
+  @track treeGridData1 = [];
 
   /* ───────────────── 行アクション (補正値編集) ───────────────── */
   handleRowAction(event) {
@@ -86,7 +87,7 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJoho extends Lightning
   }
 
   handleFileExport() {
-    console.log("ファイル出力");
+    console.log("ファイル作成");
   }
 
   handleExcelExport() {
