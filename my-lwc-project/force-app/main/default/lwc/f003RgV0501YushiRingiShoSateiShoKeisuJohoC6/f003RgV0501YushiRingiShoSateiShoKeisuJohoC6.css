@@ -1,10 +1,55 @@
-/* 見出し行（左：計数サマリー、右：金額単位） */
-.summary-header {
-  padding-bottom: 0.1rem;
-  margin-bottom: 0.1rem;
-  border-bottom: none;
+/* テーブルラベル共通スタイル（親CSS Custom Properties参照） */
+.section-label {
+  display: var(--section-label-display, flex);
+  justify-content: var(--section-label-justify-content, space-between);
+  align-items: var(--section-label-align-items, baseline);
+  margin: var(--section-label-margin, 0);
+  padding-top: var(--section-label-padding-top, 0.5rem);
+  font-weight: normal;
+  font-size: var(--section-label-font-size, 0.9rem);
+  line-height: var(--section-label-line-height, 1.4);
 }
 
+/* 全カラムを下揃え */
+.c6-layout {
+  align-items: flex-end;
+}
+
+/* 金額単位の折り返し防止 */
 .summary-unit {
   white-space: nowrap;
+}
+
+/* ラベル行のテキストを下揃え → 金額単位をBOXに近づける */
+.meta-header {
+  align-items: flex-end;
+}
+
+/* 計数サマリーBOX内のセル値も下揃え */
+.summary-panel .slds-box .slds-grid {
+  align-items: flex-end;
+}
+
+/* テーブルセルがある場合の下揃え */
+td {
+  vertical-align: bottom;
+  padding: 0;
+}
+
+/* Numberコンポーネントの余白を外側から制御（コンポーネント内部CSS修正禁止） */
+c-f003-gs-v0000-number {
+  margin: 0;
+  padding: 0;
+  display: block;
+}
+
+.cell-changed-saved {
+  background-color: var(--cell-saved-highlight, #ffffcc);
+  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
+}
+.cell-changed-saved c-f003-gs-v0000-number {
+  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
+}
+.cell-changed-saved lightning-input {
+  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
 }

@@ -1,4 +1,4 @@
-import { LightningElement } from "lwc";
+import { LightningElement, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
 
 // =========================
@@ -115,7 +115,7 @@ const CREDIT_ITEMS = [
   },
   {
     id: "2",
-    creditType1: makeTestData("mixedChar", 80),
+    creditType1: makeTestData("mixedChar", 40),
     overrides: {
       creditType2: "ワーニング",
       grossNet: "グロス"
@@ -123,7 +123,7 @@ const CREDIT_ITEMS = [
   },
   {
     id: "3",
-    creditType1: makeTestData("mixedChar", 80),
+    creditType1: makeTestData("mixedChar", 40),
     overrides: {
       creditType2: "ワーニン",
       grossNet: "ネット",
@@ -132,7 +132,7 @@ const CREDIT_ITEMS = [
   },
   {
     id: "4",
-    creditType1: makeTestData("mixedChar", 80),
+    creditType1: makeTestData("mixedChar", 40),
     overrides: {
       creditType2: "ワーニン",
       grossNet: "グロス"
@@ -207,7 +207,7 @@ function generateCreditData() {
 }
 
 // =========================
-// C5: 為替予約・担保・参考（Exchange/Collateral/Reference）
+// C5: 為替予約・担保・参考
 // =========================
 
 const EXCHANGE_RESERVATION_COLUMNS = [
@@ -358,6 +358,50 @@ function generateReferenceData() {
 }
 
 // =========================
+// 差分ハイライト
+// =========================
+
+const EXCHANGE_DIFF_FIELDS = [
+  "previousTermAverage",
+  "lastTermAverage",
+  "september99",
+  "dueDate1",
+  "dueDate2",
+  "dueDate3",
+  "dueDate4",
+  "dueDate5"
+];
+const COLLATERAL_DIFF_FIELDS = ["expectedShare", "marketValue"];
+const REFERENCE_DIFF_FIELDS = ["cePe", "ce"];
+
+function deepClone(data) {
+  return JSON.parse(JSON.stringify(data));
+}
+
+function initializeClassFields(data, fields) {
+  return data.map((item) => {
+    const classFields = {};
+    for (const field of fields) {
+      classFields[`${field}Class`] = "";
+    }
+    return { ...item, ...classFields };
+  });
+}
+
+function highlightChangedCells(currentData, originalData, fields) {
+  return currentData.map((record) => {
+    const original =
+      originalData.find((r) => r.id === record.id) || {};
+    const classUpdates = {};
+    for (const field of fields) {
+      classUpdates[`${field}Class`] =
+        original[field] !== record[field] ? `${CHANGED_CELL_CLASS} cell-changed-saved` : "";
+    }
+    return { ...record, ...classUpdates };
+  });
+}
+
+// =========================
 // 統合コンポーネント
 // =========================
 
@@ -415,64 +459,38 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
     this.resetData();
   }
 
-  // ===== 共通：Reset =====
   resetData() {
-    // originals
-    this.originalExchangeReservationData = JSON.parse(
-      JSON.stringify(this.initialExchangeReservationData)
+    this.originalExchangeReservationData = deepClone(
+      this.initialExchangeReservationData
     );
-    this.originalRegularCollateralData = JSON.parse(
-      JSON.stringify(this.initialRegularCollateralData)
+    this.originalRegularCollateralData = deepClone(
+      this.initialRegularCollateralData
     );
-    this.originalNonRegularCollateralData = JSON.parse(
-      JSON.stringify(this.initialNonRegularCollateralData)
+    this.originalNonRegularCollateralData = deepClone(
+      this.initialNonRegularCollateralData
     );
-    this.originalReferenceData = JSON.parse(
-      JSON.stringify(this.initialReferenceData)
+    this.originalReferenceData = deepClone(this.initialReferenceData);
+
+    this.exchangeReservationData = initializeClassFields(
+      this.initialExchangeReservationData,
+      EXCHANGE_DIFF_FIELDS
+    );
+    this.regularCollateralData = initializeClassFields(
+      this.initialRegularCollateralData,
+      COLLATERAL_DIFF_FIELDS
+    );
+    this.nonRegularCollateralData = initializeClassFields(
+      this.initialNonRegularCollateralData,
+      COLLATERAL_DIFF_FIELDS
+    );
+    this.referenceData = initializeClassFields(
+      this.initialReferenceData,
+      REFERENCE_DIFF_FIELDS
     );
 
-    // C5: class fields for diff highlight
-    this.exchangeReservationData = this.initialExchangeReservationData.map(
-      (item) => ({
-        ...item,
-        previousTermAverageClass: "",
-        lastTermAverageClass: "",
-        september99Class: "",
-        dueDate1Class: "",
-        dueDate2Class: "",
-        dueDate3Class: "",
-        dueDate4Class: "",
-        dueDate5Class: ""
-      })
-    );
-
-    this.regularCollateralData = this.initialRegularCollateralData.map(
-      (item) => ({
-        ...item,
-        expectedShareClass: "",
-        marketValueClass: ""
-      })
-    );
-
-    this.nonRegularCollateralData = this.initialNonRegularCollateralData.map(
-      (item) => ({
-        ...item,
-        expectedShareClass: "",
-        marketValueClass: ""
-      })
-    );
-
-    this.referenceData = this.initialReferenceData.map((item) => ({
-      ...item,
-      cePeClass: "",
-      ceClass: ""
-    }));
-
-    // C4: credit は初期生成（必要なら reset で戻す）
     this.creditData = generateCreditData();
   }
 
-  // ===== 共通：Input Change（C4/C5全部を対象に更新）=====
   handleInputChange(event) {
     const { id, field } =
       event.currentTarget?.dataset || event.target?.dataset || {};
@@ -480,15 +498,12 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
 
     if (!id || !field) return;
 
-    // C4
     this.creditData = this.updateDataImmutable(
       this.creditData,
       id,
       field,
       value
     );
-
-    // C5
     this.exchangeReservationData = this.updateDataImmutable(
       this.exchangeReservationData,
       id,
@@ -521,105 +536,45 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
     );
   }
 
-  // ===== C5: Save（変更セルにclass付与）=====
-  handleSave() {
-    // Exchange
-    this.exchangeReservationData = this.exchangeReservationData.map(
-      (record) => {
-        const original =
-          this.originalExchangeReservationData.find(
-            (r) => r.id === record.id
-          ) || {};
-        return {
-          ...record,
-          previousTermAverageClass:
-            original.previousTermAverage !== record.previousTermAverage
-              ? CHANGED_CELL_CLASS
-              : "",
-          lastTermAverageClass:
-            original.lastTermAverage !== record.lastTermAverage
-              ? CHANGED_CELL_CLASS
-              : "",
-          september99Class:
-            original.september99 !== record.september99
-              ? CHANGED_CELL_CLASS
-              : "",
-          dueDate1Class:
-            original.dueDate1 !== record.dueDate1 ? CHANGED_CELL_CLASS : "",
-          dueDate2Class:
-            original.dueDate2 !== record.dueDate2 ? CHANGED_CELL_CLASS : "",
-          dueDate3Class:
-            original.dueDate3 !== record.dueDate3 ? CHANGED_CELL_CLASS : "",
-          dueDate4Class:
-            original.dueDate4 !== record.dueDate4 ? CHANGED_CELL_CLASS : "",
-          dueDate5Class:
-            original.dueDate5 !== record.dueDate5 ? CHANGED_CELL_CLASS : ""
-        };
-      }
-    );
-
-    // Regular collateral
-    this.regularCollateralData = this.regularCollateralData.map((record) => {
-      const original =
-        this.originalRegularCollateralData.find((r) => r.id === record.id) ||
-        {};
-      return {
-        ...record,
-        expectedShareClass:
-          original.expectedShare !== record.expectedShare
-            ? CHANGED_CELL_CLASS
-            : "",
-        marketValueClass:
-          original.marketValue !== record.marketValue ? CHANGED_CELL_CLASS : ""
-      };
-    });
-
-    // Non-regular collateral
-    this.nonRegularCollateralData = this.nonRegularCollateralData.map(
-      (record) => {
-        const original =
-          this.originalNonRegularCollateralData.find(
-            (r) => r.id === record.id
-          ) || {};
-        return {
-          ...record,
-          expectedShareClass:
-            original.expectedShare !== record.expectedShare
-              ? CHANGED_CELL_CLASS
-              : "",
-          marketValueClass:
-            original.marketValue !== record.marketValue
-              ? CHANGED_CELL_CLASS
-              : ""
-        };
-      }
-    );
-
-    // Reference
-    this.referenceData = this.referenceData.map((record) => {
-      const original =
-        this.originalReferenceData.find((r) => r.id === record.id) || {};
-      return {
-        ...record,
-        cePeClass: original.cePe !== record.cePe ? CHANGED_CELL_CLASS : "",
-        ceClass: original.ce !== record.ce ? CHANGED_CELL_CLASS : ""
-      };
-    });
-
-    // originals update
-    this.originalExchangeReservationData = JSON.parse(
-      JSON.stringify(this.exchangeReservationData)
-    );
-    this.originalRegularCollateralData = JSON.parse(
-      JSON.stringify(this.regularCollateralData)
-    );
-    this.originalNonRegularCollateralData = JSON.parse(
-      JSON.stringify(this.nonRegularCollateralData)
-    );
-    this.originalReferenceData = JSON.parse(JSON.stringify(this.referenceData));
+  @api
+  applySavedHighlight() {
+    this.handleSave();
   }
 
-  // ===== 共通：Resetボタン =====
+  handleSave() {
+    this.exchangeReservationData = highlightChangedCells(
+      this.exchangeReservationData,
+      this.originalExchangeReservationData,
+      EXCHANGE_DIFF_FIELDS
+    );
+    this.regularCollateralData = highlightChangedCells(
+      this.regularCollateralData,
+      this.originalRegularCollateralData,
+      COLLATERAL_DIFF_FIELDS
+    );
+    this.nonRegularCollateralData = highlightChangedCells(
+      this.nonRegularCollateralData,
+      this.originalNonRegularCollateralData,
+      COLLATERAL_DIFF_FIELDS
+    );
+    this.referenceData = highlightChangedCells(
+      this.referenceData,
+      this.originalReferenceData,
+      REFERENCE_DIFF_FIELDS
+    );
+
+    this.originalExchangeReservationData = deepClone(
+      this.exchangeReservationData
+    );
+    this.originalRegularCollateralData = deepClone(
+      this.regularCollateralData
+    );
+    this.originalNonRegularCollateralData = deepClone(
+      this.nonRegularCollateralData
+    );
+    this.originalReferenceData = deepClone(this.referenceData);
+  }
+
   handleReset() {
     this.resetData();
   }

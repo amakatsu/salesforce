@@ -3,48 +3,44 @@
     allow-multiple-sections-open
     active-section-name={activeSections}
   >
-    <!-- 案件サマリー・補正理由等 -->
+    <!-- 計数サマリー・補正理由等 -->
     <lightning-accordion-section
       name="c"
-      label="案件サマリー・補正理由等"
+      label="計数サマリー・補正理由等"
       icon-name="standard:choice"
     >
       <lightning-card>
-        <div class="slds-grid slds-gutters slds-var-p-horizontal_small">
+        <div class="slds-grid slds-gutters slds-var-p-horizontal_small c6-layout">
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <div class="slds-col slds-size_12-of-12 slds-var-p-top_medium">
-              <lightning-input
-                label="禀査番号"
-                value={reviewNumber}
-                readonly
-                class="underline"
-              ></lightning-input>
-            </div>
+            <lightning-input
+              label="禀査番号"
+              value={reviewNumber}
+              readonly
+              class="underline slds-var-p-top_medium"
+            ></lightning-input>
           </div>
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <div class="slds-col slds-size_12-of-12 slds-var-p-top_medium">
-              <lightning-input
-                label="基準日"
-                value={date}
-                readonly
-                class="underline"
-              ></lightning-input>
-            </div>
+            <lightning-input
+              label="基準日"
+              value={date}
+              readonly
+              class="underline slds-var-p-top_medium"
+            ></lightning-input>
           </div>
 
-          <div class="summary-wrap slds-size_4-of-12">
+          <div class="slds-col slds-size_4-of-12 summary-panel">
             <!-- ヘッダー行 -->
             <div
-              class="summary-header slds-grid slds-grid_align-spread slds-var-p-horizontal_xx-small"
+              class="slds-grid slds-grid_align-spread slds-var-p-horizontal_xx-small meta-header"
             >
-              <span class="label">計数サマリー</span>
-              <span class="summary-unit">金額単位〇〇〇</span>
+              <span class="section-label">計数サマリー</span>
+              <span class="summary-unit">金額単位：〇〇〇</span>
             </div>
             <!-- BOX本体 -->
-            <div class="slds-box slds-box_small">
+            <div class="slds-box slds-box_small slds-var-m-bottom_none slds-var-p-bottom_none">
               <div class="slds-grid slds-gutters slds-var-p-horizontal_small">
                 <div class="slds-size_6-of-12">
-                  <label class="label">限度算入</label>
+                  <label class="section-label">限度算入</label>
                   <div class="slds-box slds-box_small">
                     <div class="slds-grid slds-gutters">
                       <div class="slds-col slds-size_6-of-12">
@@ -83,23 +79,21 @@
           </div>
 
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <div class="slds-col slds-size_12-of-12 slds-var-p-top_medium">
-              <lightning-input
-                label="プール区分"
-                value={poolCategory}
-                readonly
-                class="underline"
-              ></lightning-input>
-            </div>
+            <lightning-input
+              label="プール区分"
+              value={poolCategory}
+              readonly
+              class="underline slds-var-p-top_medium"
+            ></lightning-input>
           </div>
-          <div class="slds-col slds-size_3-of-12">
-            <lightning-layout-item flexibility="auto">
-              <lightning-textarea
-                label="補正理由"
-                value={correctionReason}
-                style="--sds-c-textarea-sizing-min-height: 5rem"
-              ></lightning-textarea>
-            </lightning-layout-item>
+          <div class="slds-col slds-size_4-of-12 summary-panel">
+            <lightning-textarea
+              label="補正理由"
+              value={correctionReason}
+              max-length="105"
+              class="correction-reason"
+              style="--sds-c-textarea-sizing-min-height: 6rem"
+            ></lightning-textarea>
           </div>
         </div>
       </lightning-card>

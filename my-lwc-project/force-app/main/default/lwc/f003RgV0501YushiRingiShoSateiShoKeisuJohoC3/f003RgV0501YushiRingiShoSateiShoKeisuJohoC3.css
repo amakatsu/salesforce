@@ -1,3 +1,17 @@
+/* テーブルラベル共通スタイル（親CSS Custom Properties参照） */
+.section-label {
+  font-weight: var(--section-label-font-weight, 700);
+  font-size: var(--section-label-font-size, 0.9rem);
+  line-height: var(--section-label-line-height, 1.4);
+  padding-top: var(--section-label-padding-top, 0.5rem);
+  margin: var(--section-label-margin, 0);
+  display: var(--section-label-display, flex);
+  justify-content: var(--section-label-justify-content, space-between);
+  align-items: var(--section-label-align-items, baseline);
+}
+
+/* ===== テーブル共通 ===== */
+
 .common-table {
   width: 100%;
   border: 1px solid #999;
@@ -11,80 +25,47 @@
   background: #f2f2f2;
   top: 0;
   left: 0;
-  text-align: left; /* 左寄せ */
+  text-align: left;
 }
 
 .common-table td {
   border: 1px solid #999;
   background: #fff;
-  padding: 5px;
-  text-align: left; /* 左寄せ */
+  padding: 0;
+  text-align: left;
 }
 
 .changed-cell {
   --slds-c-input-color-background: #fff9c4;
 }
 
-.table-sticky {
-  /* 
-        slds-gridによるレイアウト制御と<table>タグはどうやら相性が悪いようで、横幅などの調整をしない場合、
-        lightning-cardの範囲を飛び越えて表示されてしまうことがある。
-    */
-  max-width: 1800px;
-
-  /* 
-        テーブルに対して、設定した縦幅を超える場合にスクロールを発生させる。
-        スクロールが発生しない範囲の場合は、スクロールバーは表示しない。
-    */
-  max-height: 1200px;
-  overflow: auto;
-
-  /* 
-        margin-right, left:autoの設定をすると、利用可能な横幅の中でスペースを均等に配分しようとするため、
-        結果として要素が中央に配置されるようになる。
-        これはwindowのサイズを変更しても維持されるので、テーブルの中央揃えに用いている。
-    */
-  /*
-    margin-right: auto;
-    margin-left: auto;
-    */
-
-  position: relative; /* テーブル固定の基準点として設定（ここで設定したタグ以下に対して固定が動作するようにする） */
-  padding-left: 0; /* 横スクロール時、スクロールしたデータがpadding領域に表示されないようにするため余白を0にする */
+.cell-changed-saved {
+  background-color: var(--cell-saved-highlight, #ffffcc);
+  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
+}
+.cell-changed-saved c-f003-gs-v0000-number {
+  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
+}
+.cell-changed-saved lightning-input {
+  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
 }
 
-.table-sticky__title {
-  /* このクラスを設定された要素の位置が、画面上のスクロールなどで、高さ0になったとき、もしくは左辺が0になったとき、
-       このクラスを設定された要素は、高さ0もしくは、左辺0の位置に固定される。 */
-  position: sticky;
-  top: 0;
-  left: 0;
-}
-
-.table-sticky3__title01 {
-  z-index: 2; /* 重複時の順序設定、テーブル左上のブランクエリアを最優先している */
-}
-
-.table-sticky3__title02 {
-  z-index: 1; /* 重複時の順序設定、テーブル左上のブランクエリアの次点で設定 */
-}
+/* ===== ボーダー ===== */
 
 table {
   border-spacing: 0;
-
-  /* テーブル要素にのみ利用可能。テーブルのセル間の境界線を1つにまとめる設定 */
   border-collapse: separate;
 }
 
 th,
 td {
-  /* <td, th>タグ全体に対してボーダーを引く */
   border-top: 1px solid #999;
   border-left: 1px solid #999;
 }
 
 td {
   background: #ffffff;
+  padding: 0;
 }
 
 th {
@@ -94,153 +75,74 @@ th {
   top: 0;
 }
 
-/* 縦ヘッダーの右側の罫線を設定する */
 th[scope="row"] {
   border-right: 1px solid #999;
 }
 
-/* 横ヘッダーの下側の罫線を設定する */
 th[scope="col"] {
   border-bottom: 1px solid #999;
 }
 
-/* 一番左上のヘッダーの罫線の設定 */
+/* 右端・下端の罫線補完 */
 tr:nth-child(1) th:nth-child(1) {
   border-right: 1px solid #999;
 }
 
-/* ヘッダーの一番右側のセルの右罫線を設定する。 */
 tr:nth-child(1) th:last-child {
   border-right: 1px solid #999;
 }
 
-/* 1行目（ヘッダー行）以降のtdの一番右側のセルの右罫線を設定する。 */
 tr:nth-child(n + 1) td:last-child {
   border-right: 1px solid #999;
 }
 
-/* 繰り返しでデータ行が複数存在する場合、個別に指定が必要。 */
-
-/* 最終行の下の罫線を作成する(最後から1番目なので、2行目) */
 tr:nth-last-child(1) td {
   border-bottom: 1px solid #999;
-  border-top: none; /* 1行目のbottomと被るため削除 */
+  border-top: none;
 }
 
-/* 最終行の下の罫線を作成する(最後から1番目なので、2行目) 縦ヘッダー分 */
 tr:nth-last-child(1) th {
   border-bottom: 1px solid #999;
 }
 
-/* 最終行の下の罫線を作成する（最後から2番目なので、1行目） */
 tr:nth-last-child(2) td {
   border-bottom: 1px solid #999;
 }
 
-.width-20 {
-  min-width: 15px;
+/* くくり・金額単位はラベルの太字を継承しない */
+.meta-text {
+  font-weight: normal;
 }
 
-.width-100 {
-  min-width: 150px;
+/* ===== 経営指標テーブル ===== */
+
+.indicator-table {
+  table-layout: fixed;
+  width: 100%;
 }
 
-/* テーブル全体を包むラッパー */
-/* 既存：テーブルブロック（ラベル配置の基準） */
-.table-block {
-  position: relative;
-  padding-top: 18px; /* ラベル分の余白 */
+/* thead thの余白を明示設定（slds-table除去後も維持） */
+.indicator-table thead th {
+  padding: 0.25rem 0.5rem;
 }
 
-.table-block__label {
-  position: absolute;
-  top: 0;
-  left: 0;
+/* tbody 1列目(th scope=row)は通常太さ */
+.indicator-table tbody th {
+  font-weight: normal;
+}
 
-  /* ▼ 背景削除 */
-  background: transparent;
+/* ヘッダ折り返しで文字見切れ防止 */
+.indicator-header-text {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
 
-  /* ▼ 黒の太字 */
-  color: #000;
-  font-weight: 700;
-
-  /* ▼ 装飾リセット */
+/* Numberコンポーネントの余白を外側から制御（コンポーネント内部CSS修正禁止） */
+c-f003-gs-v0000-number {
+  margin: 0;
   padding: 0;
-  border-radius: 0;
-
-  font-size: 1rem;
-  white-space: nowrap;
-}
-
-/* 自己査定結果：ラベルと金額単位を同じ高さに揃える */
-.table-block__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
-}
-
-/* 既存の absolute を使っていた場合は、ヘッダー内では無効化 */
-.table-block__header .table-block__label {
-  position: static;
-}
-
-/* 金額単位の余計な上余白を抑える（見た目のズレ対策） */
-.table-block__unit p {
-  margin: 0;
-}
-
-.equal-height-row {
-  display: flex;
-  align-items: stretch;
-}
-
-.equal-height-col {
-  display: flex;
-}
-
-.equal-height-col lightning-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.equal-height-col .table-block {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-/* カード内の余白を消す */
-.equal-height-col lightning-card .slds-card__body {
-  padding-top: 0;
-}
-
-/* 自己査定結果だけヘッダーをテーブルブロックの上部に固定して“押し下げ”を無くす */
-.table-block--assessment {
-  position: relative;
-  padding-top: 18px; /* ヘッダー分のスペース（必要なら 20〜24 に微調整） */
-}
-
-.table-block--assessment .table-block__header--absolute {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  margin: 0; /* 余計な下マージンを消す */
-  height: 18px; /* ラベル行の高さ（padding-top と合わせる） */
-}
-
-.table-block--assessment .table-block__label {
-  position: static; /* ヘッダー内では通常でOK（ヘッダー自体がabsolute） */
-}
-
-.table-block--assessment .table-block__unit p {
-  margin: 0;
-  line-height: 1; /* 文字の上下ブレが気になる場合 */
+  display: block;
 }

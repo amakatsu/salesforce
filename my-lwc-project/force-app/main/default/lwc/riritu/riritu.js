@@ -28,7 +28,7 @@ const TABLE_HEADERS = {
 
 const ACCORDION_LABELS = {
   CREDIT_STATUS: "与信状況",
-  COLLATERAL: "本件保全状況",
+  COLLATERAL: "保全状況",
   GUARANTOR: "保証人"
 };
 

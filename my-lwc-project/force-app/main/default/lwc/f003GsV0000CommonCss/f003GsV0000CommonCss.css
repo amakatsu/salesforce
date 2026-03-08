@@ -1,1 +1,14 @@
 /* 共通テーブルスタイル - f003プロジェクト共通CSS */
+
+/* セクションラベル - テーブル上の見出し統一スタイル
+   値は親コンポーネントの CSS Custom Properties で制御 */
+.section-label {
+  font-weight: var(--section-label-font-weight, 700);
+  font-size: var(--section-label-font-size, 0.9rem);
+  line-height: var(--section-label-line-height, 1.4);
+  padding-top: var(--section-label-padding-top, 0.5rem);
+  margin: var(--section-label-margin, 0);
+  display: var(--section-label-display, flex);
+  justify-content: var(--section-label-justify-content, space-between);
+  align-items: var(--section-label-align-items, baseline);
+}

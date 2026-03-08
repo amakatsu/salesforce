@@ -162,11 +162,7 @@
                             variant="bare"
                             size="small"
                             alternative-text="toggle"
-                            onclick="
-                              {
-                                handleToggle;
-                              }
-                            "
+                            onclick={handleToggle}
                             data-id="{row.id}"
                           ></lightning-button-icon>
                         </th>
@@ -179,11 +175,7 @@
                               value="{row.label}"
                               data-id="{row.id}"
                               data-field="label"
-                              onchange="
-                                {
-                                  handleEdit;
-                                }
-                              "
+                              onchange={handleEdit}
                             ></lightning-input>
                           </template>
                           <template if:false="{row.isSpecificCredit}">
@@ -198,11 +190,7 @@
                             value="{row.dueDate}"
                             data-id="{row.id}"
                             data-field="dueDate"
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onchange={handleEdit}
                             disabled="{row.dueDateDisabled}"
                           ></lightning-input>
                         </td>
@@ -216,16 +204,8 @@
                             set-id="rate"
                             disabled="{row.rateDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 99月末残高 -->
@@ -238,16 +218,8 @@
                             set-id="balance99"
                             disabled="{row.balance99Disabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 合算表示 -->
@@ -264,16 +236,8 @@
                             set-id="principal"
                             disabled="{row.principalDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 当月増減 -->
@@ -286,16 +250,8 @@
                             set-id="change"
                             disabled="{row.changeDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 本件後残高 -->
@@ -311,16 +267,8 @@
                             set-id="postBalance"
                             disabled="{row.postBalanceDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 実勢現在残 -->
@@ -336,16 +284,8 @@
                             set-id="actualBalance"
                             disabled="{row.actualBalanceDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 補正値 -->
@@ -361,16 +301,8 @@
                             set-id="correction"
                             disabled="{row.correctionDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                       </tr>
@@ -452,11 +384,7 @@
                             variant="bare"
                             size="small"
                             alternative-text="toggle"
-                            onclick="
-                              {
-                                handleToggle;
-                              }
-                            "
+                            onclick={handleToggle}
                             data-id="{row.id}"
                           ></lightning-button-icon>
                         </th>
@@ -474,16 +402,8 @@
                             set-id="regValue"
                             disabled="{row.regValueDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                         <!-- 時価ベース -->
@@ -499,16 +419,8 @@
                             set-id="marketValue"
                             disabled="{row.marketValueDisabled}"
                             step="{labels.config.DECIMAL_STEP}"
-                            onerror="
-                              {
-                                numberErrorHandler;
-                              }
-                            "
-                            onchange="
-                              {
-                                handleEdit;
-                              }
-                            "
+                            onerror={numberErrorHandler}
+                            onchange={handleEdit}
                           ></c-f003-gs-v0000-number>
                         </td>
                       </tr>
@@ -555,11 +467,7 @@
                           variant="label-hidden"
                           value="{row.name}"
                           label="Name"
-                          onchange="
-                            {
-                              handleInputChange;
-                            }
-                          "
+                          onchange={handleInputChange}
                           data-id="{row.id}"
                         ></lightning-input>
                       </td>
@@ -579,21 +487,9 @@
           placeholder="数字を入力してください（例: 12345678）"
           max-length="12"
           pattern="[0-9]*"
-          onfocus="
-            {
-              handleHyphenFieldFocus;
-            }
-          "
-          onblur="
-            {
-              handleHyphenFieldBlur;
-            }
-          "
-          onchange="
-            {
-              handleHyphenFieldInput;
-            }
-          "
+          onfocus={handleHyphenFieldFocus}
+          onblur={handleHyphenFieldBlur}
+          onchange={handleHyphenFieldInput}
         ></lightning-input>
       </lightning-layout-item>
     </lightning-layout>

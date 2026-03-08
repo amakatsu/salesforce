@@ -1,7 +1,6 @@
-import { LightningElement, track } from "lwc";
+import { LightningElement, track, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
 
-// 定数定義
 const BANK_COLUMNS = [
   { label: "銀行名", fieldName: "bankName", type: "text" },
   { label: "２年前", fieldName: "twoYearsAgo", type: "text" },
@@ -11,96 +10,21 @@ const BANK_COLUMNS = [
 ];
 
 const INDICATOR_COLUMNS = [
-  {
-    label: "決算期",
-    fieldName: "period",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title01 width-100"
-  },
-  {
-    label: "純売上高",
-    fieldName: "sales",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "月商",
-    fieldName: "operatingProfit",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "経常利益",
-    fieldName: "currentProfit",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "経常利益率(％)",
-    fieldName: "currentProfitRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "当期利益",
-    fieldName: "netProfit",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "当期利益率(％)",
-    fieldName: "netProfitRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "減価償却",
-    fieldName: "depreciation",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "簡易CF",
-    fieldName: "commercialCF",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "配当率(％)",
-    fieldName: "distributionRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "自己資本",
-    fieldName: "ownCapital",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "借入金回転期間(月)",
-    fieldName: "borrowingPeriod",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "純金利負担率(％)",
-    fieldName: "netInterestBurdenRate",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  },
-  {
-    label: "自己資本比率(％)",
-    fieldName: "ownCapitalRatio",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-120"
-  },
-  {
-    label: "経常収支比率(％)",
-    fieldName: "currentBalanceRatio",
-    type: "text",
-    className: "table-sticky__title table-sticky3__title02 width-100"
-  }
+  { label: "決算期", fieldName: "period" },
+  { label: "純売上高", fieldName: "sales" },
+  { label: "月商", fieldName: "operatingProfit" },
+  { label: "経常利益", fieldName: "currentProfit" },
+  { label: "経常利益率(％)", fieldName: "currentProfitRate" },
+  { label: "当期利益", fieldName: "netProfit" },
+  { label: "当期利益率(％)", fieldName: "netProfitRate" },
+  { label: "減価償却", fieldName: "depreciation" },
+  { label: "簡易CF", fieldName: "commercialCF" },
+  { label: "配当率(％)", fieldName: "distributionRate" },
+  { label: "自己資本", fieldName: "ownCapital" },
+  { label: "借入金回転期間(月)", fieldName: "borrowingPeriod" },
+  { label: "純金利負担率(％)", fieldName: "netInterestBurdenRate" },
+  { label: "自己資本比率(％)", fieldName: "ownCapitalRatio" },
+  { label: "経常収支比率(％)", fieldName: "currentBalanceRatio" }
 ];
 
 const ACTIVE_SECTIONS = [
@@ -211,7 +135,11 @@ const INDICATOR_DISABLE_DEFAULTS = {
   currentBalanceRatio: true
 };
 
-// ヘルパー関数
+const BANK_HIGHLIGHT_FIELDS = Object.keys(BANK_DEFAULTS);
+const INDICATOR_HIGHLIGHT_FIELDS = Object.keys(INDICATOR_DEFAULTS).filter(
+  (f) => f !== "type"
+);
+
 const valueField = (value, editable = true) => ({ value, editable });
 const valueMap = (values, editable = true) =>
   Object.fromEntries(
@@ -238,7 +166,6 @@ const indicatorRow = ({ id, overrides = {}, disable = {} }) => ({
   disable: { ...INDICATOR_DISABLE_DEFAULTS, ...disable }
 });
 
-// データ生成関数
 function generateBankData() {
   return [
     bankRow({ id: "1", bankName: "当行" }),
@@ -315,7 +242,6 @@ function generateIndicatorData() {
   ];
 }
 
-// コンポーネントクラス
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
   @track amountUnit = "〇〇〇";
   @track groupNumber = makeTestData("numeric", 1);
@@ -325,27 +251,29 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   @track indicatorData = generateIndicatorData();
   indicatorColumns = INDICATOR_COLUMNS;
 
-  // 自己査定結果データ
   @track assessmentData = fillValueMap(ASSESSMENT_KEYS, MAX_AMOUNT);
 
-  // その他取引状況データ
   @track otherTransactionData = fillValueMap(
     OTHER_TRANSACTION_KEYS,
     MAX_AMOUNT
   );
 
-  // 政策投資株式データ
   @track stockData = fillValueMap(STOCK_KEYS, MAX_AMOUNT);
 
-  // その他単体データ
   @track memo = valueField(makeTestData("mixedChar", 214), false);
   @track total = valueField("99.9999");
+
+  _savedBankValues = new Map();
+  _savedIndicatorValues = new Map();
+
+  connectedCallback() {
+    this._snapshotValues();
+  }
 
   _getValue(group, key) {
     return this[group][key].value;
   }
 
-  // ゲッター：データ値を簡単にアクセスできるように
   get nonClassifiedAmount() {
     return this._getValue("assessmentData", "nonClassifiedAmount");
   }
@@ -455,5 +383,51 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
     if (item && !item.disable[field]) {
       item[field] = value;
     }
+  }
+
+  _snapshotValues() {
+    this._savedBankValues = new Map();
+    for (const row of this.bankData) {
+      const snapshot = {};
+      for (const field of BANK_HIGHLIGHT_FIELDS) {
+        snapshot[field] = row[field];
+      }
+      this._savedBankValues.set(row.id, snapshot);
+    }
+    this._savedIndicatorValues = new Map();
+    for (const row of this.indicatorData) {
+      const snapshot = {};
+      for (const field of INDICATOR_HIGHLIGHT_FIELDS) {
+        snapshot[field] = row[field];
+      }
+      this._savedIndicatorValues.set(row.id, snapshot);
+    }
+  }
+
+  @api
+  applySavedHighlight() {
+    const cls = "cell-changed-saved";
+
+    this.bankData = this.bankData.map((row) => {
+      const saved = this._savedBankValues.get(row.id) || {};
+      const updated = { ...row };
+      for (const field of BANK_HIGHLIGHT_FIELDS) {
+        updated[field + "Class"] =
+          String(updated[field]) !== String(saved[field]) ? cls : "";
+      }
+      return updated;
+    });
+
+    this.indicatorData = this.indicatorData.map((row) => {
+      const saved = this._savedIndicatorValues.get(row.id) || {};
+      const updated = { ...row };
+      for (const field of INDICATOR_HIGHLIGHT_FIELDS) {
+        updated[field + "Class"] =
+          String(updated[field]) !== String(saved[field]) ? cls : "";
+      }
+      return updated;
+    });
+
+    this._snapshotValues();
   }
 }

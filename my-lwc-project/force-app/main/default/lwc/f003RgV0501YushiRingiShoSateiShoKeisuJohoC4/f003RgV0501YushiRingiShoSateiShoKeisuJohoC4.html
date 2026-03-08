@@ -1,214 +1,178 @@
 <template>
-  <!-- アコーディオン廃止：通常レイアウトに変更 -->
   <lightning-layout multiple-rows>
     <!-- =========================
          テーブル① 市場性与信状況
          ========================= -->
     <lightning-layout-item size="12">
       <lightning-card>
-        <!-- ラベル -->
         <div class="table-block">
-          <div class="table-block__label">市場性与信状況</div>
-          <div class="slds-grid slds-grid_align-end slds-wrap">
-            <div class="slds-col slds-var-p-horizontal_xx-large">
-              <p>括り: {groupNumber}</p>
-            </div>
-            <div class="slds-col">
-              <p>金額単位: {amountUnit}</p>
-            </div>
+          <div class="section-label">市場性与信状況
+            <span class="meta-group">
+              <span class="meta-text">括り： {groupNumber}</span>
+              <span class="meta-text slds-var-p-left_small">金額単位： {amountUnit}</span>
+            </span>
           </div>
 
-          <div class="slds-grid slds-gutters slds-wrap">
-            <div
-              class="table-sticky slds-col slds-size_12-of-12 slds-var-m-right_small slds-var-m-left_small"
-            >
-              <table roles="grid" class="slds-table table-sticky__title">
+              <table class="slds-table">
                 <thead>
                   <tr class="slds-line-height_reset">
-                    <th rowspan="2" style="width: 300px" scope="col">
+                    <th style="width: 85px" scope="col">
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="与信種類(科目)"
                       >
                         与信種類(科目)
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 110px"
+                      style="width: 45px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="ワーニング情報"
                       >
                         ワーニング情報
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 110px"
+                      style="width: 35px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="グロス／ネット"
                       >
                         グロス／ネット
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 110px"
+                      style="width: 30px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="期 日"
                       >
                         期 日
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 130px"
+                      style="width: 35px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="マージン"
                       >
                         マージン
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 110px"
+                      style="width: 40px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="99月末残高"
                       >
                         99月末残高
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 110px"
+                      style="width: 40px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="99月末極度"
                       >
                         99月末極度
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 110px"
+                      style="width: 40px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="当月増減"
                       >
                         当月増減
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="2"
-                      style="min-width: 110px"
+                      style="width: 40px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="本件後与信額"
                       >
                         本件後与信額
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="1"
-                      style="min-width: 110px"
+                      style="width: 40px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
-                        title="実勢現在残高 C／E+P／E"
+                        class="slds-var-p-right_x-small"
+                        title="実勢現在残 C／E+P／E"
                       >
                         実勢現在残 C／E+P／E
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="1"
-                      style="min-width: 110px"
+                      style="width: 40px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
-                        title="実勢現在残高 C／E"
+                        class="slds-var-p-right_x-small"
+                        title="C／E+P／E(参考値)"
+                      >
+                        C／E+P／E(参考値)
+                      </div>
+                    </th>
+                    <th
+                      style="width: 40px"
+                      scope="col"
+                    >
+                      <div
+                        class="slds-var-p-right_x-small"
+                        title="実勢現在残 C／E"
                       >
                         実勢現在残 C／E
                       </div>
                     </th>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      rowspan="1"
-                      style="min-width: 110px"
+                      style="width: 40px"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
+                        title="C／E(参考値)"
+                      >
+                        C／E(参考値)
+                      </div>
+                    </th>
+                    <th
+                      style="width: 40px"
+                      scope="col"
+                    >
+                      <div
+                        class="slds-var-p-right_x-small"
                         title="想定元本承認額"
                       >
                         想定元本承認額
                       </div>
                     </th>
-                  </tr>
-                  <tr>
                     <th
-                      class="table-sticky__title table-sticky3__title02"
-                      style="min-width: 110px"
+                      style="width: 40px; border-right: 1px solid #999"
                       scope="col"
                     >
                       <div
-                        class="slds-truncate slds-var-p-right_x-small"
-                        title="実勢現在残高 C／E+P／E(参考値)"
-                      >
-                        (参考値)
-                      </div>
-                    </th>
-                    <th
-                      class="table-sticky__title table-sticky3__title02"
-                      style="min-width: 110px"
-                      scope="col"
-                    >
-                      <div
-                        class="slds-truncate slds-var-p-right_x-small"
-                        title="実勢現在残高 C／E(参考値)"
-                      >
-                        (参考値)
-                      </div>
-                    </th>
-                    <th
-                      class="table-sticky__title table-sticky3__title02"
-                      style="border-right: 1px solid #999; min-width: 110px"
-                      scope="col"
-                    >
-                      <div
-                        class="slds-truncate slds-var-p-right_x-small"
+                        class="slds-var-p-right_x-small"
                         title="想定元本実勢現在残"
                       >
                         想定元本実勢現在残
@@ -222,10 +186,10 @@
                       key={row.id}
                       class="slds-hint-parent slds-line-height_reset"
                     >
-                      <td
+                      <th
                         data-label="creditType1"
-                        rowspan="2"
                         class={row.creditType1Class}
+                        scope="row"
                       >
                         <div
                           class="slds-truncate"
@@ -233,10 +197,9 @@
                         >
                           {row.creditType1}
                         </div>
-                      </td>
+                      </th>
                       <td
                         data-label="creditType2"
-                        rowspan="2"
                         class={row.creditType2Class}
                       >
                         <lightning-input
@@ -250,7 +213,6 @@
                       </td>
                       <td
                         data-label="grossNet"
-                        rowspan="2"
                         class={row.grossNetClass}
                       >
                         <lightning-input
@@ -264,7 +226,6 @@
                       </td>
                       <td
                         data-label="dueDate"
-                        rowspan="2"
                         class={row.dueDateClass}
                       >
                         <lightning-input
@@ -278,7 +239,6 @@
                       </td>
                       <td
                         data-label="margin"
-                        rowspan="2"
                         class={row.marginClass}
                       >
                         <c-f003-gs-v0000-number
@@ -294,7 +254,6 @@
                       </td>
                       <td
                         data-label="endOfMonthBalance"
-                        rowspan="2"
                         class={row.endOfMonthBalanceClass}
                       >
                         <c-f003-gs-v0000-number
@@ -311,7 +270,6 @@
                       </td>
                       <td
                         data-label="endOfMonthLimit"
-                        rowspan="2"
                         class={row.endOfMonthLimitClass}
                       >
                         <c-f003-gs-v0000-number
@@ -328,7 +286,6 @@
                       </td>
                       <td
                         data-label="currentMonthChange"
-                        rowspan="2"
                         class={row.currentMonthChangeClass}
                       >
                         <c-f003-gs-v0000-number
@@ -345,7 +302,6 @@
                       </td>
                       <td
                         data-label="postTransactionCreditAmount"
-                        rowspan="2"
                         class={row.postTransactionCreditAmountClass}
                       >
                         <c-f003-gs-v0000-number
@@ -362,7 +318,6 @@
                       </td>
                       <td
                         data-label="marketValueBalanceCEPE"
-                        rowspan="1"
                         class={row.marketValueBalanceCEPEClass}
                       >
                         <c-f003-gs-v0000-number
@@ -377,42 +332,6 @@
                           onchange={handleInputChange}
                         ></c-f003-gs-v0000-number>
                       </td>
-                      <td
-                        data-label="marketValueBalanceCE"
-                        rowspan="1"
-                        class={row.marketValueBalanceCEClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.marketValueBalanceCE}
-                          num-label="marketValueBalanceCE"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="marketValueBalanceCE"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="assumedPrincipalApprovalAmount"
-                        rowspan="1"
-                        class={row.assumedPrincipalApprovalAmountClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.assumedPrincipalApprovalAmount}
-                          num-label="assumedPrincipalApprovalAmount"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="assumedPrincipalApprovalAmount"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                    </tr>
-                    <tr key={row.id}>
                       <td
                         data-label="marketValueBalanceCEPEReference"
                         class={row.marketValueBalanceCEPEReferenceClass}
@@ -430,6 +349,22 @@
                         ></c-f003-gs-v0000-number>
                       </td>
                       <td
+                        data-label="marketValueBalanceCE"
+                        class={row.marketValueBalanceCEClass}
+                      >
+                        <c-f003-gs-v0000-number
+                          num-value={row.marketValueBalanceCE}
+                          num-label="marketValueBalanceCE"
+                          is-table="true"
+                          data-id={row.id}
+                          set-id="marketValueBalanceCE"
+                          disabled={row.disabled}
+                          step="0.01"
+                          onerror={numberErrorHandler}
+                          onchange={handleInputChange}
+                        ></c-f003-gs-v0000-number>
+                      </td>
+                      <td
                         data-label="marketValueBalanceCEReference"
                         class={row.marketValueBalanceCEReferenceClass}
                       >
@@ -439,6 +374,22 @@
                           is-table="true"
                           data-id={row.id}
                           set-id="marketValueBalanceCEReference"
+                          disabled={row.disabled}
+                          step="0.01"
+                          onerror={numberErrorHandler}
+                          onchange={handleInputChange}
+                        ></c-f003-gs-v0000-number>
+                      </td>
+                      <td
+                        data-label="assumedPrincipalApprovalAmount"
+                        class={row.assumedPrincipalApprovalAmountClass}
+                      >
+                        <c-f003-gs-v0000-number
+                          num-value={row.assumedPrincipalApprovalAmount}
+                          num-label="assumedPrincipalApprovalAmount"
+                          is-table="true"
+                          data-id={row.id}
+                          set-id="assumedPrincipalApprovalAmount"
                           disabled={row.disabled}
                           step="0.01"
                           onerror={numberErrorHandler}
@@ -465,8 +416,6 @@
                   </template>
                 </tbody>
               </table>
-            </div>
-          </div>
         </div>
       </lightning-card>
     </lightning-layout-item>
@@ -476,12 +425,10 @@
          ========================= -->
     <lightning-layout-item size="12">
       <lightning-card>
+        <div class="slds-size_8-of-12">
         <div class="table-block">
-          <div class="table-block__label">為替予約残高推移</div>
-          <div class="slds-grid slds-grid_align-end slds-wrap">
-            <div class="slds-col">
-              <p>金額単位: {amountUnit}</p>
-            </div>
+          <div class="section-label">為替予約残高推移
+            <span class="meta-text">金額単位： {amountUnit}</span>
           </div>
         </div>
 
@@ -492,7 +439,7 @@
             <tr>
               <template for:each={exchangeReservationColumns} for:item="column">
                 <th key={column.fieldName} scope="col">
-                  <div class="slds-truncate" title={column.label}>
+                  <div title={column.label}>
                     {column.label}
                   </div>
                 </th>
@@ -627,6 +574,7 @@
             </template>
           </tbody>
         </table>
+        </div>
       </lightning-card>
     </lightning-layout-item>
   </lightning-layout>

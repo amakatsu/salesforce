@@ -11,7 +11,7 @@
             onclick={handleFetchCalculation}
           ></lightning-button>
 
-          <template if:true={showCalculationAndRegisterButtons}>
+          <template lwc:if={showCalculationAndRegisterButtons}>
             <lightning-button
               label="計算"
               onclick={handleCalculate}
@@ -37,7 +37,7 @@
             onclick={handleFileExport}
           ></lightning-button>
 
-          <template if:true={showCalculationAndRegisterButtons}>
+          <template lwc:if={showCalculationAndRegisterButtons}>
             <lightning-button
               label="Excel出力"
               onclick={handleExcelExport}
@@ -54,7 +54,7 @@
               onclick={handleRecentInquiry}
             ></lightning-menu-item>
 
-            <template if:true={showCalculationAndRegisterButtons}>
+            <template lwc:if={showCalculationAndRegisterButtons}>
               <lightning-menu-item
                 label="預金担保明細"
                 onclick={handleDepositDetail}

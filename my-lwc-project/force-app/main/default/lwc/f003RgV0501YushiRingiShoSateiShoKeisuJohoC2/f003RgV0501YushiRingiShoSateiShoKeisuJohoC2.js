@@ -1,4 +1,4 @@
-import { LightningElement, track } from "lwc";
+import { LightningElement, track, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
 import { stateService } from "./state";
 
@@ -28,24 +28,14 @@ const TABLE_HEADERS = {
 
 const ACCORDION_LABELS = {
   CREDIT_STATUS: "与信状況",
-  COLLATERAL: "本件保全状況",
+  COLLATERAL: "保全状況(本件後)",
   GUARANTOR: "保証人"
-};
-
-const BUTTON_LABELS = {
-  SAVE: "保存",
-  RESET: "リセット"
 };
 
 const MESSAGE_LABELS = {
   SAVE_SUCCESS: "保存が完了しました",
   RESET_SUCCESS: "リセットが完了しました",
   NAKED_CREDIT_INFO: "限度不算入与信を考慮した権限判定上の裸与信を表示"
-};
-
-const ARIA_LABELS = {
-  EXPAND_COLLAPSE: "展開/折りたたみ",
-  EDIT_FIELD: "フィールドを編集"
 };
 
 // 入力フィールドラベル
@@ -66,20 +56,16 @@ const FIELD_CONFIG = {
   DECIMAL_STEP: "0.01"
 };
 
-// フィールド定義
-const FIELD_DEFINITIONS = {
-  CREDIT: ["label", "dueDate", "rate", "balance99", "mark"],
-  COLLATERAL: [
-    "collateralType",
-    "principal",
-    "change",
-    "postBalance",
-    "actualBalance",
-    "regValue",
-    "marketValue",
-    "correction"
-  ]
-};
+// ノードID定数
+const EDITABLE_CREDIT_NODE_ID = "l142";
+const MARK_HIDDEN_NODE_IDS = new Set(["root1", "root4"]);
+
+// スタイル生成対象フィールド
+const STYLE_FIELDS = [
+  "label", "dueDate", "rate", "balance99", "mark",
+  "collateralType", "principal", "change", "postBalance",
+  "actualBalance", "regValue", "marketValue", "correction"
+];
 
 /**
  * 利率情報管理コンポーネント
@@ -130,9 +116,7 @@ export default class RirituComponent extends LightningElement {
     return {
       tableHeaders: TABLE_HEADERS,
       accordion: ACCORDION_LABELS,
-      button: BUTTON_LABELS,
       message: MESSAGE_LABELS,
-      aria: ARIA_LABELS,
       field: FIELD_LABELS,
       config: FIELD_CONFIG
     };
@@ -160,6 +144,17 @@ export default class RirituComponent extends LightningElement {
    * @public
    */
   handleSave() {
+    stateService.getState().draft.clear();
+    this.highlightOn = true;
+    this._refreshData();
+  }
+
+  /**
+   * 登録後ハイライト適用 - 親から@api経由で呼び出し
+   * @api
+   */
+  @api
+  applySavedHighlight() {
     stateService.getState().draft.clear();
     this.highlightOn = true;
     this._refreshData();
@@ -307,8 +302,8 @@ export default class RirituComponent extends LightningElement {
     const hasChildren = Boolean(node.children?.length);
     const isExpanded = state.expanded.has(node.id);
     const originalNode = this._findOriginalNode(node.id);
-    const isSpecificCredit = node.id === "l142";
-    const hideMark = node.id === "root1" || node.id === "root4";
+    const isSpecificCredit = node.id === EDITABLE_CREDIT_NODE_ID;
+    const hideMark = MARK_HIDDEN_NODE_IDS.has(node.id);
 
     return {
       ...node,
@@ -372,16 +367,10 @@ export default class RirituComponent extends LightningElement {
     const { draft } = stateService.getState();
     const indentClass = `indent-${Math.min(level, 3)}`;
     const editable = node.editable || {};
-    const allFields = [
-      ...FIELD_DEFINITIONS.CREDIT,
-      ...FIELD_DEFINITIONS.COLLATERAL
-    ];
     const result = {};
-
-    // インデントを付けるのは「名称系」だけ
     const indentFields = new Set(["label", "collateralType"]);
 
-    allFields.forEach((field) => {
+    STYLE_FIELDS.forEach((field) => {
       const hasChanged = this._hasFieldChanged(
         node,
         originalNode,
@@ -394,7 +383,7 @@ export default class RirituComponent extends LightningElement {
       const baseClass = indentFields.has(field) ? indentClass : "";
 
       result[`${field}Class`] =
-        `${baseClass} ${hasChanged ? "changed-cell" : ""}`.trim();
+        `${baseClass} ${hasChanged ? "changed-cell cell-changed-saved" : ""}`.trim();
       result[`${field}Disabled`] = !editable[field];
     });
 
@@ -487,8 +476,7 @@ export default class RirituComponent extends LightningElement {
     }
   }
 
-  // 担保テーブル 4列目ヘッダ（末尾スペース除去）
   get collateralMarketValueHeader() {
-    return (this.labels?.tableHeaders?.COLLATERAL?.MARKET_VALUE ?? "").trim();
+    return TABLE_HEADERS.COLLATERAL.MARKET_VALUE;
   }
 }

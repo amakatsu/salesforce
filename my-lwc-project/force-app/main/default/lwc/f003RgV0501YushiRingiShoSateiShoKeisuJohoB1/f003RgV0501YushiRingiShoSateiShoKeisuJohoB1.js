@@ -9,10 +9,12 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoB1 extends Lightni
 
   handleCalculate() {
     console.log("計算");
+    this.dispatchEvent(new CustomEvent("calculate"));
   }
 
   handleRegister() {
     console.log("登録");
+    this.dispatchEvent(new CustomEvent("register"));
   }
 
   handleFileExport() {

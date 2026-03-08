@@ -11,22 +11,22 @@
       >
         <lightning-card>
           <div
-            class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none"
+            class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none meta-header"
           >
             <div class="slds-p-around_none slds-m-around_none">
-              <p class="slds-text-title_bold slds-m-around_none">
+              <div class="section-label">
                 {labels.accordion.CREDIT_STATUS}
-              </p>
+              </div>
             </div>
 
             <div
               class="slds-grid slds-grid_align-end slds-wrap slds-p-around_none slds-m-around_none"
             >
               <div class="meta-group slds-var-p-right_small">
-                <p class="meta-text">括り: {groupNumber}</p>
+                <span class="meta-text">括り： {groupNumber}</span>
               </div>
               <div class="meta-unit">
-                <p class="meta-text">金額単位: {amountUnit}</p>
+                <span class="meta-text">金額単位： {amountUnit}</span>
               </div>
             </div>
           </div>
@@ -40,7 +40,6 @@
                 role="grid"
                 class="slds-table slds-table_cell-buffer slds-table_bordered table-sticky__title"
               >
-                <!-- ヘッダ/ボディ（省略せず実際の構成を入れてください） -->
                 <thead>
                   <tr class="slds-line-height_reset">
                     <th
@@ -58,7 +57,6 @@
                         {labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}
                       </div>
                     </th>
-                    <!-- （以下略、元の与信テーブルのヘッダをそのまま） -->
                     <th
                       class="table-sticky__title table-sticky3__title02"
                       scope="col"
@@ -332,20 +330,20 @@
         </lightning-card>
       </lightning-layout-item>
 
-      <!-- 本件保全状況 + 保証人 -->
+      <!-- 保全状況(本件後) + 保証人（別カード・縦並び） -->
       <lightning-layout-item size="3" class="slds-grid slds-grid_vertical">
         <lightning-card>
           <div
-            class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none"
+            class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none meta-header"
           >
             <div class="slds-p-around_none slds-m-around_none">
-              <p class="slds-text-title_bold slds-m-around_none">
+              <div class="section-label">
                 {labels.accordion.COLLATERAL}
-              </p>
+              </div>
             </div>
 
             <div class="meta-unit slds-p-around_none slds-m-around_none">
-              <p class="meta-text">金額単位: {amountUnit}</p>
+              <span class="meta-text">金額単位： {amountUnit}</span>
             </div>
           </div>
 
@@ -421,8 +419,7 @@
 
                       <th scope="col" class={row.collateralTypeClass}>
                         <div
-                          class="slds-truncate"
-                          style="word-wrap: break-word; white-space: normal"
+                          class="slds-truncate collateral-type-wrap"
                         >
                           {row.collateralType}
                         </div>
@@ -465,63 +462,52 @@
           </div>
         </lightning-card>
 
-        <!-- 保証人カード：3行表示 + 4行目以降スクロール -->
-        <lightning-card
-          class="slds-m-top_none slds-p-around_none slds-m-around_none"
-        >
-          <div class="slds-modal__content slds-var-p-around_medium">
+        <!-- 保証人カード（独立カード・残りスペースを埋めて与信と高さ揃え） -->
+        <lightning-card class="slds-col slds-grow">
+          <div class="slds-var-p-horizontal_medium slds-var-p-vertical_xx-small">
             {labels.message.NAKED_CREDIT_INFO}
           </div>
 
-          <div class="slds-grid slds-wrap">
-            <!-- 幅は担保と同じ（table-container-collateral） -->
-            <!-- 高さを3行相当に制限し、縦スクロールを有効化 -->
-            <div
-              class="table-sticky table-container-guarantor slds-col slds-size_1-of-1 slds-p-around_none slds-m-around_none"
-              style="max-height: 10rem"
+          <div
+            class="table-container-guarantor slds-size_1-of-1 slds-p-around_none slds-m-around_none"
+          >
+            <table
+              role="grid"
+              class="slds-table slds-table_cell-buffer slds-table_bordered"
             >
-              <table
-                role="grid"
-                class="slds-table slds-table_cell-buffer slds-table_bordered table-sticky__title"
-              >
-                <thead>
-                  <tr class="slds-line-height_reset">
-                    <th
-                      class="table-sticky__title table-sticky3__title02"
-                      scope="col"
+              <thead>
+                <tr class="slds-line-height_reset">
+                  <th scope="col">
+                    <div
+                      class="slds-truncate slds-text-align_center"
+                      title={labels.tableHeaders.GUARANTOR.GUARANTOR}
                     >
-                      <div
-                        class="slds-truncate slds-text-align_center"
-                        title={labels.tableHeaders.GUARANTOR.GUARANTOR}
-                      >
-                        {labels.tableHeaders.GUARANTOR.GUARANTOR}
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
+                      {labels.tableHeaders.GUARANTOR.GUARANTOR}
+                    </div>
+                  </th>
+                </tr>
+              </thead>
 
-                <tbody>
-                  <template for:each={guarantorData} for:item="row">
-                    <tr
-                      key={row.id}
-                      class="slds-hint-parent slds-line-height_reset"
-                    >
-                      <td class="slds-text-align_center">
-                        <!-- レコード中身は変更しない -->
-                        <lightning-input
-                          type="text"
-                          variant="label-hidden"
-                          value={row.name}
-                          onchange={handleInputChange}
-                          data-id={row.id}
-                        >
-                        </lightning-input>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
+              <tbody>
+                <template for:each={guarantorData} for:item="row">
+                  <tr
+                    key={row.id}
+                    class="slds-hint-parent slds-line-height_reset"
+                  >
+                    <td class="slds-text-align_center">
+                      <lightning-input
+                        type="text"
+                        variant="label-hidden"
+                        value={row.name}
+                        onchange={handleInputChange}
+                        data-id={row.id}
+                      >
+                      </lightning-input>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
         </lightning-card>
       </lightning-layout-item>

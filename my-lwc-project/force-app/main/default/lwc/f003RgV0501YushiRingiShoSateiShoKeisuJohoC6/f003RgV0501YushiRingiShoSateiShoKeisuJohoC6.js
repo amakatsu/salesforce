@@ -1,4 +1,4 @@
-import { LightningElement, track } from "lwc";
+import { LightningElement, track, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
 
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC6 extends LightningElement {
@@ -28,10 +28,15 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC6 extends Lightni
   @track groupNumber = makeTestData("numeric", 1);
   @track date = "2025/3/31";
 
-  @track correctionReason = makeTestData("mixedChar", 100);
+  @track correctionReason = makeTestData("mixedChar", 105);
   @track poolCategory = makeTestData("numeric", 2);
   @track protectionRate = "999.99";
   @track limitGeneral = makeTestData("numeric", 7);
   @track marketInclusion = makeTestData("numeric", 5);
   @track regulatoryCollateral = makeTestData("numeric", 7);
+
+  @api
+  applySavedHighlight() {
+    // C6 has no editable table number fields
+  }
 }
