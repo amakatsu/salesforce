@@ -99,6 +99,7 @@ const CREDIT_ITEMS = [
   {
     id: "1",
     creditType1: "限度算入与信合計",
+    indent: 0,
     overrides: {
       dueDate: "",
       margin: "",
@@ -116,6 +117,7 @@ const CREDIT_ITEMS = [
   {
     id: "2",
     creditType1: makeTestData("mixedChar", 40),
+    indent: 1,
     overrides: {
       creditType2: "ワーニング",
       grossNet: "グロス"
@@ -124,6 +126,7 @@ const CREDIT_ITEMS = [
   {
     id: "3",
     creditType1: makeTestData("mixedChar", 40),
+    indent: 1,
     overrides: {
       creditType2: "ワーニン",
       grossNet: "ネット",
@@ -133,6 +136,7 @@ const CREDIT_ITEMS = [
   {
     id: "4",
     creditType1: makeTestData("mixedChar", 40),
+    indent: 1,
     overrides: {
       creditType2: "ワーニン",
       grossNet: "グロス"
@@ -141,6 +145,7 @@ const CREDIT_ITEMS = [
   {
     id: "5",
     creditType1: "限度不算入与信為替取引",
+    indent: 1,
     overrides: {
       dueDate: "",
       ...DASH_FIELDS
@@ -150,6 +155,7 @@ const CREDIT_ITEMS = [
   {
     id: "6",
     creditType1: "スワップ／オプション取引",
+    indent: 1,
     overrides: {
       dueDate: "",
       ...DASH_FIELDS
@@ -159,6 +165,7 @@ const CREDIT_ITEMS = [
   {
     id: "7",
     creditType1: "その他",
+    indent: 1,
     overrides: {
       dueDate: "",
       ...DASH_FIELDS
@@ -168,6 +175,7 @@ const CREDIT_ITEMS = [
   {
     id: "8",
     creditType1: "限度不算入与信合計",
+    indent: 0,
     overrides: {
       dueDate: "",
       margin: "-",
@@ -178,6 +186,7 @@ const CREDIT_ITEMS = [
   {
     id: "9",
     creditType1: "市場性与信合計",
+    indent: 0,
     overrides: {
       dueDate: "",
       margin: "",
@@ -194,9 +203,10 @@ const CREDIT_ITEMS = [
   }
 ];
 
-const creditRow = ({ id, creditType1, overrides = {}, disabled }) => ({
+const creditRow = ({ id, creditType1, indent = 0, overrides = {}, disabled }) => ({
   id,
   creditType1,
+  creditType1Class: `indent-${indent}`,
   ...CREDIT_DEFAULTS,
   ...overrides,
   ...(disabled !== undefined ? { disabled } : {})
@@ -371,6 +381,22 @@ const EXCHANGE_DIFF_FIELDS = [
   "dueDate4",
   "dueDate5"
 ];
+const CREDIT_DIFF_FIELDS = [
+  "creditType2",
+  "grossNet",
+  "dueDate",
+  "margin",
+  "endOfMonthBalance",
+  "endOfMonthLimit",
+  "currentMonthChange",
+  "postTransactionCreditAmount",
+  "marketValueBalanceCEPE",
+  "marketValueBalanceCEPEReference",
+  "marketValueBalanceCE",
+  "marketValueBalanceCEReference",
+  "assumedPrincipalApprovalAmount",
+  "assumedPrincipalMarketValueBalance"
+];
 const COLLATERAL_DIFF_FIELDS = ["expectedShare", "marketValue"];
 const REFERENCE_DIFF_FIELDS = ["cePe", "ce"];
 
@@ -433,6 +459,8 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
   // C4
   creditColumns = CREDIT_COLUMNS;
   creditData = generateCreditData();
+  initialCreditData = [];
+  originalCreditData = [];
 
   // C5
   exchangeReservationColumns = EXCHANGE_RESERVATION_COLUMNS;
@@ -488,7 +516,12 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
       REFERENCE_DIFF_FIELDS
     );
 
-    this.creditData = generateCreditData();
+    this.initialCreditData = generateCreditData();
+    this.originalCreditData = deepClone(this.initialCreditData);
+    this.creditData = initializeClassFields(
+      this.initialCreditData,
+      CREDIT_DIFF_FIELDS
+    );
   }
 
   handleInputChange(event) {
@@ -503,6 +536,11 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
       id,
       field,
       value
+    );
+    this.creditData = highlightChangedCells(
+      this.creditData,
+      this.originalCreditData,
+      CREDIT_DIFF_FIELDS
     );
     this.exchangeReservationData = this.updateDataImmutable(
       this.exchangeReservationData,
@@ -542,6 +580,13 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
   }
 
   handleSave() {
+    this.creditData = highlightChangedCells(
+      this.creditData,
+      this.originalCreditData,
+      CREDIT_DIFF_FIELDS
+    );
+    this.originalCreditData = deepClone(this.creditData);
+
     this.exchangeReservationData = highlightChangedCells(
       this.exchangeReservationData,
       this.originalExchangeReservationData,

@@ -1,10 +1,10 @@
 /* =========================================
 * Sticky行の基準高さ（CSS Custom Properties）
-* thead/tbodyの高さを変数で管理し、ハードコード排除
+* 実測値は renderedCallback で注入。以下はJS未実行時のフォールバック。
 * ========================================= */
 :host {
-  --c2-thead-height: 1.85rem;
-  --c2-data-row-height: 2.2rem;
+  --c2-thead-height: 2.2rem;
+  --c2-data-row-height: 2.4rem;
 }
 
 /* テーブルラベル共通スタイル（親CSS Custom Properties参照） */
@@ -19,9 +19,11 @@
   align-items: var(--section-label-align-items, baseline);
 }
 
-/* 金額単位・括り表示のブラウザデフォルト <p> マージンを除去 */
+/* 金額単位・括り表示共通スタイル（親CSS Custom Properties参照） */
 .meta-text {
-  margin: 0;
+  font-weight: var(--meta-text-font-weight, normal);
+  margin: var(--meta-text-margin, 0);
+  white-space: var(--meta-text-white-space, nowrap);
 }
 
 /* ラベル行のテキストを下揃え → 金額単位/括りをテーブルに近づける */
@@ -119,14 +121,8 @@ th {
   text-align: left;
   vertical-align: middle;
   background: #f2f2f2;
-  top: 0;
   border-top: none;
   box-shadow: inset 0 1px 0 #999;
-}
-
-/* 縦ヘッダーの右側の罫線を設定する */
-th[scope="row"] {
-  border-right: 1px solid #999;
 }
 
 /* 横ヘッダーの下側の罫線を設定する */
@@ -178,55 +174,102 @@ tr:nth-last-child(2) td {
   position: static;
 }
 
-/* thead完全固定: 与信・保全統一（クラス経由ではなく明示的に指定） */
+/* thead完全固定: 与信・保全統一 + セル高さを border-box で厳密制御 */
 .table-container-credit thead th,
 .table-container-collateral thead th {
   position: sticky;
   top: 0;
   z-index: 10;
   background: #f2f2f2;
+  box-sizing: border-box;
+  height: var(--c2-thead-height);
+  text-align: center;
 }
 
-/* sticky固定行に最低限の上下余白（詰まり防止・与信/保全統一） */
+/* sticky固定行：セル高さを border-box で厳密に制御 */
+/* box-sizing: border-box により height に border + padding を含め、 */
+/* 実レンダリング高さと CSS 変数を完全一致させる */
 .table-container-credit tbody tr:nth-child(1) td,
+.table-container-credit tbody tr:nth-child(1) th,
 .table-container-collateral tbody tr:nth-child(-n+3) td,
-.table-container-collateral tbody tr:nth-child(-n+3) th[scope="row"] {
+.table-container-collateral tbody tr:nth-child(-n+3) th {
+  box-sizing: border-box;
+  height: var(--c2-data-row-height);
   padding-top: 0.1rem;
   padding-bottom: 0.1rem;
 }
 
 /* =========================================
-* 行固定システム - CSS変数による自動計算版
-* --c2-thead-height と --c2-data-row-height を :host で定義
-* thead高さ変更時は変数を1箇所変えるだけで全sticky行が追従
+* 行固定システム - セルレベル sticky 版
+* tr ではなく td/th 個別に sticky を設定し、ブラウザ互換性を確保
+* CSS変数は renderedCallback で実測値を注入
 * ========================================= */
 
 /* 与信状況テーブル: 1行目固定（thead直下） */
 .table-container-credit tbody tr:nth-child(1) {
+  height: var(--c2-data-row-height);
+}
+.table-container-credit tbody tr:nth-child(1) td,
+.table-container-credit tbody tr:nth-child(1) th {
   position: sticky;
   top: var(--c2-thead-height);
-  background-color: #ffffff;
+  background-color: #f2f2f2;
   z-index: 9;
 }
 
-/* 本件保全テーブル: 1-3行目の階層固定（与信テーブルと同パターン、heightなし） */
+/* 本件保全テーブル: 1-3行目の階層固定（セルレベルsticky） */
 .table-container-collateral tbody tr:nth-child(1) {
+  height: var(--c2-data-row-height);
+}
+.table-container-collateral tbody tr:nth-child(1) td,
+.table-container-collateral tbody tr:nth-child(1) th {
   position: sticky;
   top: var(--c2-thead-height);
-  background-color: #ffffff;
+  background-color: #f2f2f2;
   z-index: 9;
 }
 .table-container-collateral tbody tr:nth-child(2) {
+  height: var(--c2-data-row-height);
+}
+.table-container-collateral tbody tr:nth-child(2) td,
+.table-container-collateral tbody tr:nth-child(2) th {
   position: sticky;
   top: calc(var(--c2-thead-height) + var(--c2-data-row-height));
-  background-color: #ffffff;
+  background-color: #f2f2f2;
   z-index: 8;
 }
 .table-container-collateral tbody tr:nth-child(3) {
+  height: var(--c2-data-row-height);
+}
+.table-container-collateral tbody tr:nth-child(3) td,
+.table-container-collateral tbody tr:nth-child(3) th {
   position: sticky;
   top: calc(var(--c2-thead-height) + var(--c2-data-row-height) * 2);
-  background-color: #ffffff;
+  background-color: #f2f2f2;
   z-index: 7;
+}
+
+/* =========================================
+* sticky tbody行のborder線修正（与信・保全共通）
+* border-collapse:separate + sticky で real border-top がスクロール時に
+* 細くなる・消える問題を防止。thead th と同じ box-shadow パターンで統一。
+* ========================================= */
+
+/* sticky行のtd: border-top → box-shadow に置換 */
+.table-container-credit tbody tr:nth-child(1) td,
+.table-container-collateral tbody tr:nth-child(-n+3) td {
+  border-top: none;
+  box-shadow: inset 0 1px 0 #999;
+}
+
+/* 最後のsticky行に下線を追加（top + bottom の box-shadow）
+   スクロール時に次の行の border-top が sticky行の下に隠れるため、
+   sticky行自身に下線が必要 */
+.table-container-credit tbody tr:nth-child(1) td,
+.table-container-credit tbody tr:nth-child(1) th,
+.table-container-collateral tbody tr:nth-child(3) td,
+.table-container-collateral tbody tr:nth-child(3) th {
+  box-shadow: inset 0 1px 0 #999, inset 0 -1px 0 #999;
 }
 
 /* =========================================
@@ -264,6 +307,14 @@ tr:nth-last-child(2) td {
   width: 100%;
 }
 
+/* 保証人テーブル：セル余白除去 + input幅制御 */
+.table-container-guarantor tbody td {
+  padding: 0;
+}
+.table-container-guarantor tbody td lightning-input {
+  width: 15em;
+}
+
 /* =========================================
 * カラム幅設定
 * ========================================= */
@@ -271,28 +322,8 @@ tr:nth-last-child(2) td {
   width: 1.25rem;
 }
 
-.column-small {
-  width: 6.25rem;
-}
-
-.column-medium {
-  width: 7.5rem;
-}
-
-.column-large {
-  width: 9.375rem;
-}
-
 .column-xl {
   width: 10rem;
-}
-
-.column-xxl {
-  width: 15.625rem;
-}
-
-.column-45px {
-  width: 2.8125rem;
 }
 
 /* =========================================
@@ -301,8 +332,6 @@ tr:nth-last-child(2) td {
 .table-container-collateral table {
   width: 100%;
   table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 0;
 }
 
 /* 1列目（アイコン列） */

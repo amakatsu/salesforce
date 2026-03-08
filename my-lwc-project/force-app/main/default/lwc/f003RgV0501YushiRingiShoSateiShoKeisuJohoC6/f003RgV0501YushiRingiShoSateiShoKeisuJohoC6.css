@@ -15,9 +15,11 @@
   align-items: flex-end;
 }
 
-/* 金額単位の折り返し防止 */
-.summary-unit {
-  white-space: nowrap;
+/* 金額単位・括り表示共通スタイル（親CSS Custom Properties参照） */
+.meta-text {
+  font-weight: var(--meta-text-font-weight, normal);
+  margin: var(--meta-text-margin, 0);
+  white-space: var(--meta-text-white-space, nowrap);
 }
 
 /* ラベル行のテキストを下揃え → 金額単位をBOXに近づける */

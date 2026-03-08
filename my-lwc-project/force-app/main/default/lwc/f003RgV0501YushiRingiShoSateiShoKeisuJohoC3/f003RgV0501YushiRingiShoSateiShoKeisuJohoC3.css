@@ -28,6 +28,11 @@
   text-align: left;
 }
 
+/* thead thのみ中央寄せ（C2/C4と統一パターン） */
+.common-table thead th {
+  text-align: center;
+}
+
 .common-table td {
   border: 1px solid #999;
   background: #fff;
@@ -50,7 +55,11 @@
   --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
 }
 
-/* ===== ボーダー ===== */
+/* ===== ボーダー =====
+   注意: .common-table は border-collapse:collapse（罫線結合）、
+   経営指標テーブル等は border-collapse:separate（罫線分離）で
+   意図的に使い分けている。common-tableは collapse 前提で
+   border:1px solid #999 をセルに直接指定しているため変更不可。 */
 
 table {
   border-spacing: 0;
@@ -109,9 +118,11 @@ tr:nth-last-child(2) td {
   border-bottom: 1px solid #999;
 }
 
-/* くくり・金額単位はラベルの太字を継承しない */
+/* 金額単位・括り表示共通スタイル（親CSS Custom Properties参照） */
 .meta-text {
-  font-weight: normal;
+  font-weight: var(--meta-text-font-weight, normal);
+  margin: var(--meta-text-margin, 0);
+  white-space: var(--meta-text-white-space, nowrap);
 }
 
 /* ===== 経営指標テーブル ===== */

@@ -148,7 +148,7 @@ const rawCreditSource = [
     children: [
       creditNode({
         id: "e43",
-        label: "外為与信合計 指定外Ｌ／Ｃ",
+        label: "指定外Ｌ／Ｃ",
         overrides: { dueDate: "09/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -164,7 +164,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e44",
-        label: "外為与信合計 Ｄ／Ｐ・Ｄ／Ａ・輸出ＯＡ",
+        label: "Ｄ／Ｐ・Ｄ／Ａ・輸出ＯＡ",
         overrides: { dueDate: "10/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -180,7 +180,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e45",
-        label: "外為与信合計 外貨小切手",
+        label: "外貨小切手",
         overrides: { dueDate: "11/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -196,7 +196,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e46",
-        label: "外為与信合計 輸出(小計)",
+        label: "輸出(小計)",
         overrides: { dueDate: "12/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -212,7 +212,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e47",
-        label: "外為与信合計 貸出(輸出)",
+        label: "貸出(輸出)",
         overrides: { dueDate: "01/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -228,7 +228,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e48",
-        label: "外為与信合計 輸入Ｌ／Ｃ",
+        label: "輸入Ｌ／Ｃ",
         overrides: { dueDate: "02/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -244,7 +244,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e49",
-        label: "外為与信合計 ユーザンス",
+        label: "ユーザンス",
         overrides: { dueDate: "03/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -260,7 +260,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e410",
-        label: "外為与信合計 Ｌ／Ｇ",
+        label: "Ｌ／Ｇ",
         overrides: { dueDate: "04/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -276,7 +276,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e411",
-        label: "外為与信合計 輸入(小計)",
+        label: "輸入(小計)",
         overrides: { dueDate: "05/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -292,7 +292,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e412",
-        label: "外為与信合計 貸出(輸入)",
+        label: "貸出(輸入)",
         overrides: { dueDate: "06/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -308,7 +308,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e413",
-        label: "外為与信合計 故障指定Ｌ／Ｃ",
+        label: "故障指定Ｌ／Ｃ",
         overrides: { dueDate: "07/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
@@ -324,7 +324,7 @@ const rawCreditSource = [
       }),
       creditNode({
         id: "e414",
-        label: "外為与信合計 ユーザンスシフト外貨",
+        label: "ユーザンスシフト外貨",
         overrides: { dueDate: "08/01", rate: "99.999" },
         editableFields: creditEditable([
           "label",

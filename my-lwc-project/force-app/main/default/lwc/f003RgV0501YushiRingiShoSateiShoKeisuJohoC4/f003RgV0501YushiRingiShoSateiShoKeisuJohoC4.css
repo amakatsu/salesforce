@@ -10,9 +10,11 @@
   line-height: var(--section-label-line-height, 1.4);
 }
 
-/* くくり・金額単位はラベルの太字を継承しない */
+/* 金額単位・括り表示共通スタイル（親CSS Custom Properties参照） */
 .meta-text {
-  font-weight: normal;
+  font-weight: var(--meta-text-font-weight, normal);
+  margin: var(--meta-text-margin, 0);
+  white-space: var(--meta-text-white-space, nowrap);
 }
 
 .common-table {
@@ -85,6 +87,13 @@ td {
   padding: 0;
 }
 
+/* slds-table_cell-buffer の td padding 打ち消し（詳細度: 0,0,1,2）
+   table-layout:fixed + 固定幅列で右端マージンが発生するのを防止
+   C2の .table-container-credit tbody td { padding: 0 } と同じパターン */
+.slds-table tbody td {
+  padding: 0;
+}
+
 th {
   position: sticky;
   top: 0;
@@ -134,6 +143,26 @@ tr:nth-last-child(1) th {
 tr:nth-last-child(2) td {
   border-bottom: 1px solid #999;
 }
+
+/* =========================================
+* インデント（ツリー階層表現・C2と同パターン）
+* ========================================= */
+.indent-0 {
+  padding-left: 0.35rem !important;
+}
+.indent-1 {
+  padding-left: 0.75rem !important;
+}
+
+/* =========================================
+* 市場性与信テーブル: 列幅定義（インラインstyle除去対応）
+* ========================================= */
+.col-w95 { width: 95px; }
+.col-w45 { width: 45px; }
+.col-w40 { width: 40px; }
+.col-w37 { width: 37px; }
+.col-w35 { width: 35px; }
+.col-w25 { width: 25px; }
 
 /* Numberコンポーネントの余白を外側から制御（コンポーネント内部CSS修正禁止） */
 c-f003-gs-v0000-number {

@@ -85,6 +85,7 @@ export default class RirituComponent extends LightningElement {
   ];
 
   highlightOn = false;
+  _originalGuarantorData = null;
 
   activeSections = [
     "a",
@@ -135,8 +136,57 @@ export default class RirituComponent extends LightningElement {
     return JSON.stringify(Object.fromEntries(this.draft), null, 2);
   }
 
+  // sticky高さ実測値キャッシュ（無限ループ防止）
+  _lastTheadHeight = 0;
+  _lastDataRowHeight = 0;
+
   connectedCallback() {
     this._initializeData();
+  }
+
+  renderedCallback() {
+    this._updateStickyHeights();
+  }
+
+  /**
+   * DOM実測値でCSS変数を更新（マジックナンバー廃止）
+   * @private
+   */
+  _updateStickyHeights() {
+    const collateralThead = this.template.querySelector(
+      ".table-container-collateral thead"
+    );
+    const creditThead = this.template.querySelector(
+      ".table-container-credit thead"
+    );
+    const thead = collateralThead || creditThead;
+    if (!thead || thead.offsetHeight === 0) return;
+
+    const collateralFirstRow = this.template.querySelector(
+      ".table-container-collateral tbody tr"
+    );
+    const creditFirstRow = this.template.querySelector(
+      ".table-container-credit tbody tr"
+    );
+    const firstRow = collateralFirstRow || creditFirstRow;
+    if (!firstRow || firstRow.offsetHeight === 0) return;
+
+    const theadHeight = thead.offsetHeight;
+    const dataRowHeight = firstRow.offsetHeight;
+
+    if (
+      theadHeight === this._lastTheadHeight &&
+      dataRowHeight === this._lastDataRowHeight
+    ) {
+      return;
+    }
+
+    this._lastTheadHeight = theadHeight;
+    this._lastDataRowHeight = dataRowHeight;
+
+    const hostStyle = this.template.host.style;
+    hostStyle.setProperty("--c2-thead-height", theadHeight + "px");
+    hostStyle.setProperty("--c2-data-row-height", dataRowHeight + "px");
   }
 
   /**
@@ -214,6 +264,11 @@ export default class RirituComponent extends LightningElement {
     const { creditSource, collateralSource } = stateService.getState();
     this.creditRows = this._flattenTree(creditSource, false);
     this.collateralRows = this._flattenTree(collateralSource, false);
+    this._originalGuarantorData = this.guarantorData.map((g) => ({ ...g }));
+    this.guarantorData = this.guarantorData.map((g) => ({
+      ...g,
+      cellClass: "slds-text-align_center"
+    }));
   }
 
   /**
@@ -264,11 +319,22 @@ export default class RirituComponent extends LightningElement {
    */
   _updateDraft(nodeId, fieldName, newValue) {
     const { draft } = stateService.getState();
-    const existingDraft = draft.get(nodeId) || {};
-    draft.set(nodeId, {
-      ...existingDraft,
-      [fieldName]: newValue
-    });
+    const originalNode = this._findOriginalNode(nodeId);
+    const existingDraft = { ...(draft.get(nodeId) || {}) };
+
+    if (
+      originalNode &&
+      String(originalNode[fieldName] ?? "") === String(newValue ?? "")
+    ) {
+      delete existingDraft[fieldName];
+      if (Object.keys(existingDraft).length === 0) {
+        draft.delete(nodeId);
+      } else {
+        draft.set(nodeId, existingDraft);
+      }
+    } else {
+      draft.set(nodeId, { ...existingDraft, [fieldName]: newValue });
+    }
   }
 
   /**
@@ -370,20 +436,29 @@ export default class RirituComponent extends LightningElement {
     const result = {};
     const indentFields = new Set(["label", "collateralType"]);
 
+    const nodeDraft = draft.get(node.id);
+
     STYLE_FIELDS.forEach((field) => {
-      const hasChanged = this._hasFieldChanged(
+      const isSavedChange = this._hasFieldChanged(
         node,
         originalNode,
         field,
         shouldHighlight,
         draft
       );
+      const isDraftChange = nodeDraft && field in nodeDraft;
 
       // 数値系はindentしない（＞開閉で列位置が動かない）
       const baseClass = indentFields.has(field) ? indentClass : "";
 
-      result[`${field}Class`] =
-        `${baseClass} ${hasChanged ? "changed-cell cell-changed-saved" : ""}`.trim();
+      let highlightClass = "";
+      if (isSavedChange) {
+        highlightClass = "changed-cell cell-changed-saved";
+      } else if (isDraftChange) {
+        highlightClass = "changed-cell";
+      }
+
+      result[`${field}Class`] = `${baseClass} ${highlightClass}`.trim();
       result[`${field}Disabled`] = !editable[field];
     });
 
@@ -472,7 +547,15 @@ export default class RirituComponent extends LightningElement {
     const guarantor = this.guarantorData.find((g) => g.id === nodeId);
     if (guarantor) {
       guarantor.name = newValue;
-      this.guarantorData = [...this.guarantorData];
+      const original = this._originalGuarantorData.find((g) => g.id === nodeId);
+      const isChanged = original && original.name !== newValue;
+      this.guarantorData = this.guarantorData.map((g) => ({
+        ...g,
+        cellClass:
+          g.id === nodeId
+            ? `slds-text-align_center${isChanged ? " changed-cell" : ""}`
+            : g.cellClass || "slds-text-align_center"
+      }));
     }
   }
 

@@ -15,4 +15,9 @@
 
   /* 登録後の変更セル黄色ハイライト */
   --cell-saved-highlight: #ffffcc;
+
+  /* 金額単位・括り表示共通スタイル（Shadow DOM貫通） */
+  --meta-text-font-weight: normal;
+  --meta-text-margin: 0;
+  --meta-text-white-space: nowrap;
 }
