@@ -1,4 +1,3 @@
-/* テーブルラベル共通スタイル（親CSS Custom Properties参照） */
 .section-label {
   font-weight: var(--section-label-font-weight, 700);
   font-size: var(--section-label-font-size, 0.9rem);
@@ -9,151 +8,42 @@
   justify-content: var(--section-label-justify-content, space-between);
   align-items: var(--section-label-align-items, baseline);
 }
-
-/* ===== テーブル共通 ===== */
-
-.common-table {
-  width: 100%;
-  border: 1px solid #999;
-  border-collapse: collapse;
-  table-layout: fixed;
-  overflow: visible;
-}
-
-.common-table th {
-  border: 1px solid #999;
-  background: #f2f2f2;
-  top: 0;
-  left: 0;
-  text-align: left;
-}
-
-/* thead thのみ中央寄せ（C2/C4と統一パターン） */
-.common-table thead th {
-  text-align: center;
-}
-
-.common-table td {
-  border: 1px solid #999;
-  background: #fff;
-  padding: 0;
-  text-align: left;
-}
-
-.changed-cell {
-  --slds-c-input-color-background: #fff9c4;
-}
-
-.cell-changed-saved {
-  background-color: var(--cell-saved-highlight, #ffffcc);
-  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
-}
-.cell-changed-saved c-f003-gs-v0000-number {
-  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
-}
+/* 銀行・査定・株式テーブル用（経営指標テーブルは base table ルールを使用） */
+.common-table { width: 100%; border: 1px solid #999; border-collapse: collapse; table-layout: fixed; }
+.common-table th, .common-table td { border: 1px solid #999; text-align: left; }
+.common-table th { background: #f2f2f2; }
+.common-table td { background: #fff; padding: 0; }
+.changed-cell { --slds-c-input-color-background: #fff9c4; background-color: #fff9c4; }
+.cell-changed-saved { background-color: var(--cell-saved-highlight, #ffffcc); }
+.cell-changed-saved,
+.cell-changed-saved c-f003-gs-v0000-number,
 .cell-changed-saved lightning-input {
   --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
 }
-
-/* ===== ボーダー =====
-   注意: .common-table は border-collapse:collapse（罫線結合）、
-   経営指標テーブル等は border-collapse:separate（罫線分離）で
-   意図的に使い分けている。common-tableは collapse 前提で
-   border:1px solid #999 をセルに直接指定しているため変更不可。 */
-
-table {
-  border-spacing: 0;
-  border-collapse: separate;
-}
-
-th,
-td {
-  border-top: 1px solid #999;
-  border-left: 1px solid #999;
-}
-
-td {
-  background: #ffffff;
-  padding: 0;
-}
-
-th {
-  text-align: center;
-  vertical-align: middle;
-  background: #f2f2f2;
-  top: 0;
-}
-
-th[scope="row"] {
-  border-right: 1px solid #999;
-}
-
-th[scope="col"] {
-  border-bottom: 1px solid #999;
-}
-
-/* 右端・下端の罫線補完 */
-tr:nth-child(1) th:nth-child(1) {
-  border-right: 1px solid #999;
-}
-
-tr:nth-child(1) th:last-child {
-  border-right: 1px solid #999;
-}
-
-tr:nth-child(n + 1) td:last-child {
-  border-right: 1px solid #999;
-}
-
-tr:nth-last-child(1) td {
-  border-bottom: 1px solid #999;
-  border-top: none;
-}
-
-tr:nth-last-child(1) th {
-  border-bottom: 1px solid #999;
-}
-
-tr:nth-last-child(2) td {
-  border-bottom: 1px solid #999;
-}
-
-/* 金額単位・括り表示共通スタイル（親CSS Custom Properties参照） */
+table { border-spacing: 0; border-collapse: separate; }
+th, td { border-top: 1px solid #999; border-left: 1px solid #999; }
+td { background: #fff; padding: 0; }
+th { text-align: center; vertical-align: middle; background: #f2f2f2; }
+th[scope="row"] { border-right: 1px solid #999; }
+th[scope="col"] { border-bottom: 1px solid #999; }
+tr:nth-child(1) th:nth-child(1),
+tr:nth-child(1) th:last-child,
+tr:nth-child(n + 1) td:last-child { border-right: 1px solid #999; }
+tr:nth-last-child(1) td,
+tr:nth-last-child(1) th,
+tr:nth-last-child(2) td { border-bottom: 1px solid #999; }
+tr:nth-last-child(1) td { border-top: none; }
 .meta-text {
   font-weight: var(--meta-text-font-weight, normal);
   margin: var(--meta-text-margin, 0);
   white-space: var(--meta-text-white-space, nowrap);
 }
-
-/* ===== 経営指標テーブル ===== */
-
-.indicator-table {
-  table-layout: fixed;
-  width: 100%;
-}
-
-/* thead thの余白を明示設定（slds-table除去後も維持） */
-.indicator-table thead th {
-  padding: 0.25rem 0.5rem;
-}
-
-/* tbody 1列目(th scope=row)は通常太さ */
-.indicator-table tbody th {
-  font-weight: normal;
-}
-
-/* ヘッダ折り返しで文字見切れ防止 */
+.indicator-table { table-layout: fixed; width: 100%; }
+.indicator-table thead th { padding: 0.25rem 0.5rem; }
+.indicator-table tbody th { font-weight: normal; }
 .indicator-header-text {
-  white-space: normal;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  font-size: 0.75rem;
-  line-height: 1.2;
+  white-space: normal; overflow-wrap: break-word;
+  font-size: 0.75rem; line-height: 1.2;
 }
-
-/* Numberコンポーネントの余白を外側から制御（コンポーネント内部CSS修正禁止） */
-c-f003-gs-v0000-number {
-  margin: 0;
-  padding: 0;
-  display: block;
-}
+.display-value { text-align: right; padding: 0.25rem 0.5rem; }
+c-f003-gs-v0000-number { margin: 0; padding: 0; display: block; }

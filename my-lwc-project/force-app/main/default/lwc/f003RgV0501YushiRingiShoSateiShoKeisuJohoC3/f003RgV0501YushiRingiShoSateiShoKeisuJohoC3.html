@@ -3,91 +3,32 @@
     <!-- 主要銀行取引状況 -->
     <lightning-layout-item size="6">
       <lightning-card>
-        <div class="table-block">
+        <div>
           <p class="section-label">主要銀行取引状況</p>
-
-          <table
-            class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-          >
+          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
             <thead>
               <tr class="slds-line-height_reset">
                 <template for:each={bankColumns} for:item="column">
-                  <th
-                    key={column.fieldName}
-                    class="slds-text-align_center"
-                    scope="col"
-                  >
-                    <div class="slds-truncate" title={column.label}>
-                      {column.label}
-                    </div>
+                  <th key={column.fieldName} class="slds-text-align_center" scope="col">
+                    <div class="slds-truncate" title={column.label}>{column.label}</div>
                   </th>
                 </template>
               </tr>
             </thead>
             <tbody>
-              <template for:each={bankData} for:item="row">
+              <template for:each={bankRows} for:item="row">
                 <tr key={row.id} class="slds-hint-parent">
                   <th data-label="bankName">{row.bankName}</th>
-
-                  <td data-label="twoYearsAgo" class={row.twoYearsAgoClass}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.twoYearsAgo}
-                      num-label="twoYearsAgo"
-                      is-table="true"
-                      data-id={row.id}
-                      set-id="twoYearsAgo"
-                      disabled={row.disable.twoYearsAgo}
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    >
-                    </c-f003-gs-v0000-number>
-                  </td>
-
-                  <td data-label="oneYearAgo" class={row.oneYearAgoClass}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.oneYearAgo}
-                      num-label="oneYearAgo"
-                      is-table="true"
-                      data-id={row.id}
-                      set-id="oneYearAgo"
-                      disabled={row.disable.oneYearAgo}
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    >
-                    </c-f003-gs-v0000-number>
-                  </td>
-
-                  <td data-label="recentEnd" class={row.recentEndClass}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.recentEnd}
-                      num-label="recentEnd"
-                      is-table="true"
-                      data-id={row.id}
-                      set-id="recentEnd"
-                      disabled={row.disable.recentEnd}
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    >
-                    </c-f003-gs-v0000-number>
-                  </td>
-
-                  <td data-label="foreignCurrency" class={row.foreignCurrencyClass}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.foreignCurrency}
-                      num-label="foreignCurrency"
-                      is-table="true"
-                      data-id={row.id}
-                      set-id="foreignCurrency"
-                      disabled={row.disable.foreignCurrency}
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    >
-                    </c-f003-gs-v0000-number>
-                  </td>
+                  <template for:each={row.cells} for:item="cell">
+                    <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
+                      <c-f003-gs-v0000-number
+                        num-value={cell.value} num-label={cell.fieldName}
+                        is-table="true" data-id={row.id} set-id={cell.fieldName}
+                        disabled={cell.disabled} step="0.01"
+                        onerror={numberErrorHandler} onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </td>
+                  </template>
                 </tr>
               </template>
             </tbody>
@@ -99,140 +40,20 @@
     <!-- 自己査定結果 -->
     <lightning-layout-item size="3">
       <lightning-card>
-        <div class="table-block slds-var-p-left_small">
+        <div class="slds-var-p-left_small">
           <div class="section-label">自己査定結果
             <span class="meta-text">金額単位： {amountUnit}</span>
           </div>
-
-          <table
-            class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-          >
+          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
             <tbody>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">非分類額</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={nonClassifiedAmount}
-                    num-label="非分類額"
-                    is-table="true"
-                    disabled={assessmentData.nonClassifiedAmount.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">第I分類額</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={firstClassifiedAmount}
-                    num-label="第I分類額"
-                    is-table="true"
-                    disabled={assessmentData.firstClassifiedAmount.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">第II分類額</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={secondClassifiedAmount}
-                    num-label="第II分類額"
-                    is-table="true"
-                    disabled={assessmentData.secondClassifiedAmount.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">第III分類額</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={thirdClassifiedAmount}
-                    num-label="第III分類額"
-                    is-table="true"
-                    disabled={assessmentData.thirdClassifiedAmount.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">第IV分類額</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={fourthClassifiedAmount}
-                    num-label="第IV分類額"
-                    is-table="true"
-                    disabled={assessmentData.fourthClassifiedAmount.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">合計</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={totalAmount}
-                    num-label="合計"
-                    is-table="true"
-                    disabled={assessmentData.totalAmount.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">内要管理債権</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={managedPreferredDebt}
-                    num-label="内要管理債権"
-                    is-table="true"
-                    disabled={assessmentData.managedPreferredDebt.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
+              <template for:each={assessmentRows} for:item="item">
+                <tr key={item.key}>
+                  <th scope="row"><div class="slds-truncate">{item.label}</div></th>
+                  <td>
+                    <div class="display-value">{item.value}</div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -242,131 +63,18 @@
     <!-- 政策投資株式 -->
     <lightning-layout-item size="3">
       <lightning-card>
-        <div class="table-block slds-var-p-left_small">
+        <div class="slds-var-p-left_small">
           <p class="section-label">政策投資株式</p>
-          <table
-            class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-          >
+          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
             <tbody>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">株数(株)</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={stockName}
-                    num-label="株数(株)"
-                    is-table="true"
-                    disabled={stockData.stockName.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">簿価(円)</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={stockQuantity}
-                    num-label="簿価(円)"
-                    is-table="true"
-                    disabled={stockData.stockQuantity.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">取得価格(円)</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={acquisitionPrice}
-                    num-label="取得価格(円)"
-                    is-table="true"
-                    disabled={stockData.acquisitionPrice.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">時価(円)</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={stockPrice}
-                    num-label="時価(円)"
-                    is-table="true"
-                    disabled={stockData.stockPrice.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">取引先保有株数(株)</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={acquisitionDate}
-                    num-label="取引先保有株数(株)"
-                    is-table="true"
-                    disabled={stockData.acquisitionDate.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">取引先保有時価(円)</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={currentPrice}
-                    num-label="取引先保有時価(円)"
-                    is-table="true"
-                    disabled={stockData.currentPrice.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">
-                  <div class="slds-truncate">採算(％)</div>
-                </th>
-                <td>
-                  <c-f003-gs-v0000-number
-                    num-value={valuationProfitLoss}
-                    num-label="採算(％)"
-                    is-table="true"
-                    disabled={stockData.valuationProfitLoss.editable}
-                    step="0.01"
-                    onerror={numberErrorHandler}
-                    onchange={handleInputChange}
-                  >
-                  </c-f003-gs-v0000-number>
-                </td>
-              </tr>
+              <template for:each={stockRows} for:item="item">
+                <tr key={item.key}>
+                  <th scope="row"><div class="slds-truncate">{item.label}</div></th>
+                  <td>
+                    <div class="display-value">{item.value}</div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -376,328 +84,70 @@
     <!-- 経営指標 -->
     <lightning-layout-item size="12">
       <lightning-card>
-        <div class="table-block slds-var-p-right_small">
+        <div class="slds-var-p-right_small">
           <p class="section-label">経営指標</p>
-              <table class="slds-table indicator-table">
-                <thead>
-                  <tr class="slds-line-height_reset">
-                    <template for:each={indicatorColumns} for:item="column">
-                      <th
-                        key={column.fieldName}
-                        scope="col"
-                      >
-                        <div
-                          class="indicator-header-text slds-var-p-right_x-small"
-                          title={column.label}
-                        >
-                          {column.label}
-                        </div>
-                      </th>
-                    </template>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template for:each={indicatorData} for:item="row">
-                    <tr
-                      key={row.id}
-                      class="slds-hint-parent slds-line-height_reset"
-                    >
-                      <th
-                        scope="row"
-                      >
-                        {row.type}
-                        <c-f003-gs-v0000-number
-                          num-value={row.period}
-                          num-label="period"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="period"
-                          disabled={row.disable.period}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </th>
-
-                      <td data-label="sales" class={row.salesClass}>
-                        <c-f003-gs-v0000-number
-                          num-value={row.sales}
-                          num-label="sales"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="sales"
-                          disabled={row.disable.sales}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="operatingProfit"
-                        class={row.operatingProfitClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.operatingProfit}
-                          num-label="operatingProfit"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="operatingProfit"
-                          disabled={row.disable.operatingProfit}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="currentProfit"
-                        class={row.currentProfitClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.currentProfit}
-                          num-label="currentProfit"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="currentProfit"
-                          disabled={row.disable.currentProfit}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="currentProfitRate"
-                        class={row.currentProfitRateClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.currentProfitRate}
-                          num-label="currentProfitRate"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="currentProfitRate"
-                          disabled={row.disable.currentProfitRate}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td data-label="netProfit" class={row.netProfitClass}>
-                        <c-f003-gs-v0000-number
-                          num-value={row.netProfit}
-                          num-label="netProfit"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="netProfit"
-                          disabled={row.disable.netProfit}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="netProfitRate"
-                        class={row.netProfitRateClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.netProfitRate}
-                          num-label="netProfitRate"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="netProfitRate"
-                          disabled={row.disable.netProfitRate}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="depreciation"
-                        class={row.depreciationClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.depreciation}
-                          num-label="depreciation"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="depreciation"
-                          disabled={row.disable.depreciation}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="commercialCF"
-                        class={row.commercialCFClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.commercialCF}
-                          num-label="commercialCF"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="commercialCF"
-                          disabled={row.disable.commercialCF}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="distributionRate"
-                        class={row.distributionRateClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.distributionRate}
-                          num-label="distributionRate"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="distributionRate"
-                          disabled={row.disable.distributionRate}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td data-label="ownCapital" class={row.ownCapitalClass}>
-                        <c-f003-gs-v0000-number
-                          num-value={row.ownCapital}
-                          num-label="ownCapital"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="ownCapital"
-                          disabled={row.disable.ownCapital}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="borrowingPeriod"
-                        class={row.borrowingPeriodClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.borrowingPeriod}
-                          num-label="borrowingPeriod"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="borrowingPeriod"
-                          disabled={row.disable.borrowingPeriod}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="netInterestBurdenRate"
-                        class={row.netInterestBurdenRateClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.netInterestBurdenRate}
-                          num-label="netInterestBurdenRate"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="netInterestBurdenRate"
-                          disabled={row.disable.netInterestBurdenRate}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="ownCapitalRatio"
-                        class={row.ownCapitalRatioClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.ownCapitalRatio}
-                          num-label="ownCapitalRatio"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="ownCapitalRatio"
-                          disabled={row.disable.ownCapitalRatio}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-
-                      <td
-                        data-label="currentBalanceRatio"
-                        class={row.currentBalanceRatioClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.currentBalanceRatio}
-                          num-label="currentBalanceRatio"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="currentBalanceRatio"
-                          disabled={row.disable.currentBalanceRatio}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        >
-                        </c-f003-gs-v0000-number>
-                      </td>
-                    </tr>
+          <table class="slds-table indicator-table">
+            <thead>
+              <tr class="slds-line-height_reset">
+                <template for:each={indicatorColumns} for:item="column">
+                  <th key={column.fieldName} scope="col">
+                    <div class="indicator-header-text slds-var-p-right_x-small" title={column.label}>
+                      {column.label}
+                    </div>
+                  </th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <template for:each={indicatorRows} for:item="row">
+                <tr key={row.id} class="slds-hint-parent slds-line-height_reset">
+                  <th scope="row">
+                    {row.type}
+                    <c-f003-gs-v0000-number
+                      num-value={row.period} num-label="period"
+                      is-table="true" data-id={row.id} set-id="period"
+                      disabled={row.disable.period} step="0.01"
+                      onerror={numberErrorHandler} onchange={handleInputChange}
+                    ></c-f003-gs-v0000-number>
+                  </th>
+                  <template for:each={row.cells} for:item="cell">
+                    <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
+                      <c-f003-gs-v0000-number
+                        num-value={cell.value} num-label={cell.fieldName}
+                        is-table="true" data-id={row.id} set-id={cell.fieldName}
+                        disabled={cell.disabled} step="0.01"
+                        onerror={numberErrorHandler} onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </td>
                   </template>
-                </tbody>
-              </table>
+                </tr>
+              </template>
+            </tbody>
+          </table>
         </div>
       </lightning-card>
     </lightning-layout-item>
 
     <lightning-layout-item size="1">
       <c-f003-gs-v0000-number
-        num-value={totalValue}
-        num-label="Ｇｒ合算実態純資産額"
-        class="slds-var-p-top_large"
-        disabled={total.editable}
-        step="0.01"
-        onerror={numberErrorHandler}
-        onchange={handleInputChange}
-      >
-      </c-f003-gs-v0000-number>
+        num-value={totalValue} num-label="Ｇｒ合算実態純資産額"
+        class="slds-var-p-top_large" disabled={total.disabled} step="0.01"
+        onerror={numberErrorHandler} onchange={handleInputChange}
+      ></c-f003-gs-v0000-number>
     </lightning-layout-item>
 
     <!-- メモ -->
     <lightning-layout-item size="12">
       <lightning-card>
-        <div class="table-block">
+        <div>
           <lightning-layout>
             <lightning-layout-item size="6" padding="around-x-small">
               <div class="slds-text-title_bold">メモ</div>
               <lightning-textarea
-                label-hidden
-                variant="label-hidden"
-                value={memoValue}
-                disabled={memo.editable}
+                variant="label-hidden" value={memoValue}
+                disabled={memo.disabled}
                 style="--sds-c-textarea-sizing-min-height: 5rem"
-              >
-              </lightning-textarea>
+              ></lightning-textarea>
             </lightning-layout-item>
           </lightning-layout>
         </div>

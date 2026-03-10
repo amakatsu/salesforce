@@ -6,14 +6,16 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJoho extends Lightning
   showCalculationAndRegisterButtons = true;
 
   /**
-   * 親タブ切替処理
+   * タブ切替処理（親タブ・子タブ共通）
+   * data-tab-type 属性で親/子を判別
    *
    * @param {Event} event クリックイベント
    */
-  handleSwitchingParentTabs(event) {
+  handleTabSwitch(event) {
     const clickedTab = event.target;
-    const clickedTabId = clickedTab.getAttribute("data-tab-content");
-    switchingTabs.bind(this)(clickedTab, clickedTabId, "parent");
+    const tabContentId = clickedTab.dataset.tabContent;
+    const tabType = clickedTab.dataset.tabType;
+    switchingTabs.bind(this)(clickedTab, tabContentId, tabType);
   }
 
   /**
@@ -33,16 +35,5 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJoho extends Lightning
         component.applySavedHighlight();
       }
     });
-  }
-
-  /**
-   * 子タブ切替処理
-   *
-   * @param {Event} event クリックイベント
-   */
-  handleSwitchingChildTabs(event) {
-    const clickedTab = event.target;
-    const clickedTabId = clickedTab.getAttribute("data-tab-content");
-    switchingTabs.bind(this)(clickedTab, clickedTabId, "child");
   }
 }

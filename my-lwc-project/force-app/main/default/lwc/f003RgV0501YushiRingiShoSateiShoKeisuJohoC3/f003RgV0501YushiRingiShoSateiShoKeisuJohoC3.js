@@ -27,142 +27,70 @@ const INDICATOR_COLUMNS = [
   { label: "経常収支比率(％)", fieldName: "currentBalanceRatio" }
 ];
 
-const ACTIVE_SECTIONS = [
-  "a",
-  "b",
-  "c",
-  "d",
-  "e",
-  "f",
-  "g",
-  "h",
-  "i",
-  "j",
-  "k",
-  "l",
-  "m",
-  "n",
-  "o",
-  "p",
-  "q",
-  "r"
-];
+const ACTIVE_SECTIONS = "abcdefghijklmnopqr".split("");
 
-const MAX_AMOUNT = makeTestData("numeric", 5);
-const MAX_AMOUNT9 = makeTestData("numeric", 9);
-const MAX_AMOUNT6 = makeTestData("numeric", 6);
-const MAX_BALANCE_RATIO = "999.9";
-const MAX_RATE = "99.99";
-const MAX_SMALL_RATE = "99.9";
+const MAX_AMOUNT_5 = makeTestData("numeric", 5);
+const MAX_AMOUNT_9 = makeTestData("numeric", 9);
+const MAX_AMOUNT_6 = makeTestData("numeric", 6);
 const MAX_DISTRIBUTION_RATE = makeTestData("numeric", 3);
 
-const ASSESSMENT_KEYS = [
-  "nonClassifiedAmount",
-  "firstClassifiedAmount",
-  "secondClassifiedAmount",
-  "thirdClassifiedAmount",
-  "fourthClassifiedAmount",
-  "totalAmount",
-  "managedPreferredDebt",
-  "creditRelatedCosts"
-];
+const ASSESSMENT_LABELS = {
+  nonClassifiedAmount: "非分類額",
+  firstClassifiedAmount: "第I分類額",
+  secondClassifiedAmount: "第II分類額",
+  thirdClassifiedAmount: "第III分類額",
+  fourthClassifiedAmount: "第IV分類額",
+  totalAmount: "合計",
+  managedPreferredDebt: "内要管理債権"
+};
+const ASSESSMENT_KEYS = [...Object.keys(ASSESSMENT_LABELS), "creditRelatedCosts"];
+
 const OTHER_TRANSACTION_KEYS = [
-  "agencyFee",
-  "privateBond",
-  "principal",
-  "guarantor",
-  "largeRemaining",
-  "extreme",
-  "specialContract"
-];
-const STOCK_KEYS = [
-  "stockName",
-  "stockQuantity",
-  "acquisitionPrice",
-  "stockPrice",
-  "acquisitionDate",
-  "currentPrice",
-  "valuationProfitLoss"
+  "agencyFee", "privateBond", "principal", "guarantor",
+  "largeRemaining", "extreme", "specialContract"
 ];
 
-const BANK_DEFAULTS = {
-  twoYearsAgo: MAX_AMOUNT,
-  oneYearAgo: MAX_AMOUNT,
-  recentEnd: MAX_AMOUNT,
-  foreignCurrency: MAX_AMOUNT
+const STOCK_LABELS = {
+  stockName: "株数(株)",
+  stockQuantity: "簿価(円)",
+  acquisitionPrice: "取得価格(円)",
+  stockPrice: "時価(円)",
+  acquisitionDate: "取引先保有株数(株)",
+  currentPrice: "取引先保有時価(円)",
+  valuationProfitLoss: "採算(％)"
 };
-const BANK_DISABLE_DEFAULTS = {
-  twoYearsAgo: true,
-  oneYearAgo: true,
-  recentEnd: true,
-  foreignCurrency: false
-};
+const STOCK_KEYS = Object.keys(STOCK_LABELS);
+
+const BANK_FIELDS = ["twoYearsAgo", "oneYearAgo", "recentEnd", "foreignCurrency"];
+const BANK_DEFAULTS = Object.fromEntries(BANK_FIELDS.map(field => [field, MAX_AMOUNT_5]));
+const BANK_DISABLE_DEFAULTS = { twoYearsAgo: true, oneYearAgo: true, recentEnd: true, foreignCurrency: false };
 
 const INDICATOR_DEFAULTS = {
-  type: "",
-  period: "99.99",
-  sales: MAX_AMOUNT9,
-  operatingProfit: MAX_AMOUNT9,
-  currentProfit: MAX_AMOUNT6,
-  currentProfitRate: MAX_RATE,
-  netProfit: MAX_AMOUNT6,
-  netProfitRate: MAX_RATE,
-  depreciation: MAX_AMOUNT6,
-  commercialCF: MAX_AMOUNT6,
-  distributionRate: MAX_DISTRIBUTION_RATE,
-  ownCapital: MAX_AMOUNT6,
-  borrowingPeriod: MAX_SMALL_RATE,
-  netInterestBurdenRate: MAX_SMALL_RATE,
-  ownCapitalRatio: MAX_SMALL_RATE,
-  currentBalanceRatio: MAX_BALANCE_RATIO
+  type: "", period: "99.99",
+  sales: MAX_AMOUNT_9, operatingProfit: MAX_AMOUNT_9,
+  currentProfit: MAX_AMOUNT_6, currentProfitRate: "99.99",
+  netProfit: MAX_AMOUNT_6, netProfitRate: "99.99",
+  depreciation: MAX_AMOUNT_6, commercialCF: MAX_AMOUNT_6,
+  distributionRate: MAX_DISTRIBUTION_RATE, ownCapital: MAX_AMOUNT_6,
+  borrowingPeriod: "99.9", netInterestBurdenRate: "99.9",
+  ownCapitalRatio: "99.9", currentBalanceRatio: "999.9"
 };
+const INDICATOR_FIELDS = Object.keys(INDICATOR_DEFAULTS).filter(key => key !== "type");
+const INDICATOR_DISABLE_DEFAULTS = Object.fromEntries(INDICATOR_FIELDS.map(field => [field, true]));
 
-const INDICATOR_DISABLE_DEFAULTS = {
-  period: true,
-  sales: true,
-  operatingProfit: true,
-  currentProfit: true,
-  currentProfitRate: true,
-  netProfit: true,
-  netProfitRate: true,
-  depreciation: true,
-  commercialCF: true,
-  distributionRate: true,
-  ownCapital: true,
-  borrowingPeriod: true,
-  netInterestBurdenRate: true,
-  ownCapitalRatio: true,
-  currentBalanceRatio: true
-};
+const disableOnly = (keysToDisable = []) =>
+  Object.fromEntries(INDICATOR_FIELDS.map(field => [field, keysToDisable.includes(field)]));
 
-const BANK_HIGHLIGHT_FIELDS = Object.keys(BANK_DEFAULTS);
-const INDICATOR_HIGHLIGHT_FIELDS = Object.keys(INDICATOR_DEFAULTS).filter(
-  (f) => f !== "type"
-);
-
-const valueField = (value, editable = true) => ({ value, editable });
-const valueMap = (values, editable = true) =>
-  Object.fromEntries(
-    Object.entries(values).map(([key, value]) => [
-      key,
-      valueField(value, editable)
-    ])
-  );
-const fillValueMap = (keys, value, editable = true) =>
-  Object.fromEntries(keys.map((key) => [key, valueField(value, editable)]));
+const valueField = (value, disabled = true) => ({ value, disabled });
+const fillValueMap = (keys, value, disabled = true) =>
+  Object.fromEntries(keys.map(key => [key, valueField(value, disabled)]));
 
 const bankRow = ({ id, bankName, values = {}, disable = {} }) => ({
-  id,
-  bankName,
-  ...BANK_DEFAULTS,
-  ...values,
+  id, bankName, ...BANK_DEFAULTS, ...values,
   disable: { ...BANK_DISABLE_DEFAULTS, ...disable }
 });
-
 const indicatorRow = ({ id, overrides = {}, disable = {} }) => ({
-  id,
-  ...INDICATOR_DEFAULTS,
-  ...overrides,
+  id, ...INDICATOR_DEFAULTS, ...overrides,
   disable: { ...INDICATOR_DISABLE_DEFAULTS, ...disable }
 });
 
@@ -170,14 +98,8 @@ function generateBankData() {
   return [
     bankRow({ id: "1", bankName: "当行" }),
     bankRow({
-      id: "2",
-      bankName: "シェア(％)",
-      values: {
-        twoYearsAgo: "99.999",
-        oneYearAgo: "99.999",
-        recentEnd: "99.999",
-        foreignCurrency: "-"
-      },
+      id: "2", bankName: "シェア(％)",
+      values: { twoYearsAgo: "99.999", oneYearAgo: "99.999", recentEnd: "99.999", foreignCurrency: "-" },
       disable: { foreignCurrency: true }
     }),
     bankRow({ id: "3", bankName: makeTestData("mixedChar", 10) }),
@@ -193,241 +115,105 @@ function generateIndicatorData() {
     indicatorRow({ id: "2" }),
     indicatorRow({ id: "3" }),
     indicatorRow({
-      id: "4",
-      overrides: { type: "中間", currentBalanceRatio: "" },
-      disable: {
-        period: false,
-        sales: false,
-        operatingProfit: false,
-        currentProfit: false,
-        currentProfitRate: false,
-        netProfit: false,
-        netProfitRate: false,
-        depreciation: false,
-        commercialCF: false,
-        distributionRate: false,
-        ownCapital: false,
-        borrowingPeriod: false,
-        netInterestBurdenRate: false,
-        ownCapitalRatio: false,
-        currentBalanceRatio: true
-      }
+      id: "4", overrides: { type: "中間", currentBalanceRatio: "" },
+      disable: disableOnly(["currentBalanceRatio"])
     }),
     indicatorRow({
       id: "5",
-      overrides: {
-        type: "予想",
-        netInterestBurdenRate: "",
-        ownCapitalRatio: "",
-        currentBalanceRatio: ""
-      },
-      disable: {
-        period: false,
-        sales: false,
-        operatingProfit: false,
-        currentProfit: false,
-        currentProfitRate: false,
-        netProfit: false,
-        netProfitRate: false,
-        depreciation: false,
-        commercialCF: false,
-        distributionRate: false,
-        ownCapital: false,
-        borrowingPeriod: false,
-        netInterestBurdenRate: true,
-        ownCapitalRatio: true,
-        currentBalanceRatio: true
-      }
+      overrides: { type: "予想", netInterestBurdenRate: "", ownCapitalRatio: "", currentBalanceRatio: "" },
+      disable: disableOnly(["netInterestBurdenRate", "ownCapitalRatio", "currentBalanceRatio"])
     })
   ];
 }
 
+function buildCells(row, columns) {
+  return columns.map(col => ({
+    fieldName: col.fieldName,
+    value: row[col.fieldName],
+    cellClass: row[col.fieldName + "Class"] || "",
+    disabled: row.disable[col.fieldName]
+  }));
+}
+
+function buildDisplayRows(data, labels) {
+  return Object.entries(labels).map(([key, label]) => ({
+    key, label, value: data[key]
+  }));
+}
+
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
-  @track amountUnit = "〇〇〇";
-  @track groupNumber = makeTestData("numeric", 1);
+  amountUnit = "〇〇〇";
+  groupNumber = makeTestData("numeric", 1);
   activeSections = ACTIVE_SECTIONS;
   @track bankData = generateBankData();
   bankColumns = BANK_COLUMNS;
   @track indicatorData = generateIndicatorData();
   indicatorColumns = INDICATOR_COLUMNS;
-
-  @track assessmentData = fillValueMap(ASSESSMENT_KEYS, MAX_AMOUNT);
-
-  @track otherTransactionData = fillValueMap(
-    OTHER_TRANSACTION_KEYS,
-    MAX_AMOUNT
-  );
-
-  @track stockData = fillValueMap(STOCK_KEYS, MAX_AMOUNT);
-
+  @track assessmentData = Object.fromEntries(ASSESSMENT_KEYS.map(key => [key, MAX_AMOUNT_5]));
+  @track otherTransactionData = fillValueMap(OTHER_TRANSACTION_KEYS, MAX_AMOUNT_5);
+  @track stockData = Object.fromEntries(STOCK_KEYS.map(key => [key, MAX_AMOUNT_5]));
   @track memo = valueField(makeTestData("mixedChar", 214), false);
-  @track total = valueField("99.9999");
-
+  @track total = valueField("99.9999", true);
   _savedBankValues = new Map();
   _savedIndicatorValues = new Map();
 
-  connectedCallback() {
-    this._snapshotValues();
-  }
+  connectedCallback() { this._snapshotValues(); }
 
-  _getValue(group, key) {
-    return this[group][key].value;
+  get bankRows() {
+    const cols = BANK_COLUMNS.slice(1);
+    return this.bankData.map(row => ({ ...row, cells: buildCells(row, cols) }));
   }
-
-  get nonClassifiedAmount() {
-    return this._getValue("assessmentData", "nonClassifiedAmount");
+  get indicatorRows() {
+    const cols = INDICATOR_COLUMNS.slice(1);
+    return this.indicatorData.map(row => ({ ...row, cells: buildCells(row, cols) }));
   }
-
-  get firstClassifiedAmount() {
-    return this._getValue("assessmentData", "firstClassifiedAmount");
-  }
-
-  get secondClassifiedAmount() {
-    return this._getValue("assessmentData", "secondClassifiedAmount");
-  }
-
-  get thirdClassifiedAmount() {
-    return this._getValue("assessmentData", "thirdClassifiedAmount");
-  }
-
-  get fourthClassifiedAmount() {
-    return this._getValue("assessmentData", "fourthClassifiedAmount");
-  }
-
-  get totalAmount() {
-    return this._getValue("assessmentData", "totalAmount");
-  }
-
-  get managedPreferredDebt() {
-    return this._getValue("assessmentData", "managedPreferredDebt");
-  }
-
-  get creditRelatedCosts() {
-    return this._getValue("assessmentData", "creditRelatedCosts");
-  }
-
-  get agencyFee() {
-    return this._getValue("otherTransactionData", "agencyFee");
-  }
-
-  get privateBond() {
-    return this._getValue("otherTransactionData", "privateBond");
-  }
-
-  get principal() {
-    return this._getValue("otherTransactionData", "principal");
-  }
-
-  get guarantor() {
-    return this._getValue("otherTransactionData", "guarantor");
-  }
-
-  get largeRemaining() {
-    return this._getValue("otherTransactionData", "largeRemaining");
-  }
-
-  get extreme() {
-    return this._getValue("otherTransactionData", "extreme");
-  }
-
-  get specialContract() {
-    return this._getValue("otherTransactionData", "specialContract");
-  }
-
-  get stockName() {
-    return this._getValue("stockData", "stockName");
-  }
-
-  get stockQuantity() {
-    return this._getValue("stockData", "stockQuantity");
-  }
-
-  get acquisitionPrice() {
-    return this._getValue("stockData", "acquisitionPrice");
-  }
-
-  get stockPrice() {
-    return this._getValue("stockData", "stockPrice");
-  }
-
-  get acquisitionDate() {
-    return this._getValue("stockData", "acquisitionDate");
-  }
-
-  get currentPrice() {
-    return this._getValue("stockData", "currentPrice");
-  }
-
-  get valuationProfitLoss() {
-    return this._getValue("stockData", "valuationProfitLoss");
-  }
-
-  get memoValue() {
-    return this.memo.value;
-  }
-
-  get totalValue() {
-    return this.total.value;
-  }
+  get assessmentRows() { return buildDisplayRows(this.assessmentData, ASSESSMENT_LABELS); }
+  get stockRows() { return buildDisplayRows(this.stockData, STOCK_LABELS); }
+  get memoValue() { return this.memo.value; }
+  get totalValue() { return this.total.value; }
 
   handleInputChange(event) {
     const { id, field } = event.currentTarget.dataset;
     const value = event.target.value;
-    this.updateData(this.bankData, id, field, value);
-    this.updateData(this.indicatorData, id, field, value);
+    this.updateRowField(this.bankData, id, field, value);
+    this.updateRowField(this.indicatorData, id, field, value);
   }
 
-  updateData(data, id, field, value) {
-    const item = data.find((row) => row.id === id);
+  updateRowField(data, id, field, value) {
+    const item = data.find(row => row.id === id);
+    if (item && !item.disable[field]) item[field] = value;
+  }
 
-    if (item && !item.disable[field]) {
-      item[field] = value;
+  _snapshotData(data, fields) {
+    const map = new Map();
+    for (const row of data) {
+      const snapshot = {};
+      for (const field of fields) snapshot[field] = row[field];
+      map.set(row.id, snapshot);
     }
+    return map;
   }
 
   _snapshotValues() {
-    this._savedBankValues = new Map();
-    for (const row of this.bankData) {
-      const snapshot = {};
-      for (const field of BANK_HIGHLIGHT_FIELDS) {
-        snapshot[field] = row[field];
+    this._savedBankValues = this._snapshotData(this.bankData, BANK_FIELDS);
+    this._savedIndicatorValues = this._snapshotData(this.indicatorData, INDICATOR_FIELDS);
+  }
+
+  _applyHighlight(data, savedMap, fields) {
+    return data.map(row => {
+      const saved = savedMap.get(row.id) || {};
+      const updated = { ...row };
+      for (const field of fields) {
+        updated[field + "Class"] = String(updated[field]) !== String(saved[field]) ? "cell-changed-saved" : "";
       }
-      this._savedBankValues.set(row.id, snapshot);
-    }
-    this._savedIndicatorValues = new Map();
-    for (const row of this.indicatorData) {
-      const snapshot = {};
-      for (const field of INDICATOR_HIGHLIGHT_FIELDS) {
-        snapshot[field] = row[field];
-      }
-      this._savedIndicatorValues.set(row.id, snapshot);
-    }
+      return updated;
+    });
   }
 
   @api
   applySavedHighlight() {
-    const cls = "cell-changed-saved";
-
-    this.bankData = this.bankData.map((row) => {
-      const saved = this._savedBankValues.get(row.id) || {};
-      const updated = { ...row };
-      for (const field of BANK_HIGHLIGHT_FIELDS) {
-        updated[field + "Class"] =
-          String(updated[field]) !== String(saved[field]) ? cls : "";
-      }
-      return updated;
-    });
-
-    this.indicatorData = this.indicatorData.map((row) => {
-      const saved = this._savedIndicatorValues.get(row.id) || {};
-      const updated = { ...row };
-      for (const field of INDICATOR_HIGHLIGHT_FIELDS) {
-        updated[field + "Class"] =
-          String(updated[field]) !== String(saved[field]) ? cls : "";
-      }
-      return updated;
-    });
-
+    this.bankData = this._applyHighlight(this.bankData, this._savedBankValues, BANK_FIELDS);
+    this.indicatorData = this._applyHighlight(this.indicatorData, this._savedIndicatorValues, INDICATOR_FIELDS);
     this._snapshotValues();
   }
 }

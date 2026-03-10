@@ -1,492 +1,92 @@
 <template>
   <lightning-layout multiple-rows>
-    <!-- =========================
-         テーブル① 市場性与信状況
-         ========================= -->
+    <!-- テーブル① 市場性与信状況 -->
     <lightning-layout-item size="12">
       <lightning-card>
-        <div class="table-block">
+        <div>
           <div class="section-label">市場性与信状況
-            <span class="meta-group">
+            <span>
               <span class="meta-text">括り： {groupNumber}</span>
               <span class="meta-text slds-var-p-left_small">金額単位： {amountUnit}</span>
             </span>
           </div>
-
-              <table class="slds-table slds-table_cell-buffer slds-table_bordered">
-                <thead>
-                  <tr class="slds-line-height_reset">
-                    <th class="col-w95" scope="col">
-                      <div title="与信種類(科目)">
-                        与信種類(科目)
-                      </div>
-                    </th>
-                    <th class="col-w45" scope="col">
-                      <div title="ワーニング情報">
-                        ワーニング情報
-                      </div>
-                    </th>
-                    <th class="col-w35" scope="col">
-                      <div title="グロス／ネット">
-                        グロス／ネット
-                      </div>
-                    </th>
-                    <th class="col-w25" scope="col">
-                      <div title="期 日">
-                        期 日
-                      </div>
-                    </th>
-                    <th class="col-w37" scope="col">
-                      <div title="マージン">
-                        マージン
-                      </div>
-                    </th>
-                    <th class="col-w37" scope="col">
-                      <div title="99月末残高">
-                        99月末残高
-                      </div>
-                    </th>
-                    <th class="col-w40" scope="col">
-                      <div title="99月末極度">
-                        99月末極度
-                      </div>
-                    </th>
-                    <th class="col-w37" scope="col">
-                      <div title="当月増減">
-                        当月増減
-                      </div>
-                    </th>
-                    <th class="col-w37" scope="col">
-                      <div title="本件後与信額">
-                        本件後与信額
-                      </div>
-                    </th>
-                    <th class="col-w40" scope="col">
-                      <div title="実勢現在残 C／E+P／E">
-                        実勢現在残 C／E+P／E
-                      </div>
-                    </th>
-                    <th class="col-w40" scope="col">
-                      <div title="C／E+P／E(参考値)">
-                        C／E+P／E(参考値)
-                      </div>
-                    </th>
-                    <th class="col-w40" scope="col">
-                      <div title="実勢現在残 C／E">
-                        実勢現在残 C／E
-                      </div>
-                    </th>
-                    <th class="col-w40" scope="col">
-                      <div title="C／E(参考値)">
-                        C／E(参考値)
-                      </div>
-                    </th>
-                    <th class="col-w40" scope="col">
-                      <div title="想定元本承認額">
-                        想定元本承認額
-                      </div>
-                    </th>
-                    <th class="col-w40" scope="col">
-                      <div title="想定元本実勢現在残">
-                        想定元本実勢現在残
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template for:each={creditData} for:item="row">
-                    <tr
-                      key={row.id}
-                      class="slds-hint-parent slds-line-height_reset"
-                    >
-                      <th
-                        data-label="creditType1"
-                        class={row.creditType1Class}
-                        scope="row"
-                      >
-                        <div
-                          class="slds-truncate"
-                          style="word-wrap: break-word; white-space: normal"
-                        >
-                          {row.creditType1}
-                        </div>
-                      </th>
-                      <td
-                        data-label="creditType2"
-                        class={row.creditType2Class}
-                      >
-                        <lightning-input
-                          type="text"
-                          variant="label-hidden"
-                          value={row.creditType2}
-                          data-id={row.id}
-                          data-field="creditType2"
-                          onchange={handleInputChange}
-                        ></lightning-input>
-                      </td>
-                      <td
-                        data-label="grossNet"
-                        class={row.grossNetClass}
-                      >
-                        <lightning-input
-                          type="text"
-                          variant="label-hidden"
-                          value={row.grossNet}
-                          data-id={row.id}
-                          data-field="grossNet"
-                          onchange={handleInputChange}
-                        ></lightning-input>
-                      </td>
-                      <td
-                        data-label="dueDate"
-                        class={row.dueDateClass}
-                      >
-                        <lightning-input
-                          type="text"
-                          variant="label-hidden"
-                          value={row.dueDate}
-                          data-id={row.id}
-                          data-field="dueDate"
-                          onchange={handleInputChange}
-                        ></lightning-input>
-                      </td>
-                      <td
-                        data-label="margin"
-                        class={row.marginClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.margin}
-                          num-label="margin"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="margin"
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="endOfMonthBalance"
-                        class={row.endOfMonthBalanceClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.endOfMonthBalance}
-                          num-label="endOfMonthBalance"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="endOfMonthBalance"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="endOfMonthLimit"
-                        class={row.endOfMonthLimitClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.endOfMonthLimit}
-                          num-label="endOfMonthLimit"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="endOfMonthLimit"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="currentMonthChange"
-                        class={row.currentMonthChangeClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.currentMonthChange}
-                          num-label="currentMonthChange"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="currentMonthChange"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="postTransactionCreditAmount"
-                        class={row.postTransactionCreditAmountClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.postTransactionCreditAmount}
-                          num-label="postTransactionCreditAmount"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="postTransactionCreditAmount"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="marketValueBalanceCEPE"
-                        class={row.marketValueBalanceCEPEClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.marketValueBalanceCEPE}
-                          num-label="marketValueBalanceCEPE"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="marketValueBalanceCEPE"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="marketValueBalanceCEPEReference"
-                        class={row.marketValueBalanceCEPEReferenceClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.marketValueBalanceCEPEReference}
-                          num-label="marketValueBalanceCEPEReference"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="marketValueBalanceCEPEReference"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="marketValueBalanceCE"
-                        class={row.marketValueBalanceCEClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.marketValueBalanceCE}
-                          num-label="marketValueBalanceCE"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="marketValueBalanceCE"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="marketValueBalanceCEReference"
-                        class={row.marketValueBalanceCEReferenceClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.marketValueBalanceCEReference}
-                          num-label="marketValueBalanceCEReference"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="marketValueBalanceCEReference"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="assumedPrincipalApprovalAmount"
-                        class={row.assumedPrincipalApprovalAmountClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.assumedPrincipalApprovalAmount}
-                          num-label="assumedPrincipalApprovalAmount"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="assumedPrincipalApprovalAmount"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                      <td
-                        data-label="assumedPrincipalMarketValueBalance"
-                        class={row.assumedPrincipalMarketValueBalanceClass}
-                      >
-                        <c-f003-gs-v0000-number
-                          num-value={row.assumedPrincipalMarketValueBalance}
-                          num-label="assumedPrincipalMarketValueBalance"
-                          is-table="true"
-                          data-id={row.id}
-                          set-id="assumedPrincipalMarketValueBalance"
-                          disabled={row.disabled}
-                          step="0.01"
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </td>
-                    </tr>
+          <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+            <thead>
+              <tr class="slds-line-height_reset">
+                <template for:each={creditHeaderColumns} for:item="col">
+                  <th key={col.key} class={col.w} scope="col">
+                    <div title={col.label}>{col.label}</div>
+                  </th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <template for:each={creditRows} for:item="row">
+                <tr key={row.id} class="slds-hint-parent slds-line-height_reset">
+                  <th data-label="creditType1" class={row.creditType1Class} scope="row">
+                    <div class="slds-truncate credit-type-wrap">{row.creditType1}</div>
+                  </th>
+                  <template for:each={row.textCells} for:item="cell">
+                    <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
+                      <lightning-input type="text" variant="label-hidden" value={cell.value}
+                        data-id={row.id} data-field={cell.field}
+                        onchange={handleInputChange}></lightning-input>
+                    </td>
                   </template>
-                </tbody>
-              </table>
+                  <template for:each={row.numberCells} for:item="cell">
+                    <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
+                      <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.field}
+                        is-table="true" data-id={row.id} data-field={cell.field}
+                        set-id={cell.field} disabled={cell.disabled} step="0.01"
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}></c-f003-gs-v0000-number>
+                    </td>
+                  </template>
+                </tr>
+              </template>
+            </tbody>
+          </table>
         </div>
       </lightning-card>
     </lightning-layout-item>
 
-    <!-- =========================
-         テーブル② 為替予約残高推移
-         ========================= -->
+    <!-- テーブル② 為替予約残高推移 -->
     <lightning-layout-item size="12">
       <lightning-card>
         <div class="slds-size_8-of-12">
-        <div class="table-block">
-          <div class="section-label">為替予約残高推移
-            <span class="meta-text">金額単位： {amountUnit}</span>
+          <div>
+            <div class="section-label">為替予約残高推移
+              <span class="meta-text">金額単位： {amountUnit}</span>
+            </div>
           </div>
-        </div>
-
-        <table
-          class="slds-table slds-table_cell-buffer slds-table_bordered common-table"
-        >
-          <thead>
-            <tr class="slds-line-height_reset">
-              <template for:each={exchangeReservationColumns} for:item="column">
-                <th key={column.fieldName} scope="col">
-                  <div title={column.label}>
-                    {column.label}
-                  </div>
-                </th>
-              </template>
-            </tr>
-          </thead>
-          <tbody>
-            <template for:each={exchangeReservationData} for:item="row">
-              <tr key={row.id} class="slds-hint-parent">
-                <th>{row.type}</th>
-
-                <td data-label="previousTermAverage">
-                  <div class={row.previousTermAverageClass}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.previousTermAverage}
-                      num-label="previousTermAverage"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="previousTermAverage"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
-
-                <td data-label="lastTermAverage">
-                  <div class={row.lastTermAverageClass}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.lastTermAverage}
-                      num-label="lastTermAverage"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="lastTermAverage"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
-
-                <td data-label="september99">
-                  <div class={row.september99Class}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.september99}
-                      num-label="september99"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="september99"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
-
-                <td data-label="dueDate1">
-                  <div class={row.dueDate1Class}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.dueDate1}
-                      num-label="dueDate1"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="dueDate1"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
-
-                <td data-label="dueDate2">
-                  <div class={row.dueDate2Class}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.dueDate2}
-                      num-label="dueDate2"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="dueDate2"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
-
-                <td data-label="dueDate3">
-                  <div class={row.dueDate3Class}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.dueDate3}
-                      num-label="dueDate3"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="dueDate3"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
-
-                <td data-label="dueDate4">
-                  <div class={row.dueDate4Class}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.dueDate4}
-                      num-label="dueDate4"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="dueDate4"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
-
-                <td data-label="dueDate5">
-                  <div class={row.dueDate5Class}>
-                    <c-f003-gs-v0000-number
-                      num-value={row.dueDate5}
-                      num-label="dueDate5"
-                      is-table="true"
-                      data-id={row.id}
-                      data-field="dueDate5"
-                      step="0.01"
-                      onerror={numberErrorHandler}
-                      onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
-                  </div>
-                </td>
+          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
+            <thead>
+              <tr class="slds-line-height_reset">
+                <template for:each={exchangeReservationColumns} for:item="column">
+                  <th key={column.fieldName} scope="col">
+                    <div title={column.label}>{column.label}</div>
+                  </th>
+                </template>
               </tr>
-            </template>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <template for:each={exchangeRows} for:item="row">
+                <tr key={row.id} class="slds-hint-parent">
+                  <th>{row.type}</th>
+                  <template for:each={row.cells} for:item="cell">
+                    <td key={cell.key} data-label={cell.field}>
+                      <div class={cell.cellClass}>
+                        <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.field}
+                          is-table="true" data-id={row.id} data-field={cell.field}
+                          step="0.01" onerror={numberErrorHandler}
+                          onchange={handleInputChange}></c-f003-gs-v0000-number>
+                      </div>
+                    </td>
+                  </template>
+                </tr>
+              </template>
+            </tbody>
+          </table>
         </div>
       </lightning-card>
     </lightning-layout-item>

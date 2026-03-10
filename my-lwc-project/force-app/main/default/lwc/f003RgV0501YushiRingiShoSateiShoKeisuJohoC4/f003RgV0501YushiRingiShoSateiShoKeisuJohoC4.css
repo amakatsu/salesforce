@@ -1,4 +1,3 @@
-/* テーブルラベル共通スタイル（親CSS Custom Properties参照） */
 .section-label {
   display: var(--section-label-display, flex);
   justify-content: var(--section-label-justify-content, space-between);
@@ -9,164 +8,48 @@
   font-size: var(--section-label-font-size, 0.9rem);
   line-height: var(--section-label-line-height, 1.4);
 }
-
-/* 金額単位・括り表示共通スタイル（親CSS Custom Properties参照） */
 .meta-text {
   font-weight: var(--meta-text-font-weight, normal);
   margin: var(--meta-text-margin, 0);
   white-space: var(--meta-text-white-space, nowrap);
 }
-
-.common-table {
-  table-layout: fixed;
-  overflow: visible;
-  width: 100%;
-  border: 1px solid #999;
-  border-collapse: collapse;
-}
-
-.common-table th {
-  position: sticky;
-  top: 0;
-  left: 0;
-  text-align: left;
-  background: #f2f2f2;
-  border: 1px solid #999;
-}
-
-.common-table td {
-  padding: 0;
-  text-align: left;
-  background: #fff;
-  border: 1px solid #999;
-}
-
-/* 為替予約残高推移テーブル: ヘッダーを中央揃え */
-.common-table thead th {
-  text-align: center;
-}
-
-.changed-cell {
-  --slds-c-input-color-background: #fff9c4;
-}
-
-/* 登録後の変更セル黄色ハイライト */
-.cell-changed-saved {
-  background-color: var(--cell-saved-highlight, #ffffcc);
-  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
-}
-.cell-changed-saved c-f003-gs-v0000-number {
-  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
-}
-.cell-changed-saved lightning-input {
-  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
-}
-
-/* tbody行ヘッダー: thead用のsticky/box-shadowを無効化 */
-tbody th {
-  position: static;
-  box-shadow: none;
-  border-top: 1px solid #999;
-  text-align: left;
-}
-
-table {
-  border-spacing: 0;
-  border-collapse: separate;
-  table-layout: fixed;
-}
-
-th,
-td {
-  border-top: 1px solid #999;
-  border-left: 1px solid #999;
-}
-
-td {
-  background: #ffffff;
-  padding: 0;
-}
-
-/* slds-table_cell-buffer の td padding 打ち消し（詳細度: 0,0,1,2）
-   table-layout:fixed + 固定幅列で右端マージンが発生するのを防止
-   C2の .table-container-credit tbody td { padding: 0 } と同じパターン */
-.slds-table tbody td {
-  padding: 0;
-}
-
+/* 為替予約テーブル（border-collapse: collapse） */
+.common-table { table-layout: fixed; width: 100%; border: 1px solid #999; border-collapse: collapse; }
+.common-table th, .common-table td { text-align: left; border: 1px solid #999; }
+.common-table th { position: sticky; top: 0; left: 0; background: #f2f2f2; }
+.common-table td { padding: 0; background: #fff; }
+.common-table thead th { text-align: center; }
+/* 変更セルハイライト */
+.changed-cell { --slds-c-input-color-background: #fff9c4; background-color: #fff9c4; }
+.cell-changed-saved { background-color: var(--cell-saved-highlight, #ffffcc); --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc); }
+.cell-changed-saved c-f003-gs-v0000-number,
+.cell-changed-saved lightning-input { --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc); }
+/* 市場性与信テーブル（border-collapse: separate） */
+table { border-spacing: 0; border-collapse: separate; table-layout: fixed; }
+th, td { border-top: 1px solid #999; border-left: 1px solid #999; }
+td { background: #ffffff; padding: 0; }
+.slds-table tbody td { padding: 0; }
 th {
-  position: sticky;
-  top: 0;
-  text-align: center;
-  vertical-align: middle;
-  background: #f2f2f2;
-  white-space: normal;
-  overflow-wrap: break-word;
-  border-top: none;
-  box-shadow: inset 0 1px 0 #999;
+  position: sticky; top: 0; text-align: center; vertical-align: middle;
+  background: #f2f2f2; white-space: normal; overflow-wrap: break-word;
+  border-top: none; box-shadow: inset 0 1px 0 #999;
 }
-
-th[scope="row"] {
-  border-right: 1px solid #999;
-}
-
-th[scope="col"] {
-  border-bottom: 1px solid #999;
-}
-
-/* ヘッダー角セル */
-tr:nth-child(1) th:nth-child(1) {
-  border-right: 1px solid #999;
-}
-
-/* ヘッダー末尾 */
-tr:nth-child(1) th:last-child {
-  border-right: 1px solid #999;
-}
-
-/* データ行末尾 */
-tr:nth-child(n + 1) td:last-child {
-  border-right: 1px solid #999;
-}
-
-/* 最終行下罫線 */
-tr:nth-last-child(1) td {
-  border-bottom: 1px solid #999;
-  border-top: none;
-}
-
-tr:nth-last-child(1) th {
-  border-bottom: 1px solid #999;
-}
-
-/* 最終行の1つ上の行 */
-tr:nth-last-child(2) td {
-  border-bottom: 1px solid #999;
-}
-
-/* =========================================
-* インデント（ツリー階層表現・C2と同パターン）
-* ========================================= */
-.indent-0 {
-  padding-left: 0.35rem !important;
-}
-.indent-1 {
-  padding-left: 0.75rem !important;
-}
-
-/* =========================================
-* 市場性与信テーブル: 列幅定義（インラインstyle除去対応）
-* ========================================= */
+tbody th { position: static; box-shadow: none; border-top: 1px solid #999; text-align: left; }
+th[scope="row"] { border-right: 1px solid #999; }
+th[scope="col"] { border-bottom: 1px solid #999; }
+tr:first-child th:first-child, tr:first-child th:last-child { border-right: 1px solid #999; }
+td:last-child { border-right: 1px solid #999; }
+tr:last-child td, tr:last-child th, tr:nth-last-child(2) td { border-bottom: 1px solid #999; }
+tr:last-child td { border-top: none; }
+/* インデント（SLDS詳細度対策で !important 必須） */
+.indent-0 { padding-left: 0.35rem !important; }
+.indent-1 { padding-left: 0.75rem !important; }
+/* 列幅 */
 .col-w95 { width: 95px; }
 .col-w45 { width: 45px; }
 .col-w40 { width: 40px; }
 .col-w37 { width: 37px; }
 .col-w35 { width: 35px; }
 .col-w25 { width: 25px; }
-
-/* Numberコンポーネントの余白を外側から制御（コンポーネント内部CSS修正禁止） */
-c-f003-gs-v0000-number {
-  margin: 0;
-  padding: 0;
-  display: block;
-}
+.credit-type-wrap { overflow-wrap: break-word; white-space: normal; }
+c-f003-gs-v0000-number { margin: 0; padding: 0; display: block; }

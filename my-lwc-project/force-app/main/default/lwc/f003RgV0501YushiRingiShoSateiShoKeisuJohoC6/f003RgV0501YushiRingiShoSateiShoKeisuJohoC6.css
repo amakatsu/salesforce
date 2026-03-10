@@ -10,11 +10,6 @@
   line-height: var(--section-label-line-height, 1.4);
 }
 
-/* 全カラムを下揃え */
-.c6-layout {
-  align-items: flex-end;
-}
-
 /* 金額単位・括り表示共通スタイル（親CSS Custom Properties参照） */
 .meta-text {
   font-weight: var(--meta-text-font-weight, normal);
@@ -22,17 +17,7 @@
   white-space: var(--meta-text-white-space, nowrap);
 }
 
-/* ラベル行のテキストを下揃え → 金額単位をBOXに近づける */
-.meta-header {
-  align-items: flex-end;
-}
-
-/* 計数サマリーBOX内のセル値も下揃え */
-.summary-panel .slds-box .slds-grid {
-  align-items: flex-end;
-}
-
-/* テーブルセルがある場合の下揃え */
+/* テーブルセルの下揃え */
 td {
   vertical-align: bottom;
   padding: 0;
@@ -45,13 +30,12 @@ c-f003-gs-v0000-number {
   display: block;
 }
 
+/* 登録後の変更セルハイライト */
 .cell-changed-saved {
   background-color: var(--cell-saved-highlight, #ffffcc);
   --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
 }
-.cell-changed-saved c-f003-gs-v0000-number {
-  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
-}
+.cell-changed-saved c-f003-gs-v0000-number,
 .cell-changed-saved lightning-input {
   --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
 }

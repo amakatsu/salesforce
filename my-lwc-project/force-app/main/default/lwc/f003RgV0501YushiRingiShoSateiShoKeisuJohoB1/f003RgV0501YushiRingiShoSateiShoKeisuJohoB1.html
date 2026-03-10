@@ -8,7 +8,7 @@
         <lightning-button-group>
           <lightning-button
             label="計数再取得"
-            onclick={handleFetchCalculation}
+            onclick={handleAction}
           ></lightning-button>
 
           <template lwc:if={showCalculationAndRegisterButtons}>
@@ -34,58 +34,58 @@
         <lightning-button-group>
           <lightning-button
             label="ファイル出力"
-            onclick={handleFileExport}
+            onclick={handleAction}
           ></lightning-button>
 
           <template lwc:if={showCalculationAndRegisterButtons}>
             <lightning-button
               label="Excel出力"
-              onclick={handleExcelExport}
+              onclick={handleAction}
             ></lightning-button>
           </template>
 
           <lightning-button-menu label="照会">
             <lightning-menu-item
               label="過去禀査"
-              onclick={handlePastReview}
+              onclick={handleAction}
             ></lightning-menu-item>
             <lightning-menu-item
               label="直近計数照会"
-              onclick={handleRecentInquiry}
+              onclick={handleAction}
             ></lightning-menu-item>
 
             <template lwc:if={showCalculationAndRegisterButtons}>
               <lightning-menu-item
                 label="預金担保明細"
-                onclick={handleDepositDetail}
+                onclick={handleAction}
               ></lightning-menu-item>
               <lightning-menu-item
                 label="支払人別残高推移"
-                onclick={handlePayerBalance}
+                onclick={handleAction}
               ></lightning-menu-item>
               <lightning-menu-item
                 label="電債担保残高"
-                onclick={handleBillBalance}
+                onclick={handleAction}
               ></lightning-menu-item>
               <lightning-menu-item
                 label="有価証券担保明細"
-                onclick={handleSecuritiesDetail}
+                onclick={handleAction}
               ></lightning-menu-item>
               <lightning-menu-item
                 label="協会保証明細"
-                onclick={handleAssociationGuarantee}
+                onclick={handleAction}
               ></lightning-menu-item>
               <lightning-menu-item
                 label="一般保証明細"
-                onclick={handleGeneralGuarantee}
+                onclick={handleAction}
               ></lightning-menu-item>
               <lightning-menu-item
                 label="その他担保明細"
-                onclick={handleOtherCollateral}
+                onclick={handleAction}
               ></lightning-menu-item>
               <lightning-menu-item
                 label="不動産担保明細"
-                onclick={handleRealEstateDetail}
+                onclick={handleAction}
               ></lightning-menu-item>
             </template>
           </lightning-button-menu>

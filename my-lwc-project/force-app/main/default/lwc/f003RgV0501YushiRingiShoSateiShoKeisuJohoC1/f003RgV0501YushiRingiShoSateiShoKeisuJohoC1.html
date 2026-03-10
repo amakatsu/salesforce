@@ -13,77 +13,23 @@
         <lightning-layout multiple-rows horizontal-align="start">
           <!-- 組織店情報 -->
           <lightning-layout-item size="12">
-            <lightning-layout
-              multiple-rows
-              padding="horizontal-small"
-              horizontal-align="start"
-            >
-              <lightning-layout-item size="2" padding="horizontal-small">
-                <lightning-input
-                  label="組織店番"
-                  value={branchNumber}
-                  readonly
-                  class="underline"
-                ></lightning-input>
-              </lightning-layout-item>
-              <lightning-layout-item size="4" padding="horizontal-small">
-                <lightning-input
-                  label="組織店名"
-                  value={branchName}
-                  readonly
-                  class="underline"
-                ></lightning-input>
-              </lightning-layout-item>
+            <lightning-layout multiple-rows padding="horizontal-small" horizontal-align="start">
+              <template for:each={organizationFields} for:item="field">
+                <lightning-layout-item key={field.key} size={field.size} padding="horizontal-small">
+                  <lightning-input label={field.label} value={field.value} readonly class="underline"></lightning-input>
+                </lightning-layout-item>
+              </template>
             </lightning-layout>
           </lightning-layout-item>
 
           <!-- 取引先詳細情報 -->
           <lightning-layout-item size="12">
-            <lightning-layout
-              multiple-rows
-              padding="horizontal-small"
-              horizontal-align="start"
-            >
-              <lightning-layout-item size="2" padding="horizontal-small">
-                <lightning-input
-                  label="店番"
-                  value={branchNumber}
-                  readonly
-                  class="underline"
-                ></lightning-input>
-              </lightning-layout-item>
-              <lightning-layout-item size="2" padding="horizontal-small">
-                <lightning-input
-                  label="取引先番号"
-                  value={customerNumber}
-                  readonly
-                  class="underline"
-                ></lightning-input>
-              </lightning-layout-item>
-              <lightning-layout-item size="4" padding="horizontal-small">
-                <lightning-input
-                  label="取引先名"
-                  value={customerName}
-                  readonly
-                  class="underline"
-                ></lightning-input>
-              </lightning-layout-item>
-              <lightning-layout-item size="2" padding="horizontal-small">
-                <lightning-input
-                  label="債務者格付"
-                  value={debtorRating}
-                  readonly
-                  class="underline"
-                ></lightning-input>
-              </lightning-layout-item>
-              <lightning-layout-item size="2" padding="horizontal-small">
-                <lightning-input
-                  label="コア企業"
-                  value={coreCompany}
-                  readonly
-                  class="underline"
-                ></lightning-input>
-              </lightning-layout-item>
+            <lightning-layout multiple-rows padding="horizontal-small" horizontal-align="start">
+              <template for:each={customerFields} for:item="field">
+                <lightning-layout-item key={field.key} size={field.size} padding="horizontal-small">
+                  <lightning-input label={field.label} value={field.value} readonly class="underline"></lightning-input>
+                </lightning-layout-item>
+              </template>
             </lightning-layout>
           </lightning-layout-item>
         </lightning-layout>
