@@ -28,18 +28,24 @@
                   </th>
                   <template for:each={row.textCells} for:item="cell">
                     <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
-                      <lightning-input type="text" variant="label-hidden" value={cell.value}
-                        data-id={row.id} data-field={cell.field}
-                        onchange={handleInputChange}></lightning-input>
+                      <lightning-formatted-text value={cell.value}
+                        class="display-value"></lightning-formatted-text>
                     </td>
                   </template>
                   <template for:each={row.numberCells} for:item="cell">
                     <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
-                      <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.field}
-                        is-table="true" data-id={row.id} data-field={cell.field}
-                        set-id={cell.field} disabled={cell.disabled} step="0.01"
-                        onerror={numberErrorHandler}
-                        onchange={handleInputChange}></c-f003-gs-v0000-number>
+                      <template if:true={cell.renderAsFormatted}>
+                        <div class="display-value">
+                          <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                        </div>
+                      </template>
+                      <template if:false={cell.renderAsFormatted}>
+                        <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.field}
+                          is-table="true" data-id={row.id} data-field={cell.field}
+                          set-id={cell.field} step="0.01" disabled={cell.disabled}
+                          onerror={numberErrorHandler}
+                          onchange={handleInputChange}></c-f003-gs-v0000-number>
+                      </template>
                     </td>
                   </template>
                 </tr>
@@ -76,10 +82,8 @@
                   <template for:each={row.cells} for:item="cell">
                     <td key={cell.key} data-label={cell.field}>
                       <div class={cell.cellClass}>
-                        <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.field}
-                          is-table="true" data-id={row.id} data-field={cell.field}
-                          step="0.01" onerror={numberErrorHandler}
-                          onchange={handleInputChange}></c-f003-gs-v0000-number>
+                        <lightning-formatted-number value={cell.value}
+                          class="display-value"></lightning-formatted-number>
                       </div>
                     </td>
                   </template>

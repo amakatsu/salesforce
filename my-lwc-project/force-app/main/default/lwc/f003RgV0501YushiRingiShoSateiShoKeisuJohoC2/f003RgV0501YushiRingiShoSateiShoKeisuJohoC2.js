@@ -5,7 +5,7 @@ import { stateService } from "./state";
 const TABLE_HEADERS = {
   CREDIT: {
     SUBJECT_SUMMARY_NUMBER: "科目・摘要・禀査番号",
-    DUE_DATE: "期日",
+    DUE_DATE: "期日(月/日)",
     RATE: "利率",
     BALANCE_99: "99月末残高",
     MARK: "合算",
@@ -54,8 +54,6 @@ const LABELS = {
 };
 
 const EDITABLE_CREDIT_NODE_ID = "l142";
-const MARK_HIDDEN_NODE_IDS = new Set(["root1", "root4"]);
-
 const STYLE_FIELDS = [
   "label", "dueDate", "rate", "balance99", "mark",
   "collateralType", "principal", "change", "postBalance",
@@ -130,6 +128,7 @@ export default class RirituComponent extends LightningElement {
     hostStyle.setProperty("--c2-data-row-height", `${dataRowHeight}px`);
   }
 
+
   handleSave() { this.applySavedHighlight(); }
 
   @api
@@ -184,16 +183,16 @@ export default class RirituComponent extends LightningElement {
   _initializeData() {
     stateService.initializeState();
     const { creditSource, collateralSource } = stateService.getState();
-    this.creditRows = this._flattenTree(creditSource, false);
-    this.collateralRows = this._flattenTree(collateralSource, false);
+    this.creditRows = this._flattenTree(creditSource, false, 0, true);
+    this.collateralRows = this._flattenTree(collateralSource, false, 0, false);
     this._originalGuarantorData = this.guarantorData.map((g) => ({ ...g }));
     this.guarantorData = this.guarantorData.map((g) => ({ ...g, cellClass: "slds-text-align_center" }));
   }
 
   _refreshData() {
     const { creditSource, collateralSource } = stateService.getState();
-    this.creditRows = this._flattenTree(creditSource, this.isHighlightActive);
-    this.collateralRows = this._flattenTree(collateralSource, this.isHighlightActive);
+    this.creditRows = this._flattenTree(creditSource, this.isHighlightActive, 0, true);
+    this.collateralRows = this._flattenTree(collateralSource, this.isHighlightActive, 0, false);
   }
 
   _isFieldDisabled(nodeId, fieldName) {
@@ -219,32 +218,80 @@ export default class RirituComponent extends LightningElement {
     }
   }
 
-  _flattenTree(tree, shouldHighlight, level = 0) {
+  _flattenTree(tree, shouldHighlight, level = 0, isCredit = true) {
     const { expanded } = stateService.getState();
-    return tree.flatMap((node) => {
-      const flat = this._createFlatNode(node, level, shouldHighlight);
+    return tree.flatMap((node, indexInParent) => {
+      const flat = this._createFlatNode(node, level, shouldHighlight, indexInParent, isCredit);
       const children = expanded.has(node.id) && node.children?.length
-        ? this._flattenTree(node.children, shouldHighlight, level + 1)
+        ? this._flattenTree(node.children, shouldHighlight, level + 1, isCredit)
         : [];
       return [flat, ...children];
     });
   }
 
-  _createFlatNode(node, level, shouldHighlight) {
+  _createFlatNode(node, level, shouldHighlight, indexInParent, isCredit) {
     const hasChildren = Boolean(node.children?.length);
     const isExpanded = stateService.getState().expanded.has(node.id);
+    const isTargetCollateral = node.collateralType === "裸与信";
+    const fieldStyles = this._generateFieldStyles(node, shouldHighlight, level);
+    const editable = node.editable || {};
+    const numberCellsBeforeMark = isCredit
+      ? [
+        this._buildNumberCell(node, fieldStyles, "rate", LABELS.field.RATE),
+        this._buildNumberCell(node, fieldStyles, "balance99", LABELS.field.BALANCE_99)
+      ]
+      : [];
+    const numberCellsAfterMark = isCredit
+      ? [
+        this._buildNumberCell(node, fieldStyles, "principal", LABELS.field.PRINCIPAL),
+        this._buildNumberCell(node, fieldStyles, "change", LABELS.field.CHANGE),
+        this._buildNumberCell(node, fieldStyles, "postBalance", LABELS.field.POST_BALANCE),
+        this._buildNumberCell(node, fieldStyles, "actualBalance", LABELS.field.ACTUAL_BALANCE),
+        this._buildNumberCell(node, fieldStyles, "correction", LABELS.field.CORRECTION)
+      ]
+      : [];
+    const collateralNumberCells = !isCredit
+      ? [
+        this._buildNumberCell(node, fieldStyles, "regValue", LABELS.field.REG_VALUE),
+        this._buildNumberCell(node, fieldStyles, "marketValue", LABELS.field.MARKET_VALUE)
+      ]
+      : [];
+
     return {
       ...node, level, hasChildren,
       isSpecificCredit: node.id === EDITABLE_CREDIT_NODE_ID,
-      hideMark: MARK_HIDDEN_NODE_IDS.has(node.id),
+      hideMark: level === 0,
       icon: hasChildren ? (isExpanded ? "utility:chevrondown" : "utility:chevronright") : "",
-      ...this._generateFieldStyles(node, shouldHighlight, level)
+      showCollateralHelp: isTargetCollateral,
+      ...fieldStyles,
+      dueDateClass: this._computeDueDateClass(node, shouldHighlight),
+      dueDateMonthDisabled: level === 0,
+      dueDateDayDisabled: level === 0,
+      showDueDateSeparator: Boolean(node.dueDateMonth || node.dueDateDay),
+      numberCellsBeforeMark,
+      numberCellsAfterMark,
+      collateralNumberCells
     };
   }
 
   _findOriginalNode(nodeId) {
     const { originalCreditSource, originalCollateralSource } = stateService.getState();
     return findInTree(originalCreditSource, nodeId) || findInTree(originalCollateralSource, nodeId);
+  }
+
+  _computeDueDateClass(node, shouldHighlight) {
+    const { draft } = stateService.getState();
+    const nodeDraft = draft.get(node.id);
+    const originalNode = this._findOriginalNode(node.id);
+    const isSavedBase = shouldHighlight && !draft.has(node.id) && originalNode;
+    const saved = isSavedBase && (
+      originalNode.dueDateMonth !== node.dueDateMonth ||
+      originalNode.dueDateDay !== node.dueDateDay
+    );
+    const drafted = nodeDraft && ("dueDateMonth" in nodeDraft || "dueDateDay" in nodeDraft);
+    if (saved) return "changed-cell cell-changed-saved";
+    if (drafted) return "changed-cell";
+    return "";
   }
 
   _generateFieldStyles(node, shouldHighlight, level) {
@@ -265,5 +312,16 @@ export default class RirituComponent extends LightningElement {
       result[`${field}Disabled`] = !editable[field];
     }
     return result;
+  }
+
+  _buildNumberCell(node, fieldStyles, fieldName, label) {
+    return {
+      key: `${node.id}-${fieldName}`,
+      field: fieldName,
+      label,
+      value: node[fieldName],
+      disabled: fieldStyles[`${fieldName}Disabled`],
+      cellClass: fieldStyles[`${fieldName}Class`]
+    };
   }
 }

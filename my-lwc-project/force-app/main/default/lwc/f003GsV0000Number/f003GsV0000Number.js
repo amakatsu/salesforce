@@ -13,7 +13,22 @@ export default class F003GsV0000Number extends LightningElement {
   }
 
   get inputClass() {
-    return this.isTable ? "table-number-input" : "";
+    const classes = [];
+    if (this.isTable) {
+      classes.push("table-number-input");
+    }
+    if (this.disabled) {
+      classes.push("display-number-input");
+    }
+    return classes.join(" ");
+  }
+
+  get tableInputClass() {
+    const classes = ["slds-input", "table-number-input"];
+    if (this.disabled) {
+      classes.push("display-number-input");
+    }
+    return classes.join(" ");
   }
 
   handleNumberChange(event) {

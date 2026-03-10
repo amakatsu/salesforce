@@ -1,12 +1,25 @@
 <template>
-  <lightning-input
-    type="number"
-    label="{numLabel}"
-    variant="{inputVariant}"
-    value="{numValue}"
-    step="{step}"
-    disabled="{disabled}"
-    onchange={handleNumberChange}
-    class="{inputClass}"
-  ></lightning-input>
+  <template if:true={isTable}>
+    <input
+      type="number"
+      class={tableInputClass}
+      value={numValue}
+      step={step}
+      disabled={disabled}
+      onchange={handleNumberChange}
+    />
+  </template>
+  <template if:false={isTable}>
+    <lightning-input
+      type="number"
+      label="{numLabel}"
+      variant="{inputVariant}"
+      value="{numValue}"
+      step="{step}"
+      disabled="{disabled}"
+      onchange={handleNumberChange}
+      class="{inputClass}"
+      style="--slds-c-input-text-align: right; --sds-c-input-text-align: right;"
+    ></lightning-input>
+  </template>
 </template>

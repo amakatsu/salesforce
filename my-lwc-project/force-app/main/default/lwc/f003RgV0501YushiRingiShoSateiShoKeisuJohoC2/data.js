@@ -2,7 +2,8 @@ const MAX_CREDIT_VALUE = 9999999;
 const MAX_COLLATERAL_VALUE = 9999999;
 
 const CREDIT_DEFAULTS = {
-  dueDate: "",
+  dueDateMonth: "",
+  dueDateDay: "",
   rate: "",
   balance99: MAX_CREDIT_VALUE,
   principal: MAX_CREDIT_VALUE,
@@ -19,7 +20,8 @@ const COLLATERAL_DEFAULTS = {
 
 const baseCreditEditable = {
   label: false,
-  dueDate: false,
+  dueDateMonth: false,
+  dueDateDay: false,
   rate: false,
   balance99: false,
   mark: false,
@@ -90,7 +92,7 @@ const rawCreditSource = [
       creditNode({
         id: "l21",
         label: "貸付金・割引明細１",
-        overrides: { dueDate: "03/01", rate: "99.999", change: -9999999 },
+        overrides: { dueDateMonth: "03", dueDateDay: "01", rate: "99.999", change: -9999999 },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -105,7 +107,7 @@ const rawCreditSource = [
       creditNode({
         id: "l22",
         label: "貸付金・割引明細２",
-        overrides: { dueDate: "04/01", rate: "99.999" },
+        overrides: { dueDateMonth: "04", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -121,7 +123,7 @@ const rawCreditSource = [
       creditNode({
         id: "l23",
         label: "貸付金・割引明細３",
-        overrides: { dueDate: "05/01", rate: "99.999" },
+        overrides: { dueDateMonth: "05", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -149,7 +151,7 @@ const rawCreditSource = [
       creditNode({
         id: "e43",
         label: "指定外Ｌ／Ｃ",
-        overrides: { dueDate: "09/01", rate: "99.999" },
+        overrides: { dueDateMonth: "09", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -165,7 +167,7 @@ const rawCreditSource = [
       creditNode({
         id: "e44",
         label: "Ｄ／Ｐ・Ｄ／Ａ・輸出ＯＡ",
-        overrides: { dueDate: "10/01", rate: "99.999" },
+        overrides: { dueDateMonth: "10", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -181,7 +183,7 @@ const rawCreditSource = [
       creditNode({
         id: "e45",
         label: "外貨小切手",
-        overrides: { dueDate: "11/01", rate: "99.999" },
+        overrides: { dueDateMonth: "11", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -197,7 +199,7 @@ const rawCreditSource = [
       creditNode({
         id: "e46",
         label: "輸出(小計)",
-        overrides: { dueDate: "12/01", rate: "99.999" },
+        overrides: { dueDateMonth: "12", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -213,7 +215,7 @@ const rawCreditSource = [
       creditNode({
         id: "e47",
         label: "貸出(輸出)",
-        overrides: { dueDate: "01/01", rate: "99.999" },
+        overrides: { dueDateMonth: "01", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -229,7 +231,7 @@ const rawCreditSource = [
       creditNode({
         id: "e48",
         label: "輸入Ｌ／Ｃ",
-        overrides: { dueDate: "02/01", rate: "99.999" },
+        overrides: { dueDateMonth: "02", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -245,7 +247,7 @@ const rawCreditSource = [
       creditNode({
         id: "e49",
         label: "ユーザンス",
-        overrides: { dueDate: "03/01", rate: "99.999" },
+        overrides: { dueDateMonth: "03", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -261,7 +263,7 @@ const rawCreditSource = [
       creditNode({
         id: "e410",
         label: "Ｌ／Ｇ",
-        overrides: { dueDate: "04/01", rate: "99.999" },
+        overrides: { dueDateMonth: "04", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -277,7 +279,7 @@ const rawCreditSource = [
       creditNode({
         id: "e411",
         label: "輸入(小計)",
-        overrides: { dueDate: "05/01", rate: "99.999" },
+        overrides: { dueDateMonth: "05", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -293,7 +295,7 @@ const rawCreditSource = [
       creditNode({
         id: "e412",
         label: "貸出(輸入)",
-        overrides: { dueDate: "06/01", rate: "99.999" },
+        overrides: { dueDateMonth: "06", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -309,7 +311,7 @@ const rawCreditSource = [
       creditNode({
         id: "e413",
         label: "故障指定Ｌ／Ｃ",
-        overrides: { dueDate: "07/01", rate: "99.999" },
+        overrides: { dueDateMonth: "07", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -325,7 +327,7 @@ const rawCreditSource = [
       creditNode({
         id: "e414",
         label: "ユーザンスシフト外貨",
-        overrides: { dueDate: "08/01", rate: "99.999" },
+        overrides: { dueDateMonth: "08", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -348,7 +350,7 @@ const rawCreditSource = [
       creditNode({
         id: "s51",
         label: "支払承諾合計 子１",
-        overrides: { dueDate: "10/01", rate: "99.999", change: -9999999 },
+        overrides: { dueDateMonth: "10", dueDateDay: "01", rate: "99.999", change: -9999999 },
         editableFields: creditEditable([
           "label",
           "mark",
@@ -361,7 +363,7 @@ const rawCreditSource = [
       creditNode({
         id: "s52",
         label: "支払承諾合計 子２",
-        overrides: { dueDate: "11/01", rate: "99.999" },
+        overrides: { dueDateMonth: "11", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "rate",
           "balance99",
@@ -373,7 +375,7 @@ const rawCreditSource = [
       creditNode({
         id: "s53",
         label: "支払承諾・支承・一般",
-        overrides: { dueDate: "12/01", rate: "99.999" },
+        overrides: { dueDateMonth: "12", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -389,7 +391,7 @@ const rawCreditSource = [
       creditNode({
         id: "s54",
         label: "支払承諾・支承・一般外為",
-        overrides: { dueDate: "01/01", rate: "99.999" },
+        overrides: { dueDateMonth: "01", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -405,7 +407,7 @@ const rawCreditSource = [
       creditNode({
         id: "s55",
         label: "支払承諾・内他行保証支払承諾",
-        overrides: { dueDate: "02/01", rate: "99.999" },
+        overrides: { dueDateMonth: "02", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -421,7 +423,7 @@ const rawCreditSource = [
       creditNode({
         id: "s56",
         label: "支払承諾・代理貸付",
-        overrides: { dueDate: "03/01", rate: "99.999" },
+        overrides: { dueDateMonth: "03", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -512,7 +514,7 @@ const rawCreditSource = [
       creditNode({
         id: "l121",
         label: "限度不算入 子１",
-        overrides: { dueDate: "08/01", rate: "99.999" },
+        overrides: { dueDateMonth: "08", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "balance99",
           "mark",
@@ -524,7 +526,7 @@ const rawCreditSource = [
       creditNode({
         id: "l122",
         label: "限度不算入 子２",
-        overrides: { dueDate: "09/01", rate: "99.999" },
+        overrides: { dueDateMonth: "09", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -549,7 +551,7 @@ const rawCreditSource = [
       creditNode({
         id: "l141",
         label: "特定与信合計 子１",
-        overrides: { dueDate: "12/01", rate: "99.999" },
+        overrides: { dueDateMonth: "12", dueDateDay: "01", rate: "99.999" },
         editableFields: creditEditable([
           "label",
           "rate",
@@ -564,7 +566,8 @@ const rawCreditSource = [
         id: "l142",
         label: "特定与信合計 子２",
         overrides: {
-          dueDate: "",
+          dueDateMonth: "",
+          dueDateDay: "",
           rate: "",
           balance99: "",
           principal: "",
@@ -575,7 +578,8 @@ const rawCreditSource = [
         },
         editableFields: creditEditable([
           "label",
-          "dueDate",
+          "dueDateMonth",
+          "dueDateDay",
           "rate",
           "balance99",
           "mark",

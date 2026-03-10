@@ -3,7 +3,7 @@
     <lightning-layout multiple-rows>
       <!-- 与信状況 -->
       <lightning-layout-item size="9" class="slds-grid slds-grid_vertical slds-var-p-right_large">
-        <lightning-card class="slds-col slds-grow">
+        <lightning-card class="card-stretch">
           <div class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none slds-grid_vertical-align-end">
             <div class="slds-p-around_none slds-m-around_none">
               <div class="section-label">{labels.accordion.CREDIT_STATUS}</div>
@@ -75,58 +75,72 @@
                         </template>
                       </th>
                       <td data-label="dueDate" class={row.dueDateClass}>
-                        <lightning-input type="text" variant="label-hidden" value={row.dueDate}
-                          data-id={row.id} data-field="dueDate" onchange={handleEdit}
-                          disabled={row.dueDateDisabled}>
-                        </lightning-input>
+                        <template if:true={row.dueDateMonthDisabled}>
+                          <div class="due-date-display">
+                            <div class="display-value">
+                              <lightning-formatted-text value={row.dueDateMonth}></lightning-formatted-text>
+                            </div>
+                            <template if:true={row.showDueDateSeparator}>
+                              <span class="due-date-separator">/</span>
+                            </template>
+                            <div class="display-value">
+                              <lightning-formatted-text value={row.dueDateDay}></lightning-formatted-text>
+                            </div>
+                          </div>
+                        </template>
+                        <template if:false={row.dueDateMonthDisabled}>
+                          <div class="due-date-cell">
+                            <lightning-input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                              variant="label-hidden" value={row.dueDateMonth}
+                              data-id={row.id} data-field="dueDateMonth"
+                              disabled={row.dueDateMonthDisabled}
+                              onchange={handleEdit}>
+                            </lightning-input>
+                            <span class="due-date-separator">/</span>
+                            <lightning-input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                              variant="label-hidden" value={row.dueDateDay}
+                              data-id={row.id} data-field="dueDateDay"
+                              disabled={row.dueDateMonthDisabled}
+                              onchange={handleEdit}>
+                            </lightning-input>
+                          </div>
+                        </template>
                       </td>
-                      <td data-label="rate" class={row.rateClass}>
-                        <c-f003-gs-v0000-number num-value={row.rate} num-label={labels.field.RATE}
-                          is-table="true" data-id={row.id} set-id="rate" disabled={row.rateDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
-                      <td data-label="balance99" class={row.balance99Class}>
-                        <c-f003-gs-v0000-number num-value={row.balance99} num-label={labels.field.BALANCE_99}
-                          is-table="true" data-id={row.id} set-id="balance99" disabled={row.balance99Disabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
+                      <template for:each={row.numberCellsBeforeMark} for:item="cell">
+                        <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
+                          <template if:true={cell.disabled}>
+                            <div class="display-number">
+                              <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                            </div>
+                          </template>
+                          <template if:false={cell.disabled}>
+                            <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.label}
+                              is-table="true" data-id={row.id} set-id={cell.field} disabled={cell.disabled}
+                              step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
+                            </c-f003-gs-v0000-number>
+                          </template>
+                        </td>
+                      </template>
                       <td data-label="mark" class={row.markClass}>
                         <template if:false={row.hideMark}>
                           <div class="slds-text-align_center">*</div>
                         </template>
                       </td>
-                      <td data-label="principal" class={row.principalClass}>
-                        <c-f003-gs-v0000-number num-value={row.principal} num-label={labels.field.PRINCIPAL}
-                          is-table="true" data-id={row.id} set-id="principal" disabled={row.principalDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
-                      <td data-label="change" class={row.changeClass}>
-                        <c-f003-gs-v0000-number num-value={row.change} num-label={labels.field.CHANGE}
-                          is-table="true" data-id={row.id} set-id="change" disabled={row.changeDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
-                      <td data-label="postBalance" class={row.postBalanceClass}>
-                        <c-f003-gs-v0000-number num-value={row.postBalance} num-label={labels.field.POST_BALANCE}
-                          is-table="true" data-id={row.id} set-id="postBalance" disabled={row.postBalanceDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
-                      <td data-label="actualBalance" class={row.actualBalanceClass}>
-                        <c-f003-gs-v0000-number num-value={row.actualBalance} num-label={labels.field.ACTUAL_BALANCE}
-                          is-table="true" data-id={row.id} set-id="actualBalance" disabled={row.actualBalanceDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
-                      <td data-label="correction" class={row.correctionClass}>
-                        <c-f003-gs-v0000-number num-value={row.correction} num-label={labels.field.CORRECTION}
-                          is-table="true" data-id={row.id} set-id="correction" disabled={row.correctionDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
+                      <template for:each={row.numberCellsAfterMark} for:item="cell">
+                        <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
+                          <template if:true={cell.disabled}>
+                            <div class="display-number">
+                              <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                            </div>
+                          </template>
+                          <template if:false={cell.disabled}>
+                            <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.label}
+                              is-table="true" data-id={row.id} set-id={cell.field} disabled={cell.disabled}
+                              step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
+                            </c-f003-gs-v0000-number>
+                          </template>
+                        </td>
+                      </template>
                     </tr>
                   </template>
                 </tbody>
@@ -138,7 +152,7 @@
 
       <!-- 保全状況(本件後) + 保証人 -->
       <lightning-layout-item size="3" class="slds-grid slds-grid_vertical">
-        <lightning-card>
+        <lightning-card class="card-stretch">
           <div class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none slds-grid_vertical-align-end">
             <div class="slds-p-around_none slds-m-around_none">
               <div class="section-label">{labels.accordion.COLLATERAL}</div>
@@ -174,20 +188,30 @@
                         </lightning-button-icon>
                       </th>
                       <th scope="row" class={row.collateralTypeClass}>
-                        <div class="slds-truncate collateral-type-wrap">{row.collateralType}</div>
+                        <div class="collateral-type-cell">
+                          <div class="slds-truncate collateral-type-wrap">{row.collateralType}</div>
+                          <template if:true={row.showCollateralHelp}>
+                            <div class="collateral-help-right">
+                              <lightning-helptext content={labels.message.NAKED_CREDIT_INFO}></lightning-helptext>
+                            </div>
+                          </template>
+                        </div>
                       </th>
-                      <td data-label="regValue" class={row.regValueClass}>
-                        <c-f003-gs-v0000-number num-value={row.regValue} num-label={labels.field.REG_VALUE}
-                          is-table="true" data-id={row.id} set-id="regValue" disabled={row.regValueDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
-                      <td data-label="marketValue" class={row.marketValueClass}>
-                        <c-f003-gs-v0000-number num-value={row.marketValue} num-label={labels.field.MARKET_VALUE}
-                          is-table="true" data-id={row.id} set-id="marketValue" disabled={row.marketValueDisabled}
-                          step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
-                        </c-f003-gs-v0000-number>
-                      </td>
+                      <template for:each={row.collateralNumberCells} for:item="cell">
+                        <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
+                          <template if:true={cell.disabled}>
+                            <div class="display-number">
+                              <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                            </div>
+                          </template>
+                          <template if:false={cell.disabled}>
+                            <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.label}
+                              is-table="true" data-id={row.id} set-id={cell.field} disabled={cell.disabled}
+                              step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
+                            </c-f003-gs-v0000-number>
+                          </template>
+                        </td>
+                      </template>
                     </tr>
                   </template>
                 </tbody>
@@ -197,10 +221,7 @@
         </lightning-card>
 
         <!-- 保証人カード -->
-        <lightning-card class="slds-col slds-grow">
-          <div class="slds-var-p-horizontal_medium slds-var-p-vertical_xx-small">
-            {labels.message.NAKED_CREDIT_INFO}
-          </div>
+        <lightning-card>
           <div class="table-container-guarantor slds-size_1-of-2 slds-p-around_none slds-m-around_none">
             <table role="grid" class="slds-table slds-table_cell-buffer slds-table_bordered">
               <thead>

@@ -13,12 +13,12 @@
 .common-table th, .common-table td { border: 1px solid #999; text-align: left; }
 .common-table th { background: #f2f2f2; }
 .common-table td { background: #fff; padding: 0; }
-.changed-cell { --slds-c-input-color-background: #fff9c4; background-color: #fff9c4; }
-.cell-changed-saved { background-color: var(--cell-saved-highlight, #ffffcc); }
+.changed-cell { --slds-c-input-color-background: #fffde7; background-color: #fffde7; }
+.cell-changed-saved { background-color: var(--cell-saved-highlight, #fff8e1); }
 .cell-changed-saved,
 .cell-changed-saved c-f003-gs-v0000-number,
 .cell-changed-saved lightning-input {
-  --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc);
+  --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1);
 }
 table { border-spacing: 0; border-collapse: separate; }
 th, td { border-top: 1px solid #999; border-left: 1px solid #999; }
@@ -39,8 +39,26 @@ tr:nth-last-child(1) td { border-top: none; }
   white-space: var(--meta-text-white-space, nowrap);
 }
 .indicator-table { table-layout: fixed; width: 100%; }
+.indicator-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.period-cell {
+  display: flex; align-items: center;
+}
+.period-cell lightning-input:first-of-type { flex: 2 1 0; min-width: 0; }
+.period-cell lightning-input:last-of-type { flex: 1.5 1 0; min-width: 0; }
+.period-separator { flex: 0 0 auto; padding: 0 1px; font-size: 0.75rem; font-weight: bold; line-height: 1; }
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+.indicator-table thead th:first-child { width: 9%; }
 .indicator-table thead th { padding: 0.25rem 0.5rem; }
-.indicator-table tbody th { font-weight: normal; }
+.indicator-table tbody th { font-weight: normal; padding: 0.25rem 0.5rem; text-align: left; }
+
+.indicator-type { display: inline-block; line-height: 1.2; min-height: 1.2em; }
 .indicator-header-text {
   white-space: normal; overflow-wrap: break-word;
   font-size: 0.75rem; line-height: 1.2;

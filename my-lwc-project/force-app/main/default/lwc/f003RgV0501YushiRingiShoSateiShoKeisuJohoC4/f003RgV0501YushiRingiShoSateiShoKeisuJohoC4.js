@@ -31,7 +31,7 @@ const CREDIT_HEADER_COLUMNS = [
   { key: "creditType1", label: "与信種類(科目)", w: "col-w95" },
   { key: "creditType2", label: "ワーニング情報", w: "col-w45" },
   { key: "grossNet", label: "グロス／ネット", w: "col-w35" },
-  { key: "dueDate", label: "期 日", w: "col-w25" },
+  { key: "dueDate", label: "期日(年/月)", w: "col-w60" },
   { key: "margin", label: "マージン", w: "col-w37" },
   { key: "endOfMonthBalance", label: "99月末残高", w: "col-w37" },
   { key: "endOfMonthLimit", label: "99月末極度", w: "col-w40" },
@@ -46,9 +46,9 @@ const CREDIT_HEADER_COLUMNS = [
 ];
 
 /* Credit: field definitions for tbody iteration */
-const CREDIT_TEXT_FIELDS = ["creditType2", "grossNet", "dueDate"];
+const CREDIT_TEXT_FIELDS = ["creditType2", "grossNet"];
+const CREDIT_DUE_DATE_FIELDS = ["dueDateYear", "dueDateMonth"];
 const CREDIT_NUM_FIELDS = [
-  { field: "margin", disableable: false },
   ...["endOfMonthBalance", "endOfMonthLimit", "currentMonthChange",
     "postTransactionCreditAmount", "marketValueBalanceCEPE", "marketValueBalanceCEPEReference",
     "marketValueBalanceCE", "marketValueBalanceCEReference",
@@ -57,12 +57,14 @@ const CREDIT_NUM_FIELDS = [
 ];
 const CREDIT_HIGHLIGHT_FIELDS = [
   ...CREDIT_TEXT_FIELDS,
+  ...CREDIT_DUE_DATE_FIELDS,
+  "margin",
   ...CREDIT_NUM_FIELDS.map((col) => col.field)
 ];
 
 /* Credit: defaults and shared overrides */
 const CREDIT_DEFAULTS = {
-  creditType2: "", grossNet: "", dueDate: "99/99", margin: MAX_AMOUNT_7,
+  creditType2: "", grossNet: "", dueDateYear: "9999", dueDateMonth: "99", margin: MAX_AMOUNT_7,
   endOfMonthBalance: MAX_AMOUNT_5, endOfMonthLimit: MAX_AMOUNT_5,
   currentMonthChange: MAX_AMOUNT_5,
   postTransactionCreditAmount: MAX_AMOUNT_5, marketValueBalanceCEPE: MAX_AMOUNT_5,
@@ -73,7 +75,7 @@ const CREDIT_DEFAULTS = {
   disabled: false
 };
 const DASH_OVERRIDES = Object.fromEntries(
-  ["margin", "endOfMonthBalance", "endOfMonthLimit", "currentMonthChange",
+  ["endOfMonthBalance", "endOfMonthLimit", "currentMonthChange",
     "postTransactionCreditAmount", "marketValueBalanceCEPE", "marketValueBalanceCEPEReference",
     "marketValueBalanceCE", "marketValueBalanceCEReference"].map((f) => [f, "-"])
 );
@@ -83,7 +85,7 @@ const EMPTY_OVERRIDES = Object.fromEntries(
     "marketValueBalanceCE", "marketValueBalanceCEReference"].map((f) => [f, ""])
 );
 const SUMMARY_OVERRIDES = {
-  dueDate: "", margin: "",
+  dueDateYear: "", dueDateMonth: "", margin: "",
   endOfMonthBalance: MAX_AMOUNT_5, endOfMonthLimit: MAX_AMOUNT_5, currentMonthChange: "-",
   postTransactionCreditAmount: MAX_AMOUNT_5, marketValueBalanceCEPE: MAX_AMOUNT_5,
   marketValueBalanceCEPEReference: "-", marketValueBalanceCE: MAX_AMOUNT_5,
@@ -100,10 +102,10 @@ const CREDIT_ITEMS = [
   { id: "2", creditType1: makeTestData("mixedChar", 40), indent: 1, overrides: { creditType2: "ワーニング", grossNet: "グロス" } },
   { id: "3", creditType1: makeTestData("mixedChar", 40), indent: 1, overrides: { creditType2: "ワーニン", grossNet: "ネット", currentMonthChange: "-99999" } },
   { id: "4", creditType1: makeTestData("mixedChar", 40), indent: 1, overrides: { creditType2: "ワーニン", grossNet: "グロス" } },
-  { id: "5", creditType1: "限度不算入与信為替取引", indent: 1, overrides: { dueDate: "", ...DASH_OVERRIDES }, disabled: true },
-  { id: "6", creditType1: "スワップ／オプション取引", indent: 1, overrides: { dueDate: "", ...DASH_OVERRIDES }, disabled: true },
-  { id: "7", creditType1: "その他", indent: 1, overrides: { dueDate: "", ...DASH_OVERRIDES }, disabled: true },
-  { id: "8", creditType1: "限度不算入与信合計", overrides: { dueDate: "", margin: "-", ...EMPTY_OVERRIDES }, disabled: true },
+  { id: "5", creditType1: "限度不算入与信為替取引", indent: 1, overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...DASH_OVERRIDES }, disabled: true },
+  { id: "6", creditType1: "スワップ／オプション取引", indent: 1, overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...DASH_OVERRIDES }, disabled: true },
+  { id: "7", creditType1: "その他", indent: 1, overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...DASH_OVERRIDES }, disabled: true },
+  { id: "8", creditType1: "限度不算入与信合計", overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...EMPTY_OVERRIDES }, disabled: true },
   { id: "9", creditType1: "市場性与信合計", overrides: SUMMARY_OVERRIDES, disabled: false }
 ];
 
@@ -199,18 +201,37 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC45 extends Lightn
   connectedCallback() { this.resetData(); }
 
   get creditRows() {
-    return this.creditData.map((row) => ({
-      ...row,
-      textCells: CREDIT_TEXT_FIELDS.map((f) => ({
-        key: `${row.id}-${f}`, field: f, value: row[f],
-        cellClass: row[`${f}Class`] || ""
-      })),
-      numberCells: CREDIT_NUM_FIELDS.map(({ field: f, disableable }) => ({
-        key: `${row.id}-${f}`, field: f, value: row[f],
-        cellClass: row[`${f}Class`] || "",
-        disabled: disableable ? row.disabled : false
-      }))
-    }));
+    return this.creditData.map((row) => {
+      const yearClass = row.dueDateYearClass || "";
+      const monthClass = row.dueDateMonthClass || "";
+      const dueDateCellClass = yearClass || monthClass ? SAVED_HIGHLIGHT_CLASSES : "";
+      const dueDateValue = row.dueDateYear || row.dueDateMonth
+        ? `${row.dueDateYear}/${row.dueDateMonth}`
+        : "";
+      return {
+        ...row,
+        textCells: [
+          ...CREDIT_TEXT_FIELDS.map((f) => ({
+            key: `${row.id}-${f}`, field: f, value: row[f],
+            cellClass: row[`${f}Class`] || ""
+          })),
+          {
+            key: `${row.id}-dueDate`, field: "dueDate", value: dueDateValue,
+            cellClass: dueDateCellClass
+          },
+          {
+            key: `${row.id}-margin`, field: "margin", value: row.margin,
+            cellClass: row.marginClass || ""
+          }
+        ],
+        numberCells: CREDIT_NUM_FIELDS.map(({ field: f, disableable }) => ({
+          key: `${row.id}-${f}`, field: f, value: row[f],
+          cellClass: row[`${f}Class`] || "",
+          disabled: disableable ? row.disabled : false,
+          renderAsFormatted: disableable ? !!row.disabled : false
+        }))
+      };
+    });
   }
 
   get exchangeRows() {

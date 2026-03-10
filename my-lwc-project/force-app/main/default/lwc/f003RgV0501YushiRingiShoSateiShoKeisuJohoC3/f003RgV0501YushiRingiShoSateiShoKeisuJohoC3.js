@@ -10,7 +10,7 @@ const BANK_COLUMNS = [
 ];
 
 const INDICATOR_COLUMNS = [
-  { label: "決算期", fieldName: "period" },
+  { label: "決算期(年/月)", fieldName: "period" },
   { label: "純売上高", fieldName: "sales" },
   { label: "月商", fieldName: "operatingProfit" },
   { label: "経常利益", fieldName: "currentProfit" },
@@ -66,7 +66,7 @@ const BANK_DEFAULTS = Object.fromEntries(BANK_FIELDS.map(field => [field, MAX_AM
 const BANK_DISABLE_DEFAULTS = { twoYearsAgo: true, oneYearAgo: true, recentEnd: true, foreignCurrency: false };
 
 const INDICATOR_DEFAULTS = {
-  type: "", period: "99.99",
+  type: "", fiscalYear: "9999", fiscalMonth: "99",
   sales: MAX_AMOUNT_9, operatingProfit: MAX_AMOUNT_9,
   currentProfit: MAX_AMOUNT_6, currentProfitRate: "99.99",
   netProfit: MAX_AMOUNT_6, netProfitRate: "99.99",
@@ -131,7 +131,8 @@ function buildCells(row, columns) {
     fieldName: col.fieldName,
     value: row[col.fieldName],
     cellClass: row[col.fieldName + "Class"] || "",
-    disabled: row.disable[col.fieldName]
+    disabled: row.disable[col.fieldName],
+    renderAsFormatted: !!row.disable[col.fieldName]
   }));
 }
 
@@ -165,7 +166,11 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   }
   get indicatorRows() {
     const cols = INDICATOR_COLUMNS.slice(1);
-    return this.indicatorData.map(row => ({ ...row, cells: buildCells(row, cols) }));
+    return this.indicatorData.map(row => ({
+      ...row,
+      periodDisabled: !!row.disable.fiscalYear,
+      cells: buildCells(row, cols)
+    }));
   }
   get assessmentRows() { return buildDisplayRows(this.assessmentData, ASSESSMENT_LABELS); }
   get stockRows() { return buildDisplayRows(this.stockData, STOCK_LABELS); }

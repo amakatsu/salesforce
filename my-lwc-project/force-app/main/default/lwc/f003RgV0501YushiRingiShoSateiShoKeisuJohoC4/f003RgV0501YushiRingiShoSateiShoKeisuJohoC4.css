@@ -20,10 +20,14 @@
 .common-table td { padding: 0; background: #fff; }
 .common-table thead th { text-align: center; }
 /* 変更セルハイライト */
-.changed-cell { --slds-c-input-color-background: #fff9c4; background-color: #fff9c4; }
-.cell-changed-saved { background-color: var(--cell-saved-highlight, #ffffcc); --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc); }
+.changed-cell { --slds-c-input-color-background: #fffde7; background-color: #fffde7; }
+.changed-cell lightning-input {
+  --slds-c-input-color-background: #fffde7;
+  --slds-c-input-shadow-focus: 0 0 0 1px #ffe082 inset, 0 0 0 1px #ffe082;
+}
+.cell-changed-saved { background-color: var(--cell-saved-highlight, #fff8e1); --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1); }
 .cell-changed-saved c-f003-gs-v0000-number,
-.cell-changed-saved lightning-input { --slds-c-input-color-background: var(--cell-saved-highlight, #ffffcc); }
+.cell-changed-saved lightning-input { --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1); }
 /* 市場性与信テーブル（border-collapse: separate） */
 table { border-spacing: 0; border-collapse: separate; table-layout: fixed; }
 th, td { border-top: 1px solid #999; border-left: 1px solid #999; }
@@ -51,5 +55,13 @@ tr:last-child td { border-top: none; }
 .col-w37 { width: 37px; }
 .col-w35 { width: 35px; }
 .col-w25 { width: 25px; }
+.col-w60 { width: 45px; }
 .credit-type-wrap { overflow-wrap: break-word; white-space: normal; }
+/* 読み取り専用セル */
+.display-value { display: block; text-align: right; padding: 0.25rem 0.5rem; font-size: 0.8125rem; }
+/* 期日セル: yyyy/mm横並び */
+.due-date-cell { display: flex; align-items: center; }
+.due-date-cell lightning-input:first-of-type { flex: 4 1 0; min-width: 0; }
+.due-date-cell lightning-input:last-of-type { flex: 3 1 0; min-width: 0; }
+.due-date-separator { flex: 0 0 auto; padding: 0 1px; font-size: 0.75rem; font-weight: bold; line-height: 1; }
 c-f003-gs-v0000-number { margin: 0; padding: 0; display: block; }

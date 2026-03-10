@@ -21,12 +21,19 @@
                   <th data-label="bankName">{row.bankName}</th>
                   <template for:each={row.cells} for:item="cell">
                     <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
-                      <c-f003-gs-v0000-number
-                        num-value={cell.value} num-label={cell.fieldName}
-                        is-table="true" data-id={row.id} set-id={cell.fieldName}
-                        disabled={cell.disabled} step="0.01"
-                        onerror={numberErrorHandler} onchange={handleInputChange}
-                      ></c-f003-gs-v0000-number>
+                      <template if:true={cell.renderAsFormatted}>
+                        <div class="display-value">
+                          <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                        </div>
+                      </template>
+                      <template if:false={cell.renderAsFormatted}>
+                        <c-f003-gs-v0000-number
+                          num-value={cell.value} num-label={cell.fieldName}
+                          is-table="true" data-id={row.id} set-id={cell.fieldName}
+                          disabled={cell.disabled} step="0.01"
+                          onerror={numberErrorHandler} onchange={handleInputChange}
+                        ></c-f003-gs-v0000-number>
+                      </template>
                     </td>
                   </template>
                 </tr>
@@ -102,22 +109,49 @@
               <template for:each={indicatorRows} for:item="row">
                 <tr key={row.id} class="slds-hint-parent slds-line-height_reset">
                   <th scope="row">
-                    {row.type}
-                    <c-f003-gs-v0000-number
-                      num-value={row.period} num-label="period"
-                      is-table="true" data-id={row.id} set-id="period"
-                      disabled={row.disable.period} step="0.01"
-                      onerror={numberErrorHandler} onchange={handleInputChange}
-                    ></c-f003-gs-v0000-number>
+                    <div class="indicator-row-head">
+                      <span class="indicator-type">{row.type}</span>
+                      <div class="period-cell">
+                      <template if:true={row.periodDisabled}>
+                        <div class="display-value">
+                          <lightning-formatted-text value={row.fiscalYear}></lightning-formatted-text>
+                        </div>
+                        <span class="period-separator">/</span>
+                        <div class="display-value">
+                          <lightning-formatted-text value={row.fiscalMonth}></lightning-formatted-text>
+                        </div>
+                      </template>
+                      <template if:false={row.periodDisabled}>
+                        <lightning-input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                          variant="label-hidden" value={row.fiscalYear}
+                          data-id={row.id} data-field="fiscalYear"
+                          onchange={handleInputChange}
+                        ></lightning-input>
+                        <span class="period-separator">/</span>
+                        <lightning-input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                          variant="label-hidden" value={row.fiscalMonth}
+                          data-id={row.id} data-field="fiscalMonth"
+                          onchange={handleInputChange}
+                        ></lightning-input>
+                      </template>
+                      </div>
+                    </div>
                   </th>
                   <template for:each={row.cells} for:item="cell">
                     <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
-                      <c-f003-gs-v0000-number
-                        num-value={cell.value} num-label={cell.fieldName}
-                        is-table="true" data-id={row.id} set-id={cell.fieldName}
-                        disabled={cell.disabled} step="0.01"
-                        onerror={numberErrorHandler} onchange={handleInputChange}
-                      ></c-f003-gs-v0000-number>
+                      <template if:true={cell.renderAsFormatted}>
+                        <div class="display-value">
+                          <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                        </div>
+                      </template>
+                      <template if:false={cell.renderAsFormatted}>
+                        <c-f003-gs-v0000-number
+                          num-value={cell.value} num-label={cell.fieldName}
+                          is-table="true" data-id={row.id} set-id={cell.fieldName}
+                          disabled={cell.disabled} step="0.01"
+                          onerror={numberErrorHandler} onchange={handleInputChange}
+                        ></c-f003-gs-v0000-number>
+                      </template>
                     </td>
                   </template>
                 </tr>
@@ -129,11 +163,12 @@
     </lightning-layout-item>
 
     <lightning-layout-item size="1">
-      <c-f003-gs-v0000-number
-        num-value={totalValue} num-label="Ｇｒ合算実態純資産額"
-        class="slds-var-p-top_large" disabled={total.disabled} step="0.01"
-        onerror={numberErrorHandler} onchange={handleInputChange}
-      ></c-f003-gs-v0000-number>
+      <div class="slds-var-p-top_large">
+        <div class="slds-text-title slds-truncate">Ｇｒ合算実態純資産額</div>
+        <div class="slds-text-align_right">
+          <lightning-formatted-number value={totalValue}></lightning-formatted-number>
+        </div>
+      </div>
     </lightning-layout-item>
 
     <!-- メモ -->
