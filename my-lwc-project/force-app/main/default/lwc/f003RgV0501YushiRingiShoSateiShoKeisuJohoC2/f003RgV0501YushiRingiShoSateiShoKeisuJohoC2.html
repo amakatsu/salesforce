@@ -115,7 +115,8 @@
                           </template>
                           <template if:false={cell.disabled}>
                             <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.label}
-                              is-table="true" data-id={row.id} set-id={cell.field} disabled={cell.disabled}
+                              is-table="true" data-id={row.id} data-field={cell.field}
+                              set-id={cell.field} disabled={cell.disabled}
                               step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
                             </c-f003-gs-v0000-number>
                           </template>
@@ -135,7 +136,8 @@
                           </template>
                           <template if:false={cell.disabled}>
                             <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.label}
-                              is-table="true" data-id={row.id} set-id={cell.field} disabled={cell.disabled}
+                              is-table="true" data-id={row.id} data-field={cell.field}
+                              set-id={cell.field} disabled={cell.disabled}
                               step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
                             </c-f003-gs-v0000-number>
                           </template>
@@ -206,7 +208,8 @@
                           </template>
                           <template if:false={cell.disabled}>
                             <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.label}
-                              is-table="true" data-id={row.id} set-id={cell.field} disabled={cell.disabled}
+                              is-table="true" data-id={row.id} data-field={cell.field}
+                              set-id={cell.field} disabled={cell.disabled}
                               step={labels.config.DECIMAL_STEP} onerror={numberErrorHandler} onchange={handleEdit}>
                             </c-f003-gs-v0000-number>
                           </template>

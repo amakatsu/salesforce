@@ -1,5 +1,28 @@
-import { LightningElement, track, api } from "lwc";
+import { LightningElement, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
+
+const SAVED_HIGHLIGHT_CLASSES = "changed-cell cell-changed-saved";
+const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+const addEmptyHighlightClasses = (data, fields) =>
+  data.map((item) => ({
+    ...item,
+    ...Object.fromEntries(fields.map((f) => [`${f}Class`, ""]))
+  }));
+
+const applyHighlight = (current, original, fields) =>
+  current.map((row) => {
+    const origRow = original.find((item) => item.id === row.id) || {};
+    return {
+      ...row,
+      ...Object.fromEntries(
+        fields.map((f) => [
+          `${f}Class`,
+          origRow[f] !== row[f] ? SAVED_HIGHLIGHT_CLASSES : ""
+        ])
+      )
+    };
+  });
 
 const BANK_COLUMNS = [
   { label: "銀行名", fieldName: "bankName", type: "text" },
@@ -146,19 +169,22 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   amountUnit = "〇〇〇";
   groupNumber = makeTestData("numeric", 1);
   activeSections = ACTIVE_SECTIONS;
-  @track bankData = generateBankData();
   bankColumns = BANK_COLUMNS;
-  @track indicatorData = generateIndicatorData();
   indicatorColumns = INDICATOR_COLUMNS;
-  @track assessmentData = Object.fromEntries(ASSESSMENT_KEYS.map(key => [key, MAX_AMOUNT_5]));
-  @track otherTransactionData = fillValueMap(OTHER_TRANSACTION_KEYS, MAX_AMOUNT_5);
-  @track stockData = Object.fromEntries(STOCK_KEYS.map(key => [key, MAX_AMOUNT_5]));
-  @track memo = valueField(makeTestData("mixedChar", 214), false);
-  @track total = valueField("99.9999", true);
-  _savedBankValues = new Map();
-  _savedIndicatorValues = new Map();
+  assessmentData = Object.fromEntries(ASSESSMENT_KEYS.map(key => [key, MAX_AMOUNT_5]));
+  otherTransactionData = fillValueMap(OTHER_TRANSACTION_KEYS, MAX_AMOUNT_5);
+  stockData = Object.fromEntries(STOCK_KEYS.map(key => [key, MAX_AMOUNT_5]));
+  memo = valueField(makeTestData("mixedChar", 214), false);
+  total = valueField("99.9999", true);
 
-  connectedCallback() { this._snapshotValues(); }
+  initialBankData = generateBankData();
+  initialIndicatorData = generateIndicatorData();
+  originalBankData = [];
+  originalIndicatorData = [];
+  bankData = [];
+  indicatorData = [];
+
+  connectedCallback() { this.resetData(); }
 
   get bankRows() {
     const cols = BANK_COLUMNS.slice(1);
@@ -177,48 +203,52 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   get memoValue() { return this.memo.value; }
   get totalValue() { return this.total.value; }
 
+  resetData() {
+    const cloneAndInit = (data, fields) => [
+      deepClone(data),
+      addEmptyHighlightClasses(data, fields)
+    ];
+    [this.originalBankData, this.bankData] =
+      cloneAndInit(this.initialBankData, BANK_FIELDS);
+    [this.originalIndicatorData, this.indicatorData] =
+      cloneAndInit(this.initialIndicatorData, INDICATOR_FIELDS);
+  }
+
   handleInputChange(event) {
-    const { id, field } = event.currentTarget.dataset;
-    const value = event.target.value;
-    this.updateRowField(this.bankData, id, field, value);
-    this.updateRowField(this.indicatorData, id, field, value);
+    const detail = event.detail || {};
+    const id = event.currentTarget?.dataset?.id || detail.id;
+    const field = event.currentTarget?.dataset?.field || detail.field;
+    const value = detail.value !== undefined ? detail.value : event.target.value;
+    if (!id || !field) return;
+    const updateRows = (data) => this.updateDataImmutable(data, id, field, value);
+    this.bankData = applyHighlight(
+      updateRows(this.bankData), this.originalBankData, BANK_FIELDS
+    );
+    this.indicatorData = applyHighlight(
+      updateRows(this.indicatorData), this.originalIndicatorData, INDICATOR_FIELDS
+    );
   }
 
-  updateRowField(data, id, field, value) {
-    const item = data.find(row => row.id === id);
-    if (item && !item.disable[field]) item[field] = value;
-  }
-
-  _snapshotData(data, fields) {
-    const map = new Map();
-    for (const row of data) {
-      const snapshot = {};
-      for (const field of fields) snapshot[field] = row[field];
-      map.set(row.id, snapshot);
-    }
-    return map;
-  }
-
-  _snapshotValues() {
-    this._savedBankValues = this._snapshotData(this.bankData, BANK_FIELDS);
-    this._savedIndicatorValues = this._snapshotData(this.indicatorData, INDICATOR_FIELDS);
-  }
-
-  _applyHighlight(data, savedMap, fields) {
-    return data.map(row => {
-      const saved = savedMap.get(row.id) || {};
-      const updated = { ...row };
-      for (const field of fields) {
-        updated[field + "Class"] = String(updated[field]) !== String(saved[field]) ? "cell-changed-saved" : "";
-      }
-      return updated;
+  updateDataImmutable(data, id, field, value) {
+    return data.map((row) => {
+      if (row.id !== id) return row;
+      if (row.disable && row.disable[field]) return row;
+      return { ...row, [field]: value };
     });
   }
 
-  @api
-  applySavedHighlight() {
-    this.bankData = this._applyHighlight(this.bankData, this._savedBankValues, BANK_FIELDS);
-    this.indicatorData = this._applyHighlight(this.indicatorData, this._savedIndicatorValues, INDICATOR_FIELDS);
-    this._snapshotValues();
+  @api applySavedHighlight() { this.handleSave(); }
+
+  handleSave() {
+    const highlightAndSnapshot = (current, original, fields) => {
+      const highlighted = applyHighlight(current, original, fields);
+      return [highlighted, deepClone(highlighted)];
+    };
+    [this.bankData, this.originalBankData] =
+      highlightAndSnapshot(this.bankData, this.originalBankData, BANK_FIELDS);
+    [this.indicatorData, this.originalIndicatorData] =
+      highlightAndSnapshot(this.indicatorData, this.originalIndicatorData, INDICATOR_FIELDS);
   }
+
+  handleReset() { this.resetData(); }
 }

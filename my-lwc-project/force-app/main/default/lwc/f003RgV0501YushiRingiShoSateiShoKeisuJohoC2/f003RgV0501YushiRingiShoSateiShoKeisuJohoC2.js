@@ -1,6 +1,7 @@
 import { LightningElement, track, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
 import { stateService } from "./state";
+import { deepCopy } from "./data";
 
 const TABLE_HEADERS = {
   CREDIT: {
@@ -53,6 +54,7 @@ const LABELS = {
   }
 };
 
+const SAVED_HIGHLIGHT_CLASSES = "changed-cell cell-changed-saved";
 const EDITABLE_CREDIT_NODE_ID = "l142";
 const STYLE_FIELDS = [
   "label", "dueDate", "rate", "balance99", "mark",
@@ -91,7 +93,6 @@ export default class RirituComponent extends LightningElement {
     id: `guarantor_${i + 1}`, name: makeTestData("mixedChar", 10)
   }));
 
-  isHighlightActive = false;
   _originalGuarantorData = null;
   activeSections = "abcdefghijklmnopqr".split("");
 
@@ -100,9 +101,6 @@ export default class RirituComponent extends LightningElement {
   _lastDataRowHeight = 0;
 
   get labels() { return LABELS; }
-  get draft() { return stateService.getState().draft; }
-  get hasDraft() { return this.draft.size > 0; }
-  get draftJson() { return JSON.stringify(Object.fromEntries(this.draft), null, 2); }
   get collateralMarketValueHeader() { return TABLE_HEADERS.COLLATERAL.MARKET_VALUE; }
 
   connectedCallback() { this._initializeData(); }
@@ -128,20 +126,24 @@ export default class RirituComponent extends LightningElement {
     hostStyle.setProperty("--c2-data-row-height", `${dataRowHeight}px`);
   }
 
-
   handleSave() { this.applySavedHighlight(); }
 
   @api
   applySavedHighlight() {
-    this.draft.clear();
-    this.isHighlightActive = true;
     this._refreshData();
+    const { creditSource, collateralSource } = stateService.getState();
+    stateService.setState({
+      originalCreditSource: deepCopy(creditSource),
+      originalCollateralSource: deepCopy(collateralSource)
+    });
+    this._originalGuarantorData = this.guarantorData.map((g) => ({ ...g }));
   }
 
   handleReset() {
     stateService.resetState();
-    this.isHighlightActive = false;
     this._refreshData();
+    this._originalGuarantorData = this.guarantorData.map((g) => ({ ...g }));
+    this.guarantorData = this.guarantorData.map((g) => ({ ...g, cellClass: "slds-text-align_center" }));
   }
 
   handleToggle(event) {
@@ -160,7 +162,6 @@ export default class RirituComponent extends LightningElement {
       : (detail.value !== undefined ? detail.value : event.target.value);
     if (this._isFieldDisabled(nodeId, fieldName)) return;
     this._updateNodeData(nodeId, fieldName, newValue);
-    this._updateDraft(nodeId, fieldName, newValue);
     this._refreshData();
   }
 
@@ -173,8 +174,8 @@ export default class RirituComponent extends LightningElement {
     const original = this._originalGuarantorData.find((g) => g.id === nodeId);
     const isChanged = original && original.name !== newValue;
     this.guarantorData = this.guarantorData.map((g) => {
-      if (g.id !== nodeId) return { ...g, cellClass: g.cellClass || "slds-text-align_center" };
-      return { ...g, cellClass: `slds-text-align_center${isChanged ? " changed-cell" : ""}` };
+      if (g.id !== nodeId) return { ...g };
+      return { ...g, cellClass: `slds-text-align_center${isChanged ? ` ${SAVED_HIGHLIGHT_CLASSES}` : ""}` };
     });
   }
 
@@ -183,16 +184,16 @@ export default class RirituComponent extends LightningElement {
   _initializeData() {
     stateService.initializeState();
     const { creditSource, collateralSource } = stateService.getState();
-    this.creditRows = this._flattenTree(creditSource, false, 0, true);
-    this.collateralRows = this._flattenTree(collateralSource, false, 0, false);
+    this.creditRows = this._flattenTree(creditSource, 0, true);
+    this.collateralRows = this._flattenTree(collateralSource, 0, false);
     this._originalGuarantorData = this.guarantorData.map((g) => ({ ...g }));
     this.guarantorData = this.guarantorData.map((g) => ({ ...g, cellClass: "slds-text-align_center" }));
   }
 
   _refreshData() {
     const { creditSource, collateralSource } = stateService.getState();
-    this.creditRows = this._flattenTree(creditSource, this.isHighlightActive, 0, true);
-    this.collateralRows = this._flattenTree(collateralSource, this.isHighlightActive, 0, false);
+    this.creditRows = this._flattenTree(creditSource, 0, true);
+    this.collateralRows = this._flattenTree(collateralSource, 0, false);
   }
 
   _isFieldDisabled(nodeId, fieldName) {
@@ -206,35 +207,22 @@ export default class RirituComponent extends LightningElement {
     updateInTree(collateralSource, nodeId, fieldName, newValue);
   }
 
-  _updateDraft(nodeId, fieldName, newValue) {
-    const { draft } = stateService.getState();
-    const originalNode = this._findOriginalNode(nodeId);
-    const existing = { ...(draft.get(nodeId) || {}) };
-    if (originalNode && String(originalNode[fieldName] ?? "") === String(newValue ?? "")) {
-      delete existing[fieldName];
-      Object.keys(existing).length === 0 ? draft.delete(nodeId) : draft.set(nodeId, existing);
-    } else {
-      draft.set(nodeId, { ...existing, [fieldName]: newValue });
-    }
-  }
-
-  _flattenTree(tree, shouldHighlight, level = 0, isCredit = true) {
+  _flattenTree(tree, level = 0, isCredit = true) {
     const { expanded } = stateService.getState();
-    return tree.flatMap((node, indexInParent) => {
-      const flat = this._createFlatNode(node, level, shouldHighlight, indexInParent, isCredit);
+    return tree.flatMap((node) => {
+      const flat = this._createFlatNode(node, level, isCredit);
       const children = expanded.has(node.id) && node.children?.length
-        ? this._flattenTree(node.children, shouldHighlight, level + 1, isCredit)
+        ? this._flattenTree(node.children, level + 1, isCredit)
         : [];
       return [flat, ...children];
     });
   }
 
-  _createFlatNode(node, level, shouldHighlight, indexInParent, isCredit) {
+  _createFlatNode(node, level, isCredit) {
     const hasChildren = Boolean(node.children?.length);
     const isExpanded = stateService.getState().expanded.has(node.id);
     const isTargetCollateral = node.collateralType === "裸与信";
-    const fieldStyles = this._generateFieldStyles(node, shouldHighlight, level);
-    const editable = node.editable || {};
+    const fieldStyles = this._generateFieldStyles(node, level);
     const numberCellsBeforeMark = isCredit
       ? [
         this._buildNumberCell(node, fieldStyles, "rate", LABELS.field.RATE),
@@ -264,7 +252,7 @@ export default class RirituComponent extends LightningElement {
       icon: hasChildren ? (isExpanded ? "utility:chevrondown" : "utility:chevronright") : "",
       showCollateralHelp: isTargetCollateral,
       ...fieldStyles,
-      dueDateClass: this._computeDueDateClass(node, shouldHighlight),
+      dueDateClass: this._computeDueDateClass(node),
       dueDateMonthDisabled: level === 0,
       dueDateDayDisabled: level === 0,
       showDueDateSeparator: Boolean(node.dueDateMonth || node.dueDateDay),
@@ -279,35 +267,24 @@ export default class RirituComponent extends LightningElement {
     return findInTree(originalCreditSource, nodeId) || findInTree(originalCollateralSource, nodeId);
   }
 
-  _computeDueDateClass(node, shouldHighlight) {
-    const { draft } = stateService.getState();
-    const nodeDraft = draft.get(node.id);
+  _computeDueDateClass(node) {
     const originalNode = this._findOriginalNode(node.id);
-    const isSavedBase = shouldHighlight && !draft.has(node.id) && originalNode;
-    const saved = isSavedBase && (
+    if (originalNode && (
       originalNode.dueDateMonth !== node.dueDateMonth ||
       originalNode.dueDateDay !== node.dueDateDay
-    );
-    const drafted = nodeDraft && ("dueDateMonth" in nodeDraft || "dueDateDay" in nodeDraft);
-    if (saved) return "changed-cell cell-changed-saved";
-    if (drafted) return "changed-cell";
+    )) return SAVED_HIGHLIGHT_CLASSES;
     return "";
   }
 
-  _generateFieldStyles(node, shouldHighlight, level) {
-    const { draft } = stateService.getState();
+  _generateFieldStyles(node, level) {
     const indentClass = `indent-${Math.min(level, 3)}`;
     const editable = node.editable || {};
-    const nodeDraft = draft.get(node.id);
     const originalNode = this._findOriginalNode(node.id);
-    const isSavedBase = shouldHighlight && !draft.has(node.id) && originalNode;
     const result = {};
     for (const field of STYLE_FIELDS) {
-      const saved = isSavedBase && originalNode[field] !== node[field];
-      const drafted = nodeDraft && field in nodeDraft;
-      // 数値系はindentしない（開閉で列位置が動かない）
+      const changed = originalNode && originalNode[field] !== node[field];
       const base = INDENT_FIELDS.has(field) ? indentClass : "";
-      const highlightClass = saved ? "changed-cell cell-changed-saved" : drafted ? "changed-cell" : "";
+      const highlightClass = changed ? SAVED_HIGHLIGHT_CLASSES : "";
       result[`${field}Class`] = `${base} ${highlightClass}`.trim();
       result[`${field}Disabled`] = !editable[field];
     }

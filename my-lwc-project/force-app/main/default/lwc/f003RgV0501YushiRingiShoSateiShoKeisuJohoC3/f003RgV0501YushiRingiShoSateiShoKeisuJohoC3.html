@@ -29,8 +29,8 @@
                       <template if:false={cell.renderAsFormatted}>
                         <c-f003-gs-v0000-number
                           num-value={cell.value} num-label={cell.fieldName}
-                          is-table="true" data-id={row.id} set-id={cell.fieldName}
-                          disabled={cell.disabled} step="0.01"
+                          is-table="true" data-id={row.id} data-field={cell.fieldName}
+                          set-id={cell.fieldName} disabled={cell.disabled} step="0.01"
                           onerror={numberErrorHandler} onchange={handleInputChange}
                         ></c-f003-gs-v0000-number>
                       </template>
@@ -57,7 +57,9 @@
                 <tr key={item.key}>
                   <th scope="row"><div class="slds-truncate">{item.label}</div></th>
                   <td>
-                    <div class="display-value">{item.value}</div>
+                    <div class="display-value">
+                      <lightning-formatted-number value={item.value}></lightning-formatted-number>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -78,7 +80,9 @@
                 <tr key={item.key}>
                   <th scope="row"><div class="slds-truncate">{item.label}</div></th>
                   <td>
-                    <div class="display-value">{item.value}</div>
+                    <div class="display-value">
+                      <lightning-formatted-number value={item.value}></lightning-formatted-number>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -147,8 +151,8 @@
                       <template if:false={cell.renderAsFormatted}>
                         <c-f003-gs-v0000-number
                           num-value={cell.value} num-label={cell.fieldName}
-                          is-table="true" data-id={row.id} set-id={cell.fieldName}
-                          disabled={cell.disabled} step="0.01"
+                          is-table="true" data-id={row.id} data-field={cell.fieldName}
+                          set-id={cell.fieldName} disabled={cell.disabled} step="0.01"
                           onerror={numberErrorHandler} onchange={handleInputChange}
                         ></c-f003-gs-v0000-number>
                       </template>
@@ -164,10 +168,11 @@
 
     <lightning-layout-item size="1">
       <div class="slds-var-p-top_large">
-        <div class="slds-text-title slds-truncate">Ｇｒ合算実態純資産額</div>
-        <div class="slds-text-align_right">
-          <lightning-formatted-number value={totalValue}></lightning-formatted-number>
-        </div>
+        <c-f003-gs-v0000-number
+          num-value={totalValue}
+          num-label="Ｇｒ合算実態純資産額"
+          disabled
+        ></c-f003-gs-v0000-number>
       </div>
     </lightning-layout-item>
 

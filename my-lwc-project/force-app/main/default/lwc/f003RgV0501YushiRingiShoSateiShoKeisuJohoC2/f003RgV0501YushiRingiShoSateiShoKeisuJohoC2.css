@@ -25,25 +25,15 @@
 
 /* ── Cell highlight ── */
 
-.changed-cell {
-  --slds-c-input-color-background: #fffde7;
-  background-color: #fffde7;
-}
-
+/* 変更セルハイライト（C4準拠） */
+.changed-cell { --slds-c-input-color-background: #fffde7; background-color: #fffde7 !important; }
 .changed-cell lightning-input {
   --slds-c-input-color-background: #fffde7;
   --slds-c-input-shadow-focus: 0 0 0 1px #ffe082 inset, 0 0 0 1px #ffe082;
 }
-
-.cell-changed-saved {
-  background-color: var(--cell-saved-highlight, #fff8e1);
-  --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1);
-}
-
+.cell-changed-saved { background-color: var(--cell-saved-highlight, #fff8e1) !important; --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1); }
 .cell-changed-saved c-f003-gs-v0000-number,
-.cell-changed-saved lightning-input {
-  --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1);
-}
+.cell-changed-saved lightning-input { --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1); }
 
 /* ── Indent / text wrap ── */
 
@@ -218,12 +208,12 @@ tr:nth-last-child(2) td { border-bottom: 1px solid #999; }
 }
 
 .due-date-cell lightning-input {
-  flex: 0 1 3.25em;
-  min-width: 3.25em;
+  flex: 0 1 3.4375em;
+  min-width: 3.4375em;
 }
 .due-date-cell lightning-input:first-of-type {
-  flex-basis: 3.45em;
-  min-width: 3.45em;
+  flex-basis: 3.6375em;
+  min-width: 3.6375em;
 }
 
 .due-date-separator {

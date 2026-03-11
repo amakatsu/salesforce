@@ -12,20 +12,20 @@
       <lightning-card>
         <div class="slds-grid slds-gutters slds-var-p-horizontal_small slds-grid_vertical-align-end">
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <lightning-input
-              label="禀査番号"
-              value={reviewNumber}
-              readonly
-              class="underline slds-var-p-top_medium"
-            ></lightning-input>
+            <div class="slds-form-element slds-var-p-top_medium">
+              <label class="slds-form-element__label">禀査番号</label>
+              <div class="slds-form-element__control slds-border_bottom">
+                <lightning-formatted-text value={reviewNumber}></lightning-formatted-text>
+              </div>
+            </div>
           </div>
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <lightning-input
-              label="基準日"
-              value={date}
-              readonly
-              class="underline slds-var-p-top_medium"
-            ></lightning-input>
+            <div class="slds-form-element slds-var-p-top_medium">
+              <label class="slds-form-element__label">基準日</label>
+              <div class="slds-form-element__control slds-border_bottom">
+                <lightning-formatted-text value={date}></lightning-formatted-text>
+              </div>
+            </div>
           </div>
 
           <div class="slds-col slds-size_4-of-12 summary-panel">
@@ -44,47 +44,51 @@
                   <div class="slds-box slds-box_small">
                     <div class="slds-grid slds-gutters">
                       <div class="slds-col slds-size_6-of-12">
-                        <c-f003-gs-v0000-number
-                          num-value={limitGeneral}
-                          num-label="一般"
-                          disabled
-                        ></c-f003-gs-v0000-number>
+                        <div class="slds-form-element">
+                          <label class="slds-form-element__label">一般</label>
+                          <div class="slds-form-element__control slds-text-align_right slds-border_bottom">
+                            <lightning-formatted-number value={limitGeneral}></lightning-formatted-number>
+                          </div>
+                        </div>
                       </div>
                       <div class="slds-col slds-size_6-of-12">
-                        <c-f003-gs-v0000-number
-                          num-value={marketInclusion}
-                          num-label="市場性"
-                          disabled
-                        ></c-f003-gs-v0000-number>
+                        <div class="slds-form-element">
+                          <label class="slds-form-element__label">市場性</label>
+                          <div class="slds-form-element__control slds-text-align_right slds-border_bottom">
+                            <lightning-formatted-number value={marketInclusion}></lightning-formatted-number>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div class="slds-col slds-size_3-of-12 slds-var-p-top_x-large">
-                  <c-f003-gs-v0000-number
-                    num-value={regulatoryCollateral}
-                    num-label="規定担保"
-                    disabled
-                  ></c-f003-gs-v0000-number>
+                  <div class="slds-form-element">
+                    <label class="slds-form-element__label">規定担保</label>
+                    <div class="slds-form-element__control slds-text-align_right slds-border_bottom">
+                      <lightning-formatted-number value={regulatoryCollateral}></lightning-formatted-number>
+                    </div>
+                  </div>
                 </div>
                 <div class="slds-col slds-size_3-of-12 slds-var-p-top_x-large">
-                  <c-f003-gs-v0000-number
-                    num-value={protectionRate}
-                    num-label="保全率(％)"
-                    disabled
-                  ></c-f003-gs-v0000-number>
+                  <div class="slds-form-element">
+                    <label class="slds-form-element__label">保全率(％)</label>
+                    <div class="slds-form-element__control slds-text-align_right slds-border_bottom">
+                      <lightning-formatted-number value={protectionRate}></lightning-formatted-number>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <lightning-input
-              label="プール区分"
-              value={poolCategory}
-              readonly
-              class="underline slds-var-p-top_medium"
-            ></lightning-input>
+            <div class="slds-form-element slds-var-p-top_medium">
+              <label class="slds-form-element__label">プール区分</label>
+              <div class="slds-form-element__control slds-border_bottom">
+                <lightning-formatted-text value={poolCategory}></lightning-formatted-text>
+              </div>
+            </div>
           </div>
           <div class="slds-col slds-size_4-of-12 summary-panel">
             <lightning-textarea
