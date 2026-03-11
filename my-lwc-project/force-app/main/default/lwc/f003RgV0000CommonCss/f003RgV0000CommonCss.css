@@ -12,3 +12,8 @@
   justify-content: var(--section-label-justify-content, space-between);
   align-items: var(--section-label-align-items, baseline);
 }
+
+.noAccordionBorder {
+  --slds-c-accordion-color-border: transparent;
+  --slds-c-accordion-sizing-border: 0px;
+}
