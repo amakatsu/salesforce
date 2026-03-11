@@ -55,7 +55,7 @@ tr:nth-last-child(1) td { border-top: none; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; }
-.indicator-table thead th:first-child { width: 9.3%; }
+.indicator-table thead th:first-child { width: 10%; }
 .indicator-table thead th { padding: 0.25rem 0.5rem; }
 .indicator-table tbody th { font-weight: normal; padding: 0.25rem 0.5rem; text-align: left; }
 
