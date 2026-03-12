@@ -8,79 +8,85 @@
                 onsectiontoggle={handleTopAccordionToggle}
                 class="slds-var-m-around_medium"
             >
-                <lightning-accordion-section name="section1" label="本件条件入力欄①">
+                <lightning-accordion-section name="section1" label="本件条件１">
                     <lightning-card>
                         <lightning-layout
                             class="slds-grid slds-p-horizontal_medium slds-m-bottom_x-small slds-text-title_caps"
                         >
-                            <lightning-layout-item size="3" class="slds-col slds-text-title_caps">
+                            <lightning-layout-item
+                                size="3"
+                                class="slds-col slds-text-title_caps"
+                            >
                                 本件条件
                             </lightning-layout-item>
-                            <lightning-layout-item size="3" class="slds-col slds-text-title_caps">
+                            <lightning-layout-item
+                                size="4"
+                                class="slds-col slds-text-title_caps"
+                            >
                                 本件条件補足
                             </lightning-layout-item>
-                            <lightning-layout-item size="3" class="slds-col slds-text-title_caps slds-m-left_small">
+                            <lightning-layout-item
+                                size="2"
+                                class="slds-col slds-text-title_caps slds-m-left_small"
+                            >
                                 履行タイミング
                             </lightning-layout-item>
-                            <lightning-layout-item size="2" class="slds-col slds-text-title_caps slds-m-left_small">
-                                期日
+                            <lightning-layout-item
+                                size="2"
+                                class="slds-col slds-text-title_caps slds-m-left_small"
+                            >
+                                履行期限
                             </lightning-layout-item>
                         </lightning-layout>
 
                         <template for:each={topRowsForDisplay} for:item="row">
-                            <div key={row.id} class="slds-var-m-bottom_small">
-                                <lightning-layout
-                                    multiple-rows
-                                    vertical-align="stretch"
-                                    class="slds-grid_vertical-align-end"
-                                >
-                                    <lightning-layout-item size="3" padding="horizontal-small">
-                                        <lightning-combobox
-                                            label="本件条件"
-                                            value={row.condition}
-                                            options={conditionOptions}
-                                            data-id={row.id}
-                                            data-field="condition"
-                                            onchange={handleTopRowChange}
-                                            placeholder="本件条件を選択"
-                                            variant="label-hidden"
-                                        ></lightning-combobox>
-                                    </lightning-layout-item>
-                                    <lightning-layout-item size="3" padding="horizontal-small">
-                                        <lightning-input
-                                            label="本件条件補足"
-                                            value={row.conditionSupplement}
-                                            data-id={row.id}
-                                            data-field="conditionSupplement"
-                                            onchange={handleTopRowChange}
-                                            variant="label-hidden"
-                                        ></lightning-input>
-                                    </lightning-layout-item>
-                                    <lightning-layout-item size="3" padding="horizontal-small">
-                                        <lightning-combobox
-                                            label="履行タイミング"
-                                            value={row.timing}
-                                            options={timingOptions}
-                                            data-id={row.id}
-                                            data-field="timing"
-                                            onchange={handleTopRowChange}
-                                            placeholder="タイミングを選択"
-                                            variant="label-hidden"
-                                        ></lightning-combobox>
-                                    </lightning-layout-item>
-                                    <lightning-layout-item size="1" padding="horizontal-small">
-                                        <lightning-input
-                                            type="date"
-                                            label="期日"
-                                            value={row.dueDate}
-                                            data-id={row.id}
-                                            data-field="dueDate"
-                                            onchange={handleTopRowChange}
-                                            variant="label-hidden"
-                                        ></lightning-input>
-                                    </lightning-layout-item>
-                                </lightning-layout>
-                            </div>
+                            <lightning-layout key={row.id} multiple-rows class="slds-var-m-bottom_small">
+                                <lightning-layout-item size="3" padding="horizontal-small">
+                                    <lightning-combobox
+                                        label="本件条件"
+                                        value={row.condition}
+                                        options={conditionOptions}
+                                        data-id={row.id}
+                                        data-field="condition"
+                                        onchange={handleTopRowChange}
+                                        placeholder="本件条件を選択"
+                                        variant="label-hidden"
+                                    ></lightning-combobox>
+                                </lightning-layout-item>
+                                <lightning-layout-item size="4" padding="horizontal-small">
+                                    <lightning-input
+                                        label="本件条件補足"
+                                        value={row.conditionSupplement}
+                                        data-id={row.id}
+                                        data-field="conditionSupplement"
+                                        onchange={handleTopRowChange}
+                                        variant="label-hidden"
+                                    ></lightning-input>
+                                </lightning-layout-item>
+                                <lightning-layout-item size="2" padding="horizontal-small">
+                                    <lightning-combobox
+                                        label="履行タイミング"
+                                        value={row.timing}
+                                        options={timingOptions}
+                                        data-id={row.id}
+                                        data-field="timing"
+                                        onchange={handleTopRowChange}
+                                        placeholder="タイミングを選択"
+                                        variant="label-hidden"
+                                    ></lightning-combobox>
+                                </lightning-layout-item>
+                                <lightning-layout-item size="1" padding="horizontal-small">
+                                    <lightning-input
+                                        type="date"
+                                        label="履行期限"
+                                        value={row.dueDate}
+                                        data-id={row.id}
+                                        data-field="dueDate"
+                                        onchange={handleTopRowChange}
+                                        variant="label-hidden"
+                                    ></lightning-input>
+                                </lightning-layout-item>
+                            </lightning-layout>
                         </template>
                     </lightning-card>
                 </lightning-accordion-section>
@@ -97,20 +103,29 @@
             >
                 <lightning-accordion-section
                     name="section2"
-                    label="本件条件入力欄②（①で選択できない本件条件が存在する場合や上限件数以上となる場合は下記へ記載）"
+                    label="本件条件２（１で選択できない本件条件が存在する場合や上限件数以上となる場合はこちらへ記載）"
                 >
                     <lightning-card>
                         <lightning-layout
                             class="slds-grid slds-p-horizontal_medium slds-m-bottom_x-small slds-text-title_caps"
                         >
-                            <lightning-layout-item size="6" class="slds-col slds-text-title_caps">
-                                本件条件
+                            <lightning-layout-item
+                                size="7"
+                                class="slds-col slds-text-title_caps"
+                            >
+                                本件条件（追加）
                             </lightning-layout-item>
-                            <lightning-layout-item size="3" class="slds-col slds-text-title_caps slds-m-left_small">
+                            <lightning-layout-item
+                                size="2"
+                                class="slds-col slds-text-title_caps slds-m-left_small"
+                            >
                                 履行タイミング
                             </lightning-layout-item>
-                            <lightning-layout-item size="1" class="slds-col slds-text-title_caps slds-m-left_small">
-                                期日
+                            <lightning-layout-item
+                                size="1"
+                                class="slds-col slds-text-title_caps slds-m-left_small"
+                            >
+                                履行期限
                             </lightning-layout-item>
                         </lightning-layout>
 
@@ -123,59 +138,49 @@
                         </div>
 
                         <template for:each={conditionRows} for:item="row">
-                            <div key={row.id} class="slds-var-m-bottom_medium">
-                                <lightning-layout
-                                    multiple-rows
-                                    vertical-align="stretch"
-                                    class="slds-grid_vertical-align-end"
-                                >
-                                    <lightning-layout-item size="6" padding="horizontal-small">
-                                        <lightning-input
-                                            label="本件条件"
-                                            value={row.condition}
-                                            data-id={row.id}
-                                            data-field="condition"
-                                            onchange={handleRowChange}
-                                            variant="label-hidden"
-                                        ></lightning-input>
-                                    </lightning-layout-item>
-                                    <lightning-layout-item size="3" padding="horizontal-small">
-                                        <lightning-combobox
-                                            label="履行タイミング"
-                                            value={row.timing}
-                                            options={timingOptions}
-                                            data-id={row.id}
-                                            data-field="timing"
-                                            onchange={handleRowChange}
-                                            placeholder="タイミングを選択"
-                                            variant="label-hidden"
-                                        ></lightning-combobox>
-                                    </lightning-layout-item>
-                                    <lightning-layout-item size="1" padding="horizontal-small">
-                                        <lightning-input
-                                            type="date"
-                                            label="期日"
-                                            value={row.dueDate}
-                                            data-id={row.id}
-                                            data-field="dueDate"
-                                            onchange={handleRowChange}
-                                            variant="label-hidden"
-                                        ></lightning-input>
-                                    </lightning-layout-item>
-                                    <lightning-layout-item
-                                        size="2"
-                                        padding="horizontal-small"
-                                        alignment="end"
-                                    >
-                                        <lightning-button
-                                            label="削除"
-                                            onclick={handleRemoveRow}
-                                            data-id={row.id}
-                                            variant="destructive"
-                                        ></lightning-button>
-                                    </lightning-layout-item>
-                                </lightning-layout>
-                            </div>
+                            <lightning-layout key={row.id} multiple-rows class="slds-var-m-bottom_medium">
+                                <lightning-layout-item size="7" padding="horizontal-small">
+                                    <lightning-input
+                                        label="本件条件（追加）"
+                                        value={row.condition}
+                                        data-id={row.id}
+                                        data-field="condition"
+                                        onchange={handleRowChange}
+                                        variant="label-hidden"
+                                    ></lightning-input>
+                                </lightning-layout-item>
+                                <lightning-layout-item size="2" padding="horizontal-small">
+                                    <lightning-combobox
+                                        label="履行タイミング"
+                                        value={row.timing}
+                                        options={timingOptions}
+                                        data-id={row.id}
+                                        data-field="timing"
+                                        onchange={handleRowChange}
+                                        placeholder="タイミングを選択"
+                                        variant="label-hidden"
+                                    ></lightning-combobox>
+                                </lightning-layout-item>
+                                <lightning-layout-item size="1" padding="horizontal-small">
+                                    <lightning-input
+                                        type="date"
+                                        label="履行期限"
+                                        value={row.dueDate}
+                                        data-id={row.id}
+                                        data-field="dueDate"
+                                        onchange={handleRowChange}
+                                        variant="label-hidden"
+                                    ></lightning-input>
+                                </lightning-layout-item>
+                                <lightning-layout-item size="1" padding="horizontal-small">
+                                    <lightning-button
+                                        label="削除"
+                                        onclick={handleRemoveRow}
+                                        data-id={row.id}
+                                        variant="destructive"
+                                    ></lightning-button>
+                                </lightning-layout-item>
+                            </lightning-layout>
                         </template>
                     </lightning-card>
                 </lightning-accordion-section>
@@ -191,17 +196,16 @@
         >
             <lightning-accordion-section name="section3" label="本件条件コメント/照会">
                 <lightning-card>
-                    <lightning-layout multiple-rows class="slds-p-horizontal_medium">
-                        <lightning-layout-item size="12">
+                    <lightning-layout multiple-rows>
+                        <lightning-layout-item size="7" padding="horizontal-small">
                             <lightning-textarea
                                 label="本件条件コメント"
                                 value={remarks}
-                                placeholder="備考を入力してください"
                                 onchange={handleRemarksChange}
-                                style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 3)"
+                                style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 5)"
                             ></lightning-textarea>
                         </lightning-layout-item>
-                        <lightning-layout-item size="12">
+                        <lightning-layout-item size="12" padding="horizontal-small">
                             <div class="related-inquiry-actions">
                                 <lightning-input
                                     label="他与信圧縮・極度内運用の本体禀査番号"

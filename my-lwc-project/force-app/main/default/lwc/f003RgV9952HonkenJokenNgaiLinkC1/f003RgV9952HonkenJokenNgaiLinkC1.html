@@ -3,7 +3,11 @@
         allow-multiple-sections-open
         active-section-name={activeSections}
     >
-        <lightning-accordion-section name="b" label="本件条件" icon-name="standard:choice">
+        <lightning-accordion-section
+            name="b"
+            label="Transaction Condition/本件条件"
+            icon-name="standard:choice"
+        >
             <lightning-card>
                 <lightning-layout multiple-rows>
                     <lightning-layout-item size="12">
@@ -11,10 +15,10 @@
                         <!-- Header Row for Labels -->
                         <lightning-layout class="slds-grid slds-p-horizontal_medium slds-text-title_caps">
                             <lightning-layout-item size="6" class="slds-col slds-text-title_caps">
-                                本件条件
+                                Transaction Condition
                             </lightning-layout-item>
                             <lightning-layout-item size="6" class="slds-col slds-text-title_caps slds-m-left_small">
-                                本件条件補足
+                                本件条件
                             </lightning-layout-item>
                         </lightning-layout>
 
@@ -23,7 +27,7 @@
                             <lightning-layout key={condition.id} multiple-rows>
                                 <lightning-layout-item size="6" padding="around-small">
                                     <lightning-input
-                                        label="本件条件"
+                                        label="Transaction Conditio"
                                         value={condition.transactionCondition}
                                         data-id={condition.id}
                                         data-field="transactionCondition"
@@ -33,7 +37,7 @@
                                 </lightning-layout-item>
                                 <lightning-layout-item size="6" padding="around-small">
                                     <lightning-combobox
-                                        label="本件条件補足"
+                                        label="本件条件"
                                         value={condition.selectedCondition}
                                         options={conditionOptions}
                                         data-id={condition.id}
@@ -46,13 +50,12 @@
                         </template>
 
                     </lightning-layout-item>
-                    <lightning-layout-item size="12" padding="around-small">
+                    <lightning-layout-item size="7" padding="around-small">
                         <lightning-textarea
                             label="本件条件コメント"
                             value={honkenJokenComment}
                             onchange={handleCommentChange}
-                            rows="4"
-                            style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 3)"
+                            style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 5)"
                         ></lightning-textarea>
                     </lightning-layout-item>
                 </lightning-layout>
