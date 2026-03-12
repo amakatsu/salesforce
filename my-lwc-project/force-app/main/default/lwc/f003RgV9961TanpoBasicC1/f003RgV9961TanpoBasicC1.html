@@ -1,0 +1,314 @@
+<template>
+    <lightning-accordion
+        allow-multiple-sections-open
+        active-section-name={activeSections}
+    >
+        <lightning-accordion-section name="b" label="担保" icon-name="standard:choice">
+            <lightning-card>
+                <template for:each={columns} for:item="column">
+                    <div key={column.id} class="slds-p-around_medium">
+
+                        <!-- 全項目を1行に表示（科目・大分類は枠の外、小分類以降は枠で囲む） -->
+                        <div class="slds-grid slds-gutters_small slds-wrap">
+                            <template if:true={showSubjectColumn}>
+                                <div class="slds-size_1-of-12 slds-p-around_xx-small">
+                                    <lightning-combobox
+                                        label="科目"
+                                        value={column.subject}
+                                        options={subjectOptions}
+                                        data-column-id={column.id}
+                                        data-field="subject"
+                                        onchange={handleFieldChange}
+                                    ></lightning-combobox>
+                                </div>
+                            </template>
+                            <div class="slds-size_1-of-12 slds-p-around_xx-small">
+                                <lightning-combobox
+                                    label="担保種類（大分類）"
+                                    value={column.majorValue}
+                                    options={majorOptions}
+                                    data-column-id={column.id}
+                                    onchange={handleMajorChange}
+                                ></lightning-combobox>
+                            </div>
+
+                            <!-- 小分類以降の項目（枠で囲む） -->
+                            <div class="collateral-board-container slds-box slds-p-around_small">
+                                <div class="slds-grid slds-gutters_small slds-wrap">
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <lightning-combobox
+                                            label="担保種類（小分類）"
+                                            value={column.minorValue}
+                                            options={column.minorOptions}
+                                            data-column-id={column.id}
+                                            data-field="minorValue"
+                                            onchange={handleFieldChange}
+                                        ></lightning-combobox>
+                                    </div>
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <lightning-combobox
+                                            label="新規・既存別"
+                                            value={column.dealType}
+                                            options={dealTypeOptions}
+                                            data-column-id={column.id}
+                                            data-field="dealType"
+                                            onchange={handleFieldChange}
+                                        ></lightning-combobox>
+                                    </div>
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <lightning-combobox
+                                            label="担保設定区分"
+                                            value={column.setupCategory}
+                                            options={setupCategoryOptions}
+                                            data-column-id={column.id}
+                                            data-field="setupCategory"
+                                            onchange={handleFieldChange}
+                                        ></lightning-combobox>
+                                    </div>
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <lightning-combobox
+                                            label="担保種類区分"
+                                            value={column.collateralCategory}
+                                            options={collateralClassOptions}
+                                            data-column-id={column.id}
+                                            data-field="collateralCategory"
+                                            onchange={handleFieldChange}
+                                        ></lightning-combobox>
+                                    </div>
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <c-f003-gs-v0000-number
+                                            num-value={column.amount}
+                                            num-label="設定額"
+                                            data-id={column.id}
+                                            set-id="amount"
+                                        ></c-f003-gs-v0000-number>
+                                    </div>
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <c-f003-gs-v0000-number
+                                            num-value={column.amount}
+                                            num-label="取分"
+                                            data-id={column.id}
+                                            set-id="amount"
+                                        ></c-f003-gs-v0000-number>
+                                    </div>
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <lightning-combobox
+                                            label="評価方法"
+                                            value={column.extinguish}
+                                            options={extinguishOptions}
+                                            data-column-id={column.id}
+                                            data-field="extinguish"
+                                            onchange={handleFieldChange}
+                                        ></lightning-combobox>
+                                    </div>
+                                    <div class="slds-col slds-p-around_xx-small">
+                                        <lightning-combobox
+                                            label="根担保紐付区分"
+                                            value={column.rootLink}
+                                            options={rootLinkOptions}
+                                            data-column-id={column.id}
+                                            data-field="rootLink"
+                                            onchange={handleFieldChange}
+                                        ></lightning-combobox>
+                                    </div>
+                                </div>
+
+                                <!-- 保証情報（大分類に応じて表示） -->
+                                <template if:true={column.isGuaranteeCategory}>
+                                    <div class="slds-m-top_small">
+
+                                        <!-- 1行目：保証種別、保証人名、保証人区分、規定区分、債務者との関係 -->
+                                        <div class="slds-grid slds-wrap slds-gutters_small">
+                                            <div class="slds-col slds-p-around_xx-small">
+                                                <lightning-combobox
+                                                    label="保証種別"
+                                                    value={column.guaranteeType}
+                                                    options={guaranteeTypeOptions}
+                                                    data-column-id={column.id}
+                                                    data-field="guaranteeType"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-combobox>
+                                            </div>
+                                            <div class="slds-col slds-p-around_xx-small">
+                                                <lightning-input
+                                                    label="保証人名"
+                                                    value={column.guarantorName}
+                                                    data-column-id={column.id}
+                                                    data-field="guarantorName"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                            <div class="slds-col slds-p-around_xx-small">
+                                                <lightning-combobox
+                                                    label="保証人区分（債務者との関係）"
+                                                    value={column.guarantorCategory}
+                                                    options={guarantorCategoryOptions}
+                                                    data-column-id={column.id}
+                                                    data-field="guarantorCategory"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-combobox>
+                                            </div>
+                                            <div class="slds-col slds-p-around_xx-small">
+                                                <lightning-combobox
+                                                    label="（法人保証の場合のみ）規定区分"
+                                                    value={column.corporateGuaranteeCategory}
+                                                    options={corporateGuaranteeCategoryOptions}
+                                                    data-column-id={column.id}
+                                                    data-field="corporateGuaranteeCategory"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-combobox>
+                                            </div>
+                                        </div>
+
+                                        <!-- 2行目：保証期間、期間（年）、期間（月）、期限 -->
+                                        <div class="slds-grid slds-wrap slds-gutters_small slds-m-top_x-small">
+                                            <div class="slds-col guarantee-period-field slds-p-around_xx-small">
+                                                <lightning-combobox
+                                                    label="保証期間・期限(元本確定期日)"
+                                                    value={column.guaranteePeriod}
+                                                    options={guaranteePeriodOptions}
+                                                    data-column-id={column.id}
+                                                    data-field="guaranteePeriod"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-combobox>
+                                            </div>
+                                            <div class="slds-col period-year slds-p-around_xx-small">
+                                                <lightning-input
+                                                    type="number"
+                                                    label="期間（年）"
+                                                    value={column.guaranteePeriodYears}
+                                                    data-column-id={column.id}
+                                                    data-field="guaranteePeriodYears"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                            <div class="slds-col period-month slds-p-around_xx-small">
+                                                <lightning-input
+                                                    type="number"
+                                                    label="期間（カ月）"
+                                                    value={column.guaranteePeriodMonths}
+                                                    data-column-id={column.id}
+                                                    data-field="guaranteePeriodMonths"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                            <div class="slds-col deadline-field slds-p-around_xx-small">
+                                                <lightning-input
+                                                    type="date"
+                                                    label="期限"
+                                                    value={column.guaranteeDeadline}
+                                                    data-column-id={column.id}
+                                                    data-field="guaranteeDeadline"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </template>
+
+                                <!-- 協会保証情報（大分類に応じて表示） -->
+                                <template if:true={column.isAssociationCategory}>
+                                    <div class="slds-m-top_small">
+
+                                        <!-- 1行目：保証番号、既存保証条件、承諾条件 -->
+                                        <div class="slds-grid slds-wrap slds-gutters_small">
+                                            <div class="slds-col slds-p-around_xx-small">
+                                                <lightning-input
+                                                    label="保証番号"
+                                                    value={column.associationGuaranteeNumber}
+                                                    data-column-id={column.id}
+                                                    data-field="associationGuaranteeNumber"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                            <div class="slds-col slds-p-around_xx-small">
+                                                <lightning-combobox
+                                                    label="既存保証回収条件"
+                                                    value={column.associationExistingCondition}
+                                                    options={associationExistingConditionOptions}
+                                                    data-column-id={column.id}
+                                                    data-field="associationExistingCondition"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-combobox>
+                                            </div>
+                                            <div class="slds-col slds-p-around_xx-small">
+                                                <lightning-combobox
+                                                    label="担保充当条件(保証条件)"
+                                                    value={column.associationApprovalCondition}
+                                                    options={associationApprovalConditionOptions}
+                                                    data-column-id={column.id}
+                                                    data-field="associationApprovalCondition"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-combobox>
+                                            </div>
+                                        </div>
+
+                                        <!-- 2行目：保証期間、期間（年）、期間（月）、期限 -->
+                                        <div class="slds-grid slds-wrap slds-gutters_small slds-m-top_x-small">
+                                            <div class="slds-col guarantee-period-field slds-p-around_xx-small">
+                                                <lightning-combobox
+                                                    label="保証期間・期限(元本確定期日)"
+                                                    value={column.associationGuaranteePeriod}
+                                                    options={guaranteePeriodOptions}
+                                                    data-column-id={column.id}
+                                                    data-field="associationGuaranteePeriod"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-combobox>
+                                            </div>
+                                            <div class="slds-col period-year slds-p-around_xx-small">
+                                                <lightning-input
+                                                    type="number"
+                                                    label="期間（年）"
+                                                    value={column.associationPeriodYears}
+                                                    data-column-id={column.id}
+                                                    data-field="associationPeriodYears"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                            <div class="slds-col period-month slds-p-around_xx-small">
+                                                <lightning-input
+                                                    type="number"
+                                                    label="期間(ヶ月)"
+                                                    value={column.associationPeriodMonths}
+                                                    data-column-id={column.id}
+                                                    data-field="associationPeriodMonths"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                            <div class="slds-col deadline-field slds-p-around_xx-small">
+                                                <lightning-input
+                                                    type="date"
+                                                    label="期限"
+                                                    value={column.associationDeadline}
+                                                    data-column-id={column.id}
+                                                    data-field="associationDeadline"
+                                                    onchange={handleFieldChange}
+                                                ></lightning-input>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </template>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </template>
+
+                <section class="slds-card">
+                    <div class="slds-card__body">
+                        <lightning-textarea
+                            label="担保コメント"
+                            value={globalRemark}
+                            onchange={handleRemarkChange}
+                            style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 3)"
+                        ></lightning-textarea>
+                    </div>
+                </section>
+
+            </lightning-card>
+        </lightning-accordion-section>
+    </lightning-accordion>
+</template>

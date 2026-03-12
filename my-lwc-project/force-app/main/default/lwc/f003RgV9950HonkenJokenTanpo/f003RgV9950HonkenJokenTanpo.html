@@ -1,0 +1,42 @@
+<template>
+    <template lwc:if={isSpinnerVisible}>
+        <lightning-spinner
+            alternative-text="Loading"
+            size="medium"
+            class="slds-is-fixed"
+        ></lightning-spinner>
+    </template>
+
+    <template lwc:if={isAllVisible}>
+        <div class="card">
+            <lightning-card>
+                <template lwc:if={isServerErrorVisible}>
+                    <div class="slds-var-p-right_small slds-var-p-left_small slds-var-p-bottom_small">
+                        <c-f003-gs-v0000-server-error records={errors}></c-f003-gs-v0000-server-error>
+                    </div>
+                </template>
+
+                <!-- 画面構成図に従って画面用のHTMLを実装するエリア Start -->
+
+                <!-- 操作ボタン群 -->
+                <c-f003-rg-v9952-honken-joken-ngai-link-c1></c-f003-rg-v9952-honken-joken-ngai-link-c1>
+                <c-f003-rg-v9962-tanpo-ngai-link-c1></c-f003-rg-v9962-tanpo-ngai-link-c1>
+
+                <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternImport"></c-f003-rg-v9951-honken-joken-basic-c1>
+                <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternExport"></c-f003-rg-v9951-honken-joken-basic-c1>
+                <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternAbcp"></c-f003-rg-v9951-honken-joken-basic-c1>
+                <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="pattern1"></c-f003-rg-v9961-tanpo-basic-c1>
+                <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="pattern2"></c-f003-rg-v9961-tanpo-basic-c1>
+                <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="pattern3"></c-f003-rg-v9961-tanpo-basic-c1>
+
+                <!-- 画面構成図に従って画面用のHTMLを実装するエリア End -->
+            </lightning-card>
+        </div>
+    </template>
+
+    <template lwc:if={isAccessErrorVisible}>
+        <lightning-card>
+            <c-f003-gs-v0000-access-error records={errors}></c-f003-gs-v0000-access-error>
+        </lightning-card>
+    </template>
+</template>

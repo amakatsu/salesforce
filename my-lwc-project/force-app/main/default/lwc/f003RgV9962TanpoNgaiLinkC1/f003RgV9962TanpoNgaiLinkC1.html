@@ -1,0 +1,62 @@
+<template>
+    <lightning-card>
+        <lightning-accordion active-section-name="section1">
+            <lightning-accordion-section name="section1" label="担保">
+                <lightning-layout multiple-rows>
+
+                    <!-- Collateral/Guarantee & 担保/保証 -->
+                    <lightning-layout-item size="12">
+                        <lightning-layout>
+                            <lightning-layout-item size="6" padding="horizontal-small">
+                                <lightning-input
+                                    label="Collateral/Guarantee"
+                                    value={collateralGuarantee}
+                                    onchange={handleCollateralChange}
+                                ></lightning-input>
+                            </lightning-layout-item>
+                            <lightning-layout-item size="6" padding="horizontal-small">
+                                <lightning-combobox
+                                    label="担保/保証"
+                                    value={selectedDetail}
+                                    options={detailOptions}
+                                    onchange={handleDetailChange}
+                                    placeholder="選択してください"
+                                ></lightning-combobox>
+                            </lightning-layout-item>
+                        </lightning-layout>
+
+                        <!-- Jurisdiction & Governing Law -->
+                        <lightning-layout>
+                            <lightning-layout-item size="6" padding="horizontal-small">
+                                <lightning-input
+                                    label="Jurisdiction（裁判管轄地）"
+                                    value={jurisdiction}
+                                    onchange={handleJurisdictionChange}
+                                ></lightning-input>
+                            </lightning-layout-item>
+                            <lightning-layout-item size="6" padding="horizontal-small">
+                                <lightning-input
+                                    label="Governing Law（準拠法）"
+                                    value={governingLaw}
+                                    onchange={handleGoverningLawChange}
+                                ></lightning-input>
+                            </lightning-layout-item>
+                        </lightning-layout>
+                    </lightning-layout-item>
+
+                    <!-- Note -->
+                    <lightning-layout-item size="12" padding="around-small">
+                        <lightning-textarea
+                            label="Note（担保コメント）"
+                            value={note}
+                            onchange={handleNoteChange}
+                            rows="4"
+                            style="--slds-c-textarea-sizing-min-height: calc(1.5rem * 3)"
+                        ></lightning-textarea>
+                    </lightning-layout-item>
+
+                </lightning-layout>
+            </lightning-accordion-section>
+        </lightning-accordion>
+    </lightning-card>
+</template>

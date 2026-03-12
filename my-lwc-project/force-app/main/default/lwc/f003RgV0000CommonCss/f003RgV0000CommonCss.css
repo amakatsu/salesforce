@@ -1,7 +1,7 @@
 /* 稟議共通CSS */
 
 /* ユーザ要望対応。アコーディオンのボーダーを消す */
-.noAccordionBorder {
+:host {
   --slds-c-accordion-color-border: transparent;
   --slds-c-accordion-sizing-border: 0px;
 }
