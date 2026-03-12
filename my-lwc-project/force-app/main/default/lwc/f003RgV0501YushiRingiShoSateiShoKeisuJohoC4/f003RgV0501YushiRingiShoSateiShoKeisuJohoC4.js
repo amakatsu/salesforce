@@ -102,10 +102,10 @@ const CREDIT_ITEMS = [
   { id: "2", creditType1: makeTestData("mixedChar", 40), indent: 1, overrides: { creditType2: "ワーニング", grossNet: "グロス" } },
   { id: "3", creditType1: makeTestData("mixedChar", 40), indent: 1, overrides: { creditType2: "ワーニン", grossNet: "ネット", currentMonthChange: "-99999" } },
   { id: "4", creditType1: makeTestData("mixedChar", 40), indent: 1, overrides: { creditType2: "ワーニン", grossNet: "グロス" } },
+  { id: "8", creditType1: "限度不算入与信合計", overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...EMPTY_OVERRIDES }, disabled: true },
   { id: "5", creditType1: "限度不算入与信為替取引", indent: 1, overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...DASH_OVERRIDES }, disabled: true },
   { id: "6", creditType1: "スワップ／オプション取引", indent: 1, overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...DASH_OVERRIDES }, disabled: true },
   { id: "7", creditType1: "その他", indent: 1, overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...DASH_OVERRIDES }, disabled: true },
-  { id: "8", creditType1: "限度不算入与信合計", overrides: { dueDateYear: "", dueDateMonth: "", margin: "", ...EMPTY_OVERRIDES }, disabled: true },
   { id: "9", creditType1: "市場性与信合計", overrides: SUMMARY_OVERRIDES, disabled: false }
 ];
 

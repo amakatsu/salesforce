@@ -740,82 +740,81 @@ const rawCollateralSource = [
     id: "collGenera23",
     collateralType: "規定外担保合計",
     editableFields: collateralEditable(["regValue", "marketValue"]),
+    children: []
+  }),
+  collateralNode({
+    id: "cg23_1",
+    collateralType: "規定外・優良小計",
+    editableFields: collateralEditable(["regValue", "marketValue"]),
     children: [
       collateralNode({
-        id: "cg23_1",
-        collateralType: "規定外・優良小計",
-        editableFields: collateralEditable(["regValue", "marketValue"]),
-        children: [
-          collateralNode({
-            id: "cg23_1_1",
-            collateralType: "預金",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_1_2",
-            collateralType: "有証",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_1_3",
-            collateralType: "保証",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_1_4",
-            collateralType: "その他",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          })
-        ]
+        id: "cg23_1_1",
+        collateralType: "預金",
+        editableFields: collateralEditable(["regValue", "marketValue"])
       }),
       collateralNode({
-        id: "cg23_2",
-        collateralType: "規定外・一般小計",
-        editableFields: collateralEditable(["regValue", "marketValue"]),
-        children: [
-          collateralNode({
-            id: "cg23_2_1",
-            collateralType: "有証",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_2_2",
-            collateralType: "保証",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_2_3",
-            collateralType: "不動産(抵)",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_2_4",
-            collateralType: "不動産(根)",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_2_5",
-            collateralType: "入居保証金",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_2_6",
-            collateralType: "債権",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          }),
-          collateralNode({
-            id: "cg23_2_7",
-            collateralType: "その他",
-            editableFields: collateralEditable(["regValue", "marketValue"])
-          })
-        ]
+        id: "cg23_1_2",
+        collateralType: "有証",
+        editableFields: collateralEditable(["regValue", "marketValue"])
       }),
       collateralNode({
-        id: "cg23_3",
-        collateralType: "規定外・その他",
+        id: "cg23_1_3",
+        collateralType: "保証",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      }),
+      collateralNode({
+        id: "cg23_1_4",
+        collateralType: "その他",
         editableFields: collateralEditable(["regValue", "marketValue"])
       })
     ]
+  }),
+  collateralNode({
+    id: "cg23_2",
+    collateralType: "規定外・一般小計",
+    editableFields: collateralEditable(["regValue", "marketValue"]),
+    children: [
+      collateralNode({
+        id: "cg23_2_1",
+        collateralType: "有証",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      }),
+      collateralNode({
+        id: "cg23_2_2",
+        collateralType: "保証",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      }),
+      collateralNode({
+        id: "cg23_2_3",
+        collateralType: "不動産(抵)",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      }),
+      collateralNode({
+        id: "cg23_2_4",
+        collateralType: "不動産(根)",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      }),
+      collateralNode({
+        id: "cg23_2_5",
+        collateralType: "入居保証金",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      }),
+      collateralNode({
+        id: "cg23_2_6",
+        collateralType: "債権",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      }),
+      collateralNode({
+        id: "cg23_2_7",
+        collateralType: "その他",
+        editableFields: collateralEditable(["regValue", "marketValue"])
+      })
+    ]
+  }),
+  collateralNode({
+    id: "cg23_3",
+    collateralType: "規定外・その他",
+    editableFields: collateralEditable(["regValue", "marketValue"])
   })
 ];
 
