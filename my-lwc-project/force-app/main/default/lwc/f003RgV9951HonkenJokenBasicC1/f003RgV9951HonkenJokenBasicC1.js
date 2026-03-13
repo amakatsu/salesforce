@@ -382,13 +382,12 @@ const buildRows = (rows, prefix, blankRow) =>
 export default class f003RgV9951HonkenJokenBasicC1 extends LightningElement {
   topRows = buildRows(SAMPLE_TOP_ROWS, "top", BLANK_TOP_ROW);
   conditionRows = buildRows(SAMPLE_DETAIL_ROWS, "detail", BLANK_DETAIL_ROW);
- 
+
   @api parentScreenType;
   nextDetailId = this.conditionRows.length + 1;
   relatedInquiryNumber = SAMPLE_TEXT_28;
   remarks = SAMPLE_TEXT_280;
   activeTopSections = ["section1"];
-  activeDetailSections = ["section2"];
  
   // ========================================
   // イベントハンドラー
@@ -486,13 +485,6 @@ export default class f003RgV9951HonkenJokenBasicC1 extends LightningElement {
     this.activeTopSections = event.detail.openSections;
   }
  
-  /**
-   * 明細アコーディオン開閉ハンドラー
-   * @param {Event} event - トグルイベント
-   */
-  handleDetailAccordionToggle(event) {
-    this.activeDetailSections = event.detail.openSections;
-  }
  
   // ========================================
   // ヘルパーメソッド

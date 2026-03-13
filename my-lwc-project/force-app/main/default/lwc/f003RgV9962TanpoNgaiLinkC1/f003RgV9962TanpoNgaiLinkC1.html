@@ -7,14 +7,14 @@
                     <!-- Collateral/Guarantee & 担保/保証 & Jurisdiction & Governing Law -->
                     <lightning-layout-item size="12">
                         <lightning-layout>
-                            <lightning-layout-item size="6" padding="horizontal-small">
+                            <lightning-layout-item size="3" padding="horizontal-small">
                                 <lightning-input
                                     label="Collateral/Guarantee"
                                     value={collateralGuarantee}
                                     onchange={handleCollateralChange}
                                 ></lightning-input>
                             </lightning-layout-item>
-                            <lightning-layout-item size="6" padding="horizontal-small">
+                            <lightning-layout-item size="3" padding="horizontal-small">
                                 <lightning-combobox
                                     label="担保/保証"
                                     value={selectedDetail}
@@ -24,16 +24,17 @@
                                 ></lightning-combobox>
                             </lightning-layout-item>
                         </lightning-layout>
-
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12">
                         <lightning-layout>
-                            <lightning-layout-item size="6" padding="horizontal-small">
+                            <lightning-layout-item size="3" padding="horizontal-small">
                                 <lightning-input
                                     label="Jurisdiction（裁判管轄地）"
                                     value={jurisdiction}
                                     onchange={handleJurisdictionChange}
                                 ></lightning-input>
                             </lightning-layout-item>
-                            <lightning-layout-item size="6" padding="horizontal-small">
+                            <lightning-layout-item size="3" padding="horizontal-small">
                                 <lightning-input
                                     label="Governing Law（準拠法）"
                                     value={governingLaw}
@@ -44,7 +45,7 @@
                     </lightning-layout-item>
 
                     <!-- Note -->
-                    <lightning-layout-item size="7" padding="around-small">
+                    <lightning-layout-item size="6" padding="around-small">
                         <lightning-textarea
                             label="Note（担保コメント）"
                             value={note}

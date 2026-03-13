@@ -5,8 +5,6 @@
 .collateral-board-container {
   border: 2px solid #dddbda;
   border-radius: 0.25rem;
-  background-color: #fafaf9;
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
   margin-left: 1rem;
   flex: 1 1 auto;
 }
@@ -14,7 +12,26 @@
 /* すべての項目を固定幅で横並びにする */
 .collateral-board-container .slds-col {
   flex: 1 1 auto;
-  min-width: 150px;
+  min-width: 140px;
+}
+
+/* 金額フィールドは9桁固定幅 */
+.collateral-board-container .amount-field {
+  flex: 0 0 auto;
+  min-width: 140px;
+  max-width: 140px;
+}
+
+/* 保証人名は最大30文字のため広めに */
+.collateral-board-container .guarantor-name-field {
+  min-width: 220px;
+}
+
+/* 保証番号は25桁固定幅 */
+.collateral-board-container .guarantee-number-field {
+  flex: 0 0 auto;
+  min-width: 200px;
+  max-width: 200px;
 }
  
 /* 期間（年）と期間（月）のフィールドを狭く */

@@ -14,10 +14,10 @@
 
                         <!-- Header Row for Labels -->
                         <lightning-layout class="slds-grid slds-p-horizontal_medium slds-text-title_caps">
-                            <lightning-layout-item size="6" class="slds-col slds-text-title_caps">
+                            <lightning-layout-item size="3" class="slds-col slds-text-title_caps">
                                 Transaction Condition
                             </lightning-layout-item>
-                            <lightning-layout-item size="6" class="slds-col slds-text-title_caps slds-m-left_small">
+                            <lightning-layout-item size="3" class="slds-col slds-text-title_caps slds-m-left_small">
                                 本件条件
                             </lightning-layout-item>
                         </lightning-layout>
@@ -25,7 +25,7 @@
                         <!-- Input Fields -->
                         <template for:each={conditions} for:item="condition">
                             <lightning-layout key={condition.id} multiple-rows>
-                                <lightning-layout-item size="6" padding="around-small">
+                                <lightning-layout-item size="3" padding="around-small">
                                     <lightning-input
                                         label="Transaction Conditio"
                                         value={condition.transactionCondition}
@@ -35,7 +35,7 @@
                                         variant="label-hidden"
                                     ></lightning-input>
                                 </lightning-layout-item>
-                                <lightning-layout-item size="6" padding="around-small">
+                                <lightning-layout-item size="3" padding="around-small">
                                     <lightning-combobox
                                         label="本件条件"
                                         value={condition.selectedCondition}
@@ -50,7 +50,7 @@
                         </template>
 
                     </lightning-layout-item>
-                    <lightning-layout-item size="7" padding="around-small">
+                    <lightning-layout-item size="6" padding="around-small">
                         <lightning-textarea
                             label="本件条件コメント"
                             value={honkenJokenComment}

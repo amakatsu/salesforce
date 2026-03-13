@@ -118,7 +118,7 @@ const generatePatternStringWithNumbers = (pattern, length) => {
  
 const SAMPLE_TEXT_25 = generatePatternStringWithNumbers('half', 25);
  
-const SAMPLE_TEXT_32 = generatePatternStringWithNumbers('half', 66);
+const SAMPLE_TEXT_33 = generatePatternStringWithNumbers('half', 33);
  
 /** 366文字のサンプルテキスト */
 const SAMPLE_TEXT_366 = generatePatternStringWithNumbers('half', 366);
@@ -136,8 +136,8 @@ export default class f003RgV9962TanpoNgaiLinkC1 extends LightningElement {
   // フォームデータ
   @track collateralGuarantee = SAMPLE_TEXT_25;
   @track selectedDetail = '';
-  @track jurisdiction = SAMPLE_TEXT_32;
-  @track governingLaw = SAMPLE_TEXT_32;
+  @track jurisdiction = SAMPLE_TEXT_33;
+  @track governingLaw = SAMPLE_TEXT_33;
   @track note = SAMPLE_TEXT_366;
  
   /**

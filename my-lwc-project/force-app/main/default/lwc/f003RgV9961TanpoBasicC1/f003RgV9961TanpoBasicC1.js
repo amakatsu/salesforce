@@ -108,6 +108,9 @@ const generateData = (pattern, length) => {
  
 /** サンプルテキスト（30バイト） */
 const SAMPLE_TEXT_30 = generateData("mixedByte", 30);
+
+/** サンプルテキスト（30文字） */
+const SAMPLE_TEXT_30_CHAR = generateData("mixedChar", 30);
  
 /** サンプルテキスト（60バイト） */
 const SAMPLE_TEXT_60 = generateData("mixedByte", 60);
@@ -711,7 +714,7 @@ const COLUMN_TEMPLATES = {
       dueDate: "",
       remark: SAMPLE_TEXT_60,
       guaranteeType: "05", // 包括根保証
-      guarantorName: SAMPLE_TEXT_30,
+      guarantorName: SAMPLE_TEXT_30_CHAR,
       guarantorCategory: "01", // 代表取締役
       corporateGuaranteeCategory: "01", // 規定・優良
       debtorRelationship: "01", // 代表取締役
@@ -794,7 +797,7 @@ const COLUMN_TEMPLATES = {
       dueDate: "",
       remark: SAMPLE_TEXT_60,
       guaranteeType: "05", // 包括根保証
-      guarantorName: SAMPLE_TEXT_30,
+      guarantorName: SAMPLE_TEXT_30_CHAR,
       guarantorCategory: "01", // 代表取締役
       corporateGuaranteeCategory: "01", // 規定・優良
       debtorRelationship: "01", // 代表取締役
@@ -1137,18 +1140,7 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
    * @returns {string[]} アクティブセクション名の配列
    */
   get activeSections() {
-    if (this.parentScreenType === "pattern3") {
-      return ["section3"]; // 担保コメントのみ
-    }
-    return ["b", "collateralDetailSection", "section3"]; // 全セクション
-  }
- 
-  /**
-   * 担保コメントセクションのラベル
-   * @returns {string} パターン3の場合は「担保条件」、それ以外は「担保コメント」
-   */
-  get commentSectionLabel() {
-    return this.parentScreenType === "pattern3" ? "担保条件" : "担保コメント";
+    return ["b"];
   }
  
   // ========================================
