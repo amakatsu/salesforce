@@ -16,42 +16,44 @@
                     </div>
                 </template>
 
-                <div>
-                    <p>融資</p>
-                    <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="default"></c-f003-rg-v9951-honken-joken-basic-c1>
-                </div>
-                <div>
-                    <p>輸出/輸入</p>
-                    <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternInExport"></c-f003-rg-v9951-honken-joken-basic-c1>
-                </div>
-                <div>
-                    <p>ABCP（本来はコメントのみ、最大文字数も異なる）</p>
-                    <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternAbcp"></c-f003-rg-v9951-honken-joken-basic-c1>
-                </div>
-
-                <div>
-                    <p>担保（融資）</p>
-                    <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="pattern1"></c-f003-rg-v9961-tanpo-basic-c1>
-                </div>
-                <div>
-                    <p>融資（支払承諾）・輸出・輸入・市場性（１件のみ）</p>
-                    <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="pattern2"></c-f003-rg-v9961-tanpo-basic-c1>
-                </div>
-                <div>
-                    <p>ABCP</p>
-                    <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="pattern3"></c-f003-rg-v9961-tanpo-basic-c1>
-                </div>
-
-                <!-- 画面構成図に従って画面用のHTMLを実装するエリア Start -->
-
-                <!-- 操作ボタン群 -->
-                <div>
-                    <p>内外</p>
-                    <c-f003-rg-v9952-honken-joken-ngai-link-c1></c-f003-rg-v9952-honken-joken-ngai-link-c1>
-                    <c-f003-rg-v9962-tanpo-ngai-link-c1></c-f003-rg-v9962-tanpo-ngai-link-c1>
-                </div>
-
-                <!-- 画面構成図に従って画面用のHTMLを実装するエリア End -->
+                <lightning-tabset>
+                    <lightning-tab label="本件条件">
+                        <lightning-tabset>
+                            <lightning-tab label="融資">
+                                <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternYushi"></c-f003-rg-v9951-honken-joken-basic-c1>
+                            </lightning-tab>
+                            <lightning-tab label="輸出/輸入">
+                                <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternYushutsuYunyu"></c-f003-rg-v9951-honken-joken-basic-c1>
+                            </lightning-tab>
+                            <lightning-tab label="内外">
+                                <c-f003-rg-v9952-honken-joken-ngai-link-c1></c-f003-rg-v9952-honken-joken-ngai-link-c1>
+                            </lightning-tab>
+                        </lightning-tabset>
+                    </lightning-tab>
+                    <lightning-tab label="担保">
+                        <lightning-tabset>
+                            <lightning-tab label="融資">
+                                <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="patternYushi"></c-f003-rg-v9961-tanpo-basic-c1>
+                            </lightning-tab>
+                            <lightning-tab label="支払承諾・輸出・輸入・市場性">
+                                <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="patternShiharaiYushutsuYunyuShijosei"></c-f003-rg-v9961-tanpo-basic-c1>
+                            </lightning-tab>
+                            <lightning-tab label="内外">
+                                <c-f003-rg-v9962-tanpo-ngai-link-c1></c-f003-rg-v9962-tanpo-ngai-link-c1>
+                            </lightning-tab>
+                        </lightning-tabset>
+                    </lightning-tab>
+                    <lightning-tab label="ABCP">
+                        <lightning-layout>
+                            <lightning-layout-item size="6">
+                                <c-f003-rg-v9951-honken-joken-basic-c1 parent-screen-type="patternAbcp"></c-f003-rg-v9951-honken-joken-basic-c1>
+                            </lightning-layout-item>
+                            <lightning-layout-item size="6">
+                                <c-f003-rg-v9961-tanpo-basic-c1 parent-screen-type="patternAbcp"></c-f003-rg-v9961-tanpo-basic-c1>
+                            </lightning-layout-item>
+                        </lightning-layout>
+                    </lightning-tab>
+                </lightning-tabset>
             </lightning-card>
         </div>
     </template>

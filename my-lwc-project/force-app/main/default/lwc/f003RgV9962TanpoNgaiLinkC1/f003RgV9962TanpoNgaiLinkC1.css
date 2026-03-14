@@ -1,17 +1,1 @@
 @import 'c/f003GsV0000CommonCss';
- 
-.related-inquiry-actions {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 0.4rem;
-}
- 
-.related-inquiry-actions lightning-input {
-  width: 18rem;
-}
- 
-.input-section-header {
-  padding: 0 0.75rem;
-  margin-bottom: 0.25rem;
-  font-weight: 600;
-}

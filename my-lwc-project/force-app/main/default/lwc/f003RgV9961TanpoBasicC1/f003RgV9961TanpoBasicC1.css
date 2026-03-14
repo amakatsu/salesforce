@@ -1,81 +1,29 @@
 @import 'c/f003GsV0000CommonCss';
- 
- 
-/* メインコンテナのスタイル（枠線で囲む） */
-.collateral-board-container {
-  border: 2px solid #dddbda;
-  border-radius: 0.25rem;
-  margin-left: 1rem;
-  flex: 1 1 auto;
-}
- 
-/* すべての項目を固定幅で横並びにする */
+
+/* デフォルト: 伸縮可能・最小140px */
 .collateral-board-container .slds-col {
   flex: 1 1 auto;
   min-width: 140px;
 }
 
-/* 金額フィールドは9桁固定幅 */
-.collateral-board-container .amount-field {
+/* 固定幅フィールド共通: 伸びない・縮まない・CSS変数で幅指定 */
+.collateral-board-container .slds-col.amount-field,
+.collateral-board-container .slds-col.guarantor-name-field,
+.collateral-board-container .slds-col.guarantee-number-field,
+.collateral-board-container .slds-col.period-year,
+.collateral-board-container .slds-col.period-month,
+.collateral-board-container .slds-col.deadline-field,
+.collateral-board-container .slds-col.guarantee-period-field {
   flex: 0 0 auto;
-  min-width: 140px;
-  max-width: 140px;
+  min-width: var(--field-width);
+  max-width: var(--field-width);
 }
 
-/* 保証人名は最大30文字のため広めに */
-.collateral-board-container .guarantor-name-field {
-  min-width: 220px;
-}
-
-/* 保証番号は25桁固定幅 */
-.collateral-board-container .guarantee-number-field {
-  flex: 0 0 auto;
-  min-width: 200px;
-  max-width: 200px;
-}
- 
-/* 期間（年）と期間（月）のフィールドを狭く */
-.collateral-board-container .period-year,
-.collateral-board-container .period-month {
-  flex: 0 0 auto;
-  min-width: 100px;
-  max-width: 100px;
-}
- 
-/* 期限フィールドを少し狭く */
-.collateral-board-container .deadline-field {
-  flex: 0 0 auto;
-  min-width: 140px;
-  max-width: 140px;
-}
- 
-/* フィールドの縦方向のパディングを狭く */
-.collateral-board-container .slds-p-around_xx-small {
-  padding: 0.05rem 0.25rem;
-}
- 
-/* 保証期間フィールドの幅 */
-.collateral-board-container .guarantee-period-field {
-  flex: 0 0 auto;
-  min-width: 200px;
-  max-width: 200px;
-}
- 
-/* フィールドの縦幅を狭く */
-.collateral-board-container .slds-form-element {
-  margin-bottom: 0;
-}
- 
-.collateral-board-container .slds-form-element__label {
-  margin-bottom: 0.1rem;
-  line-height: 1.2;
-}
- 
-.collateral-board-container .slds-input,
-.collateral-board-container .slds-combobox__input,
-.collateral-board-container .slds-select {
-  height: 1.75rem;
-  line-height: 1.2;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-}
+/* 各フィールドの幅 */
+.collateral-board-container .slds-col.amount-field { --field-width: 140px; }          /* 設定額・取分: 9桁数値 */
+.collateral-board-container .slds-col.guarantor-name-field { --field-width: 400px; }   /* 保証人名: 最大30文字 */
+.collateral-board-container .slds-col.guarantee-number-field { --field-width: 200px; } /* 保証番号: 最大25桁 */
+.collateral-board-container .slds-col.period-year,
+.collateral-board-container .slds-col.period-month { --field-width: 100px; }           /* 期間（年/月）: 数値入力 */
+.collateral-board-container .slds-col.deadline-field { --field-width: 140px; }         /* 期日: 日付入力 */
+.collateral-board-container .slds-col.guarantee-period-field { --field-width: 200px; } /* 期間・日付選択 */

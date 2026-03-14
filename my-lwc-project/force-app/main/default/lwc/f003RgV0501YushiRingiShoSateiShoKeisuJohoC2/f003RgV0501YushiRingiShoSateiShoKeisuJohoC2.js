@@ -63,7 +63,7 @@ const STYLE_FIELDS = [
 ];
 const INDENT_FIELDS = new Set(["label", "collateralType"]);
 
-/** ツリー内ノード検索（再帰） */
+/** ツリー内ノード検索(再帰) */
 function findInTree(tree, nodeId) {
   for (const node of tree) {
     if (node.id === nodeId) return node;
@@ -75,7 +75,7 @@ function findInTree(tree, nodeId) {
   return null;
 }
 
-/** ツリー内ノード更新（再帰・見つかったらtrue） */
+/** ツリー内ノード更新(再帰・見つかったらtrue) */
 function updateInTree(tree, nodeId, field, value) {
   for (const node of tree) {
     if (node.id === nodeId) { node[field] = value; return true; }
@@ -96,7 +96,7 @@ export default class RirituComponent extends LightningElement {
   _originalGuarantorData = null;
   activeSections = "abcdefghijklmnopqr".split("");
 
-  // sticky高さ実測値キャッシュ（無限ループ防止）
+  // sticky高さ実測値キャッシュ(無限ループ防止)
   _lastTheadHeight = 0;
   _lastDataRowHeight = 0;
 
@@ -106,7 +106,7 @@ export default class RirituComponent extends LightningElement {
   connectedCallback() { this._initializeData(); }
   renderedCallback() { this._updateStickyHeights(); }
 
-  /* DOM実測値でCSS変数を更新（マジックナンバー廃止） */
+  /* DOM実測値でCSS変数を更新(マジックナンバー廃止) */
   _updateStickyHeights() {
     const queryTableElement = (selector) =>
       this.template.querySelector(`.table-container-collateral ${selector}`) ||

@@ -6,7 +6,7 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJoho extends Lightning
   showCalculationAndRegisterButtons = true;
 
   /**
-   * タブ切替処理（親タブ・子タブ共通）
+   * タブ切替処理(親タブ・子タブ共通)
    * data-tab-type 属性で親/子を判別
    *
    * @param {Event} event クリックイベント

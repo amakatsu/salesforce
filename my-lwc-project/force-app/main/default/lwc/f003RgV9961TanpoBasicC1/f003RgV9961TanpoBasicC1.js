@@ -5,7 +5,15 @@
 import { LightningElement, api, track } from "lwc";
 import LightningConfirm from "lightning/confirm";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
- 
+import { generateData } from "c/f003RgV0000CommonJs";
+
+const SAMPLE_TEXT_30 = generateData("mixedByte", 30);
+const SAMPLE_TEXT_30_CHAR = generateData("mixedChar", 30);
+const SAMPLE_TEXT_60 = generateData("mixedByte", 60);
+const SAMPLE_TEXT_140 = generateData("mixedByte", 140);
+const SAMPLE_TEXT_280 = generateData("mixedByte", 280);
+const SAMPLE_TEXT_390 = generateData("mixedByte", 390);
+
 // ========================================
 // 定数: テンプレート
 // ========================================
@@ -21,108 +29,6 @@ const BLANK_COLLATERAL_DETAIL_ROW = {
  
 /** 担保条件２の最大追加可能件数 */
 const MAX_COLLATERAL_DETAIL_ROWS = 9;
- 
-// ========================================
-// ユーティリティ: サンプルテキスト生成
-// ========================================
- 
-/**
-* パターン化されたサンプル文字列を生成する
-* @param {string} pattern - mixedByte / mixedChar / half / numeric
-* @param {number} length - 生成する文字（またはバイト）長
-* @returns {string} パターン化されたサンプル文字列
-*/
-const generateData = (pattern, length) => {
-  if (!Number.isInteger(length) || length <= 0) {
-    throw new Error("length は 1 以上の整数を指定してください。");
-  }
- 
-  const FULL = "〇";
-  const MARK = "●";
-  const HALF = "W";
-  const DIGIT = "9";
- 
-  const twoDigitLabel = (n) => String(n).slice(-2);
- 
-  const generateLabeledByChars = (n, baseChar, markChar) => {
-    let result = "";
- 
-    for (let pos = 1; pos <= n; pos++) {
-      const indexInBlock = ((pos - 1) % 10) + 1;
-      const blockNumber = Math.floor((pos - 1) / 10) + 1;
- 
-      let ch = baseChar;
- 
-      if (markChar && indexInBlock === 5) {
-        ch = markChar;
-      }
- 
-      if (indexInBlock === 9 || indexInBlock === 10) {
-        const label = twoDigitLabel(blockNumber * 10);
-        const digitIndex = indexInBlock - 9;
-        ch = label[digitIndex];
-      }
- 
-      result += ch;
-    }
- 
-    return result;
-  };
- 
-  if (pattern === "half") {
-    return generateLabeledByChars(length, HALF, null);
-  }
-  if (pattern === "numeric") {
-    return DIGIT.repeat(length);
-  }
-  if (pattern === "mixedChar") {
-    return generateLabeledByChars(length, FULL, MARK);
-  }
-  if (pattern === "mixedByte") {
-    const tokenForBlock = (block) => {
-      if (block % 10 === 0) return twoDigitLabel(block);
-      if (block % 5 === 0) return MARK;
-      return FULL;
-    };
- 
-    let result = "";
-    let usedBytes = 0;
-    let block = 1;
- 
-    while (length - usedBytes >= 2) {
-      result += tokenForBlock(block++);
-      usedBytes += 2;
-    }
- 
-    if (usedBytes < length) {
-      result += HALF;
-    }
- 
-    return result;
-  }
- 
-  throw new Error(
-    'pattern は "mixedByte" / "mixedChar" / "half" / "numeric" のいずれかを指定してください。'
-  );
-};
- 
-/** サンプルテキスト（30バイト） */
-const SAMPLE_TEXT_30 = generateData("mixedByte", 30);
-
-/** サンプルテキスト（30文字） */
-const SAMPLE_TEXT_30_CHAR = generateData("mixedChar", 30);
- 
-/** サンプルテキスト（60バイト） */
-const SAMPLE_TEXT_60 = generateData("mixedByte", 60);
- 
-/** サンプルテキスト（140バイト） */
-const SAMPLE_TEXT_140 = generateData("mixedByte", 140);
- 
-/** サンプルテキスト（280バイト） */
-const SAMPLE_TEXT_280 = generateData("mixedByte", 280);
- 
-/** サンプルテキスト（390バイト） */
-const SAMPLE_TEXT_390 = generateData("mixedByte", 390);
  
 // ========================================
 // 定数: 選択肢オプション
@@ -664,174 +570,94 @@ const SAMPLE_COLLATERAL_DETAIL_ROWS = [
 // 定数: テンプレートデータ
 // ========================================
  
+const SAMPLE_COLUMNS = [
+  {
+    id: "col-import",
+    subject: "01",
+    majorValue: "01", // 預金
+    minorValue: "01",
+    dealType: "01", // 新規
+    setupCategory: "1",
+    collateralCategory: "9",
+    amount: "999999999",
+    share: "999999999",
+    extinguish: "",
+    rootLink: "01", // 極度
+    timing: "取引開始前/同時",
+    dueDate: "",
+    remark: SAMPLE_TEXT_60
+  },
+  {
+    id: "col-export",
+    subject: "02",
+    majorValue: "02", // 電債
+    minorValue: "05",
+    dealType: "02", // 既存
+    setupCategory: "1",
+    collateralCategory: "3",
+    amount: "999999999",
+    share: "999999999",
+    extinguish: "",
+    rootLink: "02", // 実残
+    timing: "取引開始前/同時",
+    dueDate: "",
+    remark: SAMPLE_TEXT_60
+  },
+  {
+    id: "col-guarantee",
+    subject: "03",
+    majorValue: "03", // 一般保証
+    minorValue: "34",
+    dealType: "01", // 新規
+    setupCategory: "1",
+    collateralCategory: "5",
+    amount: "999999999",
+    share: "999999999",
+    extinguish: "",
+    rootLink: "02", // 実残
+    timing: "取引開始前/同時",
+    dueDate: "",
+    remark: SAMPLE_TEXT_60,
+    guaranteeType: "05", // 包括根保証
+    guarantorName: SAMPLE_TEXT_30_CHAR,
+    guarantorCategory: "01", // 代表取締役
+    corporateGuaranteeCategory: "01", // 規定・優良
+    debtorRelationship: "01", // 代表取締役
+    guaranteePeriod: "", // 期間
+    guaranteePeriodYears: "",
+    guaranteePeriodMonths: "",
+    guaranteeDeadline: ""
+  },
+  {
+    id: "col-association",
+    subject: "04",
+    majorValue: "04", // 協会保証
+    minorValue: "45",
+    dealType: "01", // 新規
+    setupCategory: "1",
+    collateralCategory: "6",
+    amount: "999999999",
+    share: "999999999",
+    extinguish: "",
+    rootLink: "02", // 実残
+    timing: "取引開始前/同時",
+    dueDate: "2026-05-31",
+    remark: SAMPLE_TEXT_60,
+    associationType: "32", // 貸付根保証
+    associationGuaranteeNumber: "999999999999999999",
+    associationExistingCondition: "01", // 有
+    associationApprovalCondition: "01", // 条件なし
+    associationGuaranteePeriod: "02", // 日付
+    associationPeriodYears: "",
+    associationPeriodMonths: "",
+    associationDeadline: "2027-03-31"
+  }
+];
+
 const COLUMN_TEMPLATES = {
-  pattern1: [
-    {
-      id: "col-import",
-      subject: "01",
-      majorValue: "01", // 預金
-      minorValue: "01",
-      dealType: "01", // 新規
-      setupCategory: "1",
-      collateralCategory: "9",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "01", // 極度
-      timing: "取引開始前/同時",
-      dueDate: "",
-      remark: SAMPLE_TEXT_60
-    },
-    {
-      id: "col-export",
-      subject: "02",
-      majorValue: "02", // 電債
-      minorValue: "05",
-      dealType: "02", // 既存
-      setupCategory: "1",
-      collateralCategory: "3",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "02", // 実残
-      timing: "取引開始前/同時",
-      dueDate: "",
-      remark: SAMPLE_TEXT_60
-    },
-    {
-      id: "col-guarantee",
-      subject: "03",
-      majorValue: "03", // 一般保証
-      minorValue: "34",
-      dealType: "01", // 新規
-      setupCategory: "1",
-      collateralCategory: "5",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "02", // 実残
-      timing: "取引開始前/同時",
-      dueDate: "",
-      remark: SAMPLE_TEXT_60,
-      guaranteeType: "05", // 包括根保証
-      guarantorName: SAMPLE_TEXT_30_CHAR,
-      guarantorCategory: "01", // 代表取締役
-      corporateGuaranteeCategory: "01", // 規定・優良
-      debtorRelationship: "01", // 代表取締役
-      guaranteePeriod: "", // 期間
-      guaranteePeriodYears: "",
-      guaranteePeriodMonths: "",
-      guaranteeDeadline: ""
-    },
-    {
-      id: "col-association",
-      subject: "04",
-      majorValue: "04", // 協会保証
-      minorValue: "45",
-      dealType: "01", // 新規
-      setupCategory: "1",
-      collateralCategory: "6",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "02", // 実残
-      timing: "取引開始前/同時",
-      dueDate: "2026-05-31",
-      remark: SAMPLE_TEXT_60,
-      associationType: "32", // 貸付根保証
-      associationGuaranteeNumber: "999999999999999999",
-      associationExistingCondition: "01", // 有
-      associationApprovalCondition: "01", // 条件なし
-      associationGuaranteePeriod: "02", // 日付
-      associationPeriodYears: "",
-      associationPeriodMonths: "",
-      associationDeadline: "2027-03-31"
-    }
-  ],
-  pattern2: [
-    {
-      id: "col-import",
-      subject: "01",
-      majorValue: "01", // 預金
-      minorValue: "01",
-      dealType: "01", // 新規
-      setupCategory: "1",
-      collateralCategory: "9",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "01", // 極度
-      timing: "取引開始前/同時",
-      dueDate: "",
-      remark: SAMPLE_TEXT_60
-    },
-    {
-      id: "col-export",
-      subject: "02",
-      majorValue: "02", // 電債
-      minorValue: "05",
-      dealType: "02", // 既存
-      setupCategory: "1",
-      collateralCategory: "3",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "02", // 実残
-      timing: "取引開始前/同時",
-      dueDate: "",
-      remark: SAMPLE_TEXT_60
-    },
-    {
-      id: "col-guarantee",
-      subject: "03",
-      majorValue: "03", // 一般保証
-      minorValue: "34",
-      dealType: "01", // 新規
-      setupCategory: "1",
-      collateralCategory: "5",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "02", // 実残
-      timing: "取引開始前/同時",
-      dueDate: "",
-      remark: SAMPLE_TEXT_60,
-      guaranteeType: "05", // 包括根保証
-      guarantorName: SAMPLE_TEXT_30_CHAR,
-      guarantorCategory: "01", // 代表取締役
-      corporateGuaranteeCategory: "01", // 規定・優良
-      debtorRelationship: "01", // 代表取締役
-      guaranteePeriod: "", // 期間
-      guaranteePeriodYears: "",
-      guaranteePeriodMonths: "",
-      guaranteeDeadline: ""
-    },
-    {
-      id: "col-association",
-      subject: "04",
-      majorValue: "04", // 協会保証
-      minorValue: "45",
-      dealType: "01", // 新規
-      setupCategory: "1",
-      collateralCategory: "6",
-      amount: "999999999",
-      share: "999999999",
-      extinguish: "",
-      rootLink: "02", // 実残
-      timing: "取引開始前/同時",
-      dueDate: "2026-05-31",
-      remark: SAMPLE_TEXT_60,
-      associationType: "32", // 貸付根保証
-      associationGuaranteeNumber: "999999999999999999",
-      associationExistingCondition: "01", // 有
-      associationApprovalCondition: "01", // 条件なし
-      associationGuaranteePeriod: "02", // 日付
-      associationPeriodYears: "",
-      associationPeriodMonths: "",
-      associationDeadline: "2027-03-31"
-    }
-  ],
-  pattern3: []
+  patternYushi: SAMPLE_COLUMNS,
+  patternShiharaiYushutsuYunyuShijosei: SAMPLE_COLUMNS,
+  patternAbcp: []
 };
  
 // ========================================
@@ -1060,7 +886,7 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
   // ========================================
   // プロパティ: 画面設定
   // ========================================
-  _parentScreenType = "pattern1";
+  _parentScreenType = "patternYushi";
   globalRemark = SAMPLE_TEXT_280;
  
   // ========================================
@@ -1085,7 +911,7 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
   // ========================================
   // プロパティ: データ
   // ========================================
-  @track columns = COLUMN_TEMPLATES.pattern1.map(decorateColumn);
+  @track columns = COLUMN_TEMPLATES.patternYushi.map(decorateColumn);
   @track collateralDetailRows = buildRows(
     SAMPLE_COLLATERAL_DETAIL_ROWS,
     "collateral-detail",
@@ -1111,7 +937,7 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
    * @param {string} value - 親画面タイプ
    */
   set parentScreenType(value) {
-    this._parentScreenType = value || "pattern1";
+    this._parentScreenType = value || "patternYushi";
     this.applyPattern(this._parentScreenType);
   }
  
@@ -1121,18 +947,30 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
  
   /**
    * 科目列の表示フラグ
-   * @returns {boolean} pattern1の場合のみtrue
+   * @returns {boolean} defaultの場合のみtrue
    */
   get showSubjectColumn() {
-    return this.parentScreenType === "pattern1";
+    return this.parentScreenType === "patternYushi";
   }
  
   /**
    * 担保条件セクション（担保条件１・２）の表示フラグ
-   * @returns {boolean} pattern3以外の場合true
+   * @returns {boolean} patternAbcp以外の場合true
    */
   get showCollateralConditions() {
-    return this.parentScreenType !== "pattern3";
+    return this.parentScreenType !== "patternAbcp";
+  }
+
+  /**
+   * 備考欄のインフォメーションテキスト
+   * @returns {string|undefined} ABCP時はundefined（非表示）
+   */
+  get remarksFieldLevelHelp() {
+    return this.parentScreenType === "patternAbcp" ? undefined : "〇〇〇";
+  }
+
+  get remarksSize() {
+    return this.parentScreenType === "patternAbcp" ? "10" : "5";
   }
  
   /**
@@ -1152,11 +990,11 @@ export default class f003RgV9961TanpoBasicC1 extends LightningElement {
    * @param {string} screenType - 画面タイプ
    */
   applyPattern(screenType) {
-    const templates = COLUMN_TEMPLATES[screenType] || COLUMN_TEMPLATES.pattern1;
-    this.columns = templates.map(decorateColumn);
- 
+    const templates = COLUMN_TEMPLATES[screenType] || COLUMN_TEMPLATES.patternYushi;
+    const displayTemplates = screenType === "patternShiharaiYushutsuYunyuShijosei" ? templates.slice(0, 1) : templates;
+    this.columns = displayTemplates.map(decorateColumn);
     // パターン3の場合は担保コメントのサンプルデータを390バイトに設定
-    this.globalRemark = screenType === "pattern3" ? SAMPLE_TEXT_390 : SAMPLE_TEXT_280;
+    this.globalRemark = screenType === "patternAbcp" ? SAMPLE_TEXT_390 : SAMPLE_TEXT_280;
   }
  
   // ========================================
