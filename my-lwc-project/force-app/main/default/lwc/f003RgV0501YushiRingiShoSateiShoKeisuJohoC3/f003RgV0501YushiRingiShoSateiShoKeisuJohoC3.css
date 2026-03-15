@@ -1,68 +1,86 @@
-.section-label {
-  font-weight: var(--section-label-font-weight, 700);
-  font-size: var(--section-label-font-size, 0.9rem);
-  line-height: var(--section-label-line-height, 1.4);
-  padding-top: var(--section-label-padding-top, 0.5rem);
-  margin: var(--section-label-margin, 0);
-  display: var(--section-label-display, flex);
-  justify-content: var(--section-label-justify-content, space-between);
-  align-items: var(--section-label-align-items, baseline);
-}
-/* 銀行・査定・株式テーブル用（経営指標テーブルは base table ルールを使用） */
-.common-table { width: 100%; border: 1px solid #999; border-collapse: collapse; table-layout: fixed; }
-.common-table th, .common-table td { border: 1px solid #999; text-align: left; }
-.common-table th { background: #f2f2f2; }
-.common-table td { background: #fff; padding: 0; }
-.changed-cell { --slds-c-input-color-background: #fffde7; background-color: #fffde7; }
-.changed-cell lightning-input {
-  --slds-c-input-color-background: #fffde7;
-  --slds-c-input-shadow-focus: 0 0 0 1px #ffe082 inset, 0 0 0 1px #ffe082;
-}
-.cell-changed-saved { background-color: var(--cell-saved-highlight, #fff8e1); --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1); }
-.cell-changed-saved c-f003-gs-v0000-number,
-.cell-changed-saved lightning-input { --slds-c-input-color-background: var(--cell-saved-highlight, #fff8e1); }
-table { border-spacing: 0; border-collapse: separate; }
-th, td { border-top: 1px solid #999; border-left: 1px solid #999; }
-td { background: #fff; padding: 0; }
-th { text-align: center; vertical-align: middle; background: #f2f2f2; }
-th[scope="row"] { border-right: 1px solid #999; }
-th[scope="col"] { border-bottom: 1px solid #999; }
-tr:nth-child(1) th:nth-child(1),
-tr:nth-child(1) th:last-child,
-tr:nth-child(n + 1) td:last-child { border-right: 1px solid #999; }
-tr:nth-last-child(1) td,
-tr:nth-last-child(1) th,
-tr:nth-last-child(2) td { border-bottom: 1px solid #999; }
-tr:nth-last-child(1) td { border-top: none; }
-.meta-text {
-  font-weight: var(--meta-text-font-weight, normal);
-  margin: var(--meta-text-margin, 0);
-  white-space: var(--meta-text-white-space, nowrap);
-}
-.indicator-table { table-layout: fixed; width: 100%; }
-.indicator-row-head {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.period-cell {
-  display: flex; align-items: center;
-}
-.period-cell lightning-input:first-of-type { flex: 2 1 0; min-width: 0; }
-.period-cell lightning-input:last-of-type { flex: 1.5 1 0; min-width: 0; }
-.period-separator { flex: 0 0 auto; padding: 0 1px; font-size: 0.75rem; font-weight: bold; line-height: 1; }
-/* Hide number input spinners */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-input[type="number"] { -moz-appearance: textfield; }
-.indicator-table thead th:first-child { width: 10%; }
-.indicator-table thead th { padding: 0.25rem 0.5rem; }
-.indicator-table tbody th { font-weight: normal; padding: 0.25rem 0.5rem; text-align: left; }
+/* f003GsV0000CommonCssはカスタム数値コンポーネント(c-f003-gs-v0000-number)用、
+   f003RgV0000CommonCssは変更ハイライト(.changed-cell)等の共通スタイルを提供する */
+@import 'c/f003GsV0000CommonCss';
+@import 'c/f003RgV0000CommonCss';
 
-.indicator-type { display: inline-block; line-height: 1.2; min-height: 1.2em; }
+/* ═══════════════════════════════════════════════════════════════
+   1. テーブル共通(銀行・査定・株式・経営指標 全4テーブル)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* C3の4テーブルはいずれもスクロールなし・sticky不要。
+   border-collapse:collapseでborderが自動共有されるためシンプルに指定できる。
+   table-layout:fixedで列幅をCSS制御し、コンテンツ量による変動を防ぐ */
+.common-table { width: 100%; border: 1px solid #999; border-collapse: collapse; table-layout: fixed; }
+.common-table th, .common-table td { border: 1px solid #999; }
+
+/* thを左寄せに統一(行ヘッダ用)。背景色でヘッダ行を視覚的に区別する */
+.common-table th { background-color: #f2f2f2; text-align: left; }
+
+/* thead列ヘッダ(scope="col")は中央揃えに戻す */
+.common-table th[scope="col"] { text-align: center; }
+
+/* tdの背景を白に。padding:0はlightning-input等の子コンポーネントの二重余白を防ぐ */
+.common-table td { background: #fff; padding: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   2. 経営指標テーブル固有(.common-tableの上書き)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* thead列ヘッダは中央揃え(.common-table thの左寄せを上書き)。
+   paddingで列ヘッダテキストに余白を確保する */
+.indicator-table th[scope="col"] { text-align: center; padding: 0.25rem 0.5rem; }
+
+/* tbody行ヘッダは項目名/決算期。thのデフォルト太字を解除して通常テキストにする */
+.indicator-table tbody th { font-weight: normal; }
+
+/* 先頭列(決算期)は短いため10%に固定し、残りの14列にデータ幅を均等配分する */
+.indicator-table thead th:first-child { width: 10%; }
+
+/* ═══════════════════════════════════════════════════════════════
+   3. 経営指標: ヘッダ・行ヘッダ
+   ═══════════════════════════════════════════════════════════════ */
+
+/* theadヘッダテキストの折り返し。15列と多く列幅が狭いため、
+   nowrapを打ち消して長いヘッダ名を折り返す。小さめfont-sizeで収まりを確保 */
 .indicator-header-text {
   white-space: normal; overflow-wrap: break-word;
   font-size: 0.75rem; line-height: 1.2;
 }
+
+/* tbody行ヘッダ: 種別ラベルと決算期入力を横並びにする */
+.indicator-row-head { display: flex; align-items: center; gap: 0.5rem; }
+
+/* 種別ラベル(実績/中間/予想)のline-heightを揃え、高さのばたつきを防ぐ */
+.indicator-type { display: inline-block; line-height: 1.2; min-height: 1.2em; }
+
+/* ═══════════════════════════════════════════════════════════════
+   4. 決算期入力(年/月)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 年(4桁)と月(2桁)のinputを横並びにする */
+.period-cell { display: flex; align-items: center; }
+
+/* 年フィールドは4桁のため月(2桁)より広く。flex比率2:1.5で幅配分 */
+.period-cell lightning-input:first-of-type { flex: 2 1 0; min-width: 0; }
+.period-cell lightning-input:last-of-type { flex: 1.5 1 0; min-width: 0; }
+
+/* 「/」セパレータ。flex:0 0 autoで縮まないようにする。
+   太字にして年と月の区切りを視認しやすくする */
+.period-separator {
+  flex: 0 0 auto; padding: 0 1px;
+  font-size: 0.75rem; font-weight: bold; line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   5. セルスタイル
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 読み取り専用セル: lightning-formatted-numberの表示用。右寄せで数値の桁を揃える */
 .display-value { text-align: right; padding: 0.25rem 0.5rem; }
+
+/* ═══════════════════════════════════════════════════════════════
+   6. レイアウト補助
+   ═══════════════════════════════════════════════════════════════ */
+
+/* カスタム数値コンポーネントのデフォルトmargin/paddingを除去し、セル内に隙間なく配置する */
 c-f003-gs-v0000-number { margin: 0; padding: 0; display: block; }

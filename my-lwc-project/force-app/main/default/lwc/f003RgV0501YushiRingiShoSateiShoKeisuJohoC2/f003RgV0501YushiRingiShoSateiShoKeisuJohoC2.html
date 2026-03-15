@@ -3,54 +3,54 @@
     <lightning-layout multiple-rows>
       <!-- 与信状況 -->
       <lightning-layout-item size="9" class="slds-grid slds-grid_vertical slds-var-p-right_large">
-        <lightning-card class="card-stretch">
+        <lightning-card class="panel-fill">
           <div class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none slds-grid_vertical-align-end">
             <div class="slds-p-around_none slds-m-around_none">
-              <div class="section-label">{labels.accordion.CREDIT_STATUS}</div>
+              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">{labels.accordion.CREDIT_STATUS}</div>
             </div>
             <div class="slds-grid slds-grid_align-end slds-wrap slds-p-around_none slds-m-around_none">
               <div class="meta-group slds-var-p-right_small">
-                <span class="meta-text">括り： {groupNumber}</span>
+                <span>括り： {groupNumber}</span>
               </div>
               <div class="meta-unit">
-                <span class="meta-text">金額単位： {amountUnit}</span>
+                <span>金額単位： {amountUnit}</span>
               </div>
             </div>
           </div>
           <div class="slds-p-around_none slds-m-around_none">
-            <div class="table-sticky table-container-credit slds-p-around_none slds-m-around_none slds-size_1-of-1">
+            <div class="data-table scroll-container has-icon-column table-container-credit slds-scrollable_y slds-p-around_none slds-m-around_none slds-size_1-of-1">
               <table role="grid" class="slds-table slds-table_cell-buffer slds-table_bordered">
                 <thead>
                   <tr class="slds-line-height_reset">
-                    <th class="column-icon table-sticky__title table-sticky3__title01" scope="col"></th>
-                    <th class="column-label table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="column-icon sticky-header sticky-header--primary" scope="col"></th>
+                    <th class="column-label sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}>{labels.tableHeaders.CREDIT.SUBJECT_SUMMARY_NUMBER}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.DUE_DATE}>{labels.tableHeaders.CREDIT.DUE_DATE}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.RATE}>{labels.tableHeaders.CREDIT.RATE}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.BALANCE_99}>{labels.tableHeaders.CREDIT.BALANCE_99}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.MARK}>{labels.tableHeaders.CREDIT.MARK}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.PRINCIPAL}>{labels.tableHeaders.CREDIT.PRINCIPAL}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.CHANGE}>{labels.tableHeaders.CREDIT.CHANGE}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.POST_BALANCE}>{labels.tableHeaders.CREDIT.POST_BALANCE}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.ACTUAL_BALANCE}>{labels.tableHeaders.CREDIT.ACTUAL_BALANCE}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.CREDIT.CORRECTION}>{labels.tableHeaders.CREDIT.CORRECTION}</div>
                     </th>
                   </tr>
@@ -76,20 +76,20 @@
                       </th>
                       <td data-label="dueDate" class={row.dueDateClass}>
                         <template if:true={row.dueDateMonthDisabled}>
-                          <div class="due-date-display">
-                            <div class="display-value">
+                          <div class="due-date-readonly slds-grid slds-grid_vertical-align-center">
+                            <div class="readonly-cell readonly-text">
                               <lightning-formatted-text value={row.dueDateMonth}></lightning-formatted-text>
                             </div>
                             <template if:true={row.showDueDateSeparator}>
                               <span class="due-date-separator">/</span>
                             </template>
-                            <div class="display-value">
+                            <div class="readonly-cell readonly-text">
                               <lightning-formatted-text value={row.dueDateDay}></lightning-formatted-text>
                             </div>
                           </div>
                         </template>
                         <template if:false={row.dueDateMonthDisabled}>
-                          <div class="due-date-cell">
+                          <div class="due-date-editable slds-grid slds-grid_vertical-align-center">
                             <lightning-input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
                               variant="label-hidden" value={row.dueDateMonth}
                               data-id={row.id} data-field="dueDateMonth"
@@ -109,7 +109,7 @@
                       <template for:each={row.numberCellsBeforeMark} for:item="cell">
                         <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
                           <template if:true={cell.disabled}>
-                            <div class="display-number">
+                            <div class="readonly-cell readonly-number slds-text-align_right">
                               <lightning-formatted-number value={cell.value}></lightning-formatted-number>
                             </div>
                           </template>
@@ -130,7 +130,7 @@
                       <template for:each={row.numberCellsAfterMark} for:item="cell">
                         <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
                           <template if:true={cell.disabled}>
-                            <div class="display-number">
+                            <div class="readonly-cell readonly-number slds-text-align_right">
                               <lightning-formatted-number value={cell.value}></lightning-formatted-number>
                             </div>
                           </template>
@@ -154,28 +154,28 @@
 
       <!-- 保全状況(本件後) + 保証人 -->
       <lightning-layout-item size="3" class="slds-grid slds-grid_vertical">
-        <lightning-card class="card-stretch">
+        <lightning-card class="panel-fill">
           <div class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none slds-grid_vertical-align-end">
             <div class="slds-p-around_none slds-m-around_none">
-              <div class="section-label">{labels.accordion.COLLATERAL}</div>
+              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">{labels.accordion.COLLATERAL}</div>
             </div>
             <div class="meta-unit slds-p-around_none slds-m-around_none">
-              <span class="meta-text">金額単位： {amountUnit}</span>
+              <span>金額単位： {amountUnit}</span>
             </div>
           </div>
           <div class="slds-p-around_none slds-m-around_none">
-            <div class="table-sticky table-container-collateral slds-p-around_none slds-m-around_none slds-size_1-of-1">
+            <div class="data-table scroll-container has-icon-column table-container-collateral slds-scrollable_y slds-p-around_none slds-m-around_none slds-size_1-of-1">
               <table role="grid" class="slds-table slds-table_cell-buffer slds-table_bordered">
                 <thead>
                   <tr class="slds-line-height_reset">
-                    <th class="column-icon table-sticky__title table-sticky3__title01" scope="col"></th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="column-icon sticky-header sticky-header--primary" scope="col"></th>
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.COLLATERAL.COLLATERAL_TYPE}>{labels.tableHeaders.COLLATERAL.COLLATERAL_TYPE}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={labels.tableHeaders.COLLATERAL.REG_VALUE}>{labels.tableHeaders.COLLATERAL.REG_VALUE}</div>
                     </th>
-                    <th class="table-sticky__title table-sticky3__title02" scope="col">
+                    <th class="sticky-header sticky-header--secondary" scope="col">
                       <div class="slds-truncate" title={collateralMarketValueHeader}>{collateralMarketValueHeader}</div>
                     </th>
                   </tr>
@@ -190,10 +190,10 @@
                         </lightning-button-icon>
                       </th>
                       <th scope="row" class={row.collateralTypeClass}>
-                        <div class="collateral-type-cell">
-                          <div class="slds-truncate collateral-type-wrap">{row.collateralType}</div>
+                        <div class="collateral-label-container slds-grid slds-grid_vertical-align-center">
+                          <div class="slds-truncate collateral-label">{row.collateralType}</div>
                           <template if:true={row.showCollateralHelp}>
-                            <div class="collateral-help-right">
+                            <div class="slds-col_bump-left">
                               <lightning-helptext content={labels.message.NAKED_CREDIT_INFO}></lightning-helptext>
                             </div>
                           </template>
@@ -202,7 +202,7 @@
                       <template for:each={row.collateralNumberCells} for:item="cell">
                         <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
                           <template if:true={cell.disabled}>
-                            <div class="display-number">
+                            <div class="readonly-cell readonly-number slds-text-align_right">
                               <lightning-formatted-number value={cell.value}></lightning-formatted-number>
                             </div>
                           </template>
@@ -225,8 +225,8 @@
 
         <!-- 保証人カード -->
         <lightning-card>
-          <div class="table-container-guarantor slds-size_1-of-2 slds-p-around_none slds-m-around_none">
-            <table role="grid" class="slds-table slds-table_cell-buffer slds-table_bordered">
+          <div class="data-table table-container-guarantor slds-scrollable_y slds-size_1-of-2 slds-p-around_none slds-m-around_none">
+            <table role="grid" class="slds-table slds-table_cell-buffer slds-table_bordered slds-size_1-of-1">
               <thead>
                 <tr class="slds-line-height_reset">
                   <th scope="col">

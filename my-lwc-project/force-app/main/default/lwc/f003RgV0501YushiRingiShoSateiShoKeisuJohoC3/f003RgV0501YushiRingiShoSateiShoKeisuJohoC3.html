@@ -3,44 +3,42 @@
     <!-- 主要銀行取引状況 -->
     <lightning-layout-item size="6">
       <lightning-card>
-        <div>
-          <p class="section-label">主要銀行取引状況</p>
-          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
-            <thead>
-              <tr class="slds-line-height_reset">
-                <template for:each={bankColumns} for:item="column">
-                  <th key={column.fieldName} class="slds-text-align_center" scope="col">
-                    <div class="slds-truncate" title={column.label}>{column.label}</div>
-                  </th>
+        <p class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">主要銀行取引状況</p>
+        <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
+          <thead>
+            <tr class="slds-line-height_reset">
+              <template for:each={bankColumns} for:item="column">
+                <th key={column.fieldName} scope="col">
+                  <div class="slds-truncate" title={column.label}>{column.label}</div>
+                </th>
+              </template>
+            </tr>
+          </thead>
+          <tbody>
+            <template for:each={bankRows} for:item="row">
+              <tr key={row.id} class="slds-hint-parent">
+                <th data-label="bankName">{row.bankName}</th>
+                <template for:each={row.cells} for:item="cell">
+                  <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
+                    <template if:true={cell.renderAsFormatted}>
+                      <div class="display-value">
+                        <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                      </div>
+                    </template>
+                    <template if:false={cell.renderAsFormatted}>
+                      <c-f003-gs-v0000-number
+                        num-value={cell.value} num-label={cell.fieldName}
+                        is-table="true" data-id={row.id} data-field={cell.fieldName}
+                        set-id={cell.fieldName} disabled={cell.disabled} step="0.01"
+                        onerror={numberErrorHandler} onchange={handleInputChange}
+                      ></c-f003-gs-v0000-number>
+                    </template>
+                  </td>
                 </template>
               </tr>
-            </thead>
-            <tbody>
-              <template for:each={bankRows} for:item="row">
-                <tr key={row.id} class="slds-hint-parent">
-                  <th data-label="bankName">{row.bankName}</th>
-                  <template for:each={row.cells} for:item="cell">
-                    <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
-                      <template if:true={cell.renderAsFormatted}>
-                        <div class="display-value">
-                          <lightning-formatted-number value={cell.value}></lightning-formatted-number>
-                        </div>
-                      </template>
-                      <template if:false={cell.renderAsFormatted}>
-                        <c-f003-gs-v0000-number
-                          num-value={cell.value} num-label={cell.fieldName}
-                          is-table="true" data-id={row.id} data-field={cell.fieldName}
-                          set-id={cell.fieldName} disabled={cell.disabled} step="0.01"
-                          onerror={numberErrorHandler} onchange={handleInputChange}
-                        ></c-f003-gs-v0000-number>
-                      </template>
-                    </td>
-                  </template>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
+            </template>
+          </tbody>
+        </table>
       </lightning-card>
     </lightning-layout-item>
 
@@ -48,8 +46,13 @@
     <lightning-layout-item size="3">
       <lightning-card>
         <div class="slds-var-p-left_small">
-          <div class="section-label">自己査定結果
-            <span class="meta-text">金額単位： {amountUnit}</span>
+          <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
+            <div>
+              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">自己査定結果</div>
+            </div>
+            <div>
+              <span>金額単位： {amountUnit}</span>
+            </div>
           </div>
           <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
             <tbody>
@@ -73,7 +76,7 @@
     <lightning-layout-item size="3">
       <lightning-card>
         <div class="slds-var-p-left_small">
-          <p class="section-label">政策投資株式</p>
+          <p class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">政策投資株式</p>
           <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
             <tbody>
               <template for:each={stockRows} for:item="item">
@@ -96,10 +99,15 @@
     <lightning-layout-item size="12">
       <lightning-card>
         <div class="slds-var-p-right_small">
-          <div class="section-label">経営指標
-            <span class="meta-text">金額単位： {amountUnit}</span>
+          <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
+            <div>
+              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">経営指標</div>
+            </div>
+            <div>
+              <span>金額単位： {amountUnit}</span>
+            </div>
           </div>
-          <table class="slds-table indicator-table">
+          <table class="slds-table common-table indicator-table">
             <thead>
               <tr class="slds-line-height_reset">
                 <template for:each={indicatorColumns} for:item="column">
@@ -171,7 +179,7 @@
     <lightning-layout-item size="1">
       <div class="slds-var-p-top_large">
         <c-f003-gs-v0000-number
-          num-value={totalValue}
+          num-value={total.value}
           num-label="Ｇｒ合算実態純資産額"
           disabled
         ></c-f003-gs-v0000-number>
@@ -181,18 +189,16 @@
     <!-- メモ -->
     <lightning-layout-item size="12">
       <lightning-card>
-        <div>
-          <lightning-layout>
-            <lightning-layout-item size="6" padding="around-x-small">
-              <div class="slds-text-title_bold">メモ</div>
-              <lightning-textarea
-                variant="label-hidden" value={memoValue}
-                disabled={memo.disabled}
-                style="--sds-c-textarea-sizing-min-height: 5rem"
-              ></lightning-textarea>
-            </lightning-layout-item>
-          </lightning-layout>
-        </div>
+        <lightning-layout>
+          <lightning-layout-item size="6" padding="horizontal-small">
+            <div class="slds-text-title_bold">メモ</div>
+            <lightning-textarea
+              variant="label-hidden" value={memo.value}
+              disabled={memo.disabled}
+              style="--sds-c-textarea-sizing-min-height: 5rem"
+            ></lightning-textarea>
+          </lightning-layout-item>
+        </lightning-layout>
       </lightning-card>
     </lightning-layout-item>
   </lightning-layout>

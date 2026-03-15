@@ -29,11 +29,11 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJoho extends Lightning
       "c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c4",
       "c-f003-rg-v0501-yushi-ringi-sho-satei-sho-keisu-joho-c6"
     ];
-    selectors.forEach((selector) => {
+    for (const selector of selectors) {
       const component = this.template.querySelector(selector);
       if (component) {
         component.applySavedHighlight();
       }
-    });
+    }
   }
 }

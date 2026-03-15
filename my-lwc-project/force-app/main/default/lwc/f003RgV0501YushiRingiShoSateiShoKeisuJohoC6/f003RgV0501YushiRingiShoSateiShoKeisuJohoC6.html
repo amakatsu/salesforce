@@ -12,42 +12,36 @@
       <lightning-card>
         <div class="slds-grid slds-gutters slds-var-p-horizontal_small slds-grid_vertical-align-end">
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <div class="slds-form-element slds-var-p-top_medium">
-              <label class="slds-form-element__label">禀査番号</label>
-              <div class="slds-form-element__control slds-border_bottom">
-                <lightning-formatted-text value={reviewNumber}></lightning-formatted-text>
-              </div>
+            <div class="slds-var-p-top_medium">
+              <lightning-input type="text" label="禀査番号" value={reviewNumber} readonly></lightning-input>
             </div>
           </div>
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <div class="slds-form-element slds-var-p-top_medium">
-              <label class="slds-form-element__label">基準日</label>
-              <div class="slds-form-element__control slds-border_bottom">
-                <lightning-formatted-text value={date}></lightning-formatted-text>
-              </div>
+            <div class="slds-var-p-top_medium">
+              <lightning-input type="text" label="基準日" value={referenceDate} readonly></lightning-input>
             </div>
           </div>
 
-          <div class="slds-col slds-size_4-of-12 summary-panel">
+          <div class="slds-col slds-size_4-of-12">
             <!-- ヘッダー行 -->
             <div
               class="slds-grid slds-grid_align-spread slds-var-p-horizontal_xx-small slds-grid_vertical-align-end"
             >
-              <span class="section-label">計数サマリー</span>
-              <span class="meta-text">金額単位：〇〇〇</span>
+              <span class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-p-top_x-small">計数サマリー</span>
+              <span>金額単位：〇〇〇</span>
             </div>
             <!-- BOX本体 -->
             <div class="slds-box slds-box_small slds-var-m-bottom_none slds-var-p-bottom_none">
               <div class="slds-grid slds-gutters slds-var-p-horizontal_small slds-grid_vertical-align-end">
                 <div class="slds-size_6-of-12">
-                  <label class="section-label">限度算入</label>
+                  <label class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-p-top_x-small">限度算入</label>
                   <div class="slds-box slds-box_small">
                     <div class="slds-grid slds-gutters">
                       <div class="slds-col slds-size_6-of-12">
                         <div class="slds-form-element">
                           <label class="slds-form-element__label">一般</label>
                           <div class="slds-form-element__control slds-text-align_right slds-border_bottom">
-                            <lightning-formatted-number value={limitGeneral}></lightning-formatted-number>
+                            <lightning-formatted-number value={generalCreditLimit}></lightning-formatted-number>
                           </div>
                         </div>
                       </div>
@@ -55,7 +49,7 @@
                         <div class="slds-form-element">
                           <label class="slds-form-element__label">市場性</label>
                           <div class="slds-form-element__control slds-text-align_right slds-border_bottom">
-                            <lightning-formatted-number value={marketInclusion}></lightning-formatted-number>
+                            <lightning-formatted-number value={marketCreditInclusion}></lightning-formatted-number>
                           </div>
                         </div>
                       </div>
@@ -83,19 +77,15 @@
           </div>
 
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
-            <div class="slds-form-element slds-var-p-top_medium">
-              <label class="slds-form-element__label">プール区分</label>
-              <div class="slds-form-element__control slds-border_bottom">
-                <lightning-formatted-text value={poolCategory}></lightning-formatted-text>
-              </div>
+            <div class="slds-var-p-top_medium">
+              <lightning-input type="text" label="プール区分" value={poolCategory} readonly></lightning-input>
             </div>
           </div>
-          <div class="slds-col slds-size_4-of-12 summary-panel">
+          <div class="slds-col slds-size_4-of-12">
             <lightning-textarea
               label="補正理由"
               value={correctionReason}
               max-length="105"
-              class="correction-reason"
               style="--sds-c-textarea-sizing-min-height: 6rem"
             ></lightning-textarea>
           </div>

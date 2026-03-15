@@ -1,23 +1,5 @@
-/* テーブルラベル共通スタイル
-   CSS Custom Properties は Shadow DOM を貫通して子コンポーネントに継承される */
+/* 子コンポーネントへのCSS Custom Properties(Shadow DOM貫通) */
 :host {
-  --section-label-font-weight: 700;
-  --section-label-font-size: 0.9rem;
-  --section-label-line-height: 1.4;
-  --section-label-padding-top: 0.5rem;
-  --section-label-margin: 0;
-  --section-label-display: flex;
-  --section-label-justify-content: space-between;
-  --section-label-align-items: baseline;
-
-  /* テーブル内 number input のマージン縮小（Shadow DOM貫通） */
   --number-input-table-margin: 0;
-
-  /* 登録後の変更セル黄色ハイライト */
   --cell-saved-highlight: #ffffcc;
-
-  /* 金額単位・括り表示共通スタイル（Shadow DOM貫通） */
-  --meta-text-font-weight: normal;
-  --meta-text-margin: 0;
-  --meta-text-white-space: nowrap;
 }

@@ -3,56 +3,61 @@
     <!-- テーブル① 市場性与信状況 -->
     <lightning-layout-item size="12">
       <lightning-card>
-        <div>
-          <div class="section-label">市場性与信状況
-            <span>
-              <span class="meta-text">括り： {groupNumber}</span>
-              <span class="meta-text slds-var-p-left_small">金額単位： {amountUnit}</span>
-            </span>
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
+          <div>
+            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">市場性与信状況</div>
           </div>
-          <table class="slds-table slds-table_cell-buffer slds-table_bordered">
-            <thead>
-              <tr class="slds-line-height_reset">
-                <template for:each={creditHeaderColumns} for:item="col">
-                  <th key={col.key} class={col.w} scope="col">
-                    <div title={col.label}>{col.label}</div>
-                  </th>
+          <div class="slds-grid slds-grid_align-end">
+            <div class="slds-var-p-right_small">
+              <span>括り： {groupNumber}</span>
+            </div>
+            <div>
+              <span>金額単位： {amountUnit}</span>
+            </div>
+          </div>
+        </div>
+        <table class="slds-table slds-table_cell-buffer slds-table_bordered data-table">
+          <thead>
+            <tr class="slds-line-height_reset">
+              <template for:each={creditColumns} for:item="col">
+                <th key={col.key} class={col.w} scope="col">
+                  <div title={col.label}>{col.label}</div>
+                </th>
+              </template>
+            </tr>
+          </thead>
+          <tbody>
+            <template for:each={creditRows} for:item="row">
+              <tr key={row.id} class="slds-hint-parent slds-line-height_reset">
+                <th data-label="creditType1" class={row.creditType1Class} scope="row">
+                  <div class="slds-truncate credit-label">{row.creditType1}</div>
+                </th>
+                <template for:each={row.textCells} for:item="cell">
+                  <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
+                    <lightning-formatted-text value={cell.value}
+                      class="readonly-cell"></lightning-formatted-text>
+                  </td>
+                </template>
+                <template for:each={row.numberCells} for:item="cell">
+                  <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
+                    <template if:true={cell.renderAsFormatted}>
+                      <div class="readonly-cell">
+                        <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                      </div>
+                    </template>
+                    <template if:false={cell.renderAsFormatted}>
+                      <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.field}
+                        is-table="true" data-id={row.id} data-field={cell.field}
+                        set-id={cell.field} step="0.01" disabled={cell.disabled}
+                        onerror={numberErrorHandler}
+                        onchange={handleInputChange}></c-f003-gs-v0000-number>
+                    </template>
+                  </td>
                 </template>
               </tr>
-            </thead>
-            <tbody>
-              <template for:each={creditRows} for:item="row">
-                <tr key={row.id} class="slds-hint-parent slds-line-height_reset">
-                  <th data-label="creditType1" class={row.creditType1Class} scope="row">
-                    <div class="slds-truncate credit-type-wrap">{row.creditType1}</div>
-                  </th>
-                  <template for:each={row.textCells} for:item="cell">
-                    <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
-                      <lightning-formatted-text value={cell.value}
-                        class="display-value"></lightning-formatted-text>
-                    </td>
-                  </template>
-                  <template for:each={row.numberCells} for:item="cell">
-                    <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
-                      <template if:true={cell.renderAsFormatted}>
-                        <div class="display-value">
-                          <lightning-formatted-number value={cell.value}></lightning-formatted-number>
-                        </div>
-                      </template>
-                      <template if:false={cell.renderAsFormatted}>
-                        <c-f003-gs-v0000-number num-value={cell.value} num-label={cell.field}
-                          is-table="true" data-id={row.id} data-field={cell.field}
-                          set-id={cell.field} step="0.01" disabled={cell.disabled}
-                          onerror={numberErrorHandler}
-                          onchange={handleInputChange}></c-f003-gs-v0000-number>
-                      </template>
-                    </td>
-                  </template>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
+            </template>
+          </tbody>
+        </table>
       </lightning-card>
     </lightning-layout-item>
 
@@ -60,15 +65,18 @@
     <lightning-layout-item size="12">
       <lightning-card>
         <div class="slds-size_8-of-12">
-          <div>
-            <div class="section-label">為替予約残高推移
-              <span class="meta-text">金額単位： {amountUnit}</span>
+          <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
+            <div>
+              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">為替予約残高推移</div>
+            </div>
+            <div>
+              <span>金額単位： {amountUnit}</span>
             </div>
           </div>
-          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
+          <table class="slds-table slds-table_cell-buffer slds-table_bordered data-table exchange-table">
             <thead>
               <tr class="slds-line-height_reset">
-                <template for:each={exchangeReservationColumns} for:item="column">
+                <template for:each={exchangeColumns} for:item="column">
                   <th key={column.fieldName} scope="col">
                     <div title={column.label}>{column.label}</div>
                   </th>
@@ -78,12 +86,12 @@
             <tbody>
               <template for:each={exchangeRows} for:item="row">
                 <tr key={row.id} class="slds-hint-parent">
-                  <th>{row.type}</th>
+                  <th scope="row">{row.type}</th>
                   <template for:each={row.cells} for:item="cell">
                     <td key={cell.key} data-label={cell.field}>
                       <div class={cell.cellClass}>
                         <lightning-formatted-number value={cell.value}
-                          class="display-value"></lightning-formatted-number>
+                          class="readonly-cell"></lightning-formatted-number>
                       </div>
                     </td>
                   </template>

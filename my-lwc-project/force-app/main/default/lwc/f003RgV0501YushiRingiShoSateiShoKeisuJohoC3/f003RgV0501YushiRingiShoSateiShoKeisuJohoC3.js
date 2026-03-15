@@ -1,28 +1,30 @@
+/**
+ * 主要銀行取引・自己査定・政策投資株式・経営指標テーブル (C3)
+ *
+ * 4つのテーブルを表示する:
+ *   - 主要銀行取引状況(6行×5列): 銀行ごとの取引額。一部セル編集可能
+ *   - 自己査定結果(7行×2列): 分類額の一覧(読取専用)
+ *   - 政策投資株式(7行×2列): 株式情報(読取専用)
+ *   - 経営指標(5行×15列): 決算期ごとの財務指標。一部セル編集可能
+ *
+ * ■ データ保持の仕組み(3世代管理):
+ *   initialXxxData: 初回ロード時の状態(リセットでここに戻す)
+ *   originalXxxData: 最後の保存時の状態(変更ハイライトの比較基準)
+ *   xxxData: ユーザー編集中のデータ(handleInputChangeで更新)
+ */
 import { LightningElement, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
 
-const SAVED_HIGHLIGHT_CLASSES = "changed-cell cell-changed-saved";
-const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+// =====================================================================
+// 定数
+// =====================================================================
 
-const addEmptyHighlightClasses = (data, fields) =>
-  data.map((item) => ({
-    ...item,
-    ...Object.fromEntries(fields.map((f) => [`${f}Class`, ""]))
-  }));
+const HIGHLIGHT_CLASS = "changed-cell";
+const ACTIVE_SECTIONS = "abcdefghijklmnopqr".split("");
 
-const applyHighlight = (current, original, fields) =>
-  current.map((row) => {
-    const origRow = original.find((item) => item.id === row.id) || {};
-    return {
-      ...row,
-      ...Object.fromEntries(
-        fields.map((f) => [
-          `${f}Class`,
-          origRow[f] !== row[f] ? SAVED_HIGHLIGHT_CLASSES : ""
-        ])
-      )
-    };
-  });
+// =====================================================================
+// テーブル列定義
+// =====================================================================
 
 const BANK_COLUMNS = [
   { label: "銀行名", fieldName: "bankName", type: "text" },
@@ -50,12 +52,9 @@ const INDICATOR_COLUMNS = [
   { label: "経常収支比率(％)", fieldName: "currentBalanceRatio" }
 ];
 
-const ACTIVE_SECTIONS = "abcdefghijklmnopqr".split("");
-
-const MAX_AMOUNT_5 = makeTestData("numeric", 5);
-const MAX_AMOUNT_9 = makeTestData("numeric", 9);
-const MAX_AMOUNT_6 = makeTestData("numeric", 6);
-const MAX_DISTRIBUTION_RATE = makeTestData("numeric", 3);
+// =====================================================================
+// ラベル定義(読取専用テーブル用)
+// =====================================================================
 
 const ASSESSMENT_LABELS = {
   nonClassifiedAmount: "非分類額",
@@ -68,11 +67,6 @@ const ASSESSMENT_LABELS = {
 };
 const ASSESSMENT_KEYS = [...Object.keys(ASSESSMENT_LABELS), "creditRelatedCosts"];
 
-const OTHER_TRANSACTION_KEYS = [
-  "agencyFee", "privateBond", "principal", "guarantor",
-  "largeRemaining", "extreme", "specialContract"
-];
-
 const STOCK_LABELS = {
   stockName: "株数(株)",
   stockQuantity: "簿価(円)",
@@ -83,6 +77,19 @@ const STOCK_LABELS = {
   valuationProfitLoss: "採算(％)"
 };
 const STOCK_KEYS = Object.keys(STOCK_LABELS);
+
+// =====================================================================
+// テストデータ(サンプル値)
+// =====================================================================
+
+const MAX_AMOUNT_5 = makeTestData("numeric", 5);
+const MAX_AMOUNT_9 = makeTestData("numeric", 9);
+const MAX_AMOUNT_6 = makeTestData("numeric", 6);
+const MAX_DISTRIBUTION_RATE = makeTestData("numeric", 3);
+
+// =====================================================================
+// デフォルト設定(銀行・経営指標)
+// =====================================================================
 
 const BANK_FIELDS = ["twoYearsAgo", "oneYearAgo", "recentEnd", "foreignCurrency"];
 const BANK_DEFAULTS = Object.fromEntries(BANK_FIELDS.map(field => [field, MAX_AMOUNT_5]));
@@ -101,21 +108,58 @@ const INDICATOR_DEFAULTS = {
 const INDICATOR_FIELDS = Object.keys(INDICATOR_DEFAULTS).filter(key => key !== "type");
 const INDICATOR_DISABLE_DEFAULTS = Object.fromEntries(INDICATOR_FIELDS.map(field => [field, true]));
 
+// =====================================================================
+// ユーティリティ
+// =====================================================================
+
+const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+const valueField = (value, disabled = true) => ({ value, disabled });
+
+/** 各行にハイライト用の空クラスフィールドを追加する(初期化時) */
+const addEmptyHighlightClasses = (data, fields) =>
+  data.map((item) => ({
+    ...item,
+    ...Object.fromEntries(fields.map((f) => [`${f}Class`, ""]))
+  }));
+
+/** 現在値と保存時の値を比較し、変更があったセルにハイライトクラスを付与する */
+const applyHighlight = (current, original, fields) =>
+  current.map((row) => {
+    const origRow = original.find((item) => item.id === row.id) || {};
+    return {
+      ...row,
+      ...Object.fromEntries(
+        fields.map((f) => [
+          `${f}Class`,
+          origRow[f] !== row[f] ? HIGHLIGHT_CLASS : ""
+        ])
+      )
+    };
+  });
+
+/** 指定フィールドだけdisabled=falseにしたdisableマップを生成する */
 const disableOnly = (keysToDisable = []) =>
   Object.fromEntries(INDICATOR_FIELDS.map(field => [field, keysToDisable.includes(field)]));
 
-const valueField = (value, disabled = true) => ({ value, disabled });
-const fillValueMap = (keys, value, disabled = true) =>
-  Object.fromEntries(keys.map(key => [key, valueField(value, disabled)]));
+// =====================================================================
+// ファクトリ(行データ生成)
+// =====================================================================
 
+/** 銀行行データを生成。デフォルト値にoverridesを適用する */
 const bankRow = ({ id, bankName, values = {}, disable = {} }) => ({
   id, bankName, ...BANK_DEFAULTS, ...values,
   disable: { ...BANK_DISABLE_DEFAULTS, ...disable }
 });
+
+/** 経営指標行データを生成。デフォルト値にoverridesを適用する */
 const indicatorRow = ({ id, overrides = {}, disable = {} }) => ({
   id, ...INDICATOR_DEFAULTS, ...overrides,
   disable: { ...INDICATOR_DISABLE_DEFAULTS, ...disable }
 });
+
+// =====================================================================
+// サンプルデータ生成
+// =====================================================================
 
 function generateBankData() {
   return [
@@ -149,6 +193,11 @@ function generateIndicatorData() {
   ];
 }
 
+// =====================================================================
+// ビュー変換(テンプレート用データ構築)
+// =====================================================================
+
+/** テーブル行のデータを表示用セル配列に変換する(編集可能テーブル用) */
 function buildCells(row, columns) {
   return columns.map(col => ({
     fieldName: col.fieldName,
@@ -159,20 +208,23 @@ function buildCells(row, columns) {
   }));
 }
 
+/** ラベルマップからlightning-formatted-number用の行配列を生成する(読取専用テーブル用) */
 function buildDisplayRows(data, labels) {
   return Object.entries(labels).map(([key, label]) => ({
     key, label, value: data[key]
   }));
 }
 
+// =====================================================================
+// コンポーネント
+// =====================================================================
+
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
   amountUnit = "〇〇〇";
-  groupNumber = makeTestData("numeric", 1);
   activeSections = ACTIVE_SECTIONS;
   bankColumns = BANK_COLUMNS;
   indicatorColumns = INDICATOR_COLUMNS;
   assessmentData = Object.fromEntries(ASSESSMENT_KEYS.map(key => [key, MAX_AMOUNT_5]));
-  otherTransactionData = fillValueMap(OTHER_TRANSACTION_KEYS, MAX_AMOUNT_5);
   stockData = Object.fromEntries(STOCK_KEYS.map(key => [key, MAX_AMOUNT_5]));
   memo = valueField(makeTestData("mixedChar", 214), false);
   total = valueField("99.9999", true);
@@ -200,8 +252,6 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   }
   get assessmentRows() { return buildDisplayRows(this.assessmentData, ASSESSMENT_LABELS); }
   get stockRows() { return buildDisplayRows(this.stockData, STOCK_LABELS); }
-  get memoValue() { return this.memo.value; }
-  get totalValue() { return this.total.value; }
 
   resetData() {
     const cloneAndInit = (data, fields) => [
@@ -229,6 +279,7 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
     );
   }
 
+  /** 指定行の指定フィールドをイミュータブルに更新する(disabled行は更新しない) */
   updateDataImmutable(data, id, field, value) {
     return data.map((row) => {
       if (row.id !== id) return row;
@@ -251,4 +302,6 @@ export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends Lightni
   }
 
   handleReset() { this.resetData(); }
+
+  numberErrorHandler(event) { console.error("数値入力エラー:", event.detail); }
 }

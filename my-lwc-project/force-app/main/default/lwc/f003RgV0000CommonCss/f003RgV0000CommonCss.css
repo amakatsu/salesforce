@@ -1,7 +1,24 @@
 /* 稟議共通CSS */
 
-/* ユーザ要望対応。アコーディオンのボーダーを消す */
 :host {
   --slds-c-accordion-color-border: transparent;
-  --slds-c-accordion-sizing-border: 0px;
+  --slds-c-accordion-sizing-border: 0;
+}
+
+/* ── セルハイライト(編集中/登録後) ──
+   SLDS2互換:
+   - --slds-c-input-color-background, --slds-c-input-shadow-focus は
+     SLDSスタイリングhookによる公式カスタマイズ手段。SLDS2でも維持される。
+   - background-color は tdセル(カスタムHTML)への直接指定。SLDS管理外のため依存なし。
+   - lightning-input はタグ名セレクタ。内部クラス(.slds-input等)を参照しておらず、
+     SLDS2のDOM構造変更の影響を受けない。 */
+
+/* テーブルtdセレクタ(.common-table td等, 詳細度0,1,1)との競合に勝つため !important */
+.changed-cell {
+  --slds-c-input-color-background: #f0ebc5;
+  background-color: #f0ebc5 !important;
+}
+.changed-cell lightning-input {
+  --slds-c-input-color-background: #f0ebc5;
+  --slds-c-input-shadow-focus: 0 0 0 1px #f0ebc5 inset, 0 0 0 1px #f0ebc5;
 }
