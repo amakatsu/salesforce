@@ -1,38 +1,35 @@
+/* 数値入力部品の共通CSS + 変更箇所の色付け用CSS を読み込む */
 @import 'c/f003GsV0000CommonCss';
 @import 'c/f003RgV0000CommonCss';
 
 /* ═══════════════════════════════════════════════════════════════
-   1. テーブル共通基盤(.data-table: 市場性与信・為替予約共通)
+   1. テーブル共通(市場性与信・為替予約の2テーブル)
    ═══════════════════════════════════════════════════════════════ */
 
-/* スクロールしないテーブルなのでborder-collapse:collapseが使える。
-   collapseは二重線を自動解消するため、全セルに同じborderを指定するだけで格子線が完成する */
-.data-table { table-layout: fixed; width: 100%; border-collapse: collapse; }
+/* C4のテーブルはスクロールしない。罫線が自動共有されるため、
+   全セルに同じ罫線を指定するだけで格子線が完成する。
+   データ量が変わっても列幅がぶれないよう固定する */
+.data-table { border-collapse: collapse; table-layout: fixed; }
+.data-table th, .data-table td { border: 1px solid #999; }
 
-.data-table th, .data-table td {
-  border: 1px solid #999;
-}
-
-/* ヘッダ: 中央揃え・折り返し許可・コンテナ背景色 */
+/* 列ヘッダは中央揃え。長い項目名は折り返して全文表示する */
 .data-table th {
-  text-align: center; vertical-align: middle;
-  background: #f2f2f2;
+  text-align: center; background: #f2f2f2;
   white-space: normal; overflow-wrap: break-word;
 }
 
-/* tdの背景を白にしないと、ヘッダ行と区別がつかなくなる。
-   padding:0はlightning-input等の子コンポーネントが自前のpaddingを持つため、二重余白を防ぐ */
+/* セルの背景を白にしてヘッダと区別する。
+   余白は入力部品が自前で持つため、セル側は0にして二重余白を防ぐ */
 .data-table td { padding: 0; background: #fff; }
 
-/* 行ヘッダ(scope="row")は行ラベルのため左寄せに戻す */
-.data-table tbody th { text-align: left; }
+/* 行ヘッダ(項目名)は左寄せ。太字にしない */
+.data-table tbody th { text-align: left; font-weight: normal; }
 
 /* ═══════════════════════════════════════════════════════════════
    2. インデント
    ═══════════════════════════════════════════════════════════════ */
 
-/* ツリー構造のルート行/子行にインデントを付けて階層を視覚表現する。
-   slds-table_cell-bufferのpaddingより優先するため!important */
+/* ルート行/子行にインデントを付けて階層を表現する */
 .tree-indent-root { padding-left: 0.35rem !important; }
 .tree-indent-child { padding-left: 0.75rem !important; }
 
@@ -40,28 +37,23 @@
    3. 列幅
    ═══════════════════════════════════════════════════════════════ */
 
-/* 市場性与信テーブルの列幅。table-layout:fixedで列幅をpx指定する */
+/* 市場性与信テーブルの列幅 */
 .col-w95 { width: 95px; }
 .col-w45 { width: 45px; }
 .col-w40 { width: 40px; }
 .col-w37 { width: 37px; }
 .col-w35 { width: 35px; }
 
-/* 為替予約テーブルの先頭列(種別)を他列の2倍幅に。
-   9列でfirst-childが20%なら残り8列は各10%に均等分割される */
+/* 為替予約テーブルの先頭列(種別)を他列の2倍幅にする */
 .exchange-table thead th:first-child { width: 20%; }
 
 /* ═══════════════════════════════════════════════════════════════
    4. セル表示
    ═══════════════════════════════════════════════════════════════ */
 
-/* 与信種類名が長い場合に折り返して全文表示する。
-   slds-truncateのwhite-space:nowrapを打ち消す */
+/* 与信種類名が長い場合に折り返して全文表示する */
 .credit-label { overflow-wrap: break-word; white-space: normal; }
 
-/* 読取専用セル: lightning-inputを使わないため、テキスト表示用のpadding/配置を自前で付ける */
-.readonly-cell { display: block; text-align: right; padding: 0.25rem 0.5rem; font-size: 0.8125rem; }
-
-/* c-f003-gs-v0000-number(カスタム数値コンポーネント)のデフォルトmargin/paddingを除去し、
-   display:blockでtdセル内に隙間なく配置する */
+/* 数値入力部品の余白を消して、セル内に隙間なく配置する */
 c-f003-gs-v0000-number { margin: 0; padding: 0; display: block; }
+

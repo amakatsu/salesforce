@@ -3,8 +3,8 @@
     <!-- 主要銀行取引状況 -->
     <lightning-layout-item size="6">
       <lightning-card>
-        <p class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">主要銀行取引状況</p>
-        <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
+        <div class="slds-text-heading_small slds-text-title_bold slds-p-top_x-small">主要銀行取引状況</div>
+        <table class="slds-table slds-table_cell-buffer data-table">
           <thead>
             <tr class="slds-line-height_reset">
               <template for:each={bankColumns} for:item="column">
@@ -21,7 +21,7 @@
                 <template for:each={row.cells} for:item="cell">
                   <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
                     <template if:true={cell.renderAsFormatted}>
-                      <div class="display-value">
+                      <div class="readonly-cell slds-text-align_right">
                         <lightning-formatted-number value={cell.value}></lightning-formatted-number>
                       </div>
                     </template>
@@ -47,20 +47,16 @@
       <lightning-card>
         <div class="slds-var-p-left_small">
           <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
-            <div>
-              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">自己査定結果</div>
-            </div>
-            <div>
-              <span>金額単位： {amountUnit}</span>
-            </div>
+            <div class="slds-text-heading_small slds-text-title_bold slds-p-top_x-small">自己査定結果</div>
+            <span>金額単位： {amountUnit}</span>
           </div>
-          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
+          <table class="slds-table slds-table_cell-buffer data-table">
             <tbody>
               <template for:each={assessmentRows} for:item="item">
                 <tr key={item.key}>
                   <th scope="row"><div class="slds-truncate">{item.label}</div></th>
                   <td>
-                    <div class="display-value">
+                    <div class="readonly-cell slds-text-align_right">
                       <lightning-formatted-number value={item.value}></lightning-formatted-number>
                     </div>
                   </td>
@@ -76,14 +72,14 @@
     <lightning-layout-item size="3">
       <lightning-card>
         <div class="slds-var-p-left_small">
-          <p class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">政策投資株式</p>
-          <table class="slds-table slds-table_cell-buffer slds-table_bordered common-table">
+          <div class="slds-text-heading_small slds-text-title_bold slds-p-top_x-small">政策投資株式</div>
+          <table class="slds-table slds-table_cell-buffer data-table">
             <tbody>
               <template for:each={stockRows} for:item="item">
                 <tr key={item.key}>
                   <th scope="row"><div class="slds-truncate">{item.label}</div></th>
                   <td>
-                    <div class="display-value">
+                    <div class="readonly-cell slds-text-align_right">
                       <lightning-formatted-number value={item.value}></lightning-formatted-number>
                     </div>
                   </td>
@@ -100,14 +96,10 @@
       <lightning-card>
         <div class="slds-var-p-right_small">
           <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
-            <div>
-              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">経営指標</div>
-            </div>
-            <div>
-              <span>金額単位： {amountUnit}</span>
-            </div>
+            <div class="slds-text-heading_small slds-text-title_bold slds-p-top_x-small">経営指標</div>
+            <span>金額単位： {amountUnit}</span>
           </div>
-          <table class="slds-table common-table indicator-table">
+          <table class="slds-table slds-table_cell-buffer data-table indicator-table">
             <thead>
               <tr class="slds-line-height_reset">
                 <template for:each={indicatorColumns} for:item="column">
@@ -127,11 +119,11 @@
                       <span class="indicator-type">{row.type}</span>
                       <div class="period-cell">
                       <template if:true={row.periodDisabled}>
-                        <div class="display-value">
+                        <div class="readonly-cell slds-text-align_right">
                           <lightning-formatted-text value={row.fiscalYear}></lightning-formatted-text>
                         </div>
                         <span class="period-separator">/</span>
-                        <div class="display-value">
+                        <div class="readonly-cell slds-text-align_right">
                           <lightning-formatted-text value={row.fiscalMonth}></lightning-formatted-text>
                         </div>
                       </template>
@@ -154,7 +146,7 @@
                   <template for:each={row.cells} for:item="cell">
                     <td key={cell.fieldName} data-label={cell.fieldName} class={cell.cellClass}>
                       <template if:true={cell.renderAsFormatted}>
-                        <div class="display-value">
+                        <div class="readonly-cell slds-text-align_right">
                           <lightning-formatted-number value={cell.value}></lightning-formatted-number>
                         </div>
                       </template>

@@ -9,10 +9,10 @@
               <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">{labels.accordion.CREDIT_STATUS}</div>
             </div>
             <div class="slds-grid slds-grid_align-end slds-wrap slds-p-around_none slds-m-around_none">
-              <div class="meta-group slds-var-p-right_small">
+              <div class="slds-var-p-right_small">
                 <span>括り： {groupNumber}</span>
               </div>
-              <div class="meta-unit">
+              <div>
                 <span>金額単位： {amountUnit}</span>
               </div>
             </div>
@@ -77,13 +77,13 @@
                       <td data-label="dueDate" class={row.dueDateClass}>
                         <template if:true={row.dueDateMonthDisabled}>
                           <div class="due-date-readonly slds-grid slds-grid_vertical-align-center">
-                            <div class="readonly-cell readonly-text">
+                            <div class="readonly-cell">
                               <lightning-formatted-text value={row.dueDateMonth}></lightning-formatted-text>
                             </div>
                             <template if:true={row.showDueDateSeparator}>
                               <span class="due-date-separator">/</span>
                             </template>
-                            <div class="readonly-cell readonly-text">
+                            <div class="readonly-cell">
                               <lightning-formatted-text value={row.dueDateDay}></lightning-formatted-text>
                             </div>
                           </div>
@@ -159,12 +159,12 @@
             <div class="slds-p-around_none slds-m-around_none">
               <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">{labels.accordion.COLLATERAL}</div>
             </div>
-            <div class="meta-unit slds-p-around_none slds-m-around_none">
+            <div class="slds-p-around_none slds-m-around_none">
               <span>金額単位： {amountUnit}</span>
             </div>
           </div>
           <div class="slds-p-around_none slds-m-around_none">
-            <div class="data-table scroll-container has-icon-column table-container-collateral slds-scrollable_y slds-p-around_none slds-m-around_none slds-size_1-of-1">
+            <div class="data-table scroll-container has-icon-column table-container-collateral slds-scrollable_y slds-m-bottom_xx-small slds-p-around_none slds-m-around_none slds-size_1-of-1">
               <table role="grid" class="slds-table slds-table_cell-buffer slds-table_bordered">
                 <thead>
                   <tr class="slds-line-height_reset">
@@ -225,7 +225,7 @@
 
         <!-- 保証人カード -->
         <lightning-card>
-          <div class="data-table table-container-guarantor slds-scrollable_y slds-size_1-of-2 slds-p-around_none slds-m-around_none">
+          <div class="data-table table-container-guarantor slds-scrollable_y slds-m-bottom_xx-small slds-size_1-of-2 slds-p-around_none slds-m-around_none">
             <table role="grid" class="slds-table slds-table_cell-buffer slds-table_bordered slds-size_1-of-1">
               <thead>
                 <tr class="slds-line-height_reset">

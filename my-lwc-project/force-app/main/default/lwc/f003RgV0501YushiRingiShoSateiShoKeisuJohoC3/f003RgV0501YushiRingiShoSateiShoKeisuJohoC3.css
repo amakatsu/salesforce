@@ -1,5 +1,4 @@
-/* f003GsV0000CommonCssはカスタム数値コンポーネント(c-f003-gs-v0000-number)用、
-   f003RgV0000CommonCssは変更ハイライト(.changed-cell)等の共通スタイルを提供する */
+/* 数値入力部品の共通CSS + 変更箇所の色付け用CSS を読み込む */
 @import 'c/f003GsV0000CommonCss';
 @import 'c/f003RgV0000CommonCss';
 
@@ -7,80 +6,72 @@
    1. テーブル共通(銀行・査定・株式・経営指標 全4テーブル)
    ═══════════════════════════════════════════════════════════════ */
 
-/* C3の4テーブルはいずれもスクロールなし・sticky不要。
-   border-collapse:collapseでborderが自動共有されるためシンプルに指定できる。
-   table-layout:fixedで列幅をCSS制御し、コンテンツ量による変動を防ぐ */
-.common-table { width: 100%; border: 1px solid #999; border-collapse: collapse; table-layout: fixed; }
-.common-table th, .common-table td { border: 1px solid #999; }
+/* C3の4テーブルはスクロールしない。border-collapse:collapseで罫線が自動共有されるため、
+   全セルに同じ罫線を指定するだけで格子線が完成する。
+   table-layout:fixedでデータ量が変わっても列幅がぶれないようにする */
+.data-table { border-collapse: collapse; table-layout: fixed; }
+.data-table th, .data-table td { border: 1px solid #999; }
 
-/* thを左寄せに統一(行ヘッダ用)。背景色でヘッダ行を視覚的に区別する */
-.common-table th { background-color: #f2f2f2; text-align: left; }
+/* 行ヘッダ(項目名)は左寄せ。背景色でヘッダ行とデータ行を区別する */
+.data-table th { background-color: #f2f2f2; text-align: left; }
 
-/* thead列ヘッダ(scope="col")は中央揃えに戻す */
-.common-table th[scope="col"] { text-align: center; }
+/* 列ヘッダ(見出し行)は中央揃え */
+.data-table th[scope="col"] { text-align: center; }
 
-/* tdの背景を白に。padding:0はlightning-input等の子コンポーネントの二重余白を防ぐ */
-.common-table td { background: #fff; padding: 0; }
+/* セルの背景を白にしてヘッダと区別する。
+   余白は入力部品が自前で持つため、セル側は0にして二重余白を防ぐ */
+.data-table td { background: #fff; padding: 0; }
+
+/* 行ヘッダ(項目名)は太字にしない。thのデフォルト太字を解除する */
+.data-table tbody th { font-weight: normal; }
 
 /* ═══════════════════════════════════════════════════════════════
-   2. 経営指標テーブル固有(.common-tableの上書き)
+   2. 経営指標テーブル固有
    ═══════════════════════════════════════════════════════════════ */
 
-/* thead列ヘッダは中央揃え(.common-table thの左寄せを上書き)。
-   paddingで列ヘッダテキストに余白を確保する */
-.indicator-table th[scope="col"] { text-align: center; padding: 0.25rem 0.5rem; }
-
-/* tbody行ヘッダは項目名/決算期。thのデフォルト太字を解除して通常テキストにする */
-.indicator-table tbody th { font-weight: normal; }
-
-/* 先頭列(決算期)は短いため10%に固定し、残りの14列にデータ幅を均等配分する */
+/* 先頭列(決算期)は短いため10%に固定し、残り14列にデータ幅を均等配分する */
 .indicator-table thead th:first-child { width: 10%; }
 
 /* ═══════════════════════════════════════════════════════════════
    3. 経営指標: ヘッダ・行ヘッダ
    ═══════════════════════════════════════════════════════════════ */
 
-/* theadヘッダテキストの折り返し。15列と多く列幅が狭いため、
-   nowrapを打ち消して長いヘッダ名を折り返す。小さめfont-sizeで収まりを確保 */
+/* 列ヘッダの折り返し。15列と多く列幅が狭いため、
+   長いヘッダ名を折り返す。小さめの文字で収まりを確保 */
 .indicator-header-text {
   white-space: normal; overflow-wrap: break-word;
   font-size: 0.75rem; line-height: 1.2;
 }
 
-/* tbody行ヘッダ: 種別ラベルと決算期入力を横並びにする */
+/* 行ヘッダ: 種別ラベル(実績/中間/予想)と決算期入力を横並びにする */
 .indicator-row-head { display: flex; align-items: center; gap: 0.5rem; }
 
-/* 種別ラベル(実績/中間/予想)のline-heightを揃え、高さのばたつきを防ぐ */
+/* 種別ラベルの行の高さを揃え、ばたつきを防ぐ */
 .indicator-type { display: inline-block; line-height: 1.2; min-height: 1.2em; }
 
 /* ═══════════════════════════════════════════════════════════════
    4. 決算期入力(年/月)
    ═══════════════════════════════════════════════════════════════ */
 
-/* 年(4桁)と月(2桁)のinputを横並びにする */
+/* 年(4桁)と月(2桁)の入力欄を横並びにする */
 .period-cell { display: flex; align-items: center; }
 
-/* 年フィールドは4桁のため月(2桁)より広く。flex比率2:1.5で幅配分 */
-.period-cell lightning-input:first-of-type { flex: 2 1 0; min-width: 0; }
-.period-cell lightning-input:last-of-type { flex: 1.5 1 0; min-width: 0; }
+/* 入力欄の最小幅を0にして、flex指定どおりに縮むようにする */
+.period-cell lightning-input { min-width: 0; }
 
-/* 「/」セパレータ。flex:0 0 autoで縮まないようにする。
-   太字にして年と月の区切りを視認しやすくする */
+/* 年は4桁で月は2桁のため、年を広め・月を狭めにする */
+.period-cell lightning-input:first-of-type { flex: 2 1 0; }
+.period-cell lightning-input:last-of-type { flex: 1.5 1 0; }
+
+/* 「/」区切り文字。縮まないようにして、太字で見やすくする */
 .period-separator {
   flex: 0 0 auto; padding: 0 1px;
   font-size: 0.75rem; font-weight: bold; line-height: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   5. セルスタイル
+   5. レイアウト補助
    ═══════════════════════════════════════════════════════════════ */
 
-/* 読み取り専用セル: lightning-formatted-numberの表示用。右寄せで数値の桁を揃える */
-.display-value { text-align: right; padding: 0.25rem 0.5rem; }
-
-/* ═══════════════════════════════════════════════════════════════
-   6. レイアウト補助
-   ═══════════════════════════════════════════════════════════════ */
-
-/* カスタム数値コンポーネントのデフォルトmargin/paddingを除去し、セル内に隙間なく配置する */
+/* LWCカスタム要素はデフォルトinline。block化してセル内に隙間なく収める */
 c-f003-gs-v0000-number { margin: 0; padding: 0; display: block; }

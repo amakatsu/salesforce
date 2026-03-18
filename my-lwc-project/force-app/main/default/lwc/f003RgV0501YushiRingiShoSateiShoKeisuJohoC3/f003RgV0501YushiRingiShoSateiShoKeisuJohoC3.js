@@ -20,7 +20,6 @@ import { makeTestData } from "c/testDataGenerator";
 // =====================================================================
 
 const HIGHLIGHT_CLASS = "changed-cell";
-const ACTIVE_SECTIONS = "abcdefghijklmnopqr".split("");
 
 // =====================================================================
 // テーブル列定義
@@ -221,7 +220,6 @@ function buildDisplayRows(data, labels) {
 
 export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoC3 extends LightningElement {
   amountUnit = "〇〇〇";
-  activeSections = ACTIVE_SECTIONS;
   bankColumns = BANK_COLUMNS;
   indicatorColumns = INDICATOR_COLUMNS;
   assessmentData = Object.fromEntries(ASSESSMENT_KEYS.map(key => [key, MAX_AMOUNT_5]));

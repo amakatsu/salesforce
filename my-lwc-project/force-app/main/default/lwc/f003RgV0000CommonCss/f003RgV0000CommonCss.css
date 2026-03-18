@@ -13,7 +13,7 @@
    - lightning-input はタグ名セレクタ。内部クラス(.slds-input等)を参照しておらず、
      SLDS2のDOM構造変更の影響を受けない。 */
 
-/* テーブルtdセレクタ(.common-table td等, 詳細度0,1,1)との競合に勝つため !important */
+/* テーブルtdセレクタ(.data-table td等, 詳細度0,1,1)との競合に勝つため !important */
 .changed-cell {
   --slds-c-input-color-background: #f0ebc5;
   background-color: #f0ebc5 !important;
@@ -22,3 +22,8 @@
   --slds-c-input-color-background: #f0ebc5;
   --slds-c-input-shadow-focus: 0 0 0 1px #f0ebc5 inset, 0 0 0 1px #f0ebc5;
 }
+
+/* ── 共通部品スタイル ── */
+
+/* 読取専用セルの余白。入力部品を使わないセルにテキスト用の余白を付ける */
+.readonly-cell { padding: 0.25rem 0.5rem; }

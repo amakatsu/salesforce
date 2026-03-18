@@ -5,7 +5,7 @@
       <lightning-card>
         <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
           <div>
-            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">市場性与信状況</div>
+            <div class="slds-text-heading_small slds-text-title_bold slds-p-top_x-small">市場性与信状況</div>
           </div>
           <div class="slds-grid slds-grid_align-end">
             <div class="slds-var-p-right_small">
@@ -35,13 +35,13 @@
                 <template for:each={row.textCells} for:item="cell">
                   <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
                     <lightning-formatted-text value={cell.value}
-                      class="readonly-cell"></lightning-formatted-text>
+                      class="readonly-cell slds-text-align_right"></lightning-formatted-text>
                   </td>
                 </template>
                 <template for:each={row.numberCells} for:item="cell">
                   <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
                     <template if:true={cell.renderAsFormatted}>
-                      <div class="readonly-cell">
+                      <div class="readonly-cell slds-text-align_right">
                         <lightning-formatted-number value={cell.value}></lightning-formatted-number>
                       </div>
                     </template>
@@ -67,7 +67,7 @@
         <div class="slds-size_8-of-12">
           <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
             <div>
-              <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-text-heading_small slds-text-title_bold slds-p-top_x-small">為替予約残高推移</div>
+              <div class="slds-text-heading_small slds-text-title_bold slds-p-top_x-small">為替予約残高推移</div>
             </div>
             <div>
               <span>金額単位： {amountUnit}</span>
@@ -91,7 +91,7 @@
                     <td key={cell.key} data-label={cell.field}>
                       <div class={cell.cellClass}>
                         <lightning-formatted-number value={cell.value}
-                          class="readonly-cell"></lightning-formatted-number>
+                          class="readonly-cell slds-text-align_right"></lightning-formatted-number>
                       </div>
                     </td>
                   </template>

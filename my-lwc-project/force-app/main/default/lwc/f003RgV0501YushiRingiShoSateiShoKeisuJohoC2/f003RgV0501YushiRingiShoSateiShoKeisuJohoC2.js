@@ -1,25 +1,24 @@
 /**
- * 与信・保全テーブル コンポーネント (C2)
+ * 与信・保全テーブル (C2)
  *
- * 与信状況テーブル(左9列) + 保全状況テーブル(右3列) + 保証人テーブルを表示する。
- * ツリー構造の折りたたみ、セル編集、変更ハイライト、保存/リセットを提供する。
+ * 左に与信状況テーブル(9列)、右に保全状況テーブル(3列) + 保証人テーブルを並べる。
+ * ツリーの折りたたみ、セル編集、変更ハイライト、保存/リセットができる。
  *
- * ■ 折りたたみの仕組み:
- *   ツリーデータ(data.js)は親子関係を持つネスト配列。
- *   expandedセット(state.js)に含まれる親ノードだけ子を展開し、
- *   _treeToDisplayRows() でフラット行配列に変換してテンプレートに渡す。
- *   ▶/▼クリックでexpandedを切り替え、表示行を再構築する。
+ * ■ 折りたたみ（▶/▼ボタン）:
+ *   HTMLのfor:eachで表示行リスト(displayRows)をループして画面に表示している。
+ *   ▶クリック → その親行の子データを表示行リストに追加 → 画面に子行が現れる
+ *   ▼クリック → その親行の子データを表示行リストから除去 → 画面から子行が消える
+ *   つまり、表示行リストの中身を入れ替えることで開閉を実現している。
  *
- * ■ データ保持の仕組み(3世代管理):
- *   state.jsのStateServiceが current / initial / saved の3世代を保持。
- *   - current: ユーザー編集中のデータ(handleEditで更新)
- *   - initial: 初回ロード時の状態(リセットでここに戻す)
- *   - saved:   最後の保存時の状態(変更ハイライトの比較基準)
+ * ■ 3世代データ管理(state.js の StateService):
+ *   - current: 今のユーザー編集データ
+ *   - initial: 初回ロード時のデータ(リセットで戻る先)
+ *   - saved:   最後に保存したデータ(ハイライトの比較基準)
  *
  * ファイル構成:
- *   data.js  - 与信/保全のツリーデータ定義(サンプル値・編集可否)
- *   state.js - StateServiceクラス: ツリーの3世代管理(current/initial/saved)
- *   main.js  - 本ファイル: UI制御・表示行構築・ハイライト計算
+ *   data.js  - ツリーデータ定義(サンプル値・編集可否)
+ *   state.js - StateService: 3世代管理
+ *   本ファイル - UI制御・表示行構築・ハイライト計算
  */
 import { LightningElement, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
@@ -60,27 +59,27 @@ const LABELS = {
 // 定数: 変更ハイライト
 // =====================================================================
 
-/** 変更セルに付与するCSSクラス */
+/** 変更があったセルに付けるCSSクラス名 */
 const HIGHLIGHT_CLASS = "changed-cell";
 
 /** インライン編集可能な特定ノードのID(特定与信合計 子２) */
 const INLINE_EDITABLE_NODE_ID = "l142";
 
-/** ハイライト対象フィールド一覧 */
+/** ハイライト対象のフィールド名リスト */
 const HIGHLIGHT_TARGET_FIELDS = [
   "label", "dueDate", "rate", "balance99", "mark", "collateralType",
   "principal", "change", "postBalance", "actualBalance",
   "regValue", "marketValue", "correction"
 ];
 
-/** ラベル列・担保種類列はインデント付き表示 */
+/** ツリー階層でインデントを付ける列 */
 const INDENT_TARGET_FIELDS = new Set(["label", "collateralType"]);
 
 // =====================================================================
 // ツリー操作ユーティリティ
 // =====================================================================
 
-/** IDで深さ優先探索。親→子の順に再帰。 */
+/** ツリーからIDが一致するノードを探す(深さ優先) */
 function findNodeById(tree, nodeId) {
   for (const node of tree) {
     if (node.id === nodeId) return node;
@@ -92,7 +91,7 @@ function findNodeById(tree, nodeId) {
   return null;
 }
 
-/** ノードのフィールド値をin-place更新。見つかったらtrue。 */
+/** ツリー内のノードを探してフィールド値を直接書き換える。見つかったらtrue */
 function updateNodeField(tree, nodeId, field, value) {
   for (const node of tree) {
     if (node.id === nodeId) { node[field] = value; return true; }
@@ -109,7 +108,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
 
   // --- @api ---
 
-  /** 親から呼ばれる: 保存後ハイライト適用 */
+  /** 親から呼ばれる: 保存してハイライトを更新する */
   @api applySavedHighlight() {
     this._rebuildDisplayRows();
     this._state.saveSnapshot();
@@ -137,7 +136,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
 
   // --- ライフサイクル ---
 
-  /** 初回: StateService初期化 → 表示行構築 → 保証人スナップショット */
+  /** 初回マウント: データ初期化 → 表示行を作る → 保証人の初期値を控える */
   connectedCallback() {
     this._state.initialize();
     this._rebuildDisplayRows();
@@ -147,15 +146,15 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     }));
   }
 
-  /** 毎描画後: stickyヘッダ高さをCSS変数に同期 */
+  /** 描画のたびにtheadの実測高さをCSS変数に反映する */
   renderedCallback() { this._syncStickyHeights(); }
 
   // --- イベントハンドラー ---
 
-  /** 保存ボタン → saved更新+ハイライト適用 */
+  /** 保存ボタン: 現在値をsavedに控えてハイライトを更新 */
   handleSave() { this.applySavedHighlight(); }
 
-  /** リセットボタン → initial復元+ハイライト解除 */
+  /** リセットボタン: 初期値に戻してハイライトを消す */
   handleReset() {
     this._state.reset();
     this._rebuildDisplayRows();
@@ -165,7 +164,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     }));
   }
 
-  /** ▶/▼クリック → expanded切替 → 表示行再構築(子行の表示/非表示が変わる) */
+  /** ▶/▼クリック: ツリーの展開/折りたたみを切り替えて行を再構築 */
   handleToggle(event) {
     const { expanded } = this._state.getState();
     const nodeId = event.currentTarget.dataset.id;
@@ -173,7 +172,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     this._rebuildDisplayRows();
   }
 
-  /** セル編集 → currentツリー更新 → 表示行再構築(ハイライト再計算) */
+  /** セル編集: 値を更新して表示行を再構築(ハイライトも再計算される) */
   handleEdit(event) {
     const detail = event.detail || {};
     const nodeId = event.target.dataset.id || detail.id;
@@ -187,9 +186,8 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
   }
 
   /**
-   * 保証人セル編集ハンドラ
-   * saved時点の値と比較し、変更があればハイライトCSSクラスを付与する。
-   * 配列置換でLWCのリアクティブ更新を発火させる(ミューテーション回避)。
+   * 保証人セルの編集: 保存時の値と比べて変更があればハイライトする。
+   * 配列を丸ごと置き換えてLWCに再描画させる(直接書き換えだと反映されない)。
    */
   handleGuarantorInput(event) {
     const nodeId = event.target.dataset.id;
@@ -207,15 +205,14 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     });
   }
 
-  /** 数値入力コンポーネントのエラーハンドラ */
+  /** 数値入力でエラーが起きたときのログ出力 */
   handleNumberInputError(event) { console.log("数値入力エラー:", event.detail); }
 
   // --- 折りたたみ制御: ツリー→表示行変換 ---
 
   /**
-   * currentツリーから表示行を再構築する。
-   * 全ての編集/トグル/保存/リセット操作の最後に呼ばれ、
-   * creditRows/collateralRowsを更新してテンプレートを再描画する。
+   * ツリーから表示行を作り直す。
+   * 編集・トグル・保存・リセットの最後に毎回呼ばれて画面を更新する。
    */
   _rebuildDisplayRows() {
     const { creditSource, collateralSource } = this._state.getState();
@@ -224,8 +221,8 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
   }
 
   /**
-   * ツリーを再帰走査し、expandedセットに含まれるノードの子だけを展開した
-   * フラット行配列を生成する。折りたたまれた子ノードは配列に含まれない。
+   * ツリーを再帰的に辿り、展開中のノードの子だけを開いたフラット行配列を返す。
+   * 折りたたまれた子はスキップする。
    */
   _treeToDisplayRows(tree, level = 0, isCredit = true) {
     const { expanded } = this._state.getState();
@@ -238,7 +235,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     });
   }
 
-  /** 1ノード → テンプレート用フラット行に変換 */
+  /** 1つのノードをテンプレートに渡せるフラット行オブジェクトに変換する */
   _buildDisplayRow(node, level, isCredit) {
     const hasChildren = Boolean(node.children?.length);
     const isExpanded = this._state.getState().expanded.has(node.id);
@@ -262,8 +259,8 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
   // --- 変更ハイライト計算 ---
 
   /**
-   * saved vs current を比較し、各フィールドのCSSクラスと編集可否を算出する。
-   * 変更があったフィールドにはHIGHLIGHT_CLASSを付与し、視覚的に差分を示す。
+   * 保存時と今の値を比べて、変わっていたらハイライト用のCSSクラスを付ける。
+   * 各フィールドのCSSクラス名と編集可否をまとめて返す。
    */
   _computeFieldStyles(node, level) {
     const indentClass = level === 0 ? 'tree-indent-root' : 'slds-p-left_small';
@@ -280,13 +277,13 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     return result;
   }
 
-  /** 保存済みツリーからノードを検索(与信→保全の順に探索) */
+  /** 保存時のツリーからノードを探す(与信→保全の順) */
   _findSavedNode(nodeId) {
     const { savedCreditSource, savedCollateralSource } = this._state.getState();
     return findNodeById(savedCreditSource, nodeId) || findNodeById(savedCollateralSource, nodeId);
   }
 
-  /** 期日(月/日)の変更ハイライトを判定 */
+  /** 期日(月/日)が変わっていたらハイライトクラスを返す */
   _getDueDateHighlight(node) {
     const savedNode = this._findSavedNode(node.id);
     if (savedNode && (savedNode.dueDateMonth !== node.dueDateMonth || savedNode.dueDateDay !== node.dueDateDay)) {
@@ -297,7 +294,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
 
   // --- 数値セル構築 ---
 
-  /** 与信/保全に応じた数値セル配列を構築 */
+  /** 与信/保全テーブルに合わせた数値セルの配列を作る */
   _buildNumberCells(node, fieldStyles, isCredit) {
     if (isCredit) {
       return {
@@ -325,7 +322,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     };
   }
 
-  /** 1つの数値セルのテンプレートバインディング用オブジェクトを生成 */
+  /** 1つの数値セル分のテンプレート用オブジェクトを作る */
   _buildNumberCell(node, fieldStyles, fieldName, label) {
     return {
       key: `${node.id}-${fieldName}`, field: fieldName, label,
@@ -337,21 +334,21 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
 
   // --- データ更新ヘルパー ---
 
-  /** 表示行から編集可否を判定 */
+  /** そのセルが読み取り専用かどうか調べる */
   _isReadOnly(nodeId, fieldName) {
     const row = this.creditRows.find((creditRow) => creditRow.id === nodeId)
       || this.collateralRows.find((collateralRow) => collateralRow.id === nodeId);
     return row?.[`${fieldName}Disabled`];
   }
 
-  /** 与信ツリーで見つかれば保全ツリーの探索をスキップ */
+  /** 与信ツリーで見つかったら保全ツリーは探さない */
   _applyFieldChange(nodeId, fieldName, newValue) {
     const { creditSource, collateralSource } = this._state.getState();
     if (updateNodeField(creditSource, nodeId, fieldName, newValue)) return;
     updateNodeField(collateralSource, nodeId, fieldName, newValue);
   }
 
-  /** 保証人データのスナップショットを保存(変更ハイライトの比較基準) */
+  /** 保証人データの今の値を控えておく(ハイライト比較に使う) */
   _snapshotGuarantor() {
     this._savedGuarantorData = this.guarantorData.map((guarantor) => ({ ...guarantor }));
   }
@@ -359,9 +356,8 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
   // --- Stickyヘッダ高さ同期 ---
 
   /**
-   * DOM実測値でCSS変数を更新する。
-   * theadとデータ行の高さが変わらなければスキップし、
-   * renderedCallbackでの無限ループを防止する。
+   * theadとデータ行の実際の高さを測ってCSS変数を更新する。
+   * 高さが前回と同じならスキップする(そうしないとrenderedCallbackが無限ループする)。
    */
   _syncStickyHeights() {
     const findStickyElement = (selector) =>

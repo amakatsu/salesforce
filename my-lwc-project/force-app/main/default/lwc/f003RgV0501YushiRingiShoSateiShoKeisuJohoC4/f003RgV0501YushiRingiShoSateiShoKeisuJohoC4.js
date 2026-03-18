@@ -6,8 +6,8 @@
  *
  * ■ データ保持の仕組み(3世代管理):
  *   - _initial: 初回ロード時の状態(リセットでここに戻す)
- *   - _saved:   最後の保存時の状態(変更ハイライトの比較基準)
- *   - _current: ユーザー編集中のデータ(handleInputChangeで更新)
+ *   - _saved:   最後の保存時の状態(変更箇所の色付けの比較基準)
+ *   - _current: ユーザーが編集中のデータ(セルを編集すると更新される)
  */
 import { LightningElement, api } from "lwc";
 import { makeTestData } from "c/testDataGenerator";
@@ -19,7 +19,7 @@ import { makeTestData } from "c/testDataGenerator";
 const MAX_AMOUNT_7 = makeTestData("numeric", 7);
 const MAX_AMOUNT_5 = makeTestData("numeric", 5);
 
-/** 変更セルに付与するCSSクラス */
+/** 変更されたセルに付ける色付けクラス名 */
 const HIGHLIGHT_CLASS = "changed-cell";
 
 // =====================================================================
@@ -28,14 +28,14 @@ const HIGHLIGHT_CLASS = "changed-cell";
 
 const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 
-/** 全フィールドに空ハイライトクラスを初期付与する */
+/** 全フィールドに空の色付けクラスを初期設定する */
 const initHighlightClasses = (data, fields) =>
   data.map((item) => ({
     ...item,
     ...Object.fromEntries(fields.map((f) => [`${f}Class`, ""]))
   }));
 
-/** saved vs current を比較し、変更があったフィールドにハイライトクラスを付与する */
+/** 保存時の値と比較し、変わったフィールドに色付けクラスを付ける */
 const applyHighlight = (current, saved, fields) =>
   current.map((row) => {
     const savedRow = saved.find((item) => item.id === row.id) || {};
@@ -73,10 +73,10 @@ const CREDIT_COLUMNS = [
   { key: "assumedPrincipalMarketValueBalance", label: "想定元本実勢現在残", w: "col-w40" }
 ];
 
-/** テキスト表示フィールド(与信種類2, グロス/ネット) */
+/** 文字表示のフィールド(ワーニング情報、グロス/ネット) */
 const CREDIT_TEXT_FIELDS = ["creditType2", "grossNet"];
 
-/** 数値フィールド(全て編集可否の制御対象) */
+/** 数値フィールド(行の編集可否に連動して入力/表示が切り替わる) */
 const CREDIT_NUM_FIELDS = [
   "endOfMonthBalance", "endOfMonthLimit", "currentMonthChange",
   "postTransactionCreditAmount", "marketValueBalanceCEPE", "marketValueBalanceCEPEReference",
@@ -84,7 +84,7 @@ const CREDIT_NUM_FIELDS = [
   "assumedPrincipalApprovalAmount", "assumedPrincipalMarketValueBalance"
 ].map((f) => ({ field: f, disableable: true }));
 
-/** ハイライト対象の全フィールド */
+/** 色付け対象の全フィールド */
 const CREDIT_HIGHLIGHT_FIELDS = [
   ...CREDIT_TEXT_FIELDS,
   "dueDateYear", "dueDateMonth", "margin",
@@ -104,7 +104,7 @@ const CREDIT_DEFAULTS = {
   disabled: false
 };
 
-/** 残高系フィールドの一括オーバーライド用 */
+/** 残高系フィールドをまとめて書き換えるための定数 */
 const BALANCE_FIELDS = [
   "endOfMonthBalance", "endOfMonthLimit", "currentMonthChange",
   "postTransactionCreditAmount", "marketValueBalanceCEPE", "marketValueBalanceCEPEReference",
@@ -120,7 +120,7 @@ const SUMMARY_OVERRIDES = {
   marketValueBalanceCEReference: "-"
 };
 
-/** 行データ生成ファクトリ */
+/** 行データを組み立てる関数 */
 const buildCreditRow = ({ id, creditType1, indent = 0, overrides = {}, disabled }) => ({
   id, creditType1, creditType1Class: indent === 0 ? "tree-indent-root" : "tree-indent-child",
   ...CREDIT_DEFAULTS, ...overrides, ...(disabled !== undefined ? { disabled } : {})
@@ -154,7 +154,7 @@ const EXCHANGE_COLUMNS = [
   { label: "99月", fieldName: "dueDate5" }
 ];
 
-/** ハイライト対象フィールド */
+/** 色付け対象フィールド */
 const EXCHANGE_HIGHLIGHT_FIELDS = [
   "previousTermAverage", "lastTermAverage", "september99",
   "dueDate1", "dueDate2", "dueDate3", "dueDate4", "dueDate5"
@@ -164,7 +164,7 @@ const EXCHANGE_DEFAULTS = Object.fromEntries(
   EXCHANGE_HIGHLIGHT_FIELDS.map((f) => [f, "9999999"])
 );
 
-/** 行データ生成ファクトリ */
+/** 行データを組み立てる関数 */
 const buildExchangeRow = ({ id, type, overrides = {} }) => ({
   id, type, ...EXCHANGE_DEFAULTS, ...overrides
 });
@@ -184,7 +184,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends Lightni
 
   // --- @api ---
 
-  /** 親から呼ばれる: 保存後ハイライト適用 */
+  /** 親から呼ばれる: 保存して色付けを更新する */
   @api applySavedHighlight() { this._save(); }
 
   // --- プロパティ ---
@@ -203,12 +203,12 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends Lightni
 
   // --- ライフサイクル ---
 
-  /** 初回: initialから復元し、空ハイライトで初期化する */
+  /** 初回表示時にデータを初期化する */
   connectedCallback() { this._reset(); }
 
   // --- テンプレート用getter ---
 
-  /** 市場性与信テーブルの表示行を生成(テキスト/数値セルの構築+ハイライト) */
+  /** 市場性与信テーブルの表示行を組み立てる */
   get creditRows() {
     return this._creditData.map((row) => {
       const yearClass = row.dueDateYearClass || "";
@@ -243,7 +243,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends Lightni
     });
   }
 
-  /** 為替予約テーブルの表示行を生成 */
+  /** 為替予約テーブルの表示行を組み立てる */
   get exchangeRows() {
     return this._exchangeData.map((row) => ({
       ...row,
@@ -256,7 +256,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends Lightni
 
   // --- イベントハンドラ ---
 
-  /** セル編集 → 行更新 → ハイライト再計算 */
+  /** セルが編集されたらデータを更新し、変更箇所を色付けする */
   handleInputChange(event) {
     const { id, field } = event.currentTarget?.dataset || event.target?.dataset || {};
     const value = event.target.value;
@@ -268,23 +268,23 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends Lightni
     this._exchangeData = this._updateRow(this._exchangeData, id, field, value);
   }
 
-  /** 保存ボタン → saved更新+ハイライト適用 */
+  /** 保存して色付けを更新する */
   handleSave() { this._save(); }
 
-  /** リセットボタン → initial復元+ハイライト解除 */
+  /** 初期状態に戻す */
   handleReset() { this._reset(); }
 
-  /** 数値入力コンポーネントのエラーハンドラ */
+  /** 数値入力部品のエラー処理 */
   numberErrorHandler(event) { console.error("数値入力エラー:", event.detail); }
 
   // --- プライベートメソッド ---
 
-  /** 指定行の指定フィールドを更新した新配列を返す(イミュータブル更新) */
+  /** 指定した行のフィールドを書き換えた新しい配列を返す */
   _updateRow(data, id, field, value) {
     return data.map((row) => (row.id === id ? { ...row, [field]: value } : row));
   }
 
-  /** initialから復元し、空ハイライトで初期化する */
+  /** 初期データから復元し、色付けをリセットする */
   _reset() {
     const cloneAndInit = (data, fields) => [
       deepClone(data),
@@ -296,7 +296,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC4 extends Lightni
       cloneAndInit(this._initialExchangeData, EXCHANGE_HIGHLIGHT_FIELDS);
   }
 
-  /** current vs saved でハイライトを計算し、savedをcurrentで更新する */
+  /** 変更箇所を色付けし、現在のデータを保存済みとして記録する */
   _save() {
     const highlightAndSnapshot = (current, saved, fields) => {
       const highlighted = applyHighlight(current, saved, fields);
