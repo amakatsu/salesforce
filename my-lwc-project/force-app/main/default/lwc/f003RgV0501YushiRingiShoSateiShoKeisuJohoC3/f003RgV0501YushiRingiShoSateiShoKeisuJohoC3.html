@@ -115,9 +115,9 @@
               <template for:each={indicatorRows} for:item="row">
                 <tr key={row.id} class="slds-hint-parent slds-line-height_reset">
                   <th scope="row">
-                    <div class="indicator-row-head">
-                      <span class="indicator-type">{row.type}</span>
-                      <div class="period-cell">
+                    <div class="indicator-row-head slds-grid slds-grid_vertical-align-center">
+                      <span>{row.type}</span>
+                      <div class="period-cell slds-grid slds-grid_vertical-align-center">
                       <template if:true={row.periodDisabled}>
                         <div class="readonly-cell slds-text-align_right">
                           <lightning-formatted-text value={row.fiscalYear}></lightning-formatted-text>
@@ -170,27 +170,30 @@
 
     <lightning-layout-item size="1">
       <div class="slds-var-p-top_large">
-        <c-f003-gs-v0000-number
-          num-value={total.value}
-          num-label="Ｇｒ合算実態純資産額"
-          disabled
-        ></c-f003-gs-v0000-number>
+        <span>Ｇｒ合算実態純資産額</span>
+        <div class="slds-text-align_right slds-border_bottom">
+          <lightning-formatted-number
+            value={total.value}
+            maximum-fraction-digits="4"
+            minimum-fraction-digits="4"
+          ></lightning-formatted-number>
+        </div>
       </div>
     </lightning-layout-item>
 
     <!-- メモ -->
     <lightning-layout-item size="12">
       <lightning-card>
-        <lightning-layout>
-          <lightning-layout-item size="6" padding="horizontal-small">
+        <div class="slds-grid">
+          <div class="slds-col slds-size_6-of-12">
             <div class="slds-text-title_bold">メモ</div>
             <lightning-textarea
               variant="label-hidden" value={memo.value}
               disabled={memo.disabled}
               style="--sds-c-textarea-sizing-min-height: 5rem"
             ></lightning-textarea>
-          </lightning-layout-item>
-        </lightning-layout>
+          </div>
+        </div>
       </lightning-card>
     </lightning-layout-item>
   </lightning-layout>

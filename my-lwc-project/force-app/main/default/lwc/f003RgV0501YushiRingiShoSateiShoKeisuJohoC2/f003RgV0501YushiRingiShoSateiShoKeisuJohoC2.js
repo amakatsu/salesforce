@@ -263,7 +263,7 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
    * 各フィールドのCSSクラス名と編集可否をまとめて返す。
    */
   _computeFieldStyles(node, level) {
-    const indentClass = level === 0 ? 'tree-indent-root' : 'slds-p-left_small';
+    const indentClass = level === 0 ? 'tree-indent-root' : 'tree-indent-child';
     const editable = node.editable || {};
     const savedNode = this._findSavedNode(node.id);
     const result = {};

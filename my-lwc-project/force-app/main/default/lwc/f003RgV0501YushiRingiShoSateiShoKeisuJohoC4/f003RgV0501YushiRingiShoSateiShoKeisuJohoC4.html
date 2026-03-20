@@ -16,7 +16,7 @@
             </div>
           </div>
         </div>
-        <table class="slds-table slds-table_cell-buffer slds-table_bordered data-table">
+        <table class="slds-table slds-table_bordered slds-table_fixed-layout data-table">
           <thead>
             <tr class="slds-line-height_reset">
               <template for:each={creditColumns} for:item="col">
@@ -30,12 +30,13 @@
             <template for:each={creditRows} for:item="row">
               <tr key={row.id} class="slds-hint-parent slds-line-height_reset">
                 <th data-label="creditType1" class={row.creditType1Class} scope="row">
-                  <div class="slds-truncate credit-label">{row.creditType1}</div>
+                  <div class="slds-hyphenate">{row.creditType1}</div>
                 </th>
                 <template for:each={row.textCells} for:item="cell">
                   <td key={cell.key} data-label={cell.field} class={cell.cellClass}>
-                    <lightning-formatted-text value={cell.value}
-                      class="readonly-cell slds-text-align_right"></lightning-formatted-text>
+                    <div class="readonly-cell slds-text-align_right">
+                      <lightning-formatted-text value={cell.value}></lightning-formatted-text>
+                    </div>
                   </td>
                 </template>
                 <template for:each={row.numberCells} for:item="cell">
@@ -90,8 +91,9 @@
                   <template for:each={row.cells} for:item="cell">
                     <td key={cell.key} data-label={cell.field}>
                       <div class={cell.cellClass}>
-                        <lightning-formatted-number value={cell.value}
-                          class="readonly-cell slds-text-align_right"></lightning-formatted-number>
+                        <div class="readonly-cell slds-text-align_right">
+                          <lightning-formatted-number value={cell.value}></lightning-formatted-number>
+                        </div>
                       </div>
                     </td>
                   </template>

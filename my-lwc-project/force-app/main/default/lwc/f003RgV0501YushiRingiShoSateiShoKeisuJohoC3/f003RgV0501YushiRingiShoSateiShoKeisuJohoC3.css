@@ -22,8 +22,9 @@
    余白は入力部品が自前で持つため、セル側は0にして二重余白を防ぐ */
 .data-table td { background: #fff; padding: 0; }
 
-/* 行ヘッダ(項目名)は太字にしない。thのデフォルト太字を解除する */
-.data-table tbody th { font-weight: normal; }
+/* 行ヘッダ(項目名)は太字にしない。
+   slds-table_cell-bufferのpaddingが大きすぎるので、テキストが詰まらない程度に縮める */
+.data-table tbody th { font-weight: normal; padding: 0.25rem 0.5rem; }
 
 /* ═══════════════════════════════════════════════════════════════
    2. 経営指標テーブル固有
@@ -43,18 +44,12 @@
   font-size: 0.75rem; line-height: 1.2;
 }
 
-/* 行ヘッダ: 種別ラベル(実績/中間/予想)と決算期入力を横並びにする */
-.indicator-row-head { display: flex; align-items: center; gap: 0.5rem; }
-
-/* 種別ラベルの行の高さを揃え、ばたつきを防ぐ */
-.indicator-type { display: inline-block; line-height: 1.2; min-height: 1.2em; }
+/* 種別ラベルと決算期入力の間に隙間を空けて視認性を確保する */
+.indicator-row-head { gap: 0.5rem; }
 
 /* ═══════════════════════════════════════════════════════════════
    4. 決算期入力(年/月)
    ═══════════════════════════════════════════════════════════════ */
-
-/* 年(4桁)と月(2桁)の入力欄を横並びにする */
-.period-cell { display: flex; align-items: center; }
 
 /* 入力欄の最小幅を0にして、flex指定どおりに縮むようにする */
 .period-cell lightning-input { min-width: 0; }

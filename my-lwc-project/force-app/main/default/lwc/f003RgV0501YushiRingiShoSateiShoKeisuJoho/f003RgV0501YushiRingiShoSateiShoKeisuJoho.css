@@ -1,5 +1,2 @@
-/* 子コンポーネントへのCSS Custom Properties(Shadow DOM貫通) */
-:host {
-  --number-input-table-margin: 0;
-  --cell-saved-highlight: #ffffcc;
-}
+@import 'c/f003GsV0000CommonCss';
+@import 'c/f003RgV0000CommonCss';

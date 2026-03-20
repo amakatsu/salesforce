@@ -148,14 +148,13 @@
 .column-label { width: 10rem; }
 
 /* --- アイコン列(▶/▼ボタン) ---
-   slds-table_cell-bufferの0.5rem paddingだと広すぎるので詰める。
-   SLDSの内部paddingを上書きするので!importantが必要 */
+   SLDSクラス(slds-table_cell-buffer)のpaddingを、ボタン列用に詰めるため!importantで上書き */
 .has-icon-column th:nth-child(1),
 .has-icon-column td:nth-child(1) {
   width: 1.5rem; padding-left: 0.25rem !important; padding-right: 0 !important;
 }
 
-/* ボタンアイコンの位置微調整。!importantはlightning-button-iconの内部スタイル上書き用 */
+/* lightning-button-iconのmarginを、ボタンを左寄せにするため!importantで上書き */
 .has-icon-column th:nth-child(1) lightning-button-icon,
 .has-icon-column td:nth-child(1) lightning-button-icon { margin-left: 0.25rem !important; display: block; }
 
@@ -190,9 +189,6 @@
    6. 担保種類セル
    ═══════════════════════════════════════════════════════════════ */
 
-/* 長い担保名(例:「不動産根抵当権設定(工場財団)」)を折り返して全文見せる */
-.collateral-label { word-wrap: break-word; white-space: normal; }
-
 /* 担保名とアイコンの間にgapで隙間を作る */
 .collateral-label-container { gap: 0.25rem; }
 
@@ -200,8 +196,9 @@
    7. レイアウト補助
    ═══════════════════════════════════════════════════════════════ */
 
-/* ツリーのルート行にインデントを付けて階層を見せる */
-.tree-indent-root { padding-left: 0.35rem; }
+/* SLDSクラス(slds-table_cell-buffer)のpaddingを、ツリーのインデント用に変更するため!importantで上書き */
+.tree-indent-root { padding-left: 0.35rem !important; }
+.tree-indent-child { padding-left: 0.75rem !important; }
 
 /* lightning-card を lightning-layout-item 内で高さ100%に伸ばす */
 .panel-fill { flex: 1; }

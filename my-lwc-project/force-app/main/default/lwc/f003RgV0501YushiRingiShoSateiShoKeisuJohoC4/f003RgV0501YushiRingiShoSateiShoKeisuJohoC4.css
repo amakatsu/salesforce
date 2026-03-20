@@ -6,10 +6,7 @@
    1. テーブル共通(市場性与信・為替予約の2テーブル)
    ═══════════════════════════════════════════════════════════════ */
 
-/* C4のテーブルはスクロールしない。罫線が自動共有されるため、
-   全セルに同じ罫線を指定するだけで格子線が完成する。
-   データ量が変わっても列幅がぶれないよう固定する */
-.data-table { border-collapse: collapse; table-layout: fixed; }
+/* カスタム罫線色(#999)を使うため、SLDSの標準罫線を上書きする */
 .data-table th, .data-table td { border: 1px solid #999; }
 
 /* 列ヘッダは中央揃え。長い項目名は折り返して全文表示する */
@@ -18,19 +15,18 @@
   white-space: normal; overflow-wrap: break-word;
 }
 
-/* セルの背景を白にしてヘッダと区別する。
-   余白は入力部品が自前で持つため、セル側は0にして二重余白を防ぐ */
-.data-table td { padding: 0; background: #fff; }
+/* セルの背景を白にしてヘッダと区別する */
+.data-table td { background: #fff; }
 
-/* 行ヘッダ(項目名)は左寄せ。太字にしない */
-.data-table tbody th { text-align: left; font-weight: normal; }
+/* 行ヘッダ(項目名)は左寄せ。太字にしない。
+   テキストが左端に詰まらないよう余白を確保する */
+.data-table tbody th { text-align: left; font-weight: normal; padding-left: 0.5rem; }
 
 /* ═══════════════════════════════════════════════════════════════
    2. インデント
    ═══════════════════════════════════════════════════════════════ */
 
-/* ルート行/子行にインデントを付けて階層を表現する */
-.tree-indent-root { padding-left: 0.35rem !important; }
+/* .data-table tbody th の padding-left を、子行のインデントのため !important で上書き */
 .tree-indent-child { padding-left: 0.75rem !important; }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -51,9 +47,5 @@
    4. セル表示
    ═══════════════════════════════════════════════════════════════ */
 
-/* 与信種類名が長い場合に折り返して全文表示する */
-.credit-label { overflow-wrap: break-word; white-space: normal; }
-
 /* 数値入力部品の余白を消して、セル内に隙間なく配置する */
 c-f003-gs-v0000-number { margin: 0; padding: 0; display: block; }
-
