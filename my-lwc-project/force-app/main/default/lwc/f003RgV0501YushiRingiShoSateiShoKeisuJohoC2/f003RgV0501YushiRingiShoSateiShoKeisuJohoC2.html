@@ -1,8 +1,8 @@
 <template>
   <lightning-accordion allow-multiple-sections-open active-section-name={activeSections}>
-    <lightning-layout multiple-rows>
+    <div class="slds-grid slds-wrap">
       <!-- 与信状況 -->
-      <lightning-layout-item size="9" class="slds-grid slds-grid_vertical slds-var-p-right_large">
+      <div class="slds-col slds-size_9-of-12 slds-grid slds-grid_vertical slds-var-p-right_large">
         <lightning-card class="panel-fill">
           <div class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none slds-grid_vertical-align-end">
             <div class="slds-p-around_none slds-m-around_none">
@@ -150,10 +150,10 @@
             </div>
           </div>
         </lightning-card>
-      </lightning-layout-item>
+      </div>
 
       <!-- 保全状況(本件後) + 保証人 -->
-      <lightning-layout-item size="3" class="slds-grid slds-grid_vertical">
+      <div class="slds-col slds-size_3-of-12 slds-grid slds-grid_vertical">
         <lightning-card class="panel-fill">
           <div class="slds-grid slds-grid_align-spread slds-wrap slds-p-around_none slds-m-around_none slds-grid_vertical-align-end">
             <div class="slds-p-around_none slds-m-around_none">
@@ -248,7 +248,7 @@
             </table>
           </div>
         </lightning-card>
-      </lightning-layout-item>
-    </lightning-layout>
+      </div>
+    </div>
   </lightning-accordion>
 </template>

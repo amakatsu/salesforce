@@ -137,9 +137,6 @@
   box-sizing: border-box; max-height: calc(10rem - 20px);
 }
 
-/* 保証人名が長い場合に備えて15em確保 */
-.table-container-guarantor tbody td lightning-input { width: 15em; }
-
 /* ═══════════════════════════════════════════════════════════════
    5. 列幅・セル
    ═══════════════════════════════════════════════════════════════ */

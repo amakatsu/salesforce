@@ -1,7 +1,7 @@
 <template>
-  <lightning-layout multiple-rows>
+  <div class="slds-grid slds-wrap">
     <!-- テーブル① 市場性与信状況 -->
-    <lightning-layout-item size="12">
+    <div class="slds-col slds-size_12-of-12">
       <lightning-card>
         <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
           <div>
@@ -60,10 +60,10 @@
           </tbody>
         </table>
       </lightning-card>
-    </lightning-layout-item>
+    </div>
 
     <!-- テーブル② 為替予約残高推移 -->
-    <lightning-layout-item size="12">
+    <div class="slds-col slds-size_12-of-12">
       <lightning-card>
         <div class="slds-size_8-of-12">
           <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
@@ -103,6 +103,6 @@
           </table>
         </div>
       </lightning-card>
-    </lightning-layout-item>
-  </lightning-layout>
+    </div>
+  </div>
 </template>
