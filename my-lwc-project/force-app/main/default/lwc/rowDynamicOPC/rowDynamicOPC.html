@@ -6,7 +6,7 @@
   <lightning-card>
     <div class="slds-grid slds-wrap slds-var-p-top_small">
       <!-- テーブルコンテナ（CSSでスクロール制御） -->
-      <div class="table-container">
+      <div class="table-container slds-scrollable">
         <table class="slds-table slds-table_bordered slds-table_fixed-layout">
           <!-- ========================================
           * 列幅定義（CSS変数で自動同期）
@@ -46,11 +46,7 @@
                 <div class="slds-truncate" title="選択">
                   <lightning-input
                     type="checkbox"
-                    onchange="
-                      {
-                        handleSelectFullCheck;
-                      }
-                    "
+                    onchange={handleSelectFullCheck}
                     variant="label-hidden"
                   ></lightning-input>
                 </div>
@@ -130,11 +126,7 @@
                     type="checkbox"
                     checked="{data.checked}"
                     data-idx="{idx}"
-                    onchange="
-                      {
-                        handleRowSelection;
-                      }
-                    "
+                    onchange={handleRowSelection}
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -150,11 +142,7 @@
                     value="{data.num1}"
                     data-id="{data.Id}"
                     data-field="num1"
-                    onchange="
-                      {
-                        handleInputChange;
-                      }
-                    "
+                    onchange={handleInputChange}
                     variant="label-hidden"
                     required
                   ></lightning-input>
@@ -176,11 +164,7 @@
                     value="{data.str1}"
                     data-id="{data.Id}"
                     data-field="str1"
-                    onchange="
-                      {
-                        handleInputChange;
-                      }
-                    "
+                    onchange={handleInputChange}
                     variant="label-hidden"
                     required
                   ></lightning-input>
@@ -202,11 +186,7 @@
                     checked="{data.dataCheck}"
                     data-id="{data.Id}"
                     data-field="dataCheck"
-                    onchange="
-                      {
-                        handleInputChange;
-                      }
-                    "
+                    onchange={handleInputChange}
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -218,11 +198,7 @@
                     options="{reviewResultOptions}"
                     data-id="{data.Id}"
                     data-field="ReviewResult"
-                    onchange="
-                      {
-                        handleInputChange;
-                      }
-                    "
+                    onchange={handleInputChange}
                     variant="label-hidden"
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
@@ -235,11 +211,7 @@
                     options="{subjectOptions}"
                     data-id="{data.Id}"
                     data-field="Subject"
-                    onchange="
-                      {
-                        handleInputChange;
-                      }
-                    "
+                    onchange={handleInputChange}
                     variant="label-hidden"
                     dropdown-alignment="bottom"
                   ></lightning-combobox>
@@ -252,11 +224,7 @@
                     value="{data.date1}"
                     data-id="{data.Id}"
                     data-field="date1"
-                    onchange="
-                      {
-                        handleInputChange;
-                      }
-                    "
+                    onchange={handleInputChange}
                     variant="label-hidden"
                   ></lightning-input>
                 </td>
@@ -268,11 +236,7 @@
                     value="{data.date2}"
                     data-id="{data.Id}"
                     data-field="date2"
-                    onchange="
-                      {
-                        handleInputChange;
-                      }
-                    "
+                    onchange={handleInputChange}
                     variant="label-hidden"
                     readonly
                   ></lightning-input>

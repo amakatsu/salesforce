@@ -49,17 +49,12 @@
 /* テーブルを囲む箱 */
 .table-container {
   max-height: var(--table-max-height); /* この高さを超えたら縦スクロール */
-  overflow-y: auto; /* 縦スクロールバーを表示 */
-  overflow-x: auto; /* 横スクロールバーを表示 */
-  min-width: 100%; /* 親要素の幅は最低限確保 */
+  min-width: 100%; /* 親がflexコンテナのため、全幅確保に必要 */
 }
 
 /* テーブル本体の基本設定 */
 .table-container .slds-table {
-  table-layout: fixed; /* HTMLのstyle指定で指定した列幅を厳密に守る */
-  width: max-content; /* 横スクロールができるよう、必要な分だけ幅を取る */
-  min-width: 100%; /* 最低限の幅は確保 */
-  max-width: none; /* 最大幅の制限なし */
+  width: max-content; /* 横スクロールができるよう、列幅合計分の幅を確保 */
 }
 
 /* ========================================
@@ -85,16 +80,15 @@
 
 /* ヘッダーセル共通の設定 */
 .table-container .slds-table thead th {
-  position: sticky; /* 各ヘッダーセルを画面に固定 */
+  position: sticky; /* 縦スクロール時にヘッダーを画面上部に固定するため */
   top: 0; /* 画面最上部に固定 */
   height: var(--hdr-height); /* ヘッダーの高さ */
-  background-color: var(--fixed-bg-color); /* 固定時の背景色（データと区別） */
-  border-top: var(--border-thin) solid var(--border-color);
+  background-color: var(--fixed-bg-color); /* 固定列・ヘッダーの背景色を一元管理するため */
+  border-top: var(--border-thin) solid var(--border-color); /* テーブルのボーダー色・太さを一元管理するため */
   border-bottom: var(--border-thin) solid var(--border-color);
   border-right: var(--border-thin) solid var(--border-color);
-  font-weight: normal;
+  font-weight: normal; /* ヘッダーを通常太さで表示するため */
   z-index: var(--z-header-normal); /* 通常ヘッダーの重なり順序 */
-  box-sizing: border-box;
 }
 
 /* ========================================

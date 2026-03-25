@@ -67,7 +67,7 @@ export function generateMockData(count = 3) {
   return Array.from({ length: count }, (_, i) => ({
     Id: `${i + 1}`.padStart(3, "0"),
     label: `横ラベル${i + 1}`,
-    num1: 7777777 + i * 1111111,
+    num1: 99999999,
     num2: -7777777 - i * 1111111,
     str1: `サンプル参照テキスト${i + 1}`,
     str2: `サンプル入力テキスト${i + 1}`,

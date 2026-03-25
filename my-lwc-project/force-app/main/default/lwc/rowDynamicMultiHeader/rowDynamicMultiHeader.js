@@ -1,4 +1,4 @@
-import { LightningElement, api, track } from "lwc";
+import { LightningElement, api } from "lwc";
 import {
   generateMockData,
   REVIEW_RESULT_OPTIONS,
@@ -50,7 +50,7 @@ export default class RowDynamicMultiHeader extends LightningElement {
   @api tableData = [];
 
   /** 編集可能テーブルデータ（変更追跡用） */
-  @track editableTableData = [];
+  editableTableData = [];
 
   /** 選択された行のインデックス配列 */
   selectedRows = [];

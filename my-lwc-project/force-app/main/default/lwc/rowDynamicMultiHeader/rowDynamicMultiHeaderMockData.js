@@ -96,7 +96,7 @@ export function generateMockData(count = 3) {
     checked: false, // 行選択用（UI表示のみ）
 
     // 1行目データ（上段）
-    num1: 1000000 + i * 100000,
+    num1: 99999999,
     num2: -2000000 - i * 200000,
     str1: `入力文字列1-${i + 1}`,
     str2: `表示文字列2-${i + 1}`,
