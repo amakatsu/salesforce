@@ -1,4 +1,4 @@
-package jp.co.btm.irl.rlr.rg004.dto;
+package jp.co.btm.irl.rlr.rg004.dto.item;
 
 /**
  * 担保項目の1行分データ（種別キー付き）

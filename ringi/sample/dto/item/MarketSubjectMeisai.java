@@ -1,4 +1,4 @@
-package jp.co.btm.irl.rlr.rg004.dto;
+package jp.co.btm.irl.rlr.rg004.dto.item;
 
 /**
  * 市場性与信科目明細の1行分データ

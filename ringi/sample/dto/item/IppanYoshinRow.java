@@ -1,4 +1,4 @@
-package jp.co.btm.irl.rlr.rg004.dto;
+package jp.co.btm.irl.rlr.rg004.dto.item;
 
 /**
  * 一般与信の1行分データ（種別キー付き）
