@@ -4,34 +4,35 @@
 > 設計原則:
 > - 引数DTOはイミュータブル（読み取り専用）
 > - ユーザID等はコンテキストから取得（DTOに含めない）
-> - **配列の使い分け**:
->   - 禁止: 意味の異なる項目をインデックスで区別する配列（例: [0]=貸付金合計, [1]=内円貨）
->   - 許可: 業務的に同じ構造の繰り返し明細（例: 貸付金明細1〜12 → `List<KashitsukeMeisai>`）
->   - 判断基準: 各要素の意味が同じ構造か？ YES→List OK、NO→個別フィールド
->   - **List要素には必ずキー値（明細番号・種別コード等）を含めること。キーなしの配列は禁止**
+> - **Listの設計方針**:
+>   - 横軸（列構造）が同じデータは**合計行・小計行を含めて全てListの1要素**にする
+>   - 合計・小計は種別キー=「合計」「小計」の要素として持つ。個別フィールドで合計を持つのは禁止
+>   - List要素には必ずキー値（業務種別名）を含めること。連番・キーなし禁止
+>   - 判断基準: 画面の1行の列 = DTOのフィールド、行の繰り返し = List
 
 ---
 
 ## 明細用サブDTO定義
 
-### KashitsukeMeisai（貸付金明細）
+### IppanYoshinRow（一般与信行）
 
-一般与信の貸付金明細1〜12で共通の構造。キーは科目コード（業務名）。
+一般与信状況の1行分。貸付金明細行・外為科目行・支払承諾行・合計行・小計行すべてこの型で統一。画面の横軸（列）=フィールド。
 
 | フィールド名 | 型 | 説明 |
 |---|---|---|
-| kamokuCode | String | 科目コード（業務名。例: "tegata_kashitsuke", "shogyou_tegata", "overdraft" 等。現行の科目名F_KMK_RMTに対応） |
+| rowType | String | 行種別（"meisai"=明細行, "shototal"=小計行, "total"=合計行） |
+| rowKey | String | 行キー（業務種別名。例: "kashitsuke_meisai_1", "kashitsuke_shote_total", "uchi_enka", "gaitame_total", "gaitame_shitei_gai_lc", "shisho_ippan", "shisho_total", "shibosai", "on_balance_total", "off_balance_total", "gendo_sannyu_total", "gendo_fusannyu_total", "ippan_yoshin_total" 等） |
 | kyodogaku | Long | 極度額 |
 | honkengoZandaka | Long | 本件後残高 |
 | getsumatsuZandaka | Long | 指定月末残高 |
 | jisseiZandaka | Long | 実勢現在残高 |
 | tougetsZougen | Long | 当月増減額 |
-| bunruiCode | String | 分類コード |
-| kamokuName | String | 科目名（表示用） |
-| kijitsu | String | 期日 |
-| riritsu | String | 利率 |
-| hoseiValue | Long | 補正値 |
-| rinsaNo | String | 禀査番号 |
+| bunruiCode | String | 分類コード（明細行のみ） |
+| kamokuName | String | 科目名・表示用（明細行のみ） |
+| kijitsu | String | 期日（明細行のみ） |
+| riritsu | String | 利率（明細行のみ） |
+| hoseiValue | Long | 補正値（補正対象行のみ） |
+| rinsaNo | String | 禀査番号（明細行のみ） |
 
 ### ShijoKamokuMeisai（市場性与信科目明細）
 
@@ -129,52 +130,19 @@
 | shuekiYoriShifusaiCf | Long | 収益より資金繰CF |
 | tokiGensyoJisseiGaku | Long | 当期減少実績額 |
 
-### TanpoShototalItem（担保小計項目）
+### HikiateRow（引当状況行）
 
-担保区分ごとの小計。規定・優良小計/規定・一般小計/規定・その他小計/規定外・優良小計/規定外・一般小計で共通の構造。
+本件後引当状況の1行分。担保明細行・小計行・合計行・補正値行・裸与信行すべてこの型で統一。画面の横軸（列）=フィールド。
 
 | フィールド名 | 型 | 説明 |
 |---|---|---|
-| shubetsu | String | 小計種別（"kitei_yuryo_shototal", "kitei_ippan_shototal", "kitei_sonota_shototal", "kiteigai_yuryo_shototal", "kiteigai_ippan_shototal"） |
+| rowType | String | 行種別（"meisai"=明細, "shototal"=小計, "total"=合計, "hosei"=補正値, "hadaka"=裸与信） |
+| rowKey | String | 行キー（業務種別名。例: "kitei_yuryo_yokin", "kitei_yuryo_shototal", "kitei_tanpo_total", "kitei_tanpo_hosei", "hadaka_yoshin", "kiteigai_yuryo_yokin", "kiteigai_total" 等） |
 | kiteitiValue | Long | 規定値 |
 | jikaValue | Long | 時価ベース |
 
-### TanpoItem（担保項目）
-
-引当状況の各担保項目。規定・優良/規定・一般/規定・その他/規定外・優良/規定外・一般の各区分で共通の構造。
-
-| フィールド名 | 型 | 説明 |
-|---|---|---|
-| tanpoKubun | String | 担保区分（"kitei_yuryo", "kitei_ippan", "kitei_sonota", "kiteigai_yuryo", "kiteigai_ippan"） |
-| tanpoShubetsu | String | 担保種別（"yokin", "shote", "tante", "yusho", "kyokai_hosho", "hosho", "ippan_lc", "tegata_hoken", "ikkatsu_shiharai", "fudosan_tei", "fudosan_tei_hloan", "fudosan_ne", "df_hosho", "dhcdc_hosho", "nyukyo_hoshokin", "saiken", "sonota"） |
-| kiteitiValue | Long | 規定値 |
-| jikaValue | Long | 時価ベース |
-
-### ShiharaiShodakuItem（支払承諾項目）
-
-支払承諾の各種別で共通の構造。4指標+当月増減額。
-
-| フィールド名 | 型 | 説明 |
-|---|---|---|
-| shubetsu | String | 種別（"ippan", "ippan_gaita", "dairi_kasitsuki"） |
-| kyodogaku | Long | 極度額 |
-| honkengoZandaka | Long | 本件後残高 |
-| getsumatsuZandaka | Long | 指定月末残高 |
-| jisseiZandaka | Long | 実勢現在残高 |
-| tougetsZougen | Long | 当月増減額 |
-
-### GaitameMeisai（外為与信明細）
-
-外為与信の各科目で共通の構造。
-
-| フィールド名 | 型 | 説明 |
-|---|---|---|
-| kamokuCode | String | 科目コード（"shitei_gai_lc", "dp_da", "gaika_kitte", "yusyu_shototal", "kasidashi_yusyu", "yunyu_lc", "usance", "lg", "yunyu_shototal", "kasidashi_yunyu", "kosho_lc", "usan_shift"） |
-| kyodogaku | Long | 極度額 |
-| honkengoZandaka | Long | 本件後残高 |
-| getsumatsuZandaka | Long | 指定月末残高 |
-| jisseiZandaka | Long | 実勢現在残高 |
-| tougetsZougen | Long | 当月増減額 |
+※ 旧TanpoItem・TanpoShototalItemを統合。合計・小計・補正値・裸与信も全てListの1要素として持つ。
+※ 外為与信明細・支払承諾明細は IppanYoshinRow に統合済み（一般与信タブの行として管理）。
 
 ### Hosyonin（保証人）
 
@@ -206,17 +174,58 @@
 
 ## 2. ホスト計数情報DTO
 
-ホストから取得した計数情報。
+ホストから取得した計数情報。画面タブ単位でサブ構造を持つ。
 
-### 2.1 一般与信状況
+### 2.1 一般与信状況（全行を統一型のListで管理）
 
-**繰り返し明細（List）**
+| フィールド名 | 型 | 説明 |
+|---|---|---|
+| ippanYoshinRowList | List\<IppanYoshinRow\> | 一般与信状況の全行。貸付金明細12行+合計行+外為科目行+支払承諾行+その他全てをrowKeyで区別 |
 
-| フィールド名 | 型 | 説明 | 現行対応 |
+ippanYoshinRowListに含まれるrowKey一覧:
+
+| rowType | rowKey | 説明 | 現行定数 |
 |---|---|---|---|
-| kashitsukeMeisaiList | List\<KashitsukeMeisai\> | 貸付金明細1〜12（12要素） | F_LMT[V_KEISU_KASHISHO_MEISAI1_BAP〜12_BAP]等 |
+| meisai | kashitsuke_meisai_1〜12 | 貸付金明細1〜12 | V_KEISU_KASHISHO_MEISAI1_BAP〜12_BAP |
+| total | kashitsuke_shote_total | 貸付金・商手合計 | V_KEISU_KASHISHO_TOT_BAP |
+| meisai | uchi_enka | 内円貨 | V_KEISU_UCHIENKA_BAP |
+| meisai | gaitame_shitei_gai_lc | 指定外L/C | V_KEISU_GAITAME_SHITEIGAILC_BAP |
+| meisai | gaitame_dp_da | D/P・D/A | V_KEISU_GAITAME_DPDA_BAP |
+| meisai | gaitame_gaika_kitte | 外貨小切手 | V_KEISU_GAITAME_GAIKAKITTE_BAP |
+| shototal | gaitame_yusyu_shototal | 輸出(小計) | V_KEISU_GAITAME_YUSYU_STOT_BAP |
+| meisai | gaitame_kasidashi_yusyu | 貸出(輸出) | V_KEISU_GAITAME_KSDS_YUSYU_BAP |
+| meisai | gaitame_yunyu_lc | 輸入L/C | V_KEISU_GAITAME_YUNYULC_BAP |
+| meisai | gaitame_usance | ユーザンス | V_KEISU_GAITAME_USANCE_BAP |
+| meisai | gaitame_lg | L/G | V_KEISU_GAITAME_LG_BAP |
+| shototal | gaitame_yunyu_shototal | 輸入(小計) | V_KEISU_GAITAME_YUNYU_STOT_BAP |
+| meisai | gaitame_kasidashi_yunyu | 貸出(輸入) | V_KEISU_GAITAME_KSDS_YUNYU_BAP |
+| meisai | gaitame_kosho_lc | 故障指定L/C | V_KEISU_GAITAME_KOSHOLC_BAP |
+| meisai | gaitame_usan_shift | ユーザンスシフト外貨 | V_KEISU_GAITAME_USANSHIFT_BAP |
+| total | gaitame_total | 外為与信合計 | V_KEISU_GAITAME_TOT_BAP |
+| meisai | shisho_ippan | 支承・一般 | V_KEISU_SHISHO_IPAN_BAP |
+| meisai | shisho_ippan_gaita | 支承・一般外為 | V_KEISU_SHISHO_IPANGAITA_BAP |
+| meisai | shisho_dairi_kasitsuki | 代理貸付 | V_KEISU_SHISHO_DAIRIKSTK_BAP |
+| total | shisho_total | 支払承諾合計 | V_KEISU_SHISHO_TOT_BAP |
+| meisai | shibosai | 私募債 | V_KEISU_SHIBOSAI_BAP |
+| meisai | kyohogashi | 協保貸 | V_KEISU_KYOHOGASHI_BAP |
+| meisai | ippan_yoshin_sonota | その他一般与信 | V_KEISU_IPNYSSNT_BAP |
+| meisai | gendo_loan_total | 限度算入ローン合計 | V_KEISU_GENDOLOAN_TOT_BAP |
+| total | on_balance_total | オンバランス合計 | V_KEISU_ONBALANCE_TOT_BAP |
+| total | off_balance_total | オフバランス合計 | V_KEISU_OFFBALANCE_TOT_BAP |
+| total | gendo_sannyu_total | 限度算入与信合計 | F_LMT_TOT[V_KEISU_GENDOSAN_TOT_BAP] |
+| total | gendo_fusannyu_total | 限度不算入与信合計 | V_KEISU_GNDFUSAN_TOT_BAP |
+| meisai | gendo_fusannyu_nenkin | 年金転貸 | V_KEISU_GNDFUSAN_NENKIN_BAP |
+| meisai | gendo_fusannyu_sitei_lc | 指定L/C小切手 | V_KEISU_GNDFUSAN_SITEILC_BAP |
+| meisai | gendo_fusannyu_lg | L/G | V_KEISU_GNDFUSAN_LG_BAP |
+| total | ippan_yoshin_total | 一般与信合計 | V_KEISU_IPPANYSN_TOT_BAP |
+| meisai | sonota_yoshin_1 | 特定与信1 | V_KEISU_SONOTA_YSN1_BAP |
+| meisai | sonota_yoshin_2 | 特定与信2 | V_KEISU_SONOTA_YSN2_BAP |
+| total | sonota_yoshin_total | 特定与信合計 | V_KEISU_SONOTA_TOT_BAP |
+| meisai | hl_shinyo_fusannyu | 内HL信用不算入 | V_KEISU_HLSHINYOFUSANNYU_BAP |
 
-**合計・小計・個別科目（意味が異なるため個別フィールド）**
+**補正値（4項目、個別フィールド → 各行のhoseiValueフィールドで管理）**
+
+補正値はippanYoshinRowListの該当行（rowKey=kashitsuke_shote_total/uchi_enka/gaitame_total/shisho_total）のhoseiValueフィールドに格納する。
 
 | フィールド名 | 型 | 説明 | 現行定数 |
 |---|---|---|---|
@@ -234,100 +243,80 @@
 | gaitameTotalTougetsZougen | Long | 外為与信合計 当月増減額 | 同 |
 | gaitameMeisaiList | List\<GaitameMeisai\> | 外為与信明細（kamokuCodeキー: shitei_gai_lc, dp_da, gaika_kitte, yusyu_shototal, kasidashi_yusyu, yunyu_lc, usance, lg, yunyu_shototal, kasidashi_yunyu, kosho_lc, usan_shift） | V_KEISU_GAITAME_*_BAP |
 | shishoTotalKyodogaku | Long | 支払承諾合計 極度額 | V_KEISU_SHISHO_TOT_BAP |
-| shishoTotalHonkengoZandaka | Long | 支払承諾合計 本件後残高 | 同 |
-| shishoTotalGetsumatsuZandaka | Long | 支払承諾合計 月末残高 | 同 |
-| shishoTotalJisseiZandaka | Long | 支払承諾合計 実勢現在残高 | 同 |
-| shishoTotalTougetsZougen | Long | 支払承諾合計 当月増減額 | 同 |
-| shiharaiShodakuItemList | List\<ShiharaiShodakuItem\> | 支払承諾明細（shubetsuキー: ippan, ippan_gaita, dairi_kasitsuki） | V_KEISU_SHISHO_*_BAP |
-| shibosaiKyodogaku | Long | 私募債 極度額 | V_KEISU_SHIBOSAI_BAP |
-| shibosaiHonkengoZandaka | Long | 私募債 本件後残高 | 同 |
-| shibosaiTougetsZougen | Long | 私募債 当月増減額 | 同 |
-| kyohogashiHonkengoZandaka | Long | 協保貸 本件後残高 | V_KEISU_KYOHOGASHI_BAP |
-| ippanYoshinSonotaHonkengoZandaka | Long | その他一般与信 本件後残高 | V_KEISU_IPNYSSNT_BAP |
-| gendoLoanTotalKyodogaku | Long | 限度算入ローン合計 極度額 | V_KEISU_GENDOLOAN_TOT_BAP |
-| gendoLoanTotalHonkengoZandaka | Long | 限度算入ローン合計 本件後残高 | 同 |
-| gendoLoanTotalTougetsZougen | Long | 限度算入ローン合計 当月増減額 | 同 |
-| onBalanceTotalKyodogaku | Long | オンバランス合計 極度額 | V_KEISU_ONBALANCE_TOT_BAP |
-| onBalanceTotalHonkengoZandaka | Long | オンバランス合計 本件後残高 | 同 |
-| onBalanceTotalTougetsZougen | Long | オンバランス合計 当月増減額 | 同 |
-| offBalanceTotalKyodogaku | Long | オフバランス合計 極度額 | V_KEISU_OFFBALANCE_TOT_BAP |
-| offBalanceTotalHonkengoZandaka | Long | オフバランス合計 本件後残高 | 同 |
-| offBalanceTotalTougetsZougen | Long | オフバランス合計 当月増減額 | 同 |
-| gendoSannyuTotalKyodogaku | Long | 限度算入与信合計 極度額 | F_LMT_TOT[V_KEISU_GENDOSAN_TOT_BAP] |
-| gendoSannyuTotalHonkengoZandaka | Long | 限度算入与信合計 本件後残高 | F_HONAF_ZAN_TOT[同] |
-| gendoSannyuTotalTougetsZougen | Long | 限度算入与信合計 当月増減額 | F_IPNYSNDLTZGG_TOT[同] |
-| gendoFusannyuTotalKyodogaku | Long | 限度不算入与信合計 極度額 | V_KEISU_GNDFUSAN_TOT_BAP |
-| gendoFusannyuTotalHonkengoZandaka | Long | 限度不算入与信合計 本件後残高 | 同 |
-| ippanYoshinTotalKyodogaku | Long | 一般与信合計 極度額 | V_KEISU_IPPANYSN_TOT_BAP |
-| ippanYoshinTotalHonkengoZandaka | Long | 一般与信合計 本件後残高 | 同 |
-| ippanYoshinTotalTougetsZougen | Long | 一般与信合計 当月増減額 | 同 |
-| sonotaYoshinTotalHonkengoZandaka | Long | 特定与信合計 本件後残高 | V_KEISU_SONOTA_TOT_BAP |
-| sonotaYoshin1HonkengoZandaka | Long | 特定与信1 本件後残高 | V_KEISU_SONOTA_YSN1_BAP |
-| sonotaYoshin2HonkengoZandaka | Long | 特定与信2 本件後残高 | V_KEISU_SONOTA_YSN2_BAP |
-| hlShinyoFusannyuHonkengoZandaka | Long | 内HL信用不算入 本件後残高 | V_KEISU_HLSHINYOFUSANNYU_BAP |
+※ 上記ippanYoshinRowListに合計行・小計行・補正値を含めて全て統一管理。個別フィールドなし。
 
-**補正値（意味が異なる4項目→個別フィールド）**
-
-| フィールド名 | 型 | 説明 | 現行定数 |
-|---|---|---|---|
-| hoseiKashitsukeShokeTotal | Long | 貸付金・商手合計 補正値 | F_HOSCH[V_KEISU_KASHISHO_TOT_BAP] |
-| hoseiUchiEnka | Long | 内円貨 補正値 | F_HOSCH[V_KEISU_UCHIENKA_BAP] |
-| hoseiGaitameTotal | Long | 外為与信合計 補正値 | F_HOSCH[V_KEISU_GAITAME_TOT_BAP] |
-| hoseiShishoTotal | Long | 支払承諾合計 補正値 | F_HOSCH[V_KEISU_SHISHO_TOT_BAP] |
-
-### 2.2 本件後引当状況（同構造の担保明細→List\<TanpoItem\> + 合計は個別フィールド）
-
-**担保明細（同構造の繰り返し→List\<TanpoItem\>）**
+### 2.2 本件後引当状況（全行をHikiateRowのListで管理）
 
 | フィールド名 | 型 | 説明 |
 |---|---|---|
-| tanpoItemList | List\<TanpoItem\> | 全担保明細。tanpoKubun+tanpoShubetsuが複合キー |
+| hikiateRowList | List\<HikiateRow\> | 引当状況の全行。担保明細+小計+合計+補正値+裸与信をrowKeyで区別 |
 
-tanpoKubun × tanpoShubetsu の組み合わせ:
+hikiateRowListに含まれるrowKey一覧:
 
-| tanpoKubun | tanpoShubetsu 一覧 | 現行定数 |
-|---|---|---|
-| kitei_yuryo | yokin, shote, tante, yusho, kyokai_hosho, hosho, ippan_lc, tegata_hoken, ikkatsu_shiharai, sonota | V_KEISU_KTI_YUTNP_*_BAP |
-| kitei_ippan | yusho, hosho, fudosan_tei, fudosan_tei_hloan, fudosan_ne, df_hosho, sonota | V_KEISU_KTI_IPNTNP_*_BAP |
-| kitei_sonota | yusho, hosho, dhcdc_hosho, sonota | V_KEISU_KTI_SNTTNP_*_BAP |
-| kiteigai_yuryo | yokin, yusho, hosho, sonota | V_KEISU_KTIG_YUTNP_*_BAP |
-| kiteigai_ippan | yusho, hosho, fudosan_tei, fudosan_ne, nyukyo_hoshokin, saiken, sonota | V_KEISU_KTIG_IPNTNP_*_BAP |
-
-**小計（同構造の繰り返し→List\<TanpoShototalItem\>）**
-
-| フィールド名 | 型 | 説明 |
-|---|---|---|
-| tanpoShototalItemList | List\<TanpoShototalItem\> | 担保区分ごとの小計（shubetsuキー: kitei_yuryo_shototal, kitei_ippan_shototal, kitei_sonota_shototal, kiteigai_yuryo_shototal, kiteigai_ippan_shototal） |
-
-**合計・補正値・裸与信（意味が異なるため個別フィールド）**
-
-| フィールド名 | 型 | 説明 | 現行定数 |
+| rowType | rowKey | 説明 | 現行定数 |
 |---|---|---|---|
-| kiteiTanpoTotalKiteiti | Long | 規定担保合計（規定値） | V_KEISU_KTITNP_TOT_BAP |
-| kiteiTanpoTotalJika | Long | 規定担保合計（時価ベース） | 同 |
-| kiteiTanpoHoseiKiteiti | Long | 規定担保補正値（規定値） | V_KEISU_KTITNP_HOSCH_BAP |
-| kiteiTanpoHoseiJika | Long | 規定担保補正値（時価ベース） | 同 |
-| hadakaYoshinKiteiti | Long | 裸与信（規定値） | V_KEISU_STRCRE_BAP |
-| kiteigaiSonotaKiteiti | Long | 規定外・その他（規定値） | V_KEISU_KTIG_SONOTA_BAP |
-| kiteigaiSonotaJika | Long | 規定外・その他（時価ベース） | 同 |
-| kiteigaiTotalKiteiti | Long | 規定外担保合計（規定値） | V_KEISU_KTIG_TOT_BAP |
-| kiteigaiTotalJika | Long | 規定外担保合計（時価ベース） | 同 |
+| meisai | kitei_yuryo_yokin | 規定・優良・預金 | V_KEISU_KTI_YUTNP_YOKIN_BAP |
+| meisai | kitei_yuryo_shote | 規定・優良・商手 | V_KEISU_KTI_YUTNP_SYOTE_BAP |
+| meisai | kitei_yuryo_tante | 規定・優良・担手 | V_KEISU_KTI_YUTNP_TANTE_BAP |
+| meisai | kitei_yuryo_yusho | 規定・優良・有証 | V_KEISU_KTI_YUTNP_YUSYO_BAP |
+| meisai | kitei_yuryo_kyokai_hosho | 規定・優良・協会保証 | V_KEISU_KTI_YUTNP_KYOHO_BAP |
+| meisai | kitei_yuryo_hosho | 規定・優良・保証（除協会） | V_KEISU_KTI_YUTNP_HOSYO_BAP |
+| meisai | kitei_yuryo_ippan_lc | 規定・優良・一般L/C | V_KEISU_KTI_YUTNP_IPANLC_BAP |
+| meisai | kitei_yuryo_tegata_hoken | 規定・優良・手形保険 | V_KEISU_KTI_YUTNP_TEGATAHO_BAP |
+| meisai | kitei_yuryo_ikkatsu_shiharai | 規定・優良・一括支払 | V_KEISU_KTI_YUTNP_IKKATU_BAP |
+| meisai | kitei_yuryo_sonota | 規定・優良・その他 | V_KEISU_KTI_YUTNP_SONOTA_BAP |
+| shototal | kitei_yuryo_shototal | 規定・優良小計 | V_KEISU_KTI_YUTNP_STOT_BAP |
+| meisai | kitei_ippan_yusho | 規定・一般・有証 | V_KEISU_KTI_IPNTNP_YUSYO_BAP |
+| meisai | kitei_ippan_hosho | 規定・一般・保証 | V_KEISU_KTI_IPNTNP_HOSYO_BAP |
+| meisai | kitei_ippan_fudosan_tei | 規定・一般・不動産(抵) | V_KEISU_KTI_IPNTNP_FUDO_TEI_BAP |
+| meisai | kitei_ippan_fudosan_tei_hloan | 規定・一般・内HL(抵) | V_KEISU_KTI_IPNTNP_FUDOTE_HLOAN_BAP |
+| meisai | kitei_ippan_fudosan_ne | 規定・一般・不動産(根) | V_KEISU_KTI_IPNTNP_FUDO_NE_BAP |
+| meisai | kitei_ippan_df_hosho | 規定・一般・D/F保証 | V_KEISU_KTI_IPNTNP_DFHOSYO_BAP |
+| meisai | kitei_ippan_sonota | 規定・一般・その他 | V_KEISU_KTI_IPNTNP_SONOTA_BAP |
+| shototal | kitei_ippan_shototal | 規定・一般小計 | V_KEISU_KTI_IPNTNP_STOT_BAP |
+| meisai | kitei_sonota_yusho | 規定・その他・有証 | V_KEISU_KTI_SNTTNP_YUSYO_BAP |
+| meisai | kitei_sonota_hosho | 規定・その他・保証 | V_KEISU_KTI_SNTTNP_HOSYO_BAP |
+| meisai | kitei_sonota_dhcdc_hosho | 規定・その他・DHC・DC保証 | V_KEISU_KTI_SNTTNP_DHCDC_BAP |
+| meisai | kitei_sonota_sonota | 規定・その他・その他 | V_KEISU_KTI_SNTTNP_SONOTA_BAP |
+| shototal | kitei_sonota_shototal | 規定・その他小計 | V_KEISU_KTI_SNTTNP_STOT_BAP |
+| total | kitei_tanpo_total | 規定担保合計 | V_KEISU_KTITNP_TOT_BAP |
+| hosei | kitei_tanpo_hosei | 規定担保補正値 | V_KEISU_KTITNP_HOSCH_BAP |
+| hadaka | hadaka_yoshin | 裸与信 | V_KEISU_STRCRE_BAP |
+| meisai | kiteigai_yuryo_yokin | 規定外・優良・預金 | V_KEISU_KTIG_YUTNP_YOKIN_BAP |
+| meisai | kiteigai_yuryo_yusho | 規定外・優良・有証 | V_KEISU_KTIG_YUTNP_YUSYO_BAP |
+| meisai | kiteigai_yuryo_hosho | 規定外・優良・保証 | V_KEISU_KTIG_YUTNP_HOSYO_BAP |
+| meisai | kiteigai_yuryo_sonota | 規定外・優良・その他 | V_KEISU_KTIG_YUTNP_SONOTA_BAP |
+| shototal | kiteigai_yuryo_shototal | 規定外・優良小計 | V_KEISU_KTIG_YUTNP_STOT_BAP |
+| meisai | kiteigai_ippan_yusho | 規定外・一般・有証 | V_KEISU_KTIG_IPNTNP_YUSYO_BAP |
+| meisai | kiteigai_ippan_hosho | 規定外・一般・保証 | V_KEISU_KTIG_IPNTNP_HOSYO_BAP |
+| meisai | kiteigai_ippan_fudosan_tei | 規定外・一般・不動産(抵) | V_KEISU_KTIG_IPNTNP_FUDO_TEI_BAP |
+| meisai | kiteigai_ippan_fudosan_ne | 規定外・一般・不動産(根) | V_KEISU_KTIG_IPNTNP_FUDO_NE_BAP |
+| meisai | kiteigai_ippan_nyukyo_hoshokin | 規定外・一般・入居保証金 | V_KEISU_KTIG_IPNTNP_NYUKYO_BAP |
+| meisai | kiteigai_ippan_saiken | 規定外・一般・債券 | V_KEISU_KTIG_IPNTNP_SAIKEN_BAP |
+| meisai | kiteigai_ippan_sonota | 規定外・一般・その他 | V_KEISU_KTIG_IPNTNP_SONOTA_BAP |
+| shototal | kiteigai_ippan_shototal | 規定外・一般小計 | V_KEISU_KTIG_IPNTNP_STOT_BAP |
+| meisai | kiteigai_sonota | 規定外・その他 | V_KEISU_KTIG_SONOTA_BAP |
+| total | kiteigai_total | 規定外担保合計 | V_KEISU_KTIG_TOT_BAP |
 
-### 2.3 その他主要項目
+※ 合計・小計・補正値・裸与信もListの1要素。個別フィールドなし。
+
+### 2.3 その他（個別フィールド）
+
+計算入力に使われるが一般与信行・引当状況行のどちらにも属さない項目。
 
 | フィールド名 | 型 | 説明 | 現行Hashtableキー |
 |---|---|---|---|
-| kiteiYuryoTanpoShote | Long | 規定・優良担保・商手（規定値） | F_SUTNTE |
-| shijoGendoSannyuHonkengoZandaka | Long | 市場性与信_限度算入与信合計(本件後与信額) | F_LMTINTL_RN_HONAF_ZAN |
+| kiteiYuryoTanpoShote | Long | 規定・優良担保・商手（規定値）— 初期計算入力 | F_SUTNTE |
+| shijoGendoSannyuHonkengoZandaka | Long | 市場性与信・限度算入与信合計（本件後与信額） | F_LMTINTL_RN_HONAF_ZAN |
 | hadakaYoshinTaishoTotal | Long | 裸与信対象与信合計 | F_STRCRE_TSHO_TOT |
 | ippanYoshinTaniMsg | String | 一般与信1タブの金額単位 | F_TANI_MSG_1 |
 | shijoYoshinTaniMsg | String | 市場性与信1タブの金額単位 | F_SJOSEIINF_TANI_MSG_1 |
 
-### 2.4 市場性与信科目明細（同構造の繰り��し→List）
+### 2.4 市場性与信科目明細
 
 | フィールド名 | 型 | 説明 |
 |---|---|---|
-| shijoKamokuMeisaiList | List\<ShijoKamokuMeisai\> | 市場性与信科目明細1〜10（10要素） |
+| shijoKamokuMeisaiList | List\<ShijoKamokuMeisai\> | 市場性与信科目明細1〜10（10要素、科目コードキー） |
 
 ### 2.5 簡易CF
 
@@ -405,13 +394,21 @@ DBから取得した顧客財務関連データ。同構造の繰り返しはLis
 
 ## 5. 一般与信状況計算結果DTO
 
-computeYosin()の出力。DTO#2の一般与信部分と同一フィールド構造（補正適用・合計再計算後の値）。
+computeYosin()の出力。DTO#2セクション2.1と同一構造。
+
+| フィールド名 | 型 | 説明 |
+|---|---|---|
+| ippanYoshinRowList | List\<IppanYoshinRow\> | 一般与信状況の全行（補正適用・合計再計算・当月増減額再計算後の値）。rowKeyでDTO#2と同一キー体系 |
 
 ---
 
 ## 6. 本件後保全状況計算結果DTO
 
-computeKokyakuShutoku()+computeKokyaku()の出力。DTO#2の引当状況部分と同一フィールド構造（各小計・合計・裸与信の再計算後の値）。
+computeKokyakuShutoku()+computeKokyaku()の出力。DTO#2セクション2.2と同一構造。
+
+| フィールド名 | 型 | 説明 |
+|---|---|---|
+| hikiateRowList | List\<HikiateRow\> | 引当状況の全行（各小計・合計・裸与信が再計算後の値）。rowKeyでDTO#2と同一キー体系 |
 
 ---
 
@@ -475,8 +472,9 @@ computeHozen()��出力。各項目の意味が異なるため全て個別フ
 
 | 原則 | 適用 |
 |---|---|
-| 意味の異なる項目 → 個別フィールド | 合計・小計項目、各担保区分、補正値4項目、保全率7項目 |
-| 同構造の繰り返し → List | 貸付金明細12行、市場性与信科目明細10行、取推月次6ヶ月、単体財務3期、銀取上位3行、保証人5人 |
+| 横軸（列構造）が同じ → 合計行含めて全てList | 一般与信全行→List\<IppanYoshinRow\>、引当状況全行→List\<HikiateRow\> |
+| 合計・小計はListの1要素 | rowKey=「合計」「小計」の要素として持つ。個別フィールドで合計を持つのは禁止 |
+| 横軸が異なる → 個別フィールド | 保全率計算結果7項目、その他の計算入力項目 |
 | 引数DTOはイミュータブル | DTO#1〜4は読み取り専用 |
 | サービスインプットDTO非依存 | 各インナーは必要な値を個別引数で受け取る |
 | ユーザID等はコンテキスト | リクエストスコープから取得 |

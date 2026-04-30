@@ -1,34 +1,34 @@
 package jp.co.btm.irl.rlr.rg004.dto;
 
 /**
- * 市場性与信 科目明細の1行分データ
- * <p>市場性与信科目明細10行分の繰り返し構造。</p>
+ * 市場性与信科目明細の1行分データ
+ * <p>市場性与信科目明細1〜10で共通の構造。キーは科目コード。</p>
  */
 public class MarketSubjectMeisai {
 
-    /** 科目コード（業務的な識別キー） 例: "shijo_kamoku_01" 等 */
+    /** 科目コード（業務名。市場性与信の科目種別を識別するキー） */
     private String kamokuCode;
 
-    /** 指定月末残高 // 旧: F_MEND_ZAN_{N} */
-    private Long monthEndBalance;
+    /** 指定月末残高 */
+    private Long getsumatsuZandaka;
 
-    /** 指定月末極度額 // 旧: F_LMT_{N} */
-    private Long creditLimit;
+    /** 指定月末極度額 */
+    private Long kyodogaku;
 
-    /** 本件後与信額 // 旧: F_HONAF_ZAN_{N} */
-    private Long postLoanAmount;
+    /** 本件後与信額 */
+    private Long honkengoZandaka;
 
-    /** 当月増減額（計算結果） // 旧: F_KMKDLTZGG_{N} */
-    private Long monthlyChange;
+    /** 当月増減額（計算結果） */
+    private Long tougetsZougen;
 
     public String getKamokuCode() { return kamokuCode; }
     public void setKamokuCode(String v) { this.kamokuCode = v; }
-    public Long getMonthEndBalance() { return monthEndBalance; }
-    public void setMonthEndBalance(Long v) { this.monthEndBalance = v; }
-    public Long getCreditLimit() { return creditLimit; }
-    public void setCreditLimit(Long v) { this.creditLimit = v; }
-    public Long getPostLoanAmount() { return postLoanAmount; }
-    public void setPostLoanAmount(Long v) { this.postLoanAmount = v; }
-    public Long getMonthlyChange() { return monthlyChange; }
-    public void setMonthlyChange(Long v) { this.monthlyChange = v; }
+    public Long getGetsumatsuZandaka() { return getsumatsuZandaka; }
+    public void setGetsumatsuZandaka(Long v) { this.getsumatsuZandaka = v; }
+    public Long getKyodogaku() { return kyodogaku; }
+    public void setKyodogaku(Long v) { this.kyodogaku = v; }
+    public Long getHonkengoZandaka() { return honkengoZandaka; }
+    public void setHonkengoZandaka(Long v) { this.honkengoZandaka = v; }
+    public Long getTougetsZougen() { return tougetsZougen; }
+    public void setTougetsZougen(Long v) { this.tougetsZougen = v; }
 }

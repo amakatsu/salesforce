@@ -1,35 +1,40 @@
 package jp.co.btm.irl.rlr.rg004.dto;
 
 /**
- * 担保情報の1項目分データ（種別キー付き）
- * <p>規定担保・規定外担保の各明細を種別コードで識別する。
- * 規定値と時価ベースの2種類の金額を保持する。</p>
+ * 担保項目の1行分データ（種別キー付き）
+ * <p>引当状況の画面1行に対応。明細行・小計行・合計行・補正値・裸与信を同一構造で保持する。
+ * 担保区分+担保種別の複合キーで行の意味を識別する。</p>
+ *
+ * <p>種別キー例:
+ * 明細: tanpoKubun="kitei_yuryo", tanpoShubetsu="yokin" 等
+ * 小計: tanpoKubun="kitei_yuryo", tanpoShubetsu="shototal" 等
+ * 合計: tanpoKubun="kitei", tanpoShubetsu="total"
+ *       tanpoKubun="kiteigai", tanpoShubetsu="total"
+ * 補正値: tanpoKubun="kitei", tanpoShubetsu="hosei"
+ * 裸与信: tanpoKubun="hadaka", tanpoShubetsu="yoshin"
+ * その他: tanpoKubun="kiteigai", tanpoShubetsu="sonota"
+ * </p>
  */
 public class TanpoItem {
 
-    /** 担保種別コード（識別キー） 例: "YOKIN", "SHOTE", "TANTE", "YUSHO" 等 */
-    private String tanpoShubetsuCode;
-
-    /** 担保種別名 例: "預金", "商手", "担手", "有証" 等 */
-    private String tanpoShubetsuName;
-
-    /** 担保区分 例: "KITEI_YURYO", "KITEI_IPPAN", "KITEI_SONOTA", "KITEIGAI_YURYO" 等 */
+    /** 担保区分（"kitei_yuryo", "kitei_ippan", "kitei_sonota", "kiteigai_yuryo", "kiteigai_ippan", "kitei", "kiteigai", "hadaka"） */
     private String tanpoKubun;
 
-    /** 金額（規定値） */
-    private Long amountStandard;
+    /** 担保種別（"yokin", "shote", "shototal", "total", "hosei", "yoshin" 等） */
+    private String tanpoShubetsu;
 
-    /** 金額（時価ベース） */
-    private Long amountMarket;
+    /** 規定値 */
+    private Long kiteitiValue;
 
-    public String getTanpoShubetsuCode() { return tanpoShubetsuCode; }
-    public void setTanpoShubetsuCode(String v) { this.tanpoShubetsuCode = v; }
-    public String getTanpoShubetsuName() { return tanpoShubetsuName; }
-    public void setTanpoShubetsuName(String v) { this.tanpoShubetsuName = v; }
+    /** 時価ベース */
+    private Long jikaValue;
+
     public String getTanpoKubun() { return tanpoKubun; }
     public void setTanpoKubun(String v) { this.tanpoKubun = v; }
-    public Long getAmountStandard() { return amountStandard; }
-    public void setAmountStandard(Long v) { this.amountStandard = v; }
-    public Long getAmountMarket() { return amountMarket; }
-    public void setAmountMarket(Long v) { this.amountMarket = v; }
+    public String getTanpoShubetsu() { return tanpoShubetsu; }
+    public void setTanpoShubetsu(String v) { this.tanpoShubetsu = v; }
+    public Long getKiteitiValue() { return kiteitiValue; }
+    public void setKiteitiValue(Long v) { this.kiteitiValue = v; }
+    public Long getJikaValue() { return jikaValue; }
+    public void setJikaValue(Long v) { this.jikaValue = v; }
 }

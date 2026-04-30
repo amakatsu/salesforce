@@ -9,24 +9,24 @@ import java.util.List;
  */
 public class SubjectMonthlyChangeCalcResultDto {
 
-    /** 科目明細当月増減額（10行、同構造の繰り返し） // 旧: F_KMKDLTZGG_1〜10 */
-    private List<MarketSubjectMeisai> subjectMonthlyChangeList;
+    /** 市場性与信科目明細結果リスト（当月増減額が計算済みの科目明細、10要素） */
+    private List<MarketSubjectMeisai> shijoKamokuMeisaiResultList;
 
-    /** 簡易CF1 // 旧: F_KSKBTDLCF1 */
-    private String simpleCf1;
+    /** 簡易CF1（未設定時はnull） */
+    private Long kanICf1;
 
-    /** 簡易CF2 // 旧: F_KSKBTDLCF2 */
-    private String simpleCf2;
+    /** 簡易CF2（未設定時はnull） */
+    private Long kanICf2;
 
-    /** 簡易CF3 // 旧: F_KSKBTDLCF3 */
-    private String simpleCf3;
+    /** 簡易CF3（未設定時はnull） */
+    private Long kanICf3;
 
-    public List<MarketSubjectMeisai> getSubjectMonthlyChangeList() { return subjectMonthlyChangeList; }
-    public void setSubjectMonthlyChangeList(List<MarketSubjectMeisai> v) { this.subjectMonthlyChangeList = v; }
-    public String getSimpleCf1() { return simpleCf1; }
-    public void setSimpleCf1(String v) { this.simpleCf1 = v; }
-    public String getSimpleCf2() { return simpleCf2; }
-    public void setSimpleCf2(String v) { this.simpleCf2 = v; }
-    public String getSimpleCf3() { return simpleCf3; }
-    public void setSimpleCf3(String v) { this.simpleCf3 = v; }
+    public List<MarketSubjectMeisai> getShijoKamokuMeisaiResultList() { return shijoKamokuMeisaiResultList; }
+    public void setShijoKamokuMeisaiResultList(List<MarketSubjectMeisai> v) { this.shijoKamokuMeisaiResultList = v; }
+    public Long getKanICf1() { return kanICf1; }
+    public void setKanICf1(Long v) { this.kanICf1 = v; }
+    public Long getKanICf2() { return kanICf2; }
+    public void setKanICf2(Long v) { this.kanICf2 = v; }
+    public Long getKanICf3() { return kanICf3; }
+    public void setKanICf3(Long v) { this.kanICf3 = v; }
 }
