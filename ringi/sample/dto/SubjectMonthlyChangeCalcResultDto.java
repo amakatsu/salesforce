@@ -2,6 +2,8 @@ package jp.co.btm.irl.rlr.rg004.dto;
 
 import java.util.List;
 
+import jp.co.btm.irl.rlr.rg004.dto.item.MarketSubjectMeisai;
+
 /**
  * 科目明細当月増減額計算結果DTO
  * <p>市場性与信10行分の当月増減額と簡易CF項目を保持する。

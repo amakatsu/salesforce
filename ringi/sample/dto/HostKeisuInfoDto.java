@@ -2,6 +2,10 @@ package jp.co.btm.irl.rlr.rg004.dto;
 
 import java.util.List;
 
+import jp.co.btm.irl.rlr.rg004.dto.item.IppanYoshinRow;
+import jp.co.btm.irl.rlr.rg004.dto.item.MarketSubjectMeisai;
+import jp.co.btm.irl.rlr.rg004.dto.item.TanpoItem;
+
 /**
  * ホスト計数情報DTO
  * <p>ホストから取得した計数情報を保持する。イミュータブル（読み取り専用）。

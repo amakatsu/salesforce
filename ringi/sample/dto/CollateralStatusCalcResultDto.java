@@ -2,6 +2,8 @@ package jp.co.btm.irl.rlr.rg004.dto;
 
 import java.util.List;
 
+import jp.co.btm.irl.rlr.rg004.dto.item.TanpoItem;
+
 /**
  * 本件後保全状況計算結果DTO
  * <p>担保の全行（明細+小計+合計+補正値+裸与信）を同一構造のListで保持する。

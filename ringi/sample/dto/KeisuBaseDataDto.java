@@ -2,6 +2,10 @@ package jp.co.btm.irl.rlr.rg004.dto;
 
 import java.util.List;
 
+import jp.co.btm.irl.rlr.rg004.dto.item.IppanYoshinRow;
+import jp.co.btm.irl.rlr.rg004.dto.item.MarketSubjectMeisai;
+import jp.co.btm.irl.rlr.rg004.dto.item.TanpoItem;
+
 /**
  * 計数ベースデータDTO
  * <p>ホスト計数情報と顧客財務関連データをマージした計算用ベースデータ。

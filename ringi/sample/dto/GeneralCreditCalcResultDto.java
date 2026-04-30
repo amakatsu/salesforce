@@ -2,6 +2,8 @@ package jp.co.btm.irl.rlr.rg004.dto;
 
 import java.util.List;
 
+import jp.co.btm.irl.rlr.rg004.dto.item.IppanYoshinRow;
+
 /**
  * 一般与信状況計算結果DTO
  * <p>補正値適用・合計積み上げ・当月増減額計算の結果を保持する。
