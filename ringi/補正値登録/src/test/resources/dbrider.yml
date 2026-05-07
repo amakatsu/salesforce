@@ -1,0 +1,12 @@
+# DBRider グローバル設定
+#
+# H2 はデフォルトで識別子を大文字に正規化するため、データセットの YAML 上の
+# テーブル名・カラム名（大文字）がそのまま DB 側の識別子と一致する想定。
+# 念のため caseInsensitiveStrategy を指定し、想定外の正規化差異で
+# テーブル探索失敗が起きないようにしておく。
+
+caseInsensitiveStrategy: UPPERCASE
+columnSensing: true
+cacheConnection: true
+cacheTableNames: true
+leakHunter: false

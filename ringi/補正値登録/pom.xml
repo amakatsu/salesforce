@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>jp.mufg.bk.yus</groupId>
+    <artifactId>rinsasho-cnt-info-regist-correct-value</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Rinsasho Keisu Hoseichi Regist</name>
+    <description>禀議計数情報補正値登録機能（RG_V0501）</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Jakarta EE 10 系 API バージョン群 -->
+        <jakarta.jaxrs.version>3.1.0</jakarta.jaxrs.version>
+        <jakarta.cdi.version>4.0.1</jakarta.cdi.version>
+        <jakarta.inject.version>2.0.1</jakarta.inject.version>
+        <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
+        <jakarta.validation.version>3.0.2</jakarta.validation.version>
+
+        <!-- ランタイム実装 -->
+        <hibernate.validator.version>8.0.1.Final</hibernate.validator.version>
+        <mybatis.version>3.5.16</mybatis.version>
+        <mybatis.cdi.version>1.0.2</mybatis.cdi.version>
+        <mybatis.dynamic.sql.version>1.5.2</mybatis.dynamic.sql.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <slf4j.version>2.0.13</slf4j.version>
+
+        <!-- テスト -->
+        <junit.version>5.10.2</junit.version>
+        <mockito.version>5.12.0</mockito.version>
+        <assertj.version>3.26.0</assertj.version>
+        <h2.version>2.2.224</h2.version>
+        <rider.version>1.42.0</rider.version>
+
+        <!-- プラグイン -->
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
+    </properties>
+
+    <dependencies>
+        <!-- ===================================================== -->
+        <!-- Jakarta EE 10 系 API（コンテナ提供 = scope: provided） -->
+        <!-- ===================================================== -->
+        <!-- なぜ scope=provided か:
+             これらは Jakarta EE アプリサーバー（WildFly / Open Liberty 等）が
+             ランタイムで提供する API。jar に同梱するとクラスローダ衝突の原因となる。 -->
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <version>${jakarta.jaxrs.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
+            <version>${jakarta.cdi.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>${jakarta.inject.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
+            <version>${jakarta.transaction.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- =========================================== -->
+        <!-- Bean Validation（API + 実装）                -->
+        <!-- =========================================== -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>${jakarta.validation.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>${hibernate.validator.version}</version>
+        </dependency>
+
+        <!-- =========================================== -->
+        <!-- MyBatis 3 + MyBatis-CDI                     -->
+        <!-- =========================================== -->
+        <!-- なぜ mybatis-cdi を入れるか:
+             Mapper インターフェースの実装クラスをアプリ起動時に CDI 管理 Bean として
+             動的生成させ、Repository 実装から @Inject で注入できるようにする。
+             技術選定: cmd_ringi_012（ORM=MyBatis、CDI 採用） -->
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis</artifactId>
+            <version>${mybatis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis-cdi</artifactId>
+            <version>${mybatis.cdi.version}</version>
+        </dependency>
+        <!-- なぜ mybatis-dynamic-sql を入れるか:
+             SQL 記述方式をアノテーション SQL（@Select / @Update 等）から Dynamic SQL DSL へ統一する方針
+             （cmd_ringi_014）。Mapper インターフェースの default method 内で型安全な DSL を組み立て、
+             コンパイル時にカラム名・型ミスマッチを検出できるようにする。
+             XML マッパが必要な結合 SQL（Query Mapper）は別途 XML 配置とし、本依存は単一テーブル系で活用する。 -->
+        <dependency>
+            <groupId>org.mybatis.dynamic-sql</groupId>
+            <artifactId>mybatis-dynamic-sql</artifactId>
+            <version>${mybatis.dynamic.sql.version}</version>
+        </dependency>
+
+        <!-- =========================================== -->
+        <!-- MapStruct（コンパイル時 Bean マッパ生成）    -->
+        <!-- =========================================== -->
+        <!-- なぜ MapStruct か:
+             詰替コードを手書きすると業務ロジックが埋没し、リフレクション系マッパ（Dozer 等）は
+             ランタイムオーバーヘッドが大きい。MapStruct は注釈プロセッサで実装クラスを
+             コンパイル時生成するため、可読性とパフォーマンスを両立できる。
+             技術選定: cmd_ringi_012（Bean Mapper=MapStruct） -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- =========================================== -->
+        <!-- Logging（SLF4J ファサードのみ。実装はランタイム選択） -->
+        <!-- =========================================== -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+        <!-- =========================================== -->
+        <!-- Test                                        -->
+        <!-- =========================================== -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- =========================================== -->
+        <!-- Test: H2 In-Memory DB + DBRider             -->
+        <!-- =========================================== -->
+        <!-- なぜ H2 + DBRider か:
+             Repository（MyBatis Mapper の薄い委譲）の振る舞いを検証するには、
+             Mapper を Mock するだけでは「Dynamic SQL DSL が組み立てる SQL の正しさ」が
+             検証できない。H2 を実 RDBMS として走らせ、DBRider で初期データセット投入 /
+             期待データセット検証することで、SQL の妥当性まで含めた integration test を実現する。 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>${h2.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.database-rider</groupId>
+            <artifactId>rider-junit5</artifactId>
+            <version>${rider.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.database-rider</groupId>
+            <artifactId>rider-core</artifactId>
+            <version>${rider.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <!-- なぜ annotationProcessorPaths で設定するか:
+                         processor jar をコンパイル classpath に置くと runtime にも漏出するため、
+                         専用パスを指定して「コンパイル時のみ」に閉じ込める。
+                         Maven 3.5 以降の推奨方式。 -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <!-- MapStruct がデフォルトコンポーネントモデルを切替不要にするためのフラグ。
+                             各 @Mapper(componentModel = "cdi") で個別指定するため、グローバル設定は不要だが
+                             マッピング失敗時のメッセージを改善するため WARN→ERROR を将来的に検討。 -->
+                        <arg>-Amapstruct.suppressGeneratorTimestamp=true</arg>
+                        <arg>-Amapstruct.suppressGeneratorVersionInfoComment=true</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.plugin.version}</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
