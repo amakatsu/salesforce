@@ -9,11 +9,49 @@
 |---|---|
 | ORM | **MyBatis** |
 | パターン | Table Data Gateway |
-| 単一テーブル CRUD | **Table Mapper**（MyBatis インターフェース、MyBatis Generator 自動生成） |
-| 結合 SQL / 複雑な参照 | **Query Mapper（XML）** + Query Mapper インターフェース |
+| 単一テーブル CRUD | **Table Mapper**（MyBatis インターフェース、Dynamic SQL DSL を default method で記述） |
+| 結合 SQL / 複雑な参照 | **Query Mapper（XML）** + Query Mapper インターフェース（Dynamic SQL で書けないものに限る） |
 | トランザクション境界 | `Service` クラスに宣言 |
+| SQL 記述方式 | **MyBatis Dynamic SQL 1.5.x（Java DSL）を第 1 選択**。詳細は次節 |
 
 > **責務分離（SEPARATION）**: MyBatis Mapper は **SQL 実行のみ** を担う。POJO 間の変換（Bean Mapping）を MyBatis Mapper で記述してはならない。Bean Mapping 用途には [設計ルール.md](設計ルール.md) の「層間データ受け渡し」節で規定する **MapStruct** を使用する。
+
+## SQL 記述方式
+
+### 採用方針
+
+| 順位 | 記述方式 | 採用基準 |
+|---|---|---|
+| **第 1 選択** | **MyBatis Dynamic SQL（Java DSL）** | 単一テーブル CRUD・結合・条件分岐のほとんどをカバー。型安全・コンパイル時検証・IDE リファクタ追従 |
+| 第 2 選択（補助） | **XML Mapper** | Dynamic SQL DSL で表現できない高度なクエリのみ（例: ベンダ固有のヒント句、複雑なリカーシブ CTE 等） |
+| **禁止** | アノテーション SQL（`@Select` / `@Update` / `@Insert` / `@Delete` / `@SelectProvider` 等で文字列 SQL を直書き） | 静的検査が効かず、テーブル名・カラム名のリネームに追従できない |
+| **禁止** | 文字列リテラル SQL（`String sql = "SELECT ..."`、StringBuilder 連結等） | SQL インジェクション・タイプセーフ性喪失 |
+| **禁止** | `org.apache.ibatis.session.SqlSession` の直接利用（`session.selectOne(statementId, ...)` 等） | 静的型付けの恩恵が失われる |
+
+### Dynamic SQL を第 1 選択にする理由
+
+1. **型安全**: テーブル・カラムを Java の `SqlTable` / `SqlColumn` で定義するため、リネームはコンパイラが追跡。
+2. **静的検査**: 構文エラー・カラム名タイポ・型不整合がコンパイル時に検出される。
+3. **IDE リファクタ追従**: フィールド名変更が SQL 側にも自動反映。
+4. **可読性**: `where(id, isEqualTo(x))` のような流暢な DSL で SQL の意図が読み取れる。
+5. **再利用**: フラグメント（条件節・カラムリスト）を `BasicColumn[]` 等で共有可能。
+6. **SEPARATION 強化**: SQL 文字列がコードから消えるため、Mapper で POJO 変換ロジックを混在させる誘惑が減る。
+
+### 実装パターン
+
+- Mapper interface は `org.mybatis.dynamic.sql.util.mybatis3.CommonInsertMapper` / `CommonUpdateMapper` / `CommonSelectMapper` 等の **共通 Mapper をベースとし**、業務メソッドは **`default` メソッド** で Dynamic SQL DSL を組み立てて呼び出す。
+- テーブル定義は `org.mybatis.dynamic.sql.SqlTable` を継承した **Table support クラス** に集約する（[コーディング規約.md](コーディング規約.md) の「SQL リテラル禁止」節参照）。
+- カラム定数は Table support クラスの `public final SqlColumn<T>` フィールドとして公開し、Mapper / RepositoryImpl からは Table support クラス経由で参照する。
+
+### XML Mapper を採用する場合の判断基準
+
+XML はあくまで **Dynamic SQL で表現できないもの専用** とする。採用前に以下を確認する。
+
+- [ ] 当該クエリは `SelectDSL` / `UpdateDSL` / `InsertDSL` / `DeleteDSL` で書けないか？（複雑な CASE / JOIN / サブクエリも DSL でほぼ書ける）
+- [ ] 書けない場合、ベンダ固有機能の使用が真に必要か？
+- [ ] 真に必要な場合、当該機能の `design/09_open_questions.md` に「XML 採用根拠」を記載したか？
+
+上記すべて Yes なら XML 採用可。それ以外は Dynamic SQL で書く。
 
 ## DB アクセスパターン
 
