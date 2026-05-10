@@ -1,113 +1,41 @@
-import { LightningElement, api } from "lwc";
-import registCorrectValue from "@salesforce/apex/RinsashoCntInfoApex.registCorrectValue";
+import { LightningElement, api } from 'lwc';
 
-const EVENT_REGISTER_SUCCESS = "registersuccess";
-const EVENT_REGISTER_ERROR = "registererror";
+export default class f003RgV0501YushiRingiShoSateiShoKeisuJohoB1 extends LightningElement {
 
-// 必須項目不足時のクライアント側エラーメッセージ。マジックストリング回避のため定数化。
-const MSG_REQUIRED_FIELDS_MISSING =
-  "必須項目（店番・取引先番号・排他ロック情報）が不足しております。";
+        @api showCalculationAndRegisterButtons;
 
-export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoB1 extends LightningElement {
-  @api showCalculationAndRegisterButtons;
-
-  @api brNo;
-  @api cmNo;
-  @api correctionValues;
-  @api correctionReason;
-  @api lockInfo;
-
-  isLoading = false;
-
-  /** プレースホルダー: 実装接続時に個別ハンドラに置き換え */
-  handleAction() {
-    // TODO: 実装接続時にdata-action属性等で分岐
+  /**
+   * HTML で複数ボタンが onclick={handleAction} を共有するため、event.target.label で分岐する想定。
+   */
+  handleAction(event) {
+    // TODO: event.target.label に応じた業務ロジック実装
+    //   - 計数再取得 / ファイル出力 / Excel出力
+    //   - 照会メニュー: 過去禀査 / 直近計数照会 / 預金担保明細 / 支払人別残高推移
+    //                   / 電債担保残高 / 有価証券担保明細 / 協会保証明細 / 一般保証明細
+    //                   / その他担保明細 / 不動産担保明細
   }
 
+  /** 「計算」ボタン押下イベント */
   handleCalculate() {
-    this.dispatchEvent(new CustomEvent("calculate"));
+    // TODO: 業務ロジック実装（補正前後の数値再計算 → 親側の表へ反映）
   }
 
   /**
-   * 補正値登録ボタン押下時の処理。
-   * 必須項目チェック → ペイロード組立 → Apex 呼出を順に行い、結果を CustomEvent で親へ通知する。
-   * @fires registersuccess
-   * @fires registererror
+   * HTML で「補正値登録」「登録」が onclick={handleRegister} を共有するため、label で分岐する。
    */
-  async handleRegister() {
-    if (!this.hasRequiredFields()) {
-      this.notifyError(MSG_REQUIRED_FIELDS_MISSING);
+  async handleRegister(event) {
+    const label = event?.target?.label;
+    if (label === '補正値登録') {
+      await this.handleHoseichiRegisterClick();
       return;
     }
-
-    this.isLoading = true;
-    try {
-      const payload = this.buildRequestPayload();
-      const response = await registCorrectValue({ request: payload });
-      this.notifySuccess(response);
-    } catch (error) {
-      // Apex 例外は error.body.message にメッセージが入る慣例。通信例外等で body が無い場合は文字列化でフォールバック。
-      const message = error?.body?.message ?? String(error);
-      this.notifyError(message);
-    } finally {
-      this.isLoading = false;
-    }
+    // TODO: 「登録」ボタン押下時の業務ロジック実装
   }
 
-  /**
-   * 必須 3 項目（brNo / cmNo / lockInfo）が揃っているか判定する。
-   * @returns {boolean} 必須項目がすべて存在する場合 true
-   */
-  hasRequiredFields() {
-    return Boolean(this.brNo) && Boolean(this.cmNo) && Boolean(this.lockInfo);
-  }
+  /**   *  補正値登録ボタン押下イベント   */
+  handleHoseichiRegisterClick() {
+    const exe = new CustomEvent("hoseichiregister");
 
-  /**
-   * Apex `registCorrectValue` に渡すリクエスト Body を組み立てる。
-   * `correctionValues` の 6 補正値項目はサーバ側 DTO がフラット構造のためフラット展開する。
-   * @returns {object} Apex リクエスト Body
-   */
-  buildRequestPayload() {
-    const cv = this.correctionValues ?? {};
-    return {
-      brNo: this.brNo,
-      cmNo: this.cmNo,
-      loanDiscTotalCorrectionValue: cv.loanDiscTotalCorrectionValue ?? null,
-      internalJpyCorrectionValue: cv.internalJpyCorrectionValue ?? null,
-      forexCreditTotalCorrectionValue: cv.forexCreditTotalCorrectionValue ?? null,
-      shiShoTotalCorrectionValue: cv.shiShoTotalCorrectionValue ?? null,
-      regulationTanpoCorrectionValueRegulationValue:
-        cv.regulationTanpoCorrectionValueRegulationValue ?? null,
-      regulationTanpoCorrectionValueJikaBase:
-        cv.regulationTanpoCorrectionValueJikaBase ?? null,
-      correctionReason: this.correctionReason ?? null,
-      lockInfo: this.lockInfo
-    };
-  }
-
-  /**
-   * 登録成功通知をディスパッチする。
-   * @param {object} response Apex の戻り値（更新後 lockInfo を含む）
-   * @fires registersuccess
-   */
-  notifySuccess(response) {
-    this.dispatchEvent(
-      new CustomEvent(EVENT_REGISTER_SUCCESS, {
-        detail: { lockInfo: response?.lockInfo ?? null }
-      })
-    );
-  }
-
-  /**
-   * 登録失敗通知をディスパッチする。
-   * @param {string} message エラーメッセージ
-   * @fires registererror
-   */
-  notifyError(message) {
-    this.dispatchEvent(
-      new CustomEvent(EVENT_REGISTER_ERROR, {
-        detail: { message }
-      })
-    );
+    this.dispatchEvent(exe);
   }
 }

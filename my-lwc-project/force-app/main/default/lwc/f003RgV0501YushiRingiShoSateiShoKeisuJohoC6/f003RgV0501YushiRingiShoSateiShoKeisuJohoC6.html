@@ -13,12 +13,12 @@
         <div class="slds-grid slds-gutters slds-var-p-horizontal_small slds-grid_vertical-align-end">
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
             <div class="slds-var-p-top_medium">
-              <lightning-input type="text" label="禀査番号" value={reviewNumber} readonly></lightning-input>
+              <lightning-input type="text" label="禀査番号" value={reviewNumber} readonly class="underline"></lightning-input>
             </div>
           </div>
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
             <div class="slds-var-p-top_medium">
-              <lightning-input type="text" label="基準日" value={referenceDate} readonly></lightning-input>
+              <lightning-input type="text" label="基準日" value={referenceDate} readonly class="underline"></lightning-input>
             </div>
           </div>
 
@@ -78,14 +78,16 @@
 
           <div class="slds-col slds-size_1-of-12 slds-var-p-top_xx-large">
             <div class="slds-var-p-top_medium">
-              <lightning-input type="text" label="プール区分" value={poolCategory} readonly></lightning-input>
+              <lightning-input type="text" label="プール区分" value={poolCategory} readonly class="underline"></lightning-input>
             </div>
           </div>
           <div class="slds-col slds-size_4-of-12">
             <lightning-textarea
+              data-id="correctionReason"
               label="補正理由"
-              value={correctionReason}
-              max-length="105"
+              value={record.correctionReason}
+              max-length="100"
+              onchange={handleRecordValueChange}
               style="--sds-c-textarea-sizing-min-height: 6rem"
             ></lightning-textarea>
           </div>

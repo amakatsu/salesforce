@@ -1,0 +1,54 @@
+<template>
+  <div class="slds-grid">
+    <div class="slds-col slds-size_6-of-12">
+      <lightning-button label="開く" onclick={handleOpenClick}></lightning-button>
+    </div>
+    <div class="slds-col slds-size_6-of-12 slds-text-align_right">
+      <lightning-button label="ヘルプ" onclick={handleHelpClick}></lightning-button>
+    </div>
+  </div>
+  <div class="slds-grid slds-gutters">
+    <div class="slds-col slds-size_1-of-12">
+      <lightning-input data-id="brNo" type="text" label="店番" value={record.brNo} onblur={handleRecordValueChange} pattern={PATTERNS.HANKAKU_NUMBER.regex} minlength="3" maxlength="3"></lightning-input>
+    </div>
+    <div class="slds-col slds-size_2-of-12">
+      <lightning-input data-id="cmNo" type="text" label="取引先番号" value={record.cmNo} onblur={handleRecordValueChange} pattern={PATTERNS.HANKAKU_NUMBER.regex} minlength="7" maxlength="7"></lightning-input>
+    </div>
+  </div>
+  <div class="slds-grid slds-gutters">
+    <div class="slds-col slds-size_3-of-12">
+      <label class="slds-form-element__label">禀査番号</label>
+      <div class="slds-grid slds-gutters_x-small">
+        <div class="slds-col slds-size_4-of-8">
+          <lightning-input data-id="rsNo" type="text" label="禀査番号" value={record.rsNo} onblur={handleRecordValueChange} pattern={PATTERNS.HANKAKU_NUMBER.regex} variant="label-hidden" minlength="4" maxlength="4"></lightning-input>
+        </div>
+        <div class="slds-col slds-size_1-of-8">
+          <p class="slds-text-body_regular slds-var-p-top_xx-small">―</p>
+        </div>
+        <div class="slds-col slds-size_3-of-8">
+          <lightning-input data-id="rsSeqNo" type="text" label="禀査番号(枝番)" value={record.rsSeqNo} onblur={handleRecordValueChange} pattern={PATTERNS.HANKAKU_NUMBER.regex} variant="label-hidden" minlength="3" maxlength="3"></lightning-input>
+        </div>
+      </div>
+    </div>
+    <div class="slds-col slds-size_2-of-12">
+      <lightning-combobox data-id="categorySelect" label="区分選択" value={record.categorySelect} onblur={handleRecordValueChange} options={cbxCategorySelectOptions} onchange={handleRecordValueChange}></lightning-combobox>
+    </div>
+    <div class="slds-col slds-size_2-of-12">
+      <lightning-input data-id="lcNo" type="text" label="案件番号" value={record.lcNo} onblur={handleRecordValueChange} pattern={PATTERNS.HANKAKU_NUMBER.regex} minlength="10" maxlength="10"></lightning-input>
+    </div>
+  </div>
+  <div class="slds-grid slds-var-p-top_small slds-var-p-bottom_small">
+    <div class="slds-col slds-size_6-of-12">
+      <lightning-button-group>
+        <lightning-button label="変更" onclick={handleChangeClick} disabled={isBtnDisabledFlg}></lightning-button>
+        <lightning-button label="追加登録" onclick={handleAddClick} disabled={isBtnDisabledFlg}></lightning-button>
+        <lightning-button label="削除" onclick={handleDeleteClick} disabled={isBtnDisabledFlg}></lightning-button>
+      </lightning-button-group>
+    </div>
+  </div>
+  <div class="slds-grid slds-gutters">
+    <div class="slds-col slds-size_12-of-12 slds-var-p-top_small slds-var-p-bottom_small" style="height: 400px">
+      <lightning-datatable key-field="seqNo" data-id="relatedRinsaInfoList" data={relatedRinsaInfoList} columns={relatedRinsaInfoListColumns} onrowselection={handleRowSelection} max-row-selection="1" wrap-text-max-lines="15"></lightning-datatable>
+    </div>
+  </div>
+</template>

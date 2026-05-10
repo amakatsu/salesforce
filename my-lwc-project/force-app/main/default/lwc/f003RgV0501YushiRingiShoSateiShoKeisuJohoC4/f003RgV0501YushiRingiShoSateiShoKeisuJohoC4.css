@@ -15,12 +15,14 @@
   white-space: normal; overflow-wrap: break-word;
 }
 
-/* セルの背景を白にしてヘッダと区別する */
-.data-table td { background: #fff; }
+/* セルの背景を白にしてヘッダと区別する。
+   余白は入力部品が自前で持つため、セル側は0にして二重余白を防ぐ */
+.data-table td { background: #fff; padding: 0; }
+
 
 /* 行ヘッダ(項目名)は左寄せ。太字にしない。
    テキストが左端に詰まらないよう余白を確保する */
-.data-table tbody th { text-align: left; font-weight: normal; padding-left: 0.5rem; }
+.data-table tbody th { text-align: left; font-weight: normal; padding: 0.25rem 0.5rem; }
 
 /* ═══════════════════════════════════════════════════════════════
    2. インデント

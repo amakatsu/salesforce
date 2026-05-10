@@ -115,6 +115,30 @@ export default class F003RgV0501YushiRingiShoSateiShoKeisuJohoC2 extends Lightni
     this._snapshotGuarantor();
   }
 
+  /**
+   * 親から呼ばれる: 補正値登録 API 用の 6 項目を返す。
+   * - 与信ツリー root2/root3/root4/root5 の correction 列 → 補正値 4 項目
+   * - 保全ツリー collGeneral3「補正値」ノードの regValue/marketValue → 規定担保 2 項目
+   * 設計書 03_request_response.md の物理名で値を詰めて返却する。
+   */
+  @api getHoseichiList() {
+    const { creditSource, collateralSource } = this._state.getState();
+    const loanDisc = findNodeById(creditSource, "root2");
+    const internalJpy = findNodeById(creditSource, "root3");
+    const forexCredit = findNodeById(creditSource, "root4");
+    const shiSho = findNodeById(creditSource, "root5");
+    const collCorrection = findNodeById(collateralSource, "collGeneral3");
+
+    return {
+      loanDiscTotalCorrectionValue: loanDisc?.correction,
+      internalJpyCorrectionValue: internalJpy?.correction,
+      forexCreditTotalCorrectionValue: forexCredit?.correction,
+      shiShoTotalCorrectionValue: shiSho?.correction,
+      regulationTanpoCorrectionValueRegulationValue: collCorrection?.regValue,
+      regulationTanpoCorrectionValueJikaBase: collCorrection?.marketValue
+    };
+  }
+
   // --- プロパティ ---
 
   _state = new StateService();
