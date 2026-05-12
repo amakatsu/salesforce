@@ -39,7 +39,7 @@ import com.github.database.rider.core.api.dataset.DataSet;
 import com.github.database.rider.core.api.dataset.ExpectedDataSet;
 import com.github.database.rider.junit5.api.DBRider;
 
-import jp.mufg.bk.yus.domain.entity.dbaccess.tables.RinsashoKeisuHoseichi;
+import jp.mufg.bk.yus.domain.entity.dbaccess.tables.TRgKeisuHoseichi;
 import jp.mufg.bk.yus.infra.mapper.tables.RinsashoKeisuHoseichiMapper;
 
 /** {@link RinsashoKeisuHoseichiRepositoryImpl} の統合テスト（H2 + DBRider）。 */
@@ -126,12 +126,12 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
         class 正常系 {
 
             @Test
-            @DisplayName("PK 一致 + DEL_FLG=0 のとき、補正値カラムを更新し件数 1 を返す（EXCLUSIVE_* は不変）")
+            @DisplayName("updateByPrimaryKeyAndDelFlgメソッド_正常系_PK一致+DEL_FLG=0のとき、補正値カラムを更新し件数1を返すこと（EXCLUSIVE_*は不変）_1B4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = AFTER_UPDATE_DATASET)
-            void 補正値カラムを更新する() {
-                // given
-                RinsashoKeisuHoseichi row = pkRow("0000010", "9019149", "0");
+            void testUpdateByPrimaryKeyAndDelFlg_updatesCorrectionValueColumns() {
+                // Arrange: PK 一致行への更新値をセット
+                TRgKeisuHoseichi row = pkRow("0000010", "9019149", "0");
                 row.setLoanDiscTotalCorrectionValue(11111);
                 row.setInternalJpyCorrectionValue(22222);
                 row.setForexCreditTotalCorrectionValue(33333);
@@ -140,25 +140,25 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
                 row.setRegulationTanpoCorrectionValueJikaBase(66666);
                 row.setCorrectionReason("UPDATE_REASON");
 
-                // when
+                // Act: テスト対象のメソッドを実行
                 int actual = sut.updateByPrimaryKeyAndDelFlg(row);
 
-                // then
+                // Assert: 件数 1 を返すこと（DB 値は @ExpectedDataSet で検証）
                 assertThat(actual).isEqualTo(1);
             }
 
             @Test
-            @DisplayName("補正値・補正理由を null で更新したとき、件数 1 を返し対象行が NULL クリアされる")
+            @DisplayName("updateByPrimaryKeyAndDelFlgメソッド_正常系_補正値・補正理由をnullで更新したとき、件数1を返し対象行がNULLクリアされること_1B4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = AFTER_UPDATE_NULL_DATASET)
-            void null_クリアされる() {
-                // given - PK のみ設定し、補正値カラムは Entity 既定の null のまま
-                RinsashoKeisuHoseichi row = pkRow("0000010", "9019149", "0");
+            void testUpdateByPrimaryKeyAndDelFlg_withNullCorrectionValues_clearsColumns() {
+                // Arrange: PK のみ設定、補正値カラムは Entity 既定の null
+                TRgKeisuHoseichi row = pkRow("0000010", "9019149", "0");
 
-                // when
+                // Act: テスト対象のメソッドを実行
                 int actual = sut.updateByPrimaryKeyAndDelFlg(row);
 
-                // then
+                // Assert: 件数 1（DB 値は @ExpectedDataSet で NULL クリア検証）
                 assertThat(actual).isEqualTo(1);
             }
         }
@@ -168,52 +168,53 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
         class 対象外 {
 
             @Test
-            @DisplayName("PK 不一致のとき、件数 0 を返し DB は初期状態のまま")
+            @DisplayName("updateByPrimaryKeyAndDelFlgメソッド_準正常系_PK不一致のとき、件数0を返しDBは初期状態のままとなること_1B4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = INITIAL_DATASET)
-            void PK不一致_件数0かつDB不変() {
-                // given - 存在しない取引先番号
-                RinsashoKeisuHoseichi row = pkRow("0000010", "9999999", "0");
+            void testUpdateByPrimaryKeyAndDelFlg_withNonMatchingPk_returnsZeroAndDbUnchanged() {
+                // Arrange: 存在しない取引先番号で更新試行
+                TRgKeisuHoseichi row = pkRow("0000010", "9999999", "0");
                 row.setLoanDiscTotalCorrectionValue(99999);
 
-                // when
+                // Act: テスト対象のメソッドを実行
                 int actual = sut.updateByPrimaryKeyAndDelFlg(row);
 
-                // then
+                // Assert: 件数 0
                 assertThat(actual).isZero();
             }
 
             @Test
-            @DisplayName("論理削除済 (DEL_FLG=1) は更新対象外で、DEL_FLG=0 で検索すると件数 0 かつ DB は不変")
+            @DisplayName("updateByPrimaryKeyAndDelFlgメソッド_準正常系_論理削除済(DEL_FLG=1)はDEL_FLG=0で検索すると件数0でDB不変となること_1B4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = INITIAL_DATASET)
-            void 削除済レコードは更新対象外() {
-                // given - PK は存在するが削除済（DEL_FLG=1）の行を DEL_FLG="0" 条件で更新試行
-                RinsashoKeisuHoseichi row = pkRow("0000020", "9019150", "0");
+            void testUpdateByPrimaryKeyAndDelFlg_withLogicallyDeletedRecord_excludesFromUpdate() {
+                // Arrange: PK は存在するが削除済（DEL_FLG=1）の行を DEL_FLG="0" 条件で更新試行
+                TRgKeisuHoseichi row = pkRow("0000020", "9019150", "0");
                 row.setLoanDiscTotalCorrectionValue(11111);
                 row.setCorrectionReason("SHOULD_NOT_APPLY");
 
-                // when
+                // Act: テスト対象のメソッドを実行
                 int actual = sut.updateByPrimaryKeyAndDelFlg(row);
 
-                // then
+                // Assert: 件数 0
                 assertThat(actual).isZero();
             }
 
+            // UTR-021: 分岐判定のテストデータは境界値を設定（"1" / "9" / 半角空白 / 空文字）
             @ParameterizedTest(name = "delFlg={0}")
             @ValueSource(strings = {"1", "9", " ", ""})
-            @DisplayName("delFlg が \"0\" 以外（DEL_FLG=0 と非マッチ）のとき、件数 0 を返し DB は不変")
+            @DisplayName("updateByPrimaryKeyAndDelFlgメソッド_準正常系_delFlgが0以外（非マッチ）のとき、件数0でDB不変となること_1B4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = INITIAL_DATASET)
-            void delFlg_0以外は対象外(String delFlg) {
-                // given - 既存 PK だが WHERE 条件 delFlg が初期データの "0" と一致しない
-                RinsashoKeisuHoseichi row = pkRow("0000010", "9019149", delFlg);
+            void testUpdateByPrimaryKeyAndDelFlg_withNonZeroDelFlg_excludesFromUpdate(String delFlg) {
+                // Arrange: 既存 PK だが WHERE 条件 delFlg が初期データの "0" と非マッチ
+                TRgKeisuHoseichi row = pkRow("0000010", "9019149", delFlg);
                 row.setLoanDiscTotalCorrectionValue(11111);
 
-                // when
+                // Act: テスト対象のメソッドを実行
                 int actual = sut.updateByPrimaryKeyAndDelFlg(row);
 
-                // then
+                // Assert: 件数 0
                 assertThat(actual).isZero();
             }
         }
@@ -223,9 +224,11 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
         class 異常系 {
 
             @Test
-            @DisplayName("引数 row が null のとき、NullPointerException を伝搬する（引数防衛）")
-            void row_nullのときNPE() {
-                // when / then
+            @DisplayName("updateByPrimaryKeyAndDelFlgメソッド_異常系_引数rowがnullのとき、NullPointerExceptionが伝搬すること（引数防衛）_1C4A")
+            void testUpdateByPrimaryKeyAndDelFlg_withNullRow_throwsNpe() {
+                // Arrange: 引数 row を null として準備
+
+                // Act & Assert: NPE 伝搬とメッセージを検証
                 assertThatNullPointerException()
                         .isThrownBy(() -> sut.updateByPrimaryKeyAndDelFlg(null))
                         .withMessageContaining("record");
@@ -242,12 +245,12 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
         class 正常系 {
 
             @Test
-            @DisplayName("新規 PK で全カラム値あり: 件数 1 を返し、新規行が DB に追加される")
+            @DisplayName("insertメソッド_正常系_新規PKで全カラム値ありの場合、件数1を返し新規行がDBに追加されること_1B4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = AFTER_INSERT_DATASET)
-            void 全カラム値あり_INSERT件数1() {
-                // given
-                RinsashoKeisuHoseichi row = pkRow("0000030", "9019160", "0");
+            void testInsert_withAllColumnsPopulated_returnsOne() {
+                // Arrange: 新規 PK で全カラム値ありの行を準備
+                TRgKeisuHoseichi row = pkRow("0000030", "9019160", "0");
                 row.setLoanDiscTotalCorrectionValue(70000);
                 row.setInternalJpyCorrectionValue(80000);
                 row.setForexCreditTotalCorrectionValue(90000);
@@ -258,27 +261,27 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
                 row.setExclusiveKey("rkANKEN333333333333");
                 row.setExclusiveCount(0);
 
-                // when
+                // Act: テスト対象のメソッドを実行
                 int actual = sut.insert(row);
 
-                // then
+                // Assert: 件数 1
                 assertThat(actual).isEqualTo(1);
             }
 
             @Test
-            @DisplayName("補正値・補正理由を null で登録: 件数 1 を返し、当該カラムが NULL の行が DB に追加される")
+            @DisplayName("insertメソッド_正常系_補正値・補正理由をnullで登録の場合、件数1を返し当該カラムがNULLの行がDBに追加されること_1B4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = AFTER_INSERT_NULL_DATASET)
-            void 補正値null_INSERT成功() {
-                // given - 補正値・補正理由は未設定（null）。NOT NULL 制約のあるカラムのみ値を持つ
-                RinsashoKeisuHoseichi row = pkRow("0000030", "9019160", "0");
+            void testInsert_withNullCorrectionValues_succeeds() {
+                // Arrange: 補正値・補正理由は未設定（null）。NOT NULL 制約のあるカラムのみ値を持つ
+                TRgKeisuHoseichi row = pkRow("0000030", "9019160", "0");
                 row.setExclusiveKey("rkANKEN333333333333");
                 row.setExclusiveCount(0);
 
-                // when
+                // Act: テスト対象のメソッドを実行
                 int actual = sut.insert(row);
 
-                // then
+                // Assert: 件数 1
                 assertThat(actual).isEqualTo(1);
             }
         }
@@ -288,25 +291,27 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
         class 異常系 {
 
             @Test
-            @DisplayName("既存 PK と重複したとき、PersistenceException を伝搬する（一意制約違反、握りつぶし禁止）")
+            @DisplayName("insertメソッド_異常系_既存PKと重複したとき、PersistenceExceptionが伝搬すること（一意制約違反_握りつぶし禁止）_1C4BD")
             @DataSet(value = INITIAL_DATASET, cleanBefore = true)
             @ExpectedDataSet(value = INITIAL_DATASET)
-            void PK重複_PersistenceException伝搬() {
-                // given - 初期データと同じ PK で登録試行
-                RinsashoKeisuHoseichi row = pkRow("0000010", "9019149", "0");
+            void testInsert_withDuplicatePk_propagatesPersistenceException() {
+                // Arrange: 初期データと同じ PK で登録試行
+                TRgKeisuHoseichi row = pkRow("0000010", "9019149", "0");
                 row.setLoanDiscTotalCorrectionValue(99999);
                 row.setExclusiveKey("rkANKEN999999999999");
                 row.setExclusiveCount(0);
 
-                // when / then
+                // Act & Assert: PersistenceException が伝搬すること
                 assertThatThrownBy(() -> sut.insert(row))
                         .isInstanceOf(PersistenceException.class);
             }
 
             @Test
-            @DisplayName("引数 row が null のとき、NullPointerException を伝搬する（引数防衛）")
-            void row_nullのときNPE() {
-                // when / then
+            @DisplayName("insertメソッド_異常系_引数rowがnullのとき、NullPointerExceptionが伝搬すること（引数防衛）_1C4A")
+            void testInsert_withNullRow_throwsNpe() {
+                // Arrange: 引数 row を null として準備
+
+                // Act & Assert: NPE 伝搬とメッセージを検証
                 assertThatNullPointerException()
                         .isThrownBy(() -> sut.insert(null))
                         .withMessageContaining("record");
@@ -314,9 +319,9 @@ class RinsashoKeisuHoseichiRepositoryImplTest {
         }
     }
 
-    private static RinsashoKeisuHoseichi pkRow(String brNo, String cmNo, String delFlg) {
-        RinsashoKeisuHoseichi e = new RinsashoKeisuHoseichi();
-        e.setBrNo(brNo);
+    private static TRgKeisuHoseichi pkRow(String brNo, String cmNo, String delFlg) {
+        TRgKeisuHoseichi e = new TRgKeisuHoseichi();
+        e.setBrno(brNo);
         e.setCmNo(cmNo);
         e.setDelFlg(delFlg);
         return e;

@@ -5,13 +5,13 @@ import java.util.Objects;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import jp.mufg.bk.yus.domain.entity.dbaccess.tables.RinsashoKeisuHoseichi;
-import jp.mufg.bk.yus.domain.repository.dbaccess.tables.interfaces.RinsashoKeisuHoseichiRepository;
+import jp.mufg.bk.yus.domain.entity.dbaccess.tables.TRgKeisuHoseichi;
+import jp.mufg.bk.yus.domain.repository.dbaccess.tables.interfaces.base.TRgKeisuHoseichiBaseRepository;
 import jp.mufg.bk.yus.infra.mapper.tables.RinsashoKeisuHoseichiMapper;
 
-/** {@link RinsashoKeisuHoseichiRepository} の MyBatis 実装（Mapper への薄い委譲）。 */
+/** {@link TRgKeisuHoseichiBaseRepository} の MyBatis 実装（Mapper への薄い委譲）。 */
 @ApplicationScoped
-public class RinsashoKeisuHoseichiRepositoryImpl implements RinsashoKeisuHoseichiRepository {
+public class RinsashoKeisuHoseichiRepositoryImpl implements TRgKeisuHoseichiBaseRepository {
 
     private final RinsashoKeisuHoseichiMapper mapper;
 
@@ -21,13 +21,13 @@ public class RinsashoKeisuHoseichiRepositoryImpl implements RinsashoKeisuHoseich
     }
 
     @Override
-    public int updateByPrimaryKeyAndDelFlg(RinsashoKeisuHoseichi record) {
+    public int updateByPrimaryKeyAndDelFlg(TRgKeisuHoseichi record) {
         Objects.requireNonNull(record, "record");
         return mapper.updateByPrimaryKeyAndDelFlg(record);
     }
 
     @Override
-    public int insert(RinsashoKeisuHoseichi record) {
+    public int insert(TRgKeisuHoseichi record) {
         Objects.requireNonNull(record, "record");
         return mapper.insert(record);
     }

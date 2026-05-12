@@ -20,12 +20,12 @@ import org.mybatis.dynamic.sql.util.mybatis3.CommonInsertMapper;
 import org.mybatis.dynamic.sql.util.mybatis3.CommonUpdateMapper;
 import org.mybatis.dynamic.sql.util.mybatis3.MyBatis3Utils;
 
-import jp.mufg.bk.yus.domain.entity.dbaccess.tables.RinsashoKeisuHoseichi;
+import jp.mufg.bk.yus.domain.entity.dbaccess.tables.TRgKeisuHoseichi;
 
 /** 計数情報(禀議計数補正値) テーブルへの単一テーブル CRUD を担う MyBatis Mapper。 */
 @Mapper
 public interface RinsashoKeisuHoseichiMapper extends
-        CommonInsertMapper<RinsashoKeisuHoseichi>,
+        CommonInsertMapper<TRgKeisuHoseichi>,
         CommonUpdateMapper {
 
     /**
@@ -34,7 +34,7 @@ public interface RinsashoKeisuHoseichiMapper extends
      * @param row 更新対象レコード（PK と更新カラム値を保持、非 null）
      * @return UPDATE 件数（0 または 1）
      */
-    default int updateByPrimaryKeyAndDelFlg(RinsashoKeisuHoseichi row) {
+    default int updateByPrimaryKeyAndDelFlg(TRgKeisuHoseichi row) {
         return MyBatis3Utils.update(this::update, rinsashoKeisuHoseichi, c ->
                 c.set(loanDiscTotalCorrectionValue).equalTo(row::getLoanDiscTotalCorrectionValue)
                  .set(internalJpyCorrectionValue).equalTo(row::getInternalJpyCorrectionValue)
@@ -43,7 +43,7 @@ public interface RinsashoKeisuHoseichiMapper extends
                  .set(regulationTanpoCorrectionValueRegulationValue).equalTo(row::getRegulationTanpoCorrectionValueRegulationValue)
                  .set(regulationTanpoCorrectionValueJikaBase).equalTo(row::getRegulationTanpoCorrectionValueJikaBase)
                  .set(correctionReason).equalTo(row::getCorrectionReason)
-                 .where(brNo,   isEqualTo(row::getBrNo))
+                 .where(brNo,   isEqualTo(row::getBrno))
                  .and(cmNo,     isEqualTo(row::getCmNo))
                  .and(delFlg,   isEqualTo(row::getDelFlg)));
     }
@@ -54,9 +54,9 @@ public interface RinsashoKeisuHoseichiMapper extends
      * @param row 登録対象レコード（PK と全カラム値を保持、非 null）
      * @return INSERT 件数（通常 1）
      */
-    default int insert(RinsashoKeisuHoseichi row) {
+    default int insert(TRgKeisuHoseichi row) {
         return MyBatis3Utils.insert(this::insert, row, rinsashoKeisuHoseichi, c ->
-                c.map(brNo).toProperty("brNo")
+                c.map(brNo).toProperty("brno")
                  .map(cmNo).toProperty("cmNo")
                  .map(delFlg).toProperty("delFlg")
                  .map(loanDiscTotalCorrectionValue).toProperty("loanDiscTotalCorrectionValue")
