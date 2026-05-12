@@ -1,10 +1,8 @@
 package jp.mufg.bk.yus.infra.repository.dbaccess.tables.impl;
 
 import java.util.Objects;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-
 import jp.mufg.bk.yus.domain.entity.dbaccess.tables.TRgKeisuHoseichi;
 import jp.mufg.bk.yus.domain.repository.dbaccess.tables.interfaces.base.TRgKeisuHoseichiBaseRepository;
 import jp.mufg.bk.yus.infra.mapper.tables.RinsashoKeisuHoseichiMapper;

@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
-
 import jp.mufg.bk.yus.domain.service.shared.LockInfo;
 
 /** 計数情報 補正値登録 API のリクエスト Body。 */

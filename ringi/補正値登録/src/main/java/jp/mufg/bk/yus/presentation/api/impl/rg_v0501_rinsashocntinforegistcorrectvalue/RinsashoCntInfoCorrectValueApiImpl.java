@@ -1,9 +1,7 @@
 package jp.mufg.bk.yus.presentation.api.impl.rg_v0501_rinsashocntinforegistcorrectvalue;
 
 import java.util.Objects;
-
 import jakarta.inject.Inject;
-
 import jp.mufg.bk.yus.domain.service.rg_v0501_rinsashocntinforegistcorrectvalue.RgV0501RegistCorrectValueService;
 import jp.mufg.bk.yus.domain.service.rg_v0501_rinsashocntinforegistcorrectvalue.dto.RgV0501RegistCorrectValueServiceInput;
 import jp.mufg.bk.yus.domain.service.rg_v0501_rinsashocntinforegistcorrectvalue.dto.RgV0501RegistCorrectValueServiceOutput;

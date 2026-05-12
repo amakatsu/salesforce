@@ -1,7 +1,6 @@
 package jp.mufg.bk.yus.domain.service.rg_v0501_rinsashocntinforegistcorrectvalue.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,7 +8,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mapstruct.factory.Mappers;
-
 import jp.mufg.bk.yus.domain.entity.dbaccess.tables.TRgKeisuHoseichi;
 import jp.mufg.bk.yus.domain.service.rg_v0501_rinsashocntinforegistcorrectvalue.dto.RgV0501RegistCorrectValueServiceInput;
 import jp.mufg.bk.yus.domain.service.shared.LockInfo;

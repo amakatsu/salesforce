@@ -1,7 +1,6 @@
 package jp.mufg.bk.yus.infra.mapper.tables.support;
 
 import java.sql.JDBCType;
-
 import org.mybatis.dynamic.sql.SqlColumn;
 import org.mybatis.dynamic.sql.SqlTable;
 

@@ -2,7 +2,6 @@ package jp.mufg.bk.yus.domain.service.rg_v0501_rinsashocntinforegistcorrectvalue
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-
 import jp.mufg.bk.yus.domain.entity.dbaccess.tables.TRgKeisuHoseichi;
 import jp.mufg.bk.yus.domain.service.rg_v0501_rinsashocntinforegistcorrectvalue.dto.RgV0501RegistCorrectValueServiceInput;
 

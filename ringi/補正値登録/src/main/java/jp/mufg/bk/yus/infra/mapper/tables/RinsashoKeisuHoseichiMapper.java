@@ -14,12 +14,10 @@ import static jp.mufg.bk.yus.infra.mapper.tables.support.RinsashoKeisuHoseichiTa
 import static jp.mufg.bk.yus.infra.mapper.tables.support.RinsashoKeisuHoseichiTable.rinsashoKeisuHoseichi;
 import static jp.mufg.bk.yus.infra.mapper.tables.support.RinsashoKeisuHoseichiTable.shiShoTotalCorrectionValue;
 import static org.mybatis.dynamic.sql.SqlBuilder.isEqualTo;
-
 import org.apache.ibatis.annotations.Mapper;
 import org.mybatis.dynamic.sql.util.mybatis3.CommonInsertMapper;
 import org.mybatis.dynamic.sql.util.mybatis3.CommonUpdateMapper;
 import org.mybatis.dynamic.sql.util.mybatis3.MyBatis3Utils;
-
 import jp.mufg.bk.yus.domain.entity.dbaccess.tables.TRgKeisuHoseichi;
 
 /** 計数情報(禀議計数補正値) テーブルへの単一テーブル CRUD を担う MyBatis Mapper。 */
